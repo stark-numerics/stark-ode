@@ -1,76 +1,130 @@
 # stark-ode
 
-`stark-ode` is the starting point for **State Translation Adaptive Runge Kutta**.
+**State Translation Adaptive Runge-Kutta** for user-defined Python state types.
 
-STARK is an adaptive Runge-Kutta solver for user-defined state types. Instead of
-flattening everything into a vector, it separates rich mutable states from
-translation objects that carry the linear structure and error norm needed for
-time-stepping.
+STARK is an ODE integration package for problems whose state is not naturally a
+single flat vector. It lets users keep rich mutable state objects, define the
+linear translation objects used by Runge-Kutta methods, and then integrate those
+states with adaptive or fixed-step schemes.
 
-The package code lives in `stark/`. Runge-Kutta schemes live under
-`stark/scheme_library/`: embedded adaptive methods are in `adaptive/`, classic
-explicit fixed-step methods are in `fixed_step/`, and the top-level scheme
-library re-exports the public scheme classes.
+This is useful when a simulation already has its own domain model: particles,
+fields, lattices, structured arrays, nested dataclasses, or other objects where
+flattening everything just to call a solver would obscure the code.
 
-## Development
+## What STARK Provides
 
-Create a virtual environment, install the package in editable mode with dev
-dependencies, and run the tests:
+- Adaptive embedded Runge-Kutta schemes, including Cash-Karp,
+  Dormand-Prince, Fehlberg 4(5), Bogacki-Shampine, and Tsitouras 5.
+- Classic fixed-step schemes, including Euler, Heun, midpoint, Kutta third
+  order, RK4, RK38, Ralston, and SSP RK33.
+- Snapshot and live integration loops.
+- Optional checkpoints for evenly spaced outputs or user-specified output
+  times.
+- An auditor that checks whether user objects satisfy the STARK contracts.
+- Extension points for custom schemes and problem-specific fast translation
+  kernels.
 
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
-pytest
-```
+## Installation
 
-## Packaging
-
-The project is configured with `pyproject.toml`, which is enough to build a
-distributable package later with:
+Install directly from GitHub:
 
 ```powershell
-python -m build
+python -m pip install git+https://github.com/jonmfellows/stark-ode.git
 ```
 
-The package is released under the MIT license. Before publishing to a package
-index, add the repository and package index URLs you want exposed in the
-metadata.
+For a local editable checkout:
+
+```powershell
+git clone https://github.com/jonmfellows/stark-ode.git
+cd stark-ode
+python -m pip install -e .
+```
+
+Optional extras are available for notebooks and benchmarks:
+
+```powershell
+python -m pip install -e ".[notebooks]"
+python -m pip install -e ".[benchmarks]"
+```
+
+## Basic Shape
+
+A STARK integration usually has four user-side objects:
+
+```python
+from stark import Marcher, Integrator, Interval, Tolerance
+from stark.scheme_library import SchemeDormandPrince
+
+workbench = MyWorkbench()
+derivative = MyDerivative()
+scheme = SchemeDormandPrince(derivative, workbench)
+marcher = Marcher(scheme, tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6))
+integrate = Integrator()
+
+state = initial_state()
+interval = Interval(present=0.0, step=1.0e-3, stop=1.0)
+
+for output_interval, output_state in integrate(marcher, interval, state, checkpoints=100):
+    observe(output_interval, output_state)
+```
+
+The user provides:
+
+- a state object;
+- a translation object that can be applied, scaled, added, and measured;
+- a workbench that allocates and copies states/translations;
+- a derivative callable that writes the time derivative into a translation.
+
+See the functionality guide for the full contract.
+
+## Documentation
+
+The compact functionality guide is
+[`docs/README.md`](docs/README.md). It lists the integration APIs, built-in
+schemes, checkpoints, auditing tools, custom scheme contract, and translation
+fast paths.
 
 ## Example
 
-In a source checkout, a guided three-body notebook lives at
-`examples/three_body_stark.ipynb`. It starts from a structured dataclass model
-with an Euler stepper, shows why fixed-step Euler is fragile for Moore's
-figure-eight orbit, then adds the small STARK adapter layer needed for adaptive
-integration and checkpointed plotting.
+A guided notebook is available at
+[`examples/three_body_stark.ipynb`](examples/three_body_stark.ipynb). It starts
+from a structured three-body model with an Euler stepper, shows why fixed-step
+Euler is fragile for Moore's figure-eight orbit, then adds the small STARK
+adapter layer needed for adaptive integration and checkpointed plotting.
 
-From the repository root, install the optional notebook dependencies and open it
-with:
+From a source checkout:
 
 ```powershell
 python -m pip install -e ".[notebooks]"
 python -m jupyter lab examples/three_body_stark.ipynb
 ```
 
-## Documentation
+## Benchmarks
 
-A compact functionality guide lives at
-[`docs/README.md`](docs/README.md). It lists the built-in schemes, integration
-APIs, checkpoints, auditing tools, custom scheme contract, and translation fast
-paths.
+Benchmark reports live under [`benchmarks/`](benchmarks/). They compare STARK,
+SciPy, and Diffrax implementations of the same problems while keeping each
+implementation close to its native idiom.
+
+```powershell
+python -m pip install -e ".[benchmarks]"
+python -m benchmarks.brusselator_2d.report
+python -m benchmarks.fput.report
+```
+
+## Development
+
+```powershell
+python -m pip install -e ".[dev]"
+python -m pytest
+python -m pytest -m slow
+```
 
 ## Citation
 
 If you use `stark-ode` in research or published work, please cite the package
-repository. Citation metadata is provided in `CITATION.cff`, which GitHub can
-render as a ready-to-copy citation once the repository is public.
+repository. Citation metadata is provided in [`CITATION.cff`](CITATION.cff), and
+GitHub should render it as a ready-to-copy citation.
 
-## GitHub And Release Automation
+## License
 
-The repository includes:
-
-- a CI workflow at `.github/workflows/ci.yml` for import and test checks
-- a release workflow at `.github/workflows/release.yml` that builds and publishes
-  on version tags once PyPI publishing is configured
+`stark-ode` is released under the MIT license. See [`LICENSE`](LICENSE).

@@ -4,7 +4,7 @@ from math import sqrt
 
 import numpy as np
 
-from stark import Advance, Interval, Tolerance, integrate
+from stark import Marcher, Integrator, Interval, Tolerance
 from stark.scheme_library.adaptive import SchemeCashKarp, SchemeDormandPrince
 
 try:
@@ -499,10 +499,11 @@ def prepare_rkck(problem_parameters, tolerance_parameters, initial_conditions, r
     workbench = FPUTWorkbench(problem_parameters)
     derivative = FPUTDerivative(problem_parameters)
     scheme = SchemeCashKarp(derivative, workbench)
-    advance = Advance(
+    marcher = Marcher(
         scheme,
         tolerance=Tolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
     )
+    integrate = Integrator()
 
     def solve_once():
         interval = Interval(
@@ -513,7 +514,7 @@ def prepare_rkck(problem_parameters, tolerance_parameters, initial_conditions, r
         state = FPUTState(initial_conditions["q"].copy(), initial_conditions["p"].copy())
         steps = 0
 
-        for _interval, _state in integrate.live(advance, interval, state):
+        for _interval, _state in integrate.live(marcher, interval, state):
             steps += 1
 
         return {
@@ -534,10 +535,11 @@ def prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, r
     workbench = FPUTWorkbench(problem_parameters)
     derivative = FPUTDerivative(problem_parameters)
     scheme = SchemeDormandPrince(derivative, workbench)
-    advance = Advance(
+    marcher = Marcher(
         scheme,
         tolerance=Tolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
     )
+    integrate = Integrator()
 
     def solve_once():
         interval = Interval(
@@ -548,7 +550,7 @@ def prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, r
         state = FPUTState(initial_conditions["q"].copy(), initial_conditions["p"].copy())
         steps = 0
 
-        for _interval, _state in integrate.live(advance, interval, state):
+        for _interval, _state in integrate.live(marcher, interval, state):
             steps += 1
 
         return {

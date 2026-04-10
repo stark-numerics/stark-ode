@@ -44,9 +44,9 @@ class Tolerance:
 
 
 @dataclass(slots=True)
-class StepController:
+class Regulator:
     """
-    User-tunable adaptive step-size controller knobs.
+    User-tunable adaptive step-size regulator knobs.
 
     These values influence how aggressively an adaptive Runge-Kutta scheme
     grows or shrinks its next trial step after estimating local error.
@@ -59,7 +59,7 @@ class StepController:
 
     def __repr__(self) -> str:
         return (
-            "StepController("
+            "Regulator("
             f"safety={self.safety!r}, "
             f"min_factor={self.min_factor!r}, "
             f"max_factor={self.max_factor!r}, "
@@ -75,4 +75,4 @@ class StepController:
         )
 
 
-__all__ = ["StepController", "Tolerance"]
+__all__ = ["Regulator", "Tolerance"]

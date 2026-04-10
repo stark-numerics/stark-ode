@@ -4,7 +4,7 @@ from collections.abc import Callable
 from typing import Any, Protocol, Self, TypeAlias, TypeVar
 
 from stark.control import Tolerance
-from stark.scheme_identity import SchemeIdentity
+from stark.scheme_descriptor import SchemeDescriptor
 
 State = TypeVar("State")
 
@@ -267,12 +267,12 @@ class Scheme(SchemeLike, Protocol):
     """
     Richer scheme protocol for STARK's built-in, tableau-backed schemes.
 
-    `SchemeLike` is the minimal contract needed by `Advance`. This richer
+    `SchemeLike` is the minimal contract needed by `Marcher`. This richer
     protocol describes the more "lived in" objects that expose metadata and
     readable string representations.
     """
 
-    identity: SchemeIdentity
+    descriptor: SchemeDescriptor
     tableau: Any
 
     @classmethod
@@ -298,7 +298,7 @@ __all__ = [
     "IntervalLike",
     "Scale",
     "Scheme",
-    "SchemeIdentity",
+    "SchemeDescriptor",
     "SchemeLike",
     "State",
     "Translation",

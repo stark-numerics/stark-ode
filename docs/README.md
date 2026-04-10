@@ -24,15 +24,15 @@ The main pieces are:
 - `Workbench`: an object that allocates blank states/translations and copies
   states.
 - `Scheme`: a one-step integration method.
-- `Advance`: couples a scheme to tolerances and performs one accepted step.
-- `integrate`: runs repeated `Advance` calls over an interval.
+- `Marcher`: couples a scheme to tolerances and performs one accepted step.
+- `Integrator`: runs repeated `Marcher` calls over an interval.
 - `Auditor`: checks that the objects satisfy the STARK contracts before a long
   run.
 
 The standard import path is:
 
 ```python
-from stark import Advance, Auditor, Interval, Tolerance, integrate
+from stark import Marcher, Auditor, Integrator, Interval, Tolerance
 ```
 
 ## Integration
@@ -43,16 +43,17 @@ Use `Interval` to describe the current time, proposed step, and stop time:
 interval = Interval(present=0.0, step=1.0e-3, stop=1.0)
 ```
 
-Create an `Advance` object from a scheme and tolerance:
+Create a `Marcher` object from a scheme and tolerance:
 
 ```python
-advance = Advance(scheme, tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6))
+marcher = Marcher(scheme, tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6))
+integrate = Integrator()
 ```
 
 Then integrate in either snapshot mode or live mode:
 
 ```python
-for interval_snapshot, state_snapshot in integrate(advance, interval, state):
+for interval_snapshot, state_snapshot in integrate(marcher, interval, state):
     ...
 ```
 
@@ -60,7 +61,7 @@ Snapshot mode yields copied states, so collected trajectories are stable. Live
 mode yields the original mutable objects and is useful for tight loops:
 
 ```python
-for live_interval, live_state in integrate.live(advance, interval, state):
+for live_interval, live_state in integrate.live(marcher, interval, state):
     ...
 ```
 
@@ -68,11 +69,11 @@ Both modes accept checkpoints. An integer gives equally spaced output times;
 an iterable gives explicit absolute times:
 
 ```python
-for output_interval, output_state in integrate(advance, interval, state, checkpoints=100):
+for output_interval, output_state in integrate(marcher, interval, state, checkpoints=100):
     ...
 
 for output_interval, output_state in integrate.live(
-    advance,
+    marcher,
     interval,
     state,
     checkpoints=[0.1, 0.25, 0.5, 1.0],
@@ -117,10 +118,6 @@ For clarity, the physical subpackages are also importable:
 from stark.scheme_library.adaptive import SchemeDormandPrince
 from stark.scheme_library.fixed_step import SchemeRK4
 ```
-
-Compatibility modules remain available, so existing imports such as
-`from stark.scheme_library.dormand_prince import SchemeDormandPrince` continue
-to work.
 
 ## User State Contracts
 
@@ -170,7 +167,11 @@ and expressive, but it may allocate many temporary objects. For array-backed
 or performance-sensitive problems, translations can expose optimized
 linear-combination kernels.
 
-Attach a `linear_combine` list to the translation class:
+These kernels belong with the translation implementation for a particular
+problem. In practice, define them in the same module as the translation class,
+or import compiled kernels into that module, then attach them to the translation
+class with a `linear_combine` class attribute. STARK discovers them from a
+translation instance allocated by the workbench:
 
 ```python
 def scale_array(out, a, x):
@@ -202,6 +203,19 @@ class ArrayTranslation:
         return ArrayTranslation(scalar * self.values)
 ```
 
+The workbench still returns ordinary translation objects:
+
+```python
+class ArrayWorkbench:
+    def allocate_translation(self):
+        return ArrayTranslation(np.zeros_like(self.prototype))
+```
+
+When a scheme is constructed, STARK asks the workbench for a translation,
+inspects that translation for `linear_combine`, and stores the resolved kernels
+inside the scheme. The rest of the integration code does not need to pass the
+fast paths around explicitly.
+
 The entries are:
 
 - `linear_combine[0]`: `scale(out, a, x)`
@@ -220,7 +234,7 @@ in-place use.
 
 ## Custom Schemes
 
-`Advance` accepts any object that satisfies the `SchemeLike` contract. A custom
+`Marcher` accepts any object that satisfies the `SchemeLike` contract. A custom
 scheme does not need to inherit from a STARK base class.
 
 The minimal scheme interface is:
@@ -245,25 +259,25 @@ The `__call__` method should:
 - update `interval.step` to the next proposed step;
 - return the accepted step size.
 
-`Advance` will then increment `interval.present` by the returned step size.
+`Marcher` will then increment `interval.present` by the returned step size.
 
-For built-in-style schemes, the common pattern is to own a `SchemeParts`
-instance. `SchemeParts` resolves the workbench, scratch states, scratch
+For built-in-style schemes, the common pattern is to own a `SchemeWorkspace`
+instance. `SchemeWorkspace` resolves the workbench, scratch states, scratch
 translations, translation application, and linear-combination fast paths:
 
 ```python
-from stark import SchemeParts
+from stark import SchemeWorkspace
 
 
 class MyScheme:
     def __init__(self, derivative, workbench):
         self.derivative = derivative
-        self.parts = SchemeParts(workbench, workbench.allocate_translation())
+        self.workspace = SchemeWorkspace(workbench, workbench.allocate_translation())
 ```
 
 The richer `Scheme` protocol also exposes readable metadata, tableaus, and
 string formatting. That is useful for library-quality schemes, but not required
-for `Advance`.
+for `Marcher`.
 
 Run `Auditor(..., scheme=my_scheme)` to check a custom scheme alongside the
 state, translation, workbench, interval, and tolerance objects.

@@ -16,7 +16,7 @@ from stark.scheme_library.fixed_step.ralston import SchemeRalston
 from stark.scheme_library.fixed_step.rk4 import SchemeRK4
 from stark.scheme_library.fixed_step.rk38 import SchemeRK38
 from stark.scheme_library.fixed_step.ssprk33 import SchemeSSPRK33
-from stark.scheme_parts import SchemeParts
+from stark.scheme_workspace import SchemeWorkspace
 
 
 @dataclass(slots=True)
@@ -94,19 +94,19 @@ class DummyScheme:
     def __init__(self, derivative, workbench, translation) -> None:
         Auditor.require_scheme_inputs(derivative, workbench, translation)
         self.derivative = derivative
-        self.parts = SchemeParts(workbench, translation)
+        self.workspace = SchemeWorkspace(workbench, translation)
 
     def scale(self, y, a, x):
-        return self.parts.scale(y, a, x)
+        return self.workspace.scale(y, a, x)
 
     def combine2(self, y, a0, x0, a1, x1):
-        return self.parts.combine2(y, a0, x0, a1, x1)
+        return self.workspace.combine2(y, a0, x0, a1, x1)
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
-        self.parts.set_apply_delta_safety(enabled)
+        self.workspace.set_apply_delta_safety(enabled)
 
     def snapshot_state(self, state):
-        return self.parts.snapshot_state(state)
+        return self.workspace.snapshot_state(state)
 
     def __call__(self, interval, state, tolerance: Tolerance) -> float:
         del interval, state, tolerance
@@ -194,7 +194,7 @@ def test_scheme_synthesizes_missing_fast_combines_from_combine2() -> None:
     scheme = DummyScheme(lambda state, out: None, PairwiseOnlyWorkbench(), translations[0])
     out = PairwiseOnlyTranslation()
 
-    combined = scheme.parts.combine7(
+    combined = scheme.workspace.combine7(
         out,
         1.0,
         translations[0],

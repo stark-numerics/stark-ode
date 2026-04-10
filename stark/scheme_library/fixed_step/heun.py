@@ -4,8 +4,8 @@ from stark.audit import Auditor
 from stark.control import Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.scheme_butcher_tableau import ButcherTableau
-from stark.scheme_identity import SchemeIdentity
-from stark.scheme_parts import SchemeParts
+from stark.scheme_descriptor import SchemeDescriptor
+from stark.scheme_workspace import SchemeWorkspace
 
 
 HEUN_TABLEAU = ButcherTableau(
@@ -20,35 +20,35 @@ HEUN_B = HEUN_TABLEAU.b
 class SchemeHeun:
     """Two-stage second-order Heun method."""
 
-    __slots__ = ("derivative", "k1", "k2", "parts", "stage", "trial")
+    __slots__ = ("derivative", "k1", "k2", "workspace", "stage", "trial")
 
-    identity = SchemeIdentity("Heun", "Heun")
+    descriptor = SchemeDescriptor("Heun", "Heun")
     tableau = HEUN_TABLEAU
 
     def __init__(self, derivative: Derivative, workbench: Workbench) -> None:
         translation_probe = workbench.allocate_translation()
         Auditor.require_scheme_inputs(derivative, workbench, translation_probe)
         self.derivative = derivative
-        self.parts = SchemeParts(workbench, translation_probe)
+        self.workspace = SchemeWorkspace(workbench, translation_probe)
         self.k1 = translation_probe
-        parts = self.parts
-        self.stage = parts.allocate_state_buffer()
-        self.trial, self.k2 = parts.allocate_translation_buffers(2)
+        workspace = self.workspace
+        self.stage = workspace.allocate_state_buffer()
+        self.trial, self.k2 = workspace.allocate_translation_buffers(2)
 
     @classmethod
     def display_tableau(cls) -> str:
-        return cls.identity.display_tableau(cls.tableau)
+        return cls.descriptor.display_tableau(cls.tableau)
 
     @property
     def short_name(self) -> str:
-        return self.identity.short_name
+        return self.descriptor.short_name
 
     @property
     def full_name(self) -> str:
-        return self.identity.full_name
+        return self.descriptor.full_name
 
     def __repr__(self) -> str:
-        return self.identity.repr_for(type(self).__name__, self.tableau)
+        return self.descriptor.repr_for(type(self).__name__, self.tableau)
 
     def __str__(self) -> str:
         return self.display_tableau()
@@ -57,10 +57,10 @@ class SchemeHeun:
         return format(str(self), format_spec)
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
-        self.parts.set_apply_delta_safety(enabled)
+        self.workspace.set_apply_delta_safety(enabled)
 
     def snapshot_state(self, state: State) -> State:
-        return self.parts.snapshot_state(state)
+        return self.workspace.snapshot_state(state)
 
     def __call__(self, interval: IntervalLike, state: State, tolerance: Tolerance) -> float:
         del tolerance
@@ -68,11 +68,11 @@ class SchemeHeun:
         if remaining <= 0.0:
             return 0.0
 
-        parts = self.parts
+        workspace = self.workspace
         derivative = self.derivative
-        scale = parts.scale
-        combine2 = parts.combine2
-        apply_delta = parts.apply_delta
+        scale = workspace.scale
+        combine2 = workspace.combine2
+        apply_delta = workspace.apply_delta
         stage = self.stage
         trial_buffer = self.trial
         k1 = self.k1

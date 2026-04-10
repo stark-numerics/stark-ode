@@ -1,29 +1,28 @@
 """Top-level package for stark-ode."""
 
-from stark.advance import Advance
+from stark.marcher import Marcher
 from stark.audit import AuditError, Auditor
-from stark.control import StepController, Tolerance
+from stark.control import Regulator, Tolerance
 from stark.contracts import Derivative, IntervalLike, Scheme, SchemeLike, Translation, Workbench
-from stark.scheme_identity import SchemeIdentity
-from stark.integrate import Integrate, integrate
+from stark.integrate import Integrator
+from stark.scheme_descriptor import SchemeDescriptor
 from stark.primitives import Interval
-from stark.scheme_parts import SchemeParts
+from stark.scheme_workspace import SchemeWorkspace
 
 __all__ = [
-    "Advance",
+    "Marcher",
     "AuditError",
     "Auditor",
     "Derivative",
-    "Integrate",
+    "Integrator",
     "Interval",
     "IntervalLike",
     "Scheme",
-    "SchemeIdentity",
+    "SchemeDescriptor",
     "SchemeLike",
-    "SchemeParts",
-    "StepController",
+    "SchemeWorkspace",
+    "Regulator",
     "Tolerance",
     "Translation",
     "Workbench",
-    "integrate",
 ]

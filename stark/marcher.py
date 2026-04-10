@@ -5,7 +5,7 @@ from stark.control import Tolerance
 from stark.contracts import IntervalLike, SchemeLike, State
 
 
-class Advance:
+class Marcher:
     __slots__ = ("scheme", "tolerance", "apply_delta_safety")
 
     def __init__(
@@ -15,7 +15,7 @@ class Advance:
         apply_delta_safety: bool = True,
     ) -> None:
         resolved_tolerance = tolerance if tolerance is not None else Tolerance()
-        Auditor.require_advance_inputs(scheme, resolved_tolerance, apply_delta_safety)
+        Auditor.require_marcher_inputs(scheme, resolved_tolerance, apply_delta_safety)
         self.scheme = scheme
         self.tolerance = resolved_tolerance
         self.apply_delta_safety = apply_delta_safety
@@ -24,7 +24,7 @@ class Advance:
     def __repr__(self) -> str:
         scheme_name = getattr(self.scheme, "short_name", type(self.scheme).__name__)
         return (
-            "Advance("
+            "Marcher("
             f"scheme={scheme_name!r}, "
             f"tolerance={self.tolerance!r}, "
             f"apply_delta_safety={self.apply_delta_safety!r})"
@@ -32,7 +32,7 @@ class Advance:
 
     def __str__(self) -> str:
         scheme_name = getattr(self.scheme, "short_name", type(self.scheme).__name__)
-        return f"Advance {scheme_name} with {self.tolerance}"
+        return f"Marcher {scheme_name} with {self.tolerance}"
 
     def __call__(self, interval: IntervalLike, state: State) -> None:
         remaining = interval.stop - interval.present

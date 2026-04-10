@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from stark.audit import Auditor
-from stark.control import StepController, Tolerance
+from stark.control import Regulator, Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.scheme_butcher_tableau import ButcherTableau
-from stark.scheme_identity import SchemeIdentity
-from stark.scheme_parts import SchemeParts
+from stark.scheme_descriptor import SchemeDescriptor
+from stark.scheme_workspace import SchemeWorkspace
 
 
 RKCK_TABLEAU = ButcherTableau(
@@ -53,41 +53,41 @@ RKCK_B_ERR_NZ = (
 class SchemeCashKarp:
     """Adaptive Runge-Kutta Cash-Karp 5(4) scheme."""
 
-    __slots__ = ("controller", "derivative", "error", "k1", "k2", "k3", "k4", "k5", "k6", "parts", "stage", "trial")
+    __slots__ = ("regulator", "derivative", "error", "k1", "k2", "k3", "k4", "k5", "k6", "workspace", "stage", "trial")
 
-    identity = SchemeIdentity("RKCK", "Cash Karp")
+    descriptor = SchemeDescriptor("RKCK", "Cash Karp")
     tableau = RKCK_TABLEAU
 
     def __init__(
         self,
         derivative: Derivative,
         workbench: Workbench,
-        controller: StepController | None = None,
+        regulator: Regulator | None = None,
     ) -> None:
         translation_probe = workbench.allocate_translation()
         Auditor.require_scheme_inputs(derivative, workbench, translation_probe)
         self.derivative = derivative
-        self.parts = SchemeParts(workbench, translation_probe)
-        self.controller = controller if controller is not None else StepController()
+        self.workspace = SchemeWorkspace(workbench, translation_probe)
+        self.regulator = regulator if regulator is not None else Regulator()
         self.k1 = translation_probe
-        parts = self.parts
-        self.stage = parts.allocate_state_buffer()
-        self.trial, self.error, self.k2, self.k3, self.k4, self.k5, self.k6 = parts.allocate_translation_buffers(7)
+        workspace = self.workspace
+        self.stage = workspace.allocate_state_buffer()
+        self.trial, self.error, self.k2, self.k3, self.k4, self.k5, self.k6 = workspace.allocate_translation_buffers(7)
 
     @classmethod
     def display_tableau(cls) -> str:
-        return cls.identity.display_tableau(cls.tableau)
+        return cls.descriptor.display_tableau(cls.tableau)
 
     @property
     def short_name(self) -> str:
-        return self.identity.short_name
+        return self.descriptor.short_name
 
     @property
     def full_name(self) -> str:
-        return self.identity.full_name
+        return self.descriptor.full_name
 
     def __repr__(self) -> str:
-        return self.identity.repr_for(type(self).__name__, self.tableau)
+        return self.descriptor.repr_for(type(self).__name__, self.tableau)
 
     def __str__(self) -> str:
         return self.display_tableau()
@@ -96,29 +96,29 @@ class SchemeCashKarp:
         return format(str(self), format_spec)
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
-        self.parts.set_apply_delta_safety(enabled)
+        self.workspace.set_apply_delta_safety(enabled)
 
     def snapshot_state(self, state: State) -> State:
-        return self.parts.snapshot_state(state)
+        return self.workspace.snapshot_state(state)
 
     def __call__(self, interval: IntervalLike, state: State, tolerance: Tolerance) -> float:
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
 
-        parts = self.parts
+        workspace = self.workspace
         derivative = self.derivative
-        scale = parts.scale
-        combine2 = parts.combine2
-        combine3 = parts.combine3
-        combine4 = parts.combine4
-        combine5 = parts.combine5
-        apply_delta = parts.apply_delta
-        controller = self.controller
-        controller_safety = controller.safety
-        controller_min_factor = controller.min_factor
-        controller_max_factor = controller.max_factor
-        controller_error_exponent = controller.error_exponent
+        scale = workspace.scale
+        combine2 = workspace.combine2
+        combine3 = workspace.combine3
+        combine4 = workspace.combine4
+        combine5 = workspace.combine5
+        apply_delta = workspace.apply_delta
+        regulator = self.regulator
+        controller_safety = regulator.safety
+        controller_min_factor = regulator.min_factor
+        controller_max_factor = regulator.max_factor
+        controller_error_exponent = regulator.error_exponent
         stage = self.stage
         trial_buffer = self.trial
         error_buffer = self.error

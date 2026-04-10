@@ -5,7 +5,7 @@ from math import cos, sin, sqrt
 
 import pytest
 
-from stark import Advance, Interval, Tolerance, integrate
+from stark import Marcher, Integrator, Interval, Tolerance
 from stark.scheme_library import (
     SchemeBogackiShampine,
     SchemeCashKarp,
@@ -243,10 +243,11 @@ def test_scheme_matches_time_dependent_riccati_solution(case: SchemeCase) -> Non
     state = RiccatiState(0.0, exact_solution(0.0))
     interval = Interval(present=0.0, step=case.step, stop=STOP)
     scheme = case.scheme_type(RiccatiDerivative(), RiccatiWorkbench())
-    advance = Advance(scheme, tolerance=case.tolerance)
+    marcher = Marcher(scheme, tolerance=case.tolerance)
+    integrate = Integrator()
 
     steps = 0
-    for _interval, _state in integrate.live(advance, interval, state):
+    for _interval, _state in integrate.live(marcher, interval, state):
         steps += 1
 
     expected = exact_solution(STOP)

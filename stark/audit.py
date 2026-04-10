@@ -27,7 +27,7 @@ class Auditor:
         translation: Any | None = None,
         workbench: Any | None = None,
         interval: Any | None = None,
-        advance: Any | None = None,
+        marcher: Any | None = None,
         scheme: Any | None = None,
         tolerance: Any | None = None,
         snapshots: bool = True,
@@ -54,8 +54,8 @@ class Auditor:
         if scheme is not None:
             self._audit_scheme(scheme)
 
-        if advance is not None:
-            self._audit_advance(advance, snapshots=snapshots)
+        if marcher is not None:
+            self._audit_marcher(marcher, snapshots=snapshots)
 
 
         if interval is not None:
@@ -228,13 +228,13 @@ class Auditor:
             "Add set_apply_delta_safety(enabled) to control alias-safe state updates.",
         )
 
-    def _audit_advance(self, advance: Any, *, snapshots: bool) -> None:
-        self._check(callable(advance), "Advance object is callable.", "Provide an advance(interval, state) callable.")
+    def _audit_marcher(self, marcher: Any, *, snapshots: bool) -> None:
+        self._check(callable(marcher), "Marcher object is callable.", "Provide a marcher(interval, state) callable.")
         if snapshots:
             self._check(
-                callable(getattr(advance, "snapshot_state", None)),
-                "Advance provides snapshot_state(state) for snapshot integration.",
-                "Use Advance(...) or add snapshot_state(state) before calling integrate(...).",
+                callable(getattr(marcher, "snapshot_state", None)),
+                "Marcher provides snapshot_state(state) for snapshot integration.",
+                "Use Marcher(...) or add snapshot_state(state) before calling Integrator(...).",
             )
 
     def _exercise_derivative(self, derivative: Any, state: Any, translation: Any) -> None:
@@ -315,7 +315,7 @@ class Auditor:
         cls(derivative=derivative, workbench=workbench, translation=translation, exercise=False).raise_if_invalid()
 
     @classmethod
-    def require_advance_inputs(cls, scheme: Any, tolerance: Any, apply_delta_safety: Any) -> None:
+    def require_marcher_inputs(cls, scheme: Any, tolerance: Any, apply_delta_safety: Any) -> None:
         auditor = cls(scheme=scheme, tolerance=tolerance, snapshots=True, exercise=False)
         auditor._check(
             isinstance(apply_delta_safety, bool),
@@ -325,9 +325,9 @@ class Auditor:
         auditor.raise_if_invalid()
 
     @classmethod
-    def require_integration_inputs(cls, advance: Any, interval: Any, state: Any, *, snapshots: bool) -> None:
+    def require_integration_inputs(cls, marcher: Any, interval: Any, state: Any, *, snapshots: bool) -> None:
         del state
-        cls(advance=advance, interval=interval, snapshots=snapshots, exercise=False).raise_if_invalid()
+        cls(marcher=marcher, interval=interval, snapshots=snapshots, exercise=False).raise_if_invalid()
 
     def __str__(self) -> str:
         headers = ("Object", "Required behavior", "Present")
@@ -377,12 +377,12 @@ class Auditor:
             return "Tolerance"
         if summary.startswith("Interval"):
             return "Interval"
-        if summary.startswith("Advance"):
-            return "Advance"
+        if summary.startswith("Marcher"):
+            return "Marcher"
         if summary.startswith("Scheme"):
             return "Scheme"
         if summary.startswith("apply_delta_safety"):
-            return "Advance"
+            return "Marcher"
         return "Interface"
 
     @staticmethod
@@ -394,7 +394,7 @@ class Auditor:
             "Workbench": 3,
             "Scheme": 4,
             "Tolerance": 5,
-            "Advance": 6,
+            "Marcher": 6,
             "Interface": 7,
         }
         return order.get(object_name, order["Interface"])

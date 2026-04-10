@@ -11,11 +11,11 @@ from stark.scheme_linear_combine import (
 
 
 @dataclass(slots=True, init=False)
-class SchemeParts:
+class SchemeWorkspace:
     """
     Reusable non-mathematical support for hand-written STARK schemes.
 
-    A scheme owns one `SchemeParts` object and pulls out only the bits it
+    A scheme owns one `SchemeWorkspace` object and pulls out only the bits it
     needs: scratch allocation, state application, snapshots, and resolved
     linear-combination kernels.
     """
@@ -59,14 +59,14 @@ class SchemeParts:
         )
         copy_state_name = getattr(self.copy_state, "__qualname__", type(self.copy_state).__name__)
         return (
-            "SchemeParts("
+            "SchemeWorkspace("
             f"allocate_state={allocate_state_name!r}, "
             f"allocate_translation={allocate_translation_name!r}, "
             f"copy_state={copy_state_name!r})"
         )
 
     def __str__(self) -> str:
-        return "scheme workbench parts"
+        return "scheme workspace"
 
     def allocate_state_buffer(self) -> object:
         return self.allocate_state()
