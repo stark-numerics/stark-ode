@@ -10,6 +10,7 @@ venv/
 # Packaging artifacts
 build/
 dist/
+dist-tmp/
 *.egg-info/
 
 # Test and tooling output
