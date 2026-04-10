@@ -13,7 +13,7 @@ python -m benchmarks.fput.report
 ```
 
 Each report generates a tight SciPy DOP853 reference solution, runs STARK,
-SciPy, and Diffrax at one shared tolerance setting, then prints:
+SciPy, and Diffrax at a shared tolerance setting, then prints:
 
 - an error table against the reference solution
 - a preparation timing table for setup plus one untimed warmup solve
@@ -23,7 +23,7 @@ SciPy, and Diffrax at one shared tolerance setting, then prints:
 Reference generation is reported separately and is not included in the solver
 timing tables.
 
-## Benchmark Layout
+## Benchmark layout
 
 Each benchmark case directory follows the same structure:
 
@@ -44,12 +44,12 @@ The benchmark modules intentionally avoid a shared runner abstraction. The
 point is to show each library in the coding style it naturally encourages, not
 to force all solvers through one generic harness.
 
-## Benchmarking Principles
+## Benchmarking principles
 
 STARK is compared with SciPy and Diffrax because they represent three different
 ways to build ODE solves in Python:
 
-### SciPy Idiom
+### SciPy idiom
 
 - Problem-first, object-light API
 - One top-level `solve_ivp` call with keyword configuration
@@ -57,7 +57,7 @@ ways to build ODE solves in Python:
 - Flat numeric array state
 - Optional behavior supplied through extra callbacks or flags
 
-### Diffrax Idiom
+### Diffrax idiom
 
 - Composable object graph rather than one convenience wrapper
 - Solver configuration split into terms, solvers, save policies, controllers,
@@ -67,7 +67,7 @@ ways to build ODE solves in Python:
 - Explicit policy objects for adaptation and output
 - Swappable components as a first-class design goal
 
-### STARK Idiom
+### STARK idiom
 
 - Rich structured mutable states
 - Explicit separation between states and translations
@@ -82,7 +82,7 @@ the STARK design behaves on non-stiff ODE problems whose natural state is richer
 than one flat vector, while still comparing against idiomatic SciPy and Diffrax
 implementations.
 
-## Interpreting Results
+## Interpreting results
 
 The reports are CPU wall-clock comparisons for repeated solves of one
 medium-sized problem. They are not a claim that one library is universally

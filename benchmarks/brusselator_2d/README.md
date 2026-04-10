@@ -1,6 +1,7 @@
 # 2D Brusselator
 
-This benchmark uses a periodic semidiscretized 2D Brusselator reaction-diffusion system:
+This benchmark uses a periodic semi-discretized 2D Brusselator
+reaction-diffusion system:
 
 ```text
 u_t = alpha (u_xx + u_yy) + A + u^2 v - (B + 1) u

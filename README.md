@@ -11,12 +11,12 @@ This is useful when a simulation already has its own domain model: particles,
 fields, lattices, structured arrays, nested dataclasses, or other objects where
 flattening everything just to call a solver would obscure the code.
 
-## What STARK Provides
+## What STARK provides
 
 - Adaptive embedded Runge-Kutta schemes, including Cash-Karp,
   Dormand-Prince, Fehlberg 4(5), Bogacki-Shampine, and Tsitouras 5.
-- Classic fixed-step schemes, including Euler, Heun, midpoint, Kutta third
-  order, RK4, RK38, Ralston, and SSP RK33.
+- Classic fixed-step schemes, including Euler, Heun, midpoint, Kutta
+  third-order, RK4, RK38, Ralston, and SSP RK33.
 - Snapshot and live integration loops.
 - Optional checkpoints for evenly spaced outputs or user-specified output
   times.
@@ -47,7 +47,7 @@ python -m pip install -e ".[notebooks]"
 python -m pip install -e ".[benchmarks]"
 ```
 
-## Basic Shape
+## Basic shape
 
 A STARK integration usually has four user-side objects:
 
@@ -81,7 +81,7 @@ See the functionality guide for the full contract.
 
 The compact functionality guide is
 [`docs/README.md`](docs/README.md). It lists the integration APIs, built-in
-schemes, checkpoints, auditing tools, custom scheme contract, and translation
+schemes, checkpoints, auditing tools, custom scheme contracts, and translation
 fast paths.
 
 ## Example

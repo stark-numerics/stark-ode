@@ -1,4 +1,4 @@
-# STARK Functionality Guide
+# STARK functionality guide
 
 This page is a compact map of the public functionality in STARK. It is meant
 to answer two questions:
@@ -9,7 +9,7 @@ to answer two questions:
 For a worked narrative example, start with
 [`examples/three_body_stark.ipynb`](../examples/three_body_stark.ipynb).
 
-## Core Idea
+## Core idea
 
 STARK integrates rich mutable Python state objects by separating the nonlinear
 state from the linear increments used by Runge-Kutta schemes.
@@ -84,7 +84,7 @@ for output_interval, output_state in integrate.live(
 Checkpoints are useful for plots and animations: the solver may adapt internally
 while the user only observes chosen output times.
 
-## Built-In Schemes
+## Built-in schemes
 
 The scheme library is available from `stark.scheme_library`.
 
@@ -119,7 +119,7 @@ from stark.scheme_library.adaptive import SchemeDormandPrince
 from stark.scheme_library.fixed_step import SchemeRK4
 ```
 
-## User State Contracts
+## User state contracts
 
 The `Translation` object is the main adapter between user code and STARK. A
 translation must provide:
@@ -160,7 +160,7 @@ print(audit)
 audit.raise_if_invalid()
 ```
 
-## Fast Translation Paths
+## Fast translation paths
 
 The generic translation fallback uses `__add__` and `__rmul__`. That is simple
 and expressive, but it may allocate many temporary objects. For array-backed
@@ -168,10 +168,10 @@ or performance-sensitive problems, translations can expose optimized
 linear-combination kernels.
 
 These kernels belong with the translation implementation for a particular
-problem. In practice, define them in the same module as the translation class,
-or import compiled kernels into that module, then attach them to the translation
-class with a `linear_combine` class attribute. STARK discovers them from a
-translation instance allocated by the workbench:
+problem. In practice, define them in the same module as the translation class
+or import compiled kernels into that module, then attach them to the
+translation class with a `linear_combine` class attribute. STARK discovers them
+from a translation instance allocated by the workbench:
 
 ```python
 def scale_array(out, a, x):
@@ -232,7 +232,7 @@ Fast paths should obey the same aliasing rule as translation application: the
 output buffer may be one of the input buffers, so kernels should be correct for
 in-place use.
 
-## Custom Schemes
+## Custom schemes
 
 `Marcher` accepts any object that satisfies the `SchemeLike` contract. A custom
 scheme does not need to inherit from a STARK base class.
