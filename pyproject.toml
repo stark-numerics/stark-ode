@@ -49,6 +49,11 @@ benchmarks = [
     "scipy>=1.13",
 ]
 
+[project.urls]
+Homepage = "https://github.com/jonmfellows/stark-ode"
+Repository = "https://github.com/jonmfellows/stark-ode"
+Issues = "https://github.com/jonmfellows/stark-ode/issues"
+
 [tool.setuptools.packages.find]
 include = ["stark*", "benchmarks*"]
 
