@@ -3,9 +3,9 @@ from __future__ import annotations
 from stark.audit import Auditor
 from stark.control import Regulator, Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
-from stark.scheme_butcher_tableau import ButcherTableau
-from stark.scheme_descriptor import SchemeDescriptor
-from stark.scheme_workspace import SchemeWorkspace
+from stark.butcher_tableau import ButcherTableau
+from stark.scheme_support.descriptor import SchemeDescriptor
+from stark.scheme_support.workspace import SchemeWorkspace
 
 
 BS23_TABLEAU = ButcherTableau(
@@ -178,3 +178,4 @@ class SchemeBogackiShampine:
 
 
 __all__ = ["BS23_TABLEAU", "SchemeBogackiShampine"]
+

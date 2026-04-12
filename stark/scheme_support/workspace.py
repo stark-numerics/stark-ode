@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from stark.contracts import Translation, Workbench
-from stark.scheme_linear_combine import (
+from stark.scheme_support.linear_combine import (
     complete_linear_combine,
     resolve_linear_combine,
 )

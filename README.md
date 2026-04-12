@@ -109,6 +109,7 @@ implementation close to its native idiom.
 python -m pip install -e ".[benchmarks]"
 python -m benchmarks.brusselator_2d.report
 python -m benchmarks.fput.report
+python -m benchmarks.robertson.report
 ```
 
 ## Development

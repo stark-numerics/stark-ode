@@ -16,7 +16,7 @@ from stark.scheme_library.fixed_step.ralston import SchemeRalston
 from stark.scheme_library.fixed_step.rk4 import SchemeRK4
 from stark.scheme_library.fixed_step.rk38 import SchemeRK38
 from stark.scheme_library.fixed_step.ssprk33 import SchemeSSPRK33
-from stark.scheme_workspace import SchemeWorkspace
+from stark.scheme_support.workspace import SchemeWorkspace
 
 
 @dataclass(slots=True)

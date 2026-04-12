@@ -3,9 +3,9 @@ from __future__ import annotations
 from stark.audit import Auditor
 from stark.control import Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
-from stark.scheme_butcher_tableau import ButcherTableau
-from stark.scheme_descriptor import SchemeDescriptor
-from stark.scheme_workspace import SchemeWorkspace
+from stark.butcher_tableau import ButcherTableau
+from stark.scheme_support.descriptor import SchemeDescriptor
+from stark.scheme_support.workspace import SchemeWorkspace
 
 
 SSPRK33_TABLEAU = ButcherTableau(
@@ -112,3 +112,4 @@ class SchemeSSPRK33:
 
 
 __all__ = ["SSPRK33_TABLEAU", "SchemeSSPRK33"]
+

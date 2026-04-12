@@ -2,8 +2,21 @@
 
 import importlib
 
-from stark import Marcher, Auditor, Integrator, Interval, Regulator, Tolerance
-from stark.scheme_butcher_tableau import ButcherTableau
+from stark import (
+    Marcher,
+    Auditor,
+    Block,
+    BlockOperator,
+    Integrator,
+    Interval,
+    Inversion,
+    InverterDescriptor,
+    Regulator,
+    Resolution,
+    ResolverDescriptor,
+    Tolerance,
+)
+from stark.butcher_tableau import ButcherTableau
 
 
 def test_package_imports() -> None:
@@ -31,17 +44,36 @@ def test_integrate_module_imports() -> None:
     assert importlib.import_module("stark.integrate") is not None
 
 
+def test_inverter_library_imports() -> None:
+    """The inverter library should import cleanly."""
+    inverter_library = importlib.import_module("stark.inverter_library")
+
+    assert inverter_library.InverterGMRES is not None
+
+
+def test_resolver_library_imports() -> None:
+    """The resolver library should import cleanly."""
+    resolver_library = importlib.import_module("stark.resolver_library")
+
+    assert resolver_library.ResolverPicard is not None
+    assert resolver_library.ResolverNewton is not None
+
+
 def test_scheme_library_imports() -> None:
     """The scheme library should expose aggregate and grouped public imports."""
     scheme_library = importlib.import_module("stark.scheme_library")
     adaptive = importlib.import_module("stark.scheme_library.adaptive")
+    adaptive_implicit = importlib.import_module("stark.scheme_library.adaptive_implicit")
     fixed_step = importlib.import_module("stark.scheme_library.fixed_step")
+    implicit = importlib.import_module("stark.scheme_library.implicit")
 
     assert scheme_library.SchemeDormandPrince is adaptive.SchemeDormandPrince
     assert scheme_library.SchemeCashKarp is adaptive.SchemeCashKarp
     assert scheme_library.SchemeTsitouras5 is adaptive.SchemeTsitouras5
+    assert scheme_library.SchemeSDIRK21 is adaptive_implicit.SchemeSDIRK21
     assert scheme_library.SchemeRK4 is fixed_step.SchemeRK4
     assert scheme_library.SchemeEuler is fixed_step.SchemeEuler
+    assert scheme_library.SchemeBackwardEuler is implicit.SchemeBackwardEuler
 
 
 class MinimalScheme:
@@ -58,6 +90,12 @@ class MinimalScheme:
 
 def test_core_objects_have_readable_representations() -> None:
     interval = Interval(0.0, 0.1, 1.0)
+    block = Block([])
+    block_operator = BlockOperator([])
+    inversion = Inversion()
+    inverter_descriptor = InverterDescriptor("GMRES", "Restarted GMRES")
+    resolution = Resolution()
+    resolver_descriptor = ResolverDescriptor("Picard", "Picard Iteration")
     tolerance = Tolerance(atol=1.0e-8, rtol=1.0e-6)
     regulator = Regulator()
     tableau = ButcherTableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="E")
@@ -66,6 +104,16 @@ def test_core_objects_have_readable_representations() -> None:
 
     assert repr(interval) == "Interval(present=0.0, step=0.1, stop=1.0)"
     assert str(interval) == "[0, 1] step=0.1"
+    assert repr(block) == "Block(size=0)"
+    assert str(block) == "block[0]"
+    assert repr(block_operator) == "BlockOperator(size=0)"
+    assert str(block_operator) == "block operator[0]"
+    assert repr(inversion) == "Inversion(atol=1e-09, rtol=1e-09, max_iterations=32, restart=16)"
+    assert str(inversion) == "atol=1e-09, rtol=1e-09, max_iterations=32, restart=16"
+    assert repr(inverter_descriptor) == "InverterDescriptor(short_name='GMRES', full_name='Restarted GMRES')"
+    assert repr(resolution) == "Resolution(atol=1e-09, rtol=1e-09, max_iterations=16)"
+    assert str(resolution) == "atol=1e-09, rtol=1e-09, max_iterations=16"
+    assert repr(resolver_descriptor) == "ResolverDescriptor(short_name='Picard', full_name='Picard Iteration')"
     assert repr(tolerance) == "Tolerance(atol=1e-08, rtol=1e-06)"
     assert str(tolerance) == "atol=1e-08, rtol=1e-06"
     assert "Regulator" in repr(regulator)
@@ -80,3 +128,4 @@ def test_core_objects_have_readable_representations() -> None:
 def test_benchmark_packages_import() -> None:
     assert importlib.import_module("benchmarks.brusselator_2d.common") is not None
     assert importlib.import_module("benchmarks.fput.common") is not None
+

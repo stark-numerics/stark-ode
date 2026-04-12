@@ -1,19 +1,21 @@
 # Benchmarks
 
-STARK includes two public benchmark cases:
+STARK currently includes three public benchmark cases:
 
 - `brusselator_2d`: a periodic two-species reaction-diffusion problem.
 - `fput`: a Fermi-Pasta-Ulam-Tsingou beta lattice with fixed endpoints.
+- `robertson`: a stiff chemical kinetics problem.
 
 Run them with:
 
 ```powershell
 python -m benchmarks.brusselator_2d.report
 python -m benchmarks.fput.report
+python -m benchmarks.robertson.report
 ```
 
-Each report generates a tight SciPy DOP853 reference solution, runs STARK,
-SciPy, and Diffrax at a shared tolerance setting, then prints:
+Each report generates a tight SciPy reference solution, runs the methods used
+for that benchmark case, then prints:
 
 - an error table against the reference solution
 - a preparation timing table for setup plus one untimed warmup solve
@@ -34,9 +36,9 @@ Each benchmark case directory follows the same structure:
   Numba-backed fast paths.
 - `scipy.py` contains a SciPy-native implementation using `solve_ivp`, flat
   NumPy arrays, and plain RHS callbacks.
-- `diffrax.py` contains a Diffrax-native implementation using `ODETerm`, solver
-  objects, save policies, controllers, JAX arrays, and small functional vector
-  fields.
+- `diffrax.py`, when present, contains a Diffrax-native implementation using
+  `ODETerm`, solver objects, save policies, controllers, JAX arrays, and small
+  functional vector fields.
 - `report.py` owns reference generation, timing, table rendering, and the
   human-readable benchmark description.
 
@@ -46,8 +48,8 @@ to force all solvers through one generic harness.
 
 ## Benchmarking principles
 
-STARK is compared with SciPy and Diffrax because they represent three different
-ways to build ODE solves in Python:
+Where they are included, STARK is compared with SciPy and Diffrax because they
+represent three different ways to build ODE solves in Python:
 
 ### SciPy idiom
 
@@ -78,9 +80,9 @@ ways to build ODE solves in Python:
 - Solver core decoupled from domain mechanics through user-defined protocols
 
 There is no single best coding style. These benchmarks are intended to show how
-the STARK design behaves on non-stiff ODE problems whose natural state is richer
-than one flat vector, while still comparing against idiomatic SciPy and Diffrax
-implementations.
+the STARK design behaves on both structured non-stiff problems and small stiff
+systems, while still comparing against idiomatic SciPy and Diffrax
+implementations where those comparisons are informative.
 
 ## Interpreting results
 
