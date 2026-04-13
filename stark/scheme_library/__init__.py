@@ -3,7 +3,7 @@
 The library is organised by stepping behaviour:
 
 - `adaptive` contains embedded schemes with error estimates and step control.
-- `adaptive_implicit` contains adaptive implicit schemes with stage solvers.
+- `adaptive_implicit` contains adaptive implicit schemes, including ESDIRK and BDF methods.
 - `fixed_step` contains classic explicit fixed-step schemes.
 
 Scheme classes and tableaus are re-exported here for the common import style:
@@ -24,7 +24,12 @@ from stark.scheme_library.adaptive import (
     SchemeTsitouras5,
 )
 from stark.scheme_library.adaptive_implicit import (
+    KVAERNO3_TABLEAU,
+    KVAERNO4_TABLEAU,
     SDIRK21_TABLEAU,
+    SchemeBDF2,
+    SchemeKvaerno3,
+    SchemeKvaerno4,
     SchemeSDIRK21,
 )
 from stark.scheme_library.fixed_step import (
@@ -56,6 +61,8 @@ __all__ = [
     "EULER_TABLEAU",
     "HEUN_TABLEAU",
     "KUTTA3_TABLEAU",
+    "KVAERNO3_TABLEAU",
+    "KVAERNO4_TABLEAU",
     "MIDPOINT_TABLEAU",
     "RALSTON_TABLEAU",
     "RK4_TABLEAU",
@@ -67,6 +74,7 @@ __all__ = [
     "SSPRK33_TABLEAU",
     "TSIT5_TABLEAU",
     "SchemeBogackiShampine",
+    "SchemeBDF2",
     "SchemeBackwardEuler",
     "SchemeCashKarp",
     "SchemeDormandPrince",
@@ -74,6 +82,8 @@ __all__ = [
     "SchemeFehlberg45",
     "SchemeHeun",
     "SchemeKutta3",
+    "SchemeKvaerno3",
+    "SchemeKvaerno4",
     "SchemeMidpoint",
     "SchemeRalston",
     "SchemeRK4",

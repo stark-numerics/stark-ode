@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.audit import Auditor
-from stark.control import Tolerance
+from stark.tolerance import Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.butcher_tableau import ButcherTableau
 from stark.scheme_support.descriptor import SchemeDescriptor
@@ -18,7 +18,16 @@ EULER_B = EULER_TABLEAU.b
 
 
 class SchemeEuler:
-    """Classic first-order explicit Euler method."""
+    """
+    Forward Euler, the basic first-order explicit Runge-Kutta method.
+
+    This is the simplest one-step method in the library: evaluate the
+    derivative once at the start of the step and advance with that slope.
+    It is useful as a baseline and for very cheap exploratory integrations,
+    but it is only first-order accurate and has a small stability region.
+
+    Further reading: https://en.wikipedia.org/wiki/Euler_method
+    """
 
     __slots__ = ("delta", "derivative", "k1", "workspace")
 
@@ -81,4 +90,5 @@ class SchemeEuler:
 
 
 __all__ = ["EULER_TABLEAU", "SchemeEuler"]
+
 

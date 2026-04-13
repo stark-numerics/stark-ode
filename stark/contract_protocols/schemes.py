@@ -4,7 +4,7 @@ from typing import Any, Protocol
 
 from stark.contract_protocols.intervals import IntervalLike
 from stark.contract_protocols.linear_algebra import State, Translation
-from stark.control import Tolerance
+from stark.tolerance import Tolerance
 from stark.scheme_support.descriptor import SchemeDescriptor
 
 
@@ -12,7 +12,15 @@ class Workbench(Protocol):
     """
     Factory for reusable scratch objects and state-copy operations.
 
-    This is the main integration point for user-defined state types.
+    This is the main integration point for user-defined state types. A custom
+    workbench tells STARK how to:
+
+    - allocate mutable state objects
+    - copy one state into another
+    - allocate translation objects compatible with that state
+
+    Once this contract is satisfied, the built-in schemes, resolvers, and
+    inverters can reuse those objects without knowing the concrete state shape.
     """
 
     def allocate_state(self) -> State:
@@ -31,6 +39,10 @@ class SchemeLike(Protocol):
 
     A custom scheme does not need to inherit from STARK's internal helper
     classes as long as it satisfies this interface.
+
+    The scheme is responsible for mutating `state` forward by one accepted step
+    and returning the step size that was actually taken. Adaptive schemes may
+    also update `interval.step` to propose the next step size.
     """
 
     def __call__(self, interval: IntervalLike, state: State, tolerance: Tolerance) -> float:
@@ -46,6 +58,9 @@ class SchemeLike(Protocol):
 class Scheme(SchemeLike, Protocol):
     """
     Richer scheme protocol for STARK's built-in, tableau-backed schemes.
+
+    This adds the descriptor and tableau metadata used for readable reporting,
+    table display, and package-level exports.
     """
 
     descriptor: SchemeDescriptor
@@ -66,3 +81,4 @@ class Scheme(SchemeLike, Protocol):
 
 
 __all__ = ["Scheme", "SchemeLike", "Workbench"]
+

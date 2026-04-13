@@ -5,7 +5,8 @@ from math import sqrt
 from typing import Callable
 
 from stark.contracts import Block, InnerProduct, Translation, Workbench
-from stark.scheme_support.linear_combine import complete_linear_combine, resolve_linear_combine
+from stark.safety import Safety
+from stark.scheme_support.linear_combine import Combiner, resolve_linear_combine
 
 
 @dataclass(slots=True, init=False)
@@ -17,24 +18,24 @@ class InverterWorkspace:
     scale: Callable[..., Translation]
     combine2: Callable[..., Translation]
     combine3: Callable[..., Translation]
-    combine4: Callable[..., Translation]
-    combine5: Callable[..., Translation]
-    combine6: Callable[..., Translation]
-    combine7: Callable[..., Translation]
+    safety: Safety
+    _check: Callable[..., None]
 
-    def __init__(self, workbench: Workbench, translation: Translation, inner_product: InnerProduct) -> None:
+    def __init__(
+        self,
+        workbench: Workbench,
+        translation: Translation,
+        inner_product: InnerProduct,
+        safety: Safety | None = None,
+    ) -> None:
         self.allocate_translation = workbench.allocate_translation
         self.inner_product_translation = inner_product
-        linear_combine = resolve_linear_combine(translation)
-        (
-            self.scale,
-            self.combine2,
-            self.combine3,
-            self.combine4,
-            self.combine5,
-            self.combine6,
-            self.combine7,
-        ) = complete_linear_combine(linear_combine, workbench.allocate_translation)
+        self.safety = safety if safety is not None else Safety()
+        self._check = self._check_size if self.safety.block_sizes else self._skip_check
+        combiner = Combiner(resolve_linear_combine(translation), workbench.allocate_translation)
+        self.scale = combiner.scale
+        self.combine2 = combiner.combine2
+        self.combine3 = combiner.combine3
 
     def __repr__(self) -> str:
         allocate_translation_name = getattr(
@@ -66,22 +67,36 @@ class InverterWorkspace:
             block.items[index] = self.scale(item, 0.0, item)
 
     def copy_block(self, dst: Block, src: Block) -> None:
-        self._check_size(dst, src)
+        self._check(dst, src)
         for index, (dst_item, src_item) in enumerate(zip(dst, src, strict=True)):
             dst.items[index] = self.scale(dst_item, 1.0, src_item)
 
     def scale_block(self, out: Block, a: float, block: Block) -> None:
-        self._check_size(out, block)
+        self._check(out, block)
         for index, (out_item, block_item) in enumerate(zip(out, block, strict=True)):
             out.items[index] = self.scale(out_item, a, block_item)
 
     def combine2_block(self, out: Block, a0: float, x0: Block, a1: float, x1: Block) -> None:
-        self._check_size(out, x0, x1)
+        self._check(out, x0, x1)
         for index, (out_item, x0_item, x1_item) in enumerate(zip(out, x0, x1, strict=True)):
             out.items[index] = self.combine2(out_item, a0, x0_item, a1, x1_item)
 
+    def combine3_block(
+        self,
+        out: Block,
+        a0: float,
+        x0: Block,
+        a1: float,
+        x1: Block,
+        a2: float,
+        x2: Block,
+    ) -> None:
+        self._check(out, x0, x1, x2)
+        for index, (out_item, x0_item, x1_item, x2_item) in enumerate(zip(out, x0, x1, x2, strict=True)):
+            out.items[index] = self.combine3(out_item, a0, x0_item, a1, x1_item, a2, x2_item)
+
     def inner_product(self, left: Block, right: Block) -> float:
-        self._check_size(left, right)
+        self._check(left, right)
         return sum(
             self.inner_product_translation(left_item, right_item)
             for left_item, right_item in zip(left, right, strict=True)
@@ -97,6 +112,10 @@ class InverterWorkspace:
         size = len(blocks[0])
         if any(len(block) != size for block in blocks[1:]):
             raise ValueError("Block sizes must match.")
+
+    @staticmethod
+    def _skip_check(*blocks: Block) -> None:
+        del blocks
 
 
 __all__ = ["InverterWorkspace"]

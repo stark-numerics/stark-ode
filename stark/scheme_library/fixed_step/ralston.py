@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.audit import Auditor
-from stark.control import Tolerance
+from stark.tolerance import Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.butcher_tableau import ButcherTableau
 from stark.scheme_support.descriptor import SchemeDescriptor
@@ -18,7 +18,15 @@ RALSTON_B = RALSTON_TABLEAU.b
 
 
 class SchemeRalston:
-    """Two-stage second-order Ralston method."""
+    """
+    Ralston's optimized two-stage second-order Runge-Kutta method.
+
+    Among explicit RK2 methods, Ralston's choice of coefficients reduces the
+    leading local truncation error constant, which often makes it a slightly
+    sharper fixed-step second-order baseline than midpoint or Heun.
+
+    Further reading: https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods
+    """
 
     __slots__ = ("derivative", "k1", "k2", "workspace", "stage", "trial")
 
@@ -97,4 +105,5 @@ class SchemeRalston:
 
 
 __all__ = ["RALSTON_TABLEAU", "SchemeRalston"]
+
 

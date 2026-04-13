@@ -3,9 +3,26 @@ from __future__ import annotations
 from numbers import Real
 from typing import Any
 
+from stark.safety import Safety
+
 
 class AuditError(TypeError):
     """Raised when a STARK contract audit fails."""
+
+
+class _OperatorProbe:
+    __slots__ = ("apply",)
+
+    def __init__(self) -> None:
+        self.apply = self._unset
+
+    @staticmethod
+    def _unset(out: Any, translation: Any) -> None:
+        del out, translation
+        raise AuditError("Linearizer did not configure the operator probe.")
+
+    def __call__(self, out: Any, translation: Any) -> Any:
+        return self.apply(out, translation)
 
 
 class Auditor:
@@ -30,6 +47,8 @@ class Auditor:
         marcher: Any | None = None,
         scheme: Any | None = None,
         tolerance: Any | None = None,
+        residual: Any | None = None,
+        linear_residual: bool = False,
         snapshots: bool = True,
         exercise: bool = True,
     ) -> None:
@@ -50,6 +69,9 @@ class Auditor:
 
         if tolerance is not None:
             self._audit_tolerance(tolerance)
+
+        if residual is not None:
+            self._audit_residual(residual, linear=linear_residual)
 
         if scheme is not None:
             self._audit_scheme(scheme)
@@ -211,6 +233,19 @@ class Auditor:
         self._check(callable(getattr(tolerance, "ratio", None)), "Tolerance provides ratio(error, scale).", "Add ratio(error, scale) for adaptive schemes.")
         self._check(callable(getattr(tolerance, "accepts", None)), "Tolerance provides accepts(error, scale).", "Add accepts(error, scale) if you want compatibility with STARK's tolerance interface.")
 
+    def _audit_residual(self, residual: Any, *, linear: bool) -> None:
+        self._check(
+            callable(residual),
+            "Residual provides __call__(out, block).",
+            "Add __call__(out, block) to evaluate the nonlinear residual.",
+        )
+        if linear:
+            self._check(
+                callable(getattr(residual, "linearize", None)),
+                "Residual provides linearize(out, block).",
+                "Add linearize(out, block) for Newton-style resolvers.",
+            )
+
     def _audit_scheme(self, scheme: Any) -> None:
         self._check(
             callable(scheme),
@@ -310,17 +345,40 @@ class Auditor:
             else:
                 self._check(True, f"Translation {arity_name} can be called.")
 
+    def _exercise_linearizer(self, linearizer: Any, state: Any, translation: Any) -> None:
+        operator = _OperatorProbe()
+        try:
+            linearizer(operator, state)
+        except Exception as exc:
+            self._record_exception("Linearizer(out, state) can be called.", exc)
+            return
+        else:
+            self._check(True, "Linearizer(out, state) can be called.")
+
+        try:
+            result = operator(translation, translation)
+        except Exception as exc:
+            self._record_exception("Linearizer configures an operator callable.", exc)
+            return
+        else:
+            self._check(True, "Linearizer configures an operator callable.")
+            self._check(
+                result is None,
+                "Linearizer-configured operators fill in place and return None.",
+                "Make operator(out, translation) mutate out and return None.",
+            )
+
     @classmethod
     def require_scheme_inputs(cls, derivative: Any, workbench: Any, translation: Any) -> None:
         cls(derivative=derivative, workbench=workbench, translation=translation, exercise=False).raise_if_invalid()
 
     @classmethod
-    def require_marcher_inputs(cls, scheme: Any, tolerance: Any, apply_delta_safety: Any) -> None:
+    def require_marcher_inputs(cls, scheme: Any, tolerance: Any, safety: Any) -> None:
         auditor = cls(scheme=scheme, tolerance=tolerance, snapshots=True, exercise=False)
         auditor._check(
-            isinstance(apply_delta_safety, bool),
-            "apply_delta_safety is a bool.",
-            "Set apply_delta_safety to True or False.",
+            isinstance(safety, Safety),
+            "safety is a Safety policy.",
+            "Pass safety=Safety(...) or use the default Safety().",
         )
         auditor.raise_if_invalid()
 
@@ -328,6 +386,36 @@ class Auditor:
     def require_integration_inputs(cls, marcher: Any, interval: Any, state: Any, *, snapshots: bool) -> None:
         del state
         cls(marcher=marcher, interval=interval, snapshots=snapshots, exercise=False).raise_if_invalid()
+
+    @classmethod
+    def require_linear_residual(cls, residual: Any) -> None:
+        cls(residual=residual, linear_residual=True, exercise=False).raise_if_invalid()
+
+    @classmethod
+    def require_linearizer_inputs(cls, linearizer: Any, workbench: Any, translation: Any) -> None:
+        auditor = cls(workbench=workbench, translation=translation, exercise=False)
+        auditor._check(
+            callable(linearizer),
+            "Linearizer provides __call__(out, state).",
+            "Provide a callable linearizer(out, state).",
+        )
+        linear_combine = getattr(translation, "linear_combine", None)
+        auditor._check(
+            isinstance(linear_combine, (list, tuple)) and len(linear_combine) >= 2 and callable(linear_combine[0]) and callable(linear_combine[1]),
+            "Translation provides in-place scale and combine2 kernels for strict operator algebra.",
+            "Add translation.linear_combine = [scale, combine2, ...] with in-place kernels before using a linearizer.",
+        )
+        if not auditor.ok:
+            auditor.raise_if_invalid()
+
+        try:
+            sample_state = workbench.allocate_state()
+        except Exception as exc:
+            auditor._record_exception("Workbench.allocate_state() succeeds for linearizer audit.", exc)
+        else:
+            auditor._check(True, "Workbench.allocate_state() succeeds for linearizer audit.")
+            auditor._exercise_linearizer(linearizer, sample_state, translation)
+        auditor.raise_if_invalid()
 
     def __str__(self) -> str:
         headers = ("Object", "Required behavior", "Present")
@@ -375,13 +463,15 @@ class Auditor:
             return "Workbench"
         if summary.startswith("Tolerance"):
             return "Tolerance"
+        if summary.startswith("Residual"):
+            return "Residual"
         if summary.startswith("Interval"):
             return "Interval"
         if summary.startswith("Marcher"):
             return "Marcher"
         if summary.startswith("Scheme"):
             return "Scheme"
-        if summary.startswith("apply_delta_safety"):
+        if summary.startswith("safety"):
             return "Marcher"
         return "Interface"
 
@@ -394,8 +484,9 @@ class Auditor:
             "Workbench": 3,
             "Scheme": 4,
             "Tolerance": 5,
-            "Marcher": 6,
-            "Interface": 7,
+            "Residual": 6,
+            "Marcher": 7,
+            "Interface": 8,
         }
         return order.get(object_name, order["Interface"])
 

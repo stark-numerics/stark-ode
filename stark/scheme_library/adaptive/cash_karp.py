@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from stark.audit import Auditor
-from stark.control import Regulator, Tolerance
+from stark.regulator import Regulator
+from stark.tolerance import Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.butcher_tableau import ButcherTableau
+from stark.scheme_support.adaptive_controller import AdaptiveController
 from stark.scheme_support.descriptor import SchemeDescriptor
 from stark.scheme_support.workspace import SchemeWorkspace
 
@@ -51,9 +53,17 @@ RKCK_B_ERR_NZ = (
 
 
 class SchemeCashKarp:
-    """Adaptive Runge-Kutta Cash-Karp 5(4) scheme."""
+    """
+    The adaptive Cash-Karp embedded 5(4) Runge-Kutta pair.
 
-    __slots__ = ("regulator", "derivative", "error", "k1", "k2", "k3", "k4", "k5", "k6", "workspace", "stage", "trial")
+    Cash-Karp advances with a fifth-order explicit method and estimates the
+    local error with an embedded fourth-order formula. It is a classic adaptive
+    explicit solver for smooth non-stiff problems.
+
+    Further reading: https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods
+    """
+
+    __slots__ = ("regulator", "controller", "derivative", "error", "k1", "k2", "k3", "k4", "k5", "k6", "workspace", "stage", "trial")
 
     descriptor = SchemeDescriptor("RKCK", "Cash Karp")
     tableau = RKCK_TABLEAU
@@ -69,6 +79,7 @@ class SchemeCashKarp:
         self.derivative = derivative
         self.workspace = SchemeWorkspace(workbench, translation_probe)
         self.regulator = regulator if regulator is not None else Regulator()
+        self.controller = AdaptiveController(self.regulator)
         self.k1 = translation_probe
         workspace = self.workspace
         self.stage = workspace.allocate_state_buffer()
@@ -114,11 +125,7 @@ class SchemeCashKarp:
         combine4 = workspace.combine4
         combine5 = workspace.combine5
         apply_delta = workspace.apply_delta
-        regulator = self.regulator
-        controller_safety = regulator.safety
-        controller_min_factor = regulator.min_factor
-        controller_max_factor = regulator.max_factor
-        controller_error_exponent = regulator.error_exponent
+        controller = self.controller
         stage = self.stage
         trial_buffer = self.trial
         error_buffer = self.error
@@ -219,27 +226,11 @@ class SchemeCashKarp:
             if error_ratio <= 1.0:
                 break
 
-            if error_ratio == 0.0:
-                factor = controller_max_factor
-            else:
-                factor = controller_safety * (1.0 / error_ratio) ** controller_error_exponent
-                factor = min(controller_max_factor, max(controller_min_factor, factor))
-            dt = dt * factor
-            if dt <= 0.0:
-                raise RuntimeError("RKCK step size underflowed to zero.")
-            if dt > remaining:
-                dt = remaining
+            dt = controller.rejected_step(dt, error_ratio, remaining, "RKCK")
 
         accepted_dt = dt
         remaining_after = interval.stop - (interval.present + accepted_dt)
-        if remaining_after <= 0.0:
-            interval.step = 0.0
-        elif error_ratio == 0.0:
-            interval.step = min(accepted_dt * controller_max_factor, remaining_after)
-        else:
-            factor = controller_safety * (1.0 / error_ratio) ** controller_error_exponent
-            factor = min(controller_max_factor, max(controller_min_factor, factor))
-            interval.step = min(accepted_dt * factor, remaining_after)
+        interval.step = controller.accepted_next_step(accepted_dt, error_ratio, remaining_after)
         apply_delta(delta_high, state)
         return accepted_dt
 
@@ -247,4 +238,5 @@ class SchemeCashKarp:
 SchemeRKCK = SchemeCashKarp
 
 __all__ = ["RKCK_TABLEAU", "SchemeCashKarp", "SchemeRKCK"]
+
 

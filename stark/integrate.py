@@ -5,6 +5,7 @@ from collections.abc import Iterable, Iterator
 from stark.audit import Auditor
 from stark.marcher import Marcher
 from stark.contracts import IntervalLike, State
+from stark.safety import Safety
 
 
 Checkpoints = int | Iterable[float]
@@ -34,22 +35,22 @@ class Integrator:
     `copy()`, and `Marcher` provides state snapshots through its scheme
     workbench rather than falling back to `deepcopy`.
 
-    When safety rails are enabled, both modes check that time advances after
+    When progress safety is enabled, both modes check that time advances after
     every accepted step and raise a helpful error if a scheme stalls.
     """
 
-    __slots__ = ("safety_rails", "_snapshot_impl", "_live_impl")
+    __slots__ = ("safety", "_snapshot_impl", "_live_impl")
 
-    def __init__(self, safety_rails: bool = True) -> None:
-        self.safety_rails = safety_rails
-        self._snapshot_impl = self._call_snapshot_safe if safety_rails else self._call_snapshot_fast
-        self._live_impl = self._call_live_safe if safety_rails else self._call_live_fast
+    def __init__(self, safety: Safety | None = None) -> None:
+        self.safety = safety if safety is not None else Safety()
+        self._snapshot_impl = self._call_snapshot_safe if self.safety.progress else self._call_snapshot_fast
+        self._live_impl = self._call_live_safe if self.safety.progress else self._call_live_fast
 
     def __repr__(self) -> str:
-        return f"Integrator(safety_rails={self.safety_rails!r})"
+        return f"Integrator(safety={self.safety!r})"
 
     def __str__(self) -> str:
-        mode = "safe" if self.safety_rails else "fast"
+        mode = "safe" if self.safety.progress else "fast"
         return f"STARK integrator ({mode} mode)"
 
     def __call__(
@@ -201,7 +202,7 @@ class Integrator:
                 raise RuntimeError(
                     "Integration made no progress. "
                     "The scheme may have returned a non-positive step size. "
-                    "Disable safety rails only if you intentionally want unchecked behavior."
+                    "Disable progress safety only if you intentionally want unchecked behavior."
                 )
             yield interval, state
 
@@ -231,7 +232,7 @@ class Integrator:
                 raise RuntimeError(
                     "Integration made no progress. "
                     "The scheme may have returned a non-positive step size. "
-                    "Disable safety rails only if you intentionally want unchecked behavior."
+                    "Disable progress safety only if you intentionally want unchecked behavior."
                 )
             yield self._snapshot(marcher, interval, state)
 

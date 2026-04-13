@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.audit import Auditor
-from stark.control import Tolerance
+from stark.tolerance import Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.butcher_tableau import ButcherTableau
 from stark.scheme_support.descriptor import SchemeDescriptor
@@ -19,7 +19,15 @@ SSPRK33_B = SSPRK33_TABLEAU.b
 
 
 class SchemeSSPRK33:
-    """Strong-stability-preserving third-order Runge-Kutta method."""
+    """
+    The three-stage third-order strong-stability-preserving Runge-Kutta method.
+
+    SSPRK33 is designed for problems where preserving monotonicity or other
+    stability properties of forward Euler under a step restriction matters,
+    such as hyperbolic PDE discretizations with nonlinear limiters.
+
+    Further reading: https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
+    """
 
     __slots__ = ("derivative", "k1", "k2", "k3", "workspace", "stage", "trial")
 
@@ -112,4 +120,5 @@ class SchemeSSPRK33:
 
 
 __all__ = ["SSPRK33_TABLEAU", "SchemeSSPRK33"]
+
 

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from stark.audit import Auditor
-from stark.control import Regulator, Tolerance
+from stark.regulator import Regulator
+from stark.tolerance import Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.butcher_tableau import ButcherTableau
+from stark.scheme_support.adaptive_controller import AdaptiveController
 from stark.scheme_support.descriptor import SchemeDescriptor
 from stark.scheme_support.workspace import SchemeWorkspace
 
@@ -30,9 +32,17 @@ assert RKF45_B_LOW is not None
 
 
 class SchemeFehlberg45:
-    """Adaptive Fehlberg 5(4) Runge-Kutta method."""
+    """
+    The adaptive Runge-Kutta-Fehlberg embedded 5(4) pair.
 
-    __slots__ = ("regulator", "derivative", "error", "k1", "k2", "k3", "k4", "k5", "k6", "workspace", "stage", "trial")
+    Fehlberg's method is one of the classic adaptive explicit Runge-Kutta
+    constructions: a fifth-order update paired with a fourth-order estimate for
+    step control.
+
+    Further reading: https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
+    """
+
+    __slots__ = ("regulator", "controller", "derivative", "error", "k1", "k2", "k3", "k4", "k5", "k6", "workspace", "stage", "trial")
 
     descriptor = SchemeDescriptor("RKF45", "Fehlberg 4(5)")
     tableau = RKF45_TABLEAU
@@ -48,6 +58,7 @@ class SchemeFehlberg45:
         self.derivative = derivative
         self.workspace = SchemeWorkspace(workbench, translation_probe)
         self.regulator = regulator if regulator is not None else Regulator()
+        self.controller = AdaptiveController(self.regulator)
         self.k1 = translation_probe
         workspace = self.workspace
         self.stage = workspace.allocate_state_buffer()
@@ -94,7 +105,7 @@ class SchemeFehlberg45:
         combine5 = workspace.combine5
         combine6 = workspace.combine6
         apply_delta = workspace.apply_delta
-        regulator = self.regulator
+        controller = self.controller
         stage = self.stage
         trial_buffer = self.trial
         error_buffer = self.error
@@ -105,11 +116,6 @@ class SchemeFehlberg45:
         k5 = self.k5
         k6 = self.k6
         dt = interval.step if interval.step <= remaining else remaining
-        safety = regulator.safety
-        min_factor = regulator.min_factor
-        max_factor = regulator.max_factor
-        error_exponent = regulator.error_exponent
-
         while True:
             derivative(state, k1)
 
@@ -205,30 +211,15 @@ class SchemeFehlberg45:
             if error_ratio <= 1.0:
                 break
 
-            if error_ratio == 0.0:
-                factor = max_factor
-            else:
-                factor = safety * (1.0 / error_ratio) ** error_exponent
-                factor = min(max_factor, max(min_factor, factor))
-            dt = dt * factor
-            if dt <= 0.0:
-                raise RuntimeError("RKF45 step size underflowed to zero.")
-            if dt > remaining:
-                dt = remaining
+            dt = controller.rejected_step(dt, error_ratio, remaining, "RKF45")
 
         accepted_dt = dt
         remaining_after = interval.stop - (interval.present + accepted_dt)
-        if remaining_after <= 0.0:
-            interval.step = 0.0
-        elif error_ratio == 0.0:
-            interval.step = min(accepted_dt * max_factor, remaining_after)
-        else:
-            factor = safety * (1.0 / error_ratio) ** error_exponent
-            factor = min(max_factor, max(min_factor, factor))
-            interval.step = min(accepted_dt * factor, remaining_after)
+        interval.step = controller.accepted_next_step(accepted_dt, error_ratio, remaining_after)
         apply_delta(delta_high, state)
         return accepted_dt
 
 
 __all__ = ["RKF45_TABLEAU", "SchemeFehlberg45"]
+
 

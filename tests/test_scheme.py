@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from stark.audit import Auditor
-from stark.control import Tolerance
+from stark.tolerance import Tolerance
 from stark.primitives import Interval
 from stark.scheme_library.adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.scheme_library.adaptive.cash_karp import SchemeCashKarp
@@ -308,3 +308,4 @@ def test_scheme_applies_translation_without_aliasing_state() -> None:
 
     assert accepted_dt == 1.0
     assert state == {"x": 2.0, "y": -1.0}
+

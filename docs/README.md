@@ -9,6 +9,12 @@ to answer two questions:
 For a worked narrative example, start with
 [`examples/three_body_stark.ipynb`](../examples/three_body_stark.ipynb).
 
+For the package's internal design language and coding conventions, see
+[`docs/house_style.md`](house_style.md).
+
+For the mathematical interpretation of the contracts, see
+[`docs/contracts_math.md`](contracts_math.md).
+
 ## Core idea
 
 STARK integrates rich mutable Python state objects by separating the nonlinear
@@ -112,12 +118,42 @@ Fixed-step schemes:
 | `SchemeRK38` | 3/8-rule Runge-Kutta |
 | `SchemeSSPRK33` | SSP RK33 |
 
+Implicit schemes:
+
+| Class | Method |
+| --- | --- |
+| `SchemeBackwardEuler` | Backward Euler |
+| `SchemeSDIRK21` | ESDIRK 2(1) / SDIRK21 |
+| `SchemeKvaerno3` | Kvaerno 3(2) |
+| `SchemeKvaerno4` | Kvaerno 4(3) |
+| `SchemeBDF2` | BDF2 |
+
 For clarity, the physical subpackages are also importable:
 
 ```python
 from stark.scheme_library.adaptive import SchemeDormandPrince
 from stark.scheme_library.fixed_step import SchemeRK4
+from stark.scheme_library.adaptive_implicit import SchemeKvaerno3
 ```
+
+## Built-in resolvers and inverters
+
+Resolvers live in `stark.resolver_library`:
+
+| Class | Method |
+| --- | --- |
+| `ResolverPicard` | Fixed-point / Picard iteration |
+| `ResolverAnderson` | Anderson-accelerated fixed-point iteration |
+| `ResolverBroyden` | Broyden quasi-Newton iteration |
+| `ResolverNewton` | Newton iteration |
+
+Inverters live in `stark.inverter_library`:
+
+| Class | Method |
+| --- | --- |
+| `InverterGMRES` | GMRES |
+| `InverterFGMRES` | Flexible GMRES |
+| `InverterBiCGStab` | BiCGStab |
 
 ## User state contracts
 
@@ -282,6 +318,72 @@ for `Marcher`.
 Run `Auditor(..., scheme=my_scheme)` to check a custom scheme alongside the
 state, translation, workbench, interval, and tolerance objects.
 
+## Implicit schemes
+
+Built-in implicit schemes use the same `Marcher` and `Integrator` layer as the
+explicit schemes, but they ask the user for extra structure.
+
+The additional pieces depend on the resolver:
+
+- `ResolverPicard` only needs residual evaluation.
+- `ResolverAnderson` and `ResolverBroyden` also need an `InnerProduct`.
+- `ResolverNewton` needs a `Linearizer` and an `InverterLike`.
+
+The common implicit shape is:
+
+```python
+from stark import (
+    InverterBiCGStab,
+    InverterPolicy,
+    InverterTolerance,
+    Marcher,
+    ResolverNewton,
+    ResolverPolicy,
+    ResolverTolerance,
+    Tolerance,
+)
+from stark.scheme_library import SchemeKvaerno3
+
+workbench = MyWorkbench()
+derivative = MyDerivative()
+linearizer = MyLinearizer()
+inverter = InverterBiCGStab(
+    workbench,
+    my_inner_product,
+    tolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
+    policy=InverterPolicy(max_iterations=24),
+)
+resolver = ResolverNewton(
+    workbench,
+    inverter=inverter,
+    tolerance=ResolverTolerance(atol=1.0e-7, rtol=1.0e-7),
+    policy=ResolverPolicy(max_iterations=24),
+)
+scheme = SchemeKvaerno3(
+    derivative,
+    workbench,
+    linearizer=linearizer,
+    resolver=resolver,
+)
+marcher = Marcher(scheme, tolerance=Tolerance(atol=1.0e-6, rtol=1.0e-5))
+```
+
+For Anderson or Broyden, replace `ResolverNewton(...)` with the chosen
+resolver, pass an inner product directly to the resolver, and omit the
+linearizer/inverter pair.
+
+The `Auditor` is especially useful here because implicit methods rely on more
+contracts at once:
+
+- the `Translation` vector-space and norm structure;
+- the `Linearizer` Jacobian action for Newton-like methods;
+- the `InnerProduct` for Krylov and secant-based methods;
+- the in-place linear-combination kernels required for strict implicit
+  operator algebra.
+
+For the mathematical meaning of those contracts, see
+[`docs/contracts_math.md`](contracts_math.md).
+
 ## Benchmarks
 
 The benchmark reports live under `benchmarks/` and are intended to be readable
@@ -299,6 +401,8 @@ Run:
 ```powershell
 python -m benchmarks.brusselator_2d.report
 python -m benchmarks.fput.report
+python -m benchmarks.fitzhugh_nagumo_1d.report
+python -m benchmarks.robertson.report
 ```
 
 The STARK benchmark implementations intentionally use fast translation paths so

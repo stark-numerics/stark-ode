@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.audit import Auditor
-from stark.control import Tolerance
+from stark.tolerance import Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.butcher_tableau import ButcherTableau
 from stark.scheme_support.descriptor import SchemeDescriptor
@@ -23,7 +23,15 @@ RK4_B = RK4_TABLEAU.b
 
 
 class SchemeRK4:
-    """Classic fixed-step fourth-order Runge-Kutta method."""
+    """
+    The classical four-stage fourth-order Runge-Kutta method.
+
+    RK4 is the best-known fixed-step explicit Runge-Kutta scheme. It is a very
+    common general-purpose baseline because it offers fourth-order accuracy,
+    straightforward staging, and good behavior on many non-stiff problems.
+
+    Further reading: https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
+    """
 
     __slots__ = ("derivative", "k1", "k2", "k3", "k4", "workspace", "stage", "trial")
 
@@ -117,4 +125,5 @@ class SchemeRK4:
 
 
 __all__ = ["RK4_TABLEAU", "SchemeRK4"]
+
 

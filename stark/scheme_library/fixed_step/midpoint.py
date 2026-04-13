@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.audit import Auditor
-from stark.control import Tolerance
+from stark.tolerance import Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.butcher_tableau import ButcherTableau
 from stark.scheme_support.descriptor import SchemeDescriptor
@@ -18,7 +18,15 @@ MIDPOINT_B = MIDPOINT_TABLEAU.b
 
 
 class SchemeMidpoint:
-    """Two-stage second-order explicit midpoint method."""
+    """
+    The explicit midpoint two-stage second-order Runge-Kutta method.
+
+    This method samples the derivative at the midpoint predicted by an Euler
+    half-step and then advances using that midpoint slope. It is one of the
+    standard second-order explicit schemes.
+
+    Further reading: https://en.wikipedia.org/wiki/Midpoint_method
+    """
 
     __slots__ = ("derivative", "k1", "k2", "workspace", "stage", "trial")
 
@@ -97,4 +105,5 @@ class SchemeMidpoint:
 
 
 __all__ = ["MIDPOINT_TABLEAU", "SchemeMidpoint"]
+
 

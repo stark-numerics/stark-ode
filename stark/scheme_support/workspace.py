@@ -5,7 +5,7 @@ from typing import Callable
 
 from stark.contracts import Translation, Workbench
 from stark.scheme_support.linear_combine import (
-    complete_linear_combine,
+    Combiner,
     resolve_linear_combine,
 )
 
@@ -39,16 +39,14 @@ class SchemeWorkspace:
         self.copy_state = workbench.copy_state
         self.state_buffer = workbench.allocate_state()
         self.apply_delta = self.apply_delta_safe
-        linear_combine = resolve_linear_combine(translation)
-        (
-            self.scale,
-            self.combine2,
-            self.combine3,
-            self.combine4,
-            self.combine5,
-            self.combine6,
-            self.combine7,
-        ) = complete_linear_combine(linear_combine, workbench.allocate_translation)
+        combiner = Combiner(resolve_linear_combine(translation), workbench.allocate_translation)
+        self.scale = combiner.scale
+        self.combine2 = combiner.combine2
+        self.combine3 = combiner.combine3
+        self.combine4 = combiner.combine4
+        self.combine5 = combiner.combine5
+        self.combine6 = combiner.combine6
+        self.combine7 = combiner.combine7
 
     def __repr__(self) -> str:
         allocate_state_name = getattr(self.allocate_state, "__qualname__", type(self.allocate_state).__name__)

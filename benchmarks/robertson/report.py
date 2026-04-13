@@ -6,6 +6,11 @@ from time import perf_counter
 from benchmarks.robertson import common, diffrax, scipy, stark
 
 
+def prewarm_runner(prepare_runner, problem, parameters, initial_conditions, reference) -> None:
+    solve_once = prepare_runner(problem, parameters, initial_conditions, reference)
+    solve_once()
+
+
 def timed_runner(
     library,
     solver,
@@ -89,13 +94,13 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
         f"atol={stark_parameters['tolerance_atol']:.0e}"
     )
     print(
-        "  STARK resolution: "
+        "  STARK resolver tolerance/policy: "
         f"atol={stark_parameters['resolution_atol']:.0e}, "
         f"rtol={stark_parameters['resolution_rtol']:.0e}, "
         f"max_iterations={stark_parameters['resolution_max_iterations']}"
     )
     print(
-        "  STARK inversion for Newton: "
+        "  STARK inverter tolerance/policy for Newton: "
         f"atol={stark_parameters['inversion_atol']:.0e}, "
         f"rtol={stark_parameters['inversion_rtol']:.0e}, "
         f"max_iterations={stark_parameters['inversion_max_iterations']}, "
@@ -111,9 +116,9 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
     )
     print("  STARK currently uses fixed-step backward Euler and adaptive SDIRK21")
     print("  Diffrax uses Kvaerno5, an adaptive stiffly accurate ESDIRK method")
+    print("  all compared solver stacks are prewarmed once before timed rows")
     print("  each method performs setup once, then one complete untimed warmup solve")
-    print("  preparation timing includes setup plus that first warmup solve")
-    print("  Diffrax warmup can include JAX tracing and compilation")
+    print("  preparation timing excludes one-time cross-row JIT or tracing costs")
     print("  reference generation is excluded from the timing table")
     print("  timings are CPU wall-clock timings for repeated solves of one small stiff problem")
     print("  the solver rows do not use identical step-control or nonlinear-solve strategies")
@@ -157,6 +162,26 @@ def main() -> None:
     started = perf_counter()
     reference = scipy.run_reference(problem, reference_tolerances, initial_conditions)
     reference_elapsed = perf_counter() - started
+
+    prewarm_runner(stark.prepare_be_picard, problem, stark_parameters, initial_conditions, reference)
+    prewarm_runner(stark.prepare_be_newton, problem, stark_parameters, initial_conditions, reference)
+    prewarm_runner(stark.prepare_sdirk21_newton, problem, stark_parameters, initial_conditions, reference)
+    prewarm_runner(scipy.prepare_radau, problem, tolerances, initial_conditions, reference)
+    prewarm_runner(scipy.prepare_bdf, problem, tolerances, initial_conditions, reference)
+    if diffrax.DIFFRAX_AVAILABLE:
+        prewarm_runner(
+            lambda problem, tolerances, initial_conditions, reference: diffrax.prepare_kvaerno5(
+                problem,
+                tolerances,
+                diffrax_parameters,
+                initial_conditions,
+                reference,
+            ),
+            problem,
+            tolerances,
+            initial_conditions,
+            reference,
+        )
 
     rows = [
         timed_runner("STARK", "BE Picard", stark.prepare_be_picard, repeats, problem, stark_parameters, initial_conditions, reference),

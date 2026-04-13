@@ -2,7 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark import Block, BlockOperator, Inversion, InverterGMRES
+import pytest
+
+from stark import (
+    Block,
+    BlockOperator,
+    InverterBiCGStab,
+    InverterFGMRES,
+    InverterGMRES,
+    InverterPolicy,
+    InverterTolerance,
+)
 
 
 @dataclass(slots=True)
@@ -37,20 +47,25 @@ def scalar_inner_product(left: ScalarTranslation, right: ScalarTranslation) -> f
     return left.value * right.value
 
 
-def test_inversion_matches_resolution_style_contract() -> None:
-    inversion = Inversion(atol=1.0e-6, rtol=1.0e-3, max_iterations=20, restart=5)
-
-    assert inversion.bound(2.0) == 0.002001
-    assert inversion.ratio(0.001, 2.0) < 1.0
-    assert inversion.accepts(0.001, 2.0)
+INVERTER_TYPES = (InverterGMRES, InverterFGMRES, InverterBiCGStab)
 
 
-def test_gmres_solves_scalar_linear_system() -> None:
+def test_inverter_tolerance_matches_general_tolerance_contract() -> None:
+    tolerance = InverterTolerance(atol=1.0e-6, rtol=1.0e-3)
+
+    assert tolerance.bound(2.0) == 0.002001
+    assert tolerance.ratio(0.001, 2.0) < 1.0
+    assert tolerance.accepts(0.001, 2.0)
+
+
+@pytest.mark.parametrize("inverter_type", INVERTER_TYPES)
+def test_inverter_solves_scalar_linear_system(inverter_type) -> None:
     workbench = ScalarWorkbench()
-    inverter = InverterGMRES(
+    inverter = inverter_type(
         workbench,
         scalar_inner_product,
-        inversion=Inversion(atol=1.0e-12, rtol=1.0e-12, max_iterations=8, restart=4),
+        tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=InverterPolicy(max_iterations=8, restart=4),
     )
 
     def scale_by_two(out: ScalarTranslation, translation: ScalarTranslation) -> None:
@@ -65,12 +80,14 @@ def test_gmres_solves_scalar_linear_system() -> None:
     assert abs(solution[0].value - 2.0) < 1.0e-10
 
 
-def test_gmres_solves_two_by_two_block_system() -> None:
+@pytest.mark.parametrize("inverter_type", INVERTER_TYPES)
+def test_inverter_solves_two_by_two_block_system(inverter_type) -> None:
     workbench = ScalarWorkbench()
-    inverter = InverterGMRES(
+    inverter = inverter_type(
         workbench,
         scalar_inner_product,
-        inversion=Inversion(atol=1.0e-12, rtol=1.0e-12, max_iterations=8, restart=4),
+        tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=InverterPolicy(max_iterations=16, restart=4),
     )
 
     def first_row(out: ScalarTranslation, block_item: ScalarTranslation) -> None:
@@ -97,12 +114,20 @@ def test_gmres_solves_two_by_two_block_system() -> None:
     assert abs(solution[1].value - (7.0 / 11.0)) < 1.0e-10
 
 
-def test_gmres_requires_bound_operator() -> None:
-    inverter = InverterGMRES(ScalarWorkbench(), scalar_inner_product)
+@pytest.mark.parametrize(
+    ("inverter_type", "expected_message"),
+    (
+        (InverterGMRES, "bound to an operator"),
+        (InverterFGMRES, "bound to an operator"),
+        (InverterBiCGStab, "bound to an operator"),
+    ),
+)
+def test_inverter_requires_bound_operator(inverter_type, expected_message) -> None:
+    inverter = inverter_type(ScalarWorkbench(), scalar_inner_product)
 
     try:
         inverter(Block([ScalarTranslation()]), Block([ScalarTranslation(1.0)]))
     except RuntimeError as exc:
-        assert "bound to an operator" in str(exc)
+        assert expected_message in str(exc)
     else:  # pragma: no cover - defensive failure branch
-        raise AssertionError("Expected GMRES to reject use before bind().")
+        raise AssertionError("Expected inverter to reject use before bind().")

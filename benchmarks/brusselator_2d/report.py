@@ -6,6 +6,15 @@ from time import perf_counter
 from benchmarks.brusselator_2d import common, diffrax, scipy, stark
 
 
+def prewarm_runner(prepare_runner, problem, tolerances, initial_conditions, reference, allow_failure=False) -> None:
+    try:
+        solve_once = prepare_runner(problem, tolerances, initial_conditions, reference)
+        solve_once()
+    except Exception:
+        if not allow_failure:
+            raise
+
+
 def timed_runner(
     library,
     solver,
@@ -111,9 +120,9 @@ def describe_problem(problem, tolerances, reference_tolerances, reference, refer
         "  STARK acceleration: "
         + ("Numba-jitted RHS and fused translation kernels" if stark.NUMBA_AVAILABLE else "NumPy fallback kernels")
     )
+    print("  all compared solver stacks are prewarmed once before timed rows")
     print("  each method performs setup once, then one complete untimed warmup solve")
-    print("  preparation timing includes setup plus that first warmup solve")
-    print("  Diffrax warmup can include JAX compilation; STARK warmup can include Numba compilation")
+    print("  preparation timing excludes one-time cross-row JIT or tracing costs")
     print("  reference generation is excluded from the timing table")
     print("  timings are CPU wall-clock timings for repeated solves of one medium-sized problem")
     print("  equal tolerance numbers do not imply identical solver error norms")
@@ -160,6 +169,13 @@ def main() -> None:
     started = perf_counter()
     reference = scipy.run_reference(problem, reference_tolerances, initial_conditions)
     reference_elapsed = perf_counter() - started
+
+    prewarm_runner(stark.prepare_rkck, problem, tolerances, initial_conditions, reference)
+    prewarm_runner(stark.prepare_rkdp, problem, tolerances, initial_conditions, reference)
+    prewarm_runner(scipy.prepare_rk45, problem, tolerances, initial_conditions, reference)
+    prewarm_runner(scipy.prepare_dop853, problem, tolerances, initial_conditions, reference)
+    prewarm_runner(diffrax.prepare_tsit5, problem, tolerances, initial_conditions, reference, allow_failure=True)
+    prewarm_runner(diffrax.prepare_dopri5, problem, tolerances, initial_conditions, reference, allow_failure=True)
 
     rows = [
         timed_runner("STARK", "RKCK", stark.prepare_rkck, repeats, problem, tolerances, initial_conditions, reference),

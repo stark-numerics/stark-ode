@@ -3,6 +3,7 @@
 STARK currently includes three public benchmark cases:
 
 - `brusselator_2d`: a periodic two-species reaction-diffusion problem.
+- `fitzhugh_nagumo_1d`: a periodic stiff excitable-medium reaction-diffusion problem.
 - `fput`: a Fermi-Pasta-Ulam-Tsingou beta lattice with fixed endpoints.
 - `robertson`: a stiff chemical kinetics problem.
 
@@ -10,6 +11,7 @@ Run them with:
 
 ```powershell
 python -m benchmarks.brusselator_2d.report
+python -m benchmarks.fitzhugh_nagumo_1d.report
 python -m benchmarks.fput.report
 python -m benchmarks.robertson.report
 ```

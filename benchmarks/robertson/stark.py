@@ -5,68 +5,60 @@ from math import sqrt
 
 import numpy as np
 
+from stark.jit import NUMBA_AVAILABLE, compile_if_you_can, jit_if_you_can
 from stark import (
-    Inversion,
+    InverterPolicy,
     InverterGMRES,
+    InverterTolerance,
     Integrator,
     Interval,
     Marcher,
-    Resolution,
     ResolverNewton,
     ResolverPicard,
+    ResolverPolicy,
+    ResolverTolerance,
+    Safety,
     Tolerance,
 )
-from stark.control import Regulator
+from stark.regulator import Regulator
 from stark.scheme_library import SchemeSDIRK21
 from stark.scheme_library.implicit import SchemeBackwardEuler
 
-try:
-    from numba import njit
-except ImportError:  # pragma: no cover - optional benchmark accelerator
-    NUMBA_AVAILABLE = False
-else:
-    NUMBA_AVAILABLE = True
-
-
-def _optional_njit(function):
-    return njit(cache=True)(function) if NUMBA_AVAILABLE else function
-
-
-@_optional_njit
+@jit_if_you_can
 def _apply_kernel(origin_y, delta_y, result_y):
     result_y[0] = origin_y[0] + delta_y[0]
     result_y[1] = origin_y[1] + delta_y[1]
     result_y[2] = origin_y[2] + delta_y[2]
 
 
-@_optional_njit
+@jit_if_you_can
 def _norm_kernel(delta_y):
     total = delta_y[0] * delta_y[0] + delta_y[1] * delta_y[1] + delta_y[2] * delta_y[2]
     return (total / 3.0) ** 0.5
 
 
-@_optional_njit
+@jit_if_you_can
 def _scale_kernel(out_y, a, x_y):
     out_y[0] = a * x_y[0]
     out_y[1] = a * x_y[1]
     out_y[2] = a * x_y[2]
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine2_kernel(out_y, a0, x0_y, a1, x1_y):
     out_y[0] = a0 * x0_y[0] + a1 * x1_y[0]
     out_y[1] = a0 * x0_y[1] + a1 * x1_y[1]
     out_y[2] = a0 * x0_y[2] + a1 * x1_y[2]
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine3_kernel(out_y, a0, x0_y, a1, x1_y, a2, x2_y):
     out_y[0] = a0 * x0_y[0] + a1 * x1_y[0] + a2 * x2_y[0]
     out_y[1] = a0 * x0_y[1] + a1 * x1_y[1] + a2 * x2_y[1]
     out_y[2] = a0 * x0_y[2] + a1 * x1_y[2] + a2 * x2_y[2]
 
 
-@_optional_njit
+@jit_if_you_can
 def _rhs_kernel(state_y, out_y):
     y1 = state_y[0]
     y2 = state_y[1]
@@ -76,7 +68,7 @@ def _rhs_kernel(state_y, out_y):
     out_y[2] = 3.0e7 * y2 * y2
 
 
-@_optional_njit
+@jit_if_you_can
 def _jacobian_apply_kernel(y2, y3, translation_y, result_y):
     dy1 = translation_y[0]
     dy2 = translation_y[1]
@@ -163,6 +155,19 @@ class RobertsonTranslation:
 
 
 class RobertsonWorkbench:
+    __slots__ = ()
+    _compiled = False
+
+    def __init__(self) -> None:
+        if not self.__class__._compiled:
+            probe = np.zeros(3, dtype=np.float64)
+            compile_if_you_can(_apply_kernel, (probe, probe, probe))
+            compile_if_you_can(_norm_kernel, (probe,))
+            compile_if_you_can(_scale_kernel, (probe, 1.0, probe))
+            compile_if_you_can(_combine2_kernel, (probe, 1.0, probe, 1.0, probe))
+            compile_if_you_can(_combine3_kernel, (probe, 1.0, probe, 1.0, probe, 1.0, probe))
+            self.__class__._compiled = True
+
     def __repr__(self) -> str:
         return "RobertsonWorkbench()"
 
@@ -179,6 +184,15 @@ class RobertsonWorkbench:
 
 
 class RobertsonDerivative:
+    __slots__ = ()
+    _compiled = False
+
+    def __init__(self) -> None:
+        if not self.__class__._compiled:
+            probe = np.zeros(3, dtype=np.float64)
+            compile_if_you_can(_rhs_kernel, (probe, probe))
+            self.__class__._compiled = True
+
     def __repr__(self) -> str:
         return "RobertsonDerivative()"
 
@@ -195,6 +209,15 @@ class RobertsonDerivative:
 
 
 class RobertsonLinearizer:
+    __slots__ = ()
+    _compiled = False
+
+    def __init__(self) -> None:
+        if not self.__class__._compiled:
+            probe = np.zeros(3, dtype=np.float64)
+            compile_if_you_can(_jacobian_apply_kernel, (0.0, 0.0, probe, probe))
+            self.__class__._compiled = True
+
     def __repr__(self) -> str:
         return "RobertsonLinearizer()"
 
@@ -225,19 +248,21 @@ def _initial_state(initial_conditions):
 
 
 def prepare_be_picard(problem_parameters, stark_parameters, initial_conditions, reference):
+    safety = Safety.fast()
     workbench = RobertsonWorkbench()
     derivative = RobertsonDerivative()
     resolver = ResolverPicard(
         workbench,
-        resolution=Resolution(
+        tolerance=ResolverTolerance(
             atol=stark_parameters["resolution_atol"],
             rtol=stark_parameters["resolution_rtol"],
-            max_iterations=stark_parameters["resolution_max_iterations"],
         ),
+        policy=ResolverPolicy(max_iterations=stark_parameters["resolution_max_iterations"]),
+        safety=safety,
     )
     scheme = SchemeBackwardEuler(derivative, workbench, resolver=resolver)
-    marcher = Marcher(scheme, tolerance=Tolerance())
-    integrate = Integrator()
+    marcher = Marcher(scheme, tolerance=Tolerance(), safety=safety)
+    integrate = Integrator(safety=safety)
 
     def solve_once():
         interval = Interval(problem_parameters["t0"], stark_parameters["step"], problem_parameters["t1"])
@@ -262,31 +287,36 @@ def run_be_picard(problem_parameters, stark_parameters, initial_conditions, refe
 
 
 def prepare_be_newton(problem_parameters, stark_parameters, initial_conditions, reference):
+    safety = Safety.fast()
     workbench = RobertsonWorkbench()
     derivative = RobertsonDerivative()
     linearizer = RobertsonLinearizer()
     inverter = InverterGMRES(
         workbench,
         robertson_inner_product,
-        inversion=Inversion(
+        tolerance=InverterTolerance(
             atol=stark_parameters["inversion_atol"],
             rtol=stark_parameters["inversion_rtol"],
+        ),
+        policy=InverterPolicy(
             max_iterations=stark_parameters["inversion_max_iterations"],
             restart=stark_parameters["inversion_restart"],
         ),
+        safety=safety,
     )
     resolver = ResolverNewton(
         workbench,
         inverter=inverter,
-        resolution=Resolution(
+        tolerance=ResolverTolerance(
             atol=stark_parameters["resolution_atol"],
             rtol=stark_parameters["resolution_rtol"],
-            max_iterations=stark_parameters["resolution_max_iterations"],
         ),
+        policy=ResolverPolicy(max_iterations=stark_parameters["resolution_max_iterations"]),
+        safety=safety,
     )
     scheme = SchemeBackwardEuler(derivative, workbench, linearizer=linearizer, resolver=resolver)
-    marcher = Marcher(scheme, tolerance=Tolerance())
-    integrate = Integrator()
+    marcher = Marcher(scheme, tolerance=Tolerance(), safety=safety)
+    integrate = Integrator(safety=safety)
 
     def solve_once():
         interval = Interval(problem_parameters["t0"], stark_parameters["step"], problem_parameters["t1"])
@@ -311,27 +341,32 @@ def run_be_newton(problem_parameters, stark_parameters, initial_conditions, refe
 
 
 def prepare_sdirk21_newton(problem_parameters, stark_parameters, initial_conditions, reference):
+    safety = Safety.fast()
     workbench = RobertsonWorkbench()
     derivative = RobertsonDerivative()
     linearizer = RobertsonLinearizer()
     inverter = InverterGMRES(
         workbench,
         robertson_inner_product,
-        inversion=Inversion(
+        tolerance=InverterTolerance(
             atol=stark_parameters["inversion_atol"],
             rtol=stark_parameters["inversion_rtol"],
+        ),
+        policy=InverterPolicy(
             max_iterations=stark_parameters["inversion_max_iterations"],
             restart=stark_parameters["inversion_restart"],
         ),
+        safety=safety,
     )
     resolver = ResolverNewton(
         workbench,
         inverter=inverter,
-        resolution=Resolution(
+        tolerance=ResolverTolerance(
             atol=stark_parameters["resolution_atol"],
             rtol=stark_parameters["resolution_rtol"],
-            max_iterations=stark_parameters["resolution_max_iterations"],
         ),
+        policy=ResolverPolicy(max_iterations=stark_parameters["resolution_max_iterations"]),
+        safety=safety,
     )
     scheme = SchemeSDIRK21(
         derivative,
@@ -349,8 +384,9 @@ def prepare_sdirk21_newton(problem_parameters, stark_parameters, initial_conditi
             atol=stark_parameters["tolerance_atol"],
             rtol=stark_parameters["tolerance_rtol"],
         ),
+        safety=safety,
     )
-    integrate = Integrator()
+    integrate = Integrator(safety=safety)
 
     def solve_once():
         interval = Interval(
@@ -376,3 +412,4 @@ def prepare_sdirk21_newton(problem_parameters, stark_parameters, initial_conditi
 
 def run_sdirk21_newton(problem_parameters, stark_parameters, initial_conditions, reference):
     return prepare_sdirk21_newton(problem_parameters, stark_parameters, initial_conditions, reference)()
+

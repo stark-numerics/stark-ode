@@ -4,22 +4,11 @@ from math import sqrt
 
 import numpy as np
 
-from stark import Marcher, Integrator, Interval, Tolerance
+from stark.jit import NUMBA_AVAILABLE, compile_if_you_can, jit_if_you_can
+from stark import Marcher, Integrator, Interval, Safety, Tolerance
 from stark.scheme_library.adaptive import SchemeCashKarp, SchemeDormandPrince
 
-try:
-    from numba import njit
-except ImportError:  # pragma: no cover - optional benchmark accelerator
-    NUMBA_AVAILABLE = False
-else:
-    NUMBA_AVAILABLE = True
-
-
-def _optional_njit(function):
-    return njit(cache=True)(function) if NUMBA_AVAILABLE else function
-
-
-@_optional_njit
+@jit_if_you_can
 def _apply_kernel(origin_u, origin_v, du, dv, result_u, result_v):
     rows, cols = origin_u.shape
     for i in range(rows):
@@ -28,7 +17,7 @@ def _apply_kernel(origin_u, origin_v, du, dv, result_u, result_v):
             result_v[i, j] = origin_v[i, j] + dv[i, j]
 
 
-@_optional_njit
+@jit_if_you_can
 def _norm_kernel(du, dv):
     rows, cols = du.shape
     total = 0.0
@@ -38,7 +27,7 @@ def _norm_kernel(du, dv):
     return (total / (rows * cols)) ** 0.5
 
 
-@_optional_njit
+@jit_if_you_can
 def _scale_kernel(out_du, out_dv, a, x_du, x_dv):
     rows, cols = out_du.shape
     for i in range(rows):
@@ -47,7 +36,7 @@ def _scale_kernel(out_du, out_dv, a, x_du, x_dv):
             out_dv[i, j] = a * x_dv[i, j]
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine2_kernel(out_du, out_dv, a0, x0_du, x0_dv, a1, x1_du, x1_dv):
     rows, cols = out_du.shape
     for i in range(rows):
@@ -56,7 +45,7 @@ def _combine2_kernel(out_du, out_dv, a0, x0_du, x0_dv, a1, x1_du, x1_dv):
             out_dv[i, j] = a0 * x0_dv[i, j] + a1 * x1_dv[i, j]
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine3_kernel(out_du, out_dv, a0, x0_du, x0_dv, a1, x1_du, x1_dv, a2, x2_du, x2_dv):
     rows, cols = out_du.shape
     for i in range(rows):
@@ -65,7 +54,7 @@ def _combine3_kernel(out_du, out_dv, a0, x0_du, x0_dv, a1, x1_du, x1_dv, a2, x2_
             out_dv[i, j] = a0 * x0_dv[i, j] + a1 * x1_dv[i, j] + a2 * x2_dv[i, j]
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine4_kernel(
     out_du,
     out_dv,
@@ -99,7 +88,7 @@ def _combine4_kernel(
             )
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine5_kernel(
     out_du,
     out_dv,
@@ -138,7 +127,7 @@ def _combine5_kernel(
             )
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine6_kernel(
     out_du,
     out_dv,
@@ -182,7 +171,7 @@ def _combine6_kernel(
             )
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine7_kernel(
     out_du,
     out_dv,
@@ -231,7 +220,7 @@ def _combine7_kernel(
             )
 
 
-@_optional_njit
+@jit_if_you_can
 def _rhs_kernel(u, v, du, dv, alpha, a, b, inv_dx2):
     rows, cols = u.shape
     for i in range(rows):
@@ -495,10 +484,101 @@ class BrusselatorTranslation:
 
 class BrusselatorWorkbench:
     __slots__ = ("grid_shape",)
+    _compiled = False
 
     def __init__(self, problem_parameters):
         grid_size = problem_parameters["grid_size"]
         self.grid_shape = (grid_size, grid_size)
+        if not self.__class__._compiled:
+            probe = np.zeros(self.grid_shape, dtype=np.float64)
+            compile_if_you_can(_apply_kernel, (probe, probe, probe, probe, probe, probe))
+            compile_if_you_can(_norm_kernel, (probe, probe))
+            compile_if_you_can(_scale_kernel, (probe, probe, 1.0, probe, probe))
+            compile_if_you_can(_combine2_kernel, (probe, probe, 1.0, probe, probe, 1.0, probe, probe))
+            compile_if_you_can(
+                _combine3_kernel,
+                (probe, probe, 1.0, probe, probe, 1.0, probe, probe, 1.0, probe, probe),
+            )
+            compile_if_you_can(
+                _combine4_kernel,
+                (probe, probe, 1.0, probe, probe, 1.0, probe, probe, 1.0, probe, probe, 1.0, probe, probe),
+            )
+            compile_if_you_can(
+                _combine5_kernel,
+                (
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                ),
+            )
+            compile_if_you_can(
+                _combine6_kernel,
+                (
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                ),
+            )
+            compile_if_you_can(
+                _combine7_kernel,
+                (
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                ),
+            )
+            self.__class__._compiled = True
 
     def __repr__(self) -> str:
         return f"BrusselatorWorkbench(grid_shape={self.grid_shape!r})"
@@ -524,12 +604,20 @@ class BrusselatorWorkbench:
 
 class BrusselatorDerivative:
     __slots__ = ("a", "alpha", "b", "inv_dx2")
+    _compiled = False
 
     def __init__(self, problem_parameters):
         self.alpha = problem_parameters["alpha"]
         self.a = problem_parameters["a"]
         self.b = problem_parameters["b"]
         self.inv_dx2 = problem_parameters["inv_dx2"]
+        if not self.__class__._compiled:
+            probe = np.zeros((problem_parameters["grid_size"], problem_parameters["grid_size"]), dtype=np.float64)
+            compile_if_you_can(
+                _rhs_kernel,
+                (probe, probe, probe, probe, self.alpha, self.a, self.b, self.inv_dx2),
+            )
+            self.__class__._compiled = True
 
     def __repr__(self) -> str:
         return (
@@ -566,14 +654,16 @@ class BrusselatorDerivative:
 
 
 def prepare_rkck(problem_parameters, tolerance_parameters, initial_conditions, reference):
+    safety = Safety.fast()
     workbench = BrusselatorWorkbench(problem_parameters)
     derivative = BrusselatorDerivative(problem_parameters)
     scheme = SchemeCashKarp(derivative, workbench)
     marcher = Marcher(
         scheme,
         tolerance=Tolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
+        safety=safety,
     )
-    integrate = Integrator()
+    integrate = Integrator(safety=safety)
 
     def solve_once():
         interval = Interval(
@@ -602,14 +692,16 @@ def run_rkck(problem_parameters, tolerance_parameters, initial_conditions, refer
 
 
 def prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, reference):
+    safety = Safety.fast()
     workbench = BrusselatorWorkbench(problem_parameters)
     derivative = BrusselatorDerivative(problem_parameters)
     scheme = SchemeDormandPrince(derivative, workbench)
     marcher = Marcher(
         scheme,
         tolerance=Tolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
+        safety=safety,
     )
-    integrate = Integrator()
+    integrate = Integrator(safety=safety)
 
     def solve_once():
         interval = Interval(

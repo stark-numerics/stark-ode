@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from stark.audit import AuditError, Auditor
-from stark.control import Tolerance
+from stark.tolerance import Tolerance
 from stark.primitives import Interval
 
 
@@ -106,3 +106,19 @@ def test_require_scheme_inputs_raises_helpful_error() -> None:
         assert "Overall: incomplete." in message
     else:  # pragma: no cover - defensive failure branch
         raise AssertionError("Expected the audit to reject a bad workbench.")
+
+
+def test_require_linear_residual_rejects_missing_linearize() -> None:
+    class ResidualOnly:
+        def __call__(self, out, block) -> None:
+            del out, block
+
+    try:
+        Auditor.require_linear_residual(ResidualOnly())
+    except AuditError as exc:
+        message = str(exc)
+        assert "Residual provides linearize(out, block)" in message
+        assert "Overall: incomplete." in message
+    else:  # pragma: no cover - defensive failure branch
+        raise AssertionError("Expected the audit to reject a residual without linearize().")
+

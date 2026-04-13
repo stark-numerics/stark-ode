@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.audit import Auditor
-from stark.control import Tolerance
+from stark.tolerance import Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.butcher_tableau import ButcherTableau
 from stark.scheme_support.descriptor import SchemeDescriptor
@@ -19,7 +19,16 @@ RK38_B = RK38_TABLEAU.b
 
 
 class SchemeRK38:
-    """Classic four-stage 3/8-rule fourth-order Runge-Kutta method."""
+    """
+    The four-stage 3/8-rule fourth-order Runge-Kutta method.
+
+    This is an alternative fourth-order RK4 family member with different stage
+    coefficients from the classical RK4 method. It reaches the same formal
+    order with a distinct tableau and is sometimes useful for comparisons or
+    tableau studies.
+
+    Further reading: https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
+    """
 
     __slots__ = ("derivative", "k1", "k2", "k3", "k4", "workspace", "stage", "trial")
 
@@ -128,4 +137,5 @@ class SchemeRK38:
 
 
 __all__ = ["RK38_TABLEAU", "SchemeRK38"]
+
 

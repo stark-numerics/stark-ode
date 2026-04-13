@@ -5,7 +5,7 @@
 STARK is an ODE integration package for problems whose state is not naturally a
 single flat vector. It lets users keep rich mutable state objects, define the
 linear translation objects used by Runge-Kutta methods, and then integrate those
-states with adaptive or fixed-step schemes.
+states with adaptive, fixed-step, and implicit schemes.
 
 This is useful when a simulation already has its own domain model: particles,
 fields, lattices, structured arrays, nested dataclasses, or other objects where
@@ -17,6 +17,11 @@ flattening everything just to call a solver would obscure the code.
   Dormand-Prince, Fehlberg 4(5), Bogacki-Shampine, and Tsitouras 5.
 - Classic fixed-step schemes, including Euler, Heun, midpoint, Kutta
   third-order, RK4, RK38, Ralston, and SSP RK33.
+- Implicit schemes, including backward Euler, SDIRK21, Kvaerno3, Kvaerno4,
+  and BDF2.
+- Built-in nonlinear resolvers, including Picard, Anderson, Broyden, and
+  Newton.
+- Built-in linear inverters, including GMRES, FGMRES, and BiCGStab.
 - Snapshot and live integration loops.
 - Optional checkpoints for evenly spaced outputs or user-specified output
   times.
@@ -77,12 +82,69 @@ The user provides:
 
 See the functionality guide for the full contract.
 
+## Implicit shape
+
+Implicit schemes add a few more moving parts. Alongside the workbench and
+derivative, users may provide:
+
+- a `Linearizer` that supplies the Jacobian action of the derivative;
+- a nonlinear `Resolver`, such as `ResolverNewton` or `ResolverAnderson`;
+- for Newton-like resolvers, an `Inverter`, such as `InverterBiCGStab`.
+
+For example:
+
+```python
+from stark import (
+    InverterBiCGStab,
+    InverterPolicy,
+    InverterTolerance,
+    Marcher,
+    ResolverNewton,
+    ResolverPolicy,
+    ResolverTolerance,
+    Tolerance,
+)
+from stark.scheme_library import SchemeKvaerno3
+
+workbench = MyWorkbench()
+derivative = MyDerivative()
+linearizer = MyLinearizer()
+inverter = InverterBiCGStab(
+    workbench,
+    my_inner_product,
+    tolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
+    policy=InverterPolicy(max_iterations=24),
+)
+resolver = ResolverNewton(
+    workbench,
+    inverter=inverter,
+    tolerance=ResolverTolerance(atol=1.0e-7, rtol=1.0e-7),
+    policy=ResolverPolicy(max_iterations=24),
+)
+scheme = SchemeKvaerno3(
+    derivative,
+    workbench,
+    linearizer=linearizer,
+    resolver=resolver,
+)
+marcher = Marcher(scheme, tolerance=Tolerance(atol=1.0e-6, rtol=1.0e-5))
+```
+
+Anderson- or Broyden-based implicit solves are similar, but they do not need a
+linearizer or inverter. They do need an inner product on translations.
+
 ## Documentation
 
 The compact functionality guide is
 [`docs/README.md`](docs/README.md). It lists the integration APIs, built-in
 schemes, checkpoints, auditing tools, custom scheme contracts, and translation
 fast paths.
+
+For the mathematical view of the contracts, see
+[`docs/contracts_math.md`](docs/contracts_math.md). It explains how STARK's
+`State`, `Translation`, `Linearizer`, `Residual`, `Resolver`, and `Inverter`
+concepts correspond to affine-space, vector-space, norm, and operator
+structures.
 
 ## Example
 
@@ -109,6 +171,7 @@ implementation close to its native idiom.
 python -m pip install -e ".[benchmarks]"
 python -m benchmarks.brusselator_2d.report
 python -m benchmarks.fput.report
+python -m benchmarks.fitzhugh_nagumo_1d.report
 python -m benchmarks.robertson.report
 ```
 

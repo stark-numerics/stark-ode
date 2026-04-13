@@ -4,22 +4,11 @@ from math import sqrt
 
 import numpy as np
 
-from stark import Marcher, Integrator, Interval, Tolerance
+from stark.jit import NUMBA_AVAILABLE, compile_if_you_can, jit_if_you_can
+from stark import Marcher, Integrator, Interval, Safety, Tolerance
 from stark.scheme_library.adaptive import SchemeCashKarp, SchemeDormandPrince
 
-try:
-    from numba import njit
-except ImportError:  # pragma: no cover - optional benchmark accelerator
-    NUMBA_AVAILABLE = False
-else:
-    NUMBA_AVAILABLE = True
-
-
-def _optional_njit(function):
-    return njit(cache=True)(function) if NUMBA_AVAILABLE else function
-
-
-@_optional_njit
+@jit_if_you_can
 def _apply_kernel(origin_q, origin_p, dq, dp, result_q, result_p):
     size = origin_q.size
     for i in range(size):
@@ -27,7 +16,7 @@ def _apply_kernel(origin_q, origin_p, dq, dp, result_q, result_p):
         result_p[i] = origin_p[i] + dp[i]
 
 
-@_optional_njit
+@jit_if_you_can
 def _norm_kernel(dq, dp):
     size = dq.size
     total = 0.0
@@ -36,7 +25,7 @@ def _norm_kernel(dq, dp):
     return (total / size) ** 0.5
 
 
-@_optional_njit
+@jit_if_you_can
 def _scale_kernel(out_dq, out_dp, a, x_dq, x_dp):
     size = out_dq.size
     for i in range(size):
@@ -44,7 +33,7 @@ def _scale_kernel(out_dq, out_dp, a, x_dq, x_dp):
         out_dp[i] = a * x_dp[i]
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine2_kernel(out_dq, out_dp, a0, x0_dq, x0_dp, a1, x1_dq, x1_dp):
     size = out_dq.size
     for i in range(size):
@@ -52,7 +41,7 @@ def _combine2_kernel(out_dq, out_dp, a0, x0_dq, x0_dp, a1, x1_dq, x1_dp):
         out_dp[i] = a0 * x0_dp[i] + a1 * x1_dp[i]
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine3_kernel(out_dq, out_dp, a0, x0_dq, x0_dp, a1, x1_dq, x1_dp, a2, x2_dq, x2_dp):
     size = out_dq.size
     for i in range(size):
@@ -60,7 +49,7 @@ def _combine3_kernel(out_dq, out_dp, a0, x0_dq, x0_dp, a1, x1_dq, x1_dp, a2, x2_
         out_dp[i] = a0 * x0_dp[i] + a1 * x1_dp[i] + a2 * x2_dp[i]
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine4_kernel(
     out_dq,
     out_dp,
@@ -83,7 +72,7 @@ def _combine4_kernel(
         out_dp[i] = a0 * x0_dp[i] + a1 * x1_dp[i] + a2 * x2_dp[i] + a3 * x3_dp[i]
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine5_kernel(
     out_dq,
     out_dp,
@@ -109,7 +98,7 @@ def _combine5_kernel(
         out_dp[i] = a0 * x0_dp[i] + a1 * x1_dp[i] + a2 * x2_dp[i] + a3 * x3_dp[i] + a4 * x4_dp[i]
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine6_kernel(
     out_dq,
     out_dp,
@@ -152,7 +141,7 @@ def _combine6_kernel(
         )
 
 
-@_optional_njit
+@jit_if_you_can
 def _combine7_kernel(
     out_dq,
     out_dp,
@@ -200,7 +189,7 @@ def _combine7_kernel(
         )
 
 
-@_optional_njit
+@jit_if_you_can
 def _rhs_kernel(q, p, dq, dp, beta):
     size = q.size
     for i in range(size):
@@ -442,9 +431,100 @@ class FPUTTranslation:
 
 class FPUTWorkbench:
     __slots__ = ("chain_size",)
+    _compiled = False
 
     def __init__(self, problem_parameters):
         self.chain_size = problem_parameters["chain_size"]
+        if not self.__class__._compiled:
+            probe = np.zeros(self.chain_size, dtype=np.float64)
+            compile_if_you_can(_apply_kernel, (probe, probe, probe, probe, probe, probe))
+            compile_if_you_can(_norm_kernel, (probe, probe))
+            compile_if_you_can(_scale_kernel, (probe, probe, 1.0, probe, probe))
+            compile_if_you_can(_combine2_kernel, (probe, probe, 1.0, probe, probe, 1.0, probe, probe))
+            compile_if_you_can(
+                _combine3_kernel,
+                (probe, probe, 1.0, probe, probe, 1.0, probe, probe, 1.0, probe, probe),
+            )
+            compile_if_you_can(
+                _combine4_kernel,
+                (probe, probe, 1.0, probe, probe, 1.0, probe, probe, 1.0, probe, probe, 1.0, probe, probe),
+            )
+            compile_if_you_can(
+                _combine5_kernel,
+                (
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                ),
+            )
+            compile_if_you_can(
+                _combine6_kernel,
+                (
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                ),
+            )
+            compile_if_you_can(
+                _combine7_kernel,
+                (
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                    1.0,
+                    probe,
+                    probe,
+                ),
+            )
+            self.__class__._compiled = True
 
     def __repr__(self) -> str:
         return f"FPUTWorkbench(chain_size={self.chain_size})"
@@ -470,9 +550,14 @@ class FPUTWorkbench:
 
 class FPUTDerivative:
     __slots__ = ("beta",)
+    _compiled = False
 
     def __init__(self, problem_parameters):
         self.beta = problem_parameters["beta"]
+        if not self.__class__._compiled:
+            probe = np.zeros(problem_parameters["chain_size"], dtype=np.float64)
+            compile_if_you_can(_rhs_kernel, (probe, probe, probe, probe, self.beta))
+            self.__class__._compiled = True
 
     def __repr__(self) -> str:
         return f"FPUTDerivative(beta={self.beta!r})"
@@ -496,14 +581,16 @@ class FPUTDerivative:
 
 
 def prepare_rkck(problem_parameters, tolerance_parameters, initial_conditions, reference):
+    safety = Safety.fast()
     workbench = FPUTWorkbench(problem_parameters)
     derivative = FPUTDerivative(problem_parameters)
     scheme = SchemeCashKarp(derivative, workbench)
     marcher = Marcher(
         scheme,
         tolerance=Tolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
+        safety=safety,
     )
-    integrate = Integrator()
+    integrate = Integrator(safety=safety)
 
     def solve_once():
         interval = Interval(
@@ -532,14 +619,16 @@ def run_rkck(problem_parameters, tolerance_parameters, initial_conditions, refer
 
 
 def prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, reference):
+    safety = Safety.fast()
     workbench = FPUTWorkbench(problem_parameters)
     derivative = FPUTDerivative(problem_parameters)
     scheme = SchemeDormandPrince(derivative, workbench)
     marcher = Marcher(
         scheme,
         tolerance=Tolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
+        safety=safety,
     )
-    integrate = Integrator()
+    integrate = Integrator(safety=safety)
 
     def solve_once():
         interval = Interval(

@@ -1,4 +1,5 @@
 from stark.integrate import Integrator
+from stark.safety import Safety
 
 
 class DummyInterval:
@@ -68,7 +69,7 @@ def test_integrate_with_safety_rails_advances() -> None:
 
 
 def test_integrate_with_safety_rails_raises_on_no_progress() -> None:
-    iterator = Integrator(safety_rails=True)(StalledMarcher(), DummyInterval(0.0, 0.25, 1.0), object())
+    iterator = Integrator(safety=Safety())(StalledMarcher(), DummyInterval(0.0, 0.25, 1.0), object())
 
     try:
         next(iterator)
@@ -79,7 +80,7 @@ def test_integrate_with_safety_rails_raises_on_no_progress() -> None:
 
 
 def test_integrate_without_safety_rails_can_skip_progress_check() -> None:
-    iterator = Integrator(safety_rails=False).live(
+    iterator = Integrator(safety=Safety.fast()).live(
         StalledMarcher(),
         DummyInterval(0.0, 0.25, 1.0),
         object(),

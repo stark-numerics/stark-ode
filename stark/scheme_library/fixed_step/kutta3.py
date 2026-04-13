@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.audit import Auditor
-from stark.control import Tolerance
+from stark.tolerance import Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.butcher_tableau import ButcherTableau
 from stark.scheme_support.descriptor import SchemeDescriptor
@@ -19,7 +19,15 @@ KUTTA3_B = KUTTA3_TABLEAU.b
 
 
 class SchemeKutta3:
-    """Classic third-order Kutta method."""
+    """
+    The classical three-stage third-order Runge-Kutta method.
+
+    This is the traditional third-order Kutta scheme often used as a compact
+    fixed-step method when fourth-order accuracy is not needed but better
+    behavior than second-order methods is still wanted.
+
+    Further reading: https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
+    """
 
     __slots__ = ("derivative", "k1", "k2", "k3", "workspace", "stage", "trial")
 
@@ -112,4 +120,5 @@ class SchemeKutta3:
 
 
 __all__ = ["KUTTA3_TABLEAU", "SchemeKutta3"]
+
 

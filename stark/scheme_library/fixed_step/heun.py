@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.audit import Auditor
-from stark.control import Tolerance
+from stark.tolerance import Tolerance
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.butcher_tableau import ButcherTableau
 from stark.scheme_support.descriptor import SchemeDescriptor
@@ -18,7 +18,15 @@ HEUN_B = HEUN_TABLEAU.b
 
 
 class SchemeHeun:
-    """Two-stage second-order Heun method."""
+    """
+    Heun's explicit two-stage second-order Runge-Kutta method.
+
+    This method averages a forward-Euler predictor slope with a slope evaluated
+    at the end of the step, giving a simple second-order scheme sometimes
+    called the explicit trapezoidal rule or improved Euler method.
+
+    Further reading: https://en.wikipedia.org/wiki/Heun%27s_method
+    """
 
     __slots__ = ("derivative", "k1", "k2", "workspace", "stage", "trial")
 
@@ -97,4 +105,5 @@ class SchemeHeun:
 
 
 __all__ = ["HEUN_TABLEAU", "SchemeHeun"]
+
 
