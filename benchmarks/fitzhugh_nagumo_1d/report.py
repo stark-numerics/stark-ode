@@ -104,21 +104,17 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
         f"max_iterations={stark_parameters['resolution_max_iterations']}"
     )
     print(
-        "  STARK inverter tolerance/policy: "
-        f"atol={stark_parameters['inversion_atol']:.0e}, "
-        f"rtol={stark_parameters['inversion_rtol']:.0e}, "
-        f"max_iterations={stark_parameters['inversion_max_iterations']}, "
-        f"restart={stark_parameters['inversion_restart']}"
-    )
-    print(
         "  STARK acceleration: "
         + (
-            "Numba-jitted stencil, derivative, Jacobian, and fused translation kernels"
-            if stark.NUMBA_AVAILABLE
-            else "Python kernels with branchless hot-path translation calls"
+            "selected accelerator: numba, with compiled stencil, derivative, and fused translation kernels active"
+            if stark.USE_NUMBA_ACCELERATION
+            else "selected accelerator: numba, but it is unavailable here so Python kernels are active"
         )
     )
-    print("  STARK shows the current best local combination: Kvaerno3 with Anderson acceleration")
+    print("  STARK compares the current best generic local combination with an IMEX spectral custom resolvent")
+    print("  STARK generic row: Kvaerno3 with Anderson acceleration")
+    print("  STARK IMEX split: implicit diffusion in u, explicit reaction and recovery terms")
+    print("  STARK IMEX custom resolvent: exact spectral solve of the periodic discrete diffusion stage")
     print("  Diffrax uses Kvaerno5, an adaptive stiffly accurate ESDIRK method")
     print("  all compared solver stacks are prewarmed once before timed rows")
     print("  each method performs setup once, then one complete untimed warmup solve")
@@ -172,6 +168,7 @@ def main() -> None:
 
     stark_runners = [
         ("STARK", "Kvaerno3 Anderson", stark.prepare_kvaerno3_anderson, stark_parameters),
+        ("STARK", "KC43_7 IMEX Spectral", stark.prepare_kc43_imex_spectral, stark_parameters),
     ]
     external_runners = [
         ("SciPy", "Radau", scipy.prepare_radau, tolerances),
@@ -281,3 +278,12 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+

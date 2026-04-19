@@ -43,3 +43,11 @@ BENCHMARK_PARAMETERS = {
 INITIAL_CONDITIONS = {
     "y": np.array([1.0, 0.0, 0.0], dtype=np.float64),
 }
+
+
+
+
+
+
+
+

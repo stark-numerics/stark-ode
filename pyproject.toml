@@ -26,24 +26,33 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
     "build>=1.2.2",
+    "jax>=0.4",
     "numpy>=1.26",
     "numba>=0.60",
     "pytest>=8.0",
     "scipy>=1.13",
     "wheel>=0.43",
 ]
+accelerators = [
+    "jax>=0.4",
+    "numba>=0.60",
+]
 examples = [
+    "jax>=0.4",
     "matplotlib>=3.8",
+    "numba>=0.60",
 ]
 notebooks = [
     "ipykernel>=6",
+    "jax>=0.4",
     "jupyterlab>=4",
     "matplotlib>=3.8",
     "nbformat>=5",
+    "numba>=0.60",
 ]
 benchmarks = [
     "diffrax>=0.6",
-    "jax[cpu]>=0.4",
+    "jax>=0.4",
     "numba>=0.60",
     "numpy>=1.26",
     "scipy>=1.13",

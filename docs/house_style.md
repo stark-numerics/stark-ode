@@ -24,8 +24,9 @@ This is why STARK leans so heavily on objects such as:
 - `Marcher`
 - `Integrator`
 - `Auditor`
+- accelerators
 - schemes
-- resolvers
+- resolvents
 - inverters
 - derivatives
 - linearizers
@@ -56,8 +57,8 @@ different instinct:
 - avoid unnecessary temporary allocations;
 - keep the numerical path explicit enough that it still reads like the method.
 
-The goal is not to make Python imitate C syntax. The goal is to write Python in
-a way that respects the structure of numerical code.
+The goal is not to make Python imitate Fortran syntax. 
+The goal is to write Python in a way that respects the structure of numerical code.
 
 ## Callable classes
 
@@ -106,7 +107,7 @@ STARK generally prefers:
 
 - `marcher.py`
 - `integrate.py`
-- `control.py`
+- `regulator.py`
 - `butcher_tableau.py`
 
 over names that feel temporary or apologetic.
@@ -153,6 +154,7 @@ STARK methods are built by composing workers.
 
 Examples:
 
+- an accelerator swaps one configured worker variant for another;
 - a `Marcher` couples a scheme to tolerances;
 - an `Integrator` repeatedly drives a marcher;
 - a resolver can be combined with different schemes;
@@ -172,6 +174,7 @@ STARK expects problem-specific code to be able to provide:
 - fused translation kernels;
 - jitted derivative kernels;
 - jitted Jacobian actions;
+- auditable custom accelerators;
 - specialized workbench allocation behavior;
 - custom resolvers and inverters where the problem demands it.
 
@@ -207,6 +210,10 @@ STARK prefers:
 The package should fail fast when an object does not satisfy the expected
 protocol, rather than continuing with vague errors later.
 
+That applies to accelerators too: the built-in acceleration workers should stay
+small, explicit, and inspectable, while user-defined accelerators should enter
+the package through the same contracts-and-audit story as the rest of STARK.
+
 ## In practice
 
 When writing new STARK code, ask:
@@ -221,3 +228,9 @@ When writing new STARK code, ask:
 
 If the answer to those questions is mostly yes, the code is probably moving in
 the right direction.
+
+
+
+
+
+

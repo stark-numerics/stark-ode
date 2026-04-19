@@ -1,107 +1,102 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import sqrt
+from math import acos, copysign, cos, pi, sqrt
 
 import numpy as np
 
-from stark.jit import NUMBA_AVAILABLE, compile_if_you_can, jit_if_you_can
 from stark import (
-    InverterPolicy,
-    InverterGMRES,
-    InverterTolerance,
+    Executor,
     Integrator,
     Interval,
     Marcher,
-    ResolverNewton,
-    ResolverPicard,
-    ResolverPolicy,
-    ResolverTolerance,
     Safety,
     Tolerance,
 )
-from stark.regulator import Regulator
-from stark.scheme_library import SchemeSDIRK21
-from stark.scheme_library.implicit import SchemeBackwardEuler
+from stark.accelerators import Accelerator
+from stark.schemes import SchemeKvaerno4
 
-@jit_if_you_can
+
+ACCELERATOR = Accelerator.numba()
+USE_NUMBA_ACCELERATION = ACCELERATOR.available
+
+
+@ACCELERATOR.decorate
 def _apply_kernel(origin_y, delta_y, result_y):
     result_y[0] = origin_y[0] + delta_y[0]
     result_y[1] = origin_y[1] + delta_y[1]
     result_y[2] = origin_y[2] + delta_y[2]
 
 
-@jit_if_you_can
+@ACCELERATOR.decorate
 def _norm_kernel(delta_y):
     total = delta_y[0] * delta_y[0] + delta_y[1] * delta_y[1] + delta_y[2] * delta_y[2]
     return (total / 3.0) ** 0.5
 
 
-@jit_if_you_can
+@ACCELERATOR.decorate
 def _scale_kernel(out_y, a, x_y):
     out_y[0] = a * x_y[0]
     out_y[1] = a * x_y[1]
     out_y[2] = a * x_y[2]
 
 
-@jit_if_you_can
+@ACCELERATOR.decorate
 def _combine2_kernel(out_y, a0, x0_y, a1, x1_y):
     out_y[0] = a0 * x0_y[0] + a1 * x1_y[0]
     out_y[1] = a0 * x0_y[1] + a1 * x1_y[1]
     out_y[2] = a0 * x0_y[2] + a1 * x1_y[2]
 
 
-@jit_if_you_can
+@ACCELERATOR.decorate
 def _combine3_kernel(out_y, a0, x0_y, a1, x1_y, a2, x2_y):
     out_y[0] = a0 * x0_y[0] + a1 * x1_y[0] + a2 * x2_y[0]
     out_y[1] = a0 * x0_y[1] + a1 * x1_y[1] + a2 * x2_y[1]
     out_y[2] = a0 * x0_y[2] + a1 * x1_y[2] + a2 * x2_y[2]
 
 
-@jit_if_you_can
-def _rhs_kernel(state_y, out_y):
+@ACCELERATOR.decorate
+def _full_rhs_kernel(state_y, out_y):
     y1 = state_y[0]
     y2 = state_y[1]
     y3 = state_y[2]
-    out_y[0] = -0.04 * y1 + 1.0e4 * y2 * y3
-    out_y[1] = 0.04 * y1 - 1.0e4 * y2 * y3 - 3.0e7 * y2 * y2
-    out_y[2] = 3.0e7 * y2 * y2
+    coupling = 1.0e4 * y2 * y3
+    quadratic = 3.0e7 * y2 * y2
+    out_y[0] = -0.04 * y1 + coupling
+    out_y[1] = 0.04 * y1 - coupling - quadratic
+    out_y[2] = quadratic
 
 
-@jit_if_you_can
-def _jacobian_apply_kernel(y2, y3, translation_y, result_y):
-    dy1 = translation_y[0]
-    dy2 = translation_y[1]
-    dy3 = translation_y[2]
-    result_y[0] = -0.04 * dy1 + 1.0e4 * y3 * dy2 + 1.0e4 * y2 * dy3
-    result_y[1] = 0.04 * dy1 + (-1.0e4 * y3 - 6.0e7 * y2) * dy2 - 1.0e4 * y2 * dy3
-    result_y[2] = 6.0e7 * y2 * dy2
-
-
-def _scale_translation(out, a, x):
-    if NUMBA_AVAILABLE:
-        _scale_kernel(out.dy, a, x.dy)
-    else:
-        np.multiply(x.dy, a, out=out.dy)
+def _scale_translation_numba(out, a, x):
+    _scale_kernel(out.dy, a, x.dy)
     return out
 
 
-def _combine2_translation(out, a0, x0, a1, x1):
-    if NUMBA_AVAILABLE:
-        _combine2_kernel(out.dy, a0, x0.dy, a1, x1.dy)
-    else:
-        np.multiply(x0.dy, a0, out=out.dy)
-        out.dy += a1 * x1.dy
+def _scale_translation_python(out, a, x):
+    np.multiply(x.dy, a, out=out.dy)
     return out
 
 
-def _combine3_translation(out, a0, x0, a1, x1, a2, x2):
-    if NUMBA_AVAILABLE:
-        _combine3_kernel(out.dy, a0, x0.dy, a1, x1.dy, a2, x2.dy)
-    else:
-        np.multiply(x0.dy, a0, out=out.dy)
-        out.dy += a1 * x1.dy
-        out.dy += a2 * x2.dy
+def _combine2_translation_numba(out, a0, x0, a1, x1):
+    _combine2_kernel(out.dy, a0, x0.dy, a1, x1.dy)
+    return out
+
+
+def _combine2_translation_python(out, a0, x0, a1, x1):
+    np.multiply(x0.dy, a0, out=out.dy)
+    out.dy += a1 * x1.dy
+    return out
+
+
+def _combine3_translation_numba(out, a0, x0, a1, x1, a2, x2):
+    _combine3_kernel(out.dy, a0, x0.dy, a1, x1.dy, a2, x2.dy)
+    return out
+
+
+def _combine3_translation_python(out, a0, x0, a1, x1, a2, x2):
+    np.multiply(x0.dy, a0, out=out.dy)
+    out.dy += a1 * x1.dy
+    out.dy += a2 * x2.dy
     return out
 
 
@@ -130,15 +125,16 @@ class RobertsonTranslation:
 
     __str__ = __repr__
 
-    def __call__(self, origin, result):
-        if NUMBA_AVAILABLE:
-            _apply_kernel(origin.y, self.dy, result.y)
-        else:
-            np.add(origin.y, self.dy, out=result.y)
+    def _apply_numba(self, origin, result):
+        _apply_kernel(origin.y, self.dy, result.y)
 
-    def norm(self):
-        if NUMBA_AVAILABLE:
-            return float(_norm_kernel(self.dy))
+    def _apply_python(self, origin, result):
+        np.add(origin.y, self.dy, out=result.y)
+
+    def _norm_numba(self):
+        return float(_norm_kernel(self.dy))
+
+    def _norm_python(self):
         return sqrt(float(np.dot(self.dy, self.dy)) / self.dy.size)
 
     def __add__(self, other):
@@ -147,11 +143,14 @@ class RobertsonTranslation:
     def __rmul__(self, scalar):
         return RobertsonTranslation(scalar * self.dy)
 
-    linear_combine = [
-        _scale_translation,
-        _combine2_translation,
-        _combine3_translation,
-    ]
+
+RobertsonTranslation.__call__ = RobertsonTranslation._apply_numba if USE_NUMBA_ACCELERATION else RobertsonTranslation._apply_python
+RobertsonTranslation.norm = RobertsonTranslation._norm_numba if USE_NUMBA_ACCELERATION else RobertsonTranslation._norm_python
+RobertsonTranslation.linear_combine = [
+    _scale_translation_numba if USE_NUMBA_ACCELERATION else _scale_translation_python,
+    _combine2_translation_numba if USE_NUMBA_ACCELERATION else _combine2_translation_python,
+    _combine3_translation_numba if USE_NUMBA_ACCELERATION else _combine3_translation_python,
+]
 
 
 class RobertsonWorkbench:
@@ -161,11 +160,11 @@ class RobertsonWorkbench:
     def __init__(self) -> None:
         if not self.__class__._compiled:
             probe = np.zeros(3, dtype=np.float64)
-            compile_if_you_can(_apply_kernel, (probe, probe, probe))
-            compile_if_you_can(_norm_kernel, (probe,))
-            compile_if_you_can(_scale_kernel, (probe, 1.0, probe))
-            compile_if_you_can(_combine2_kernel, (probe, 1.0, probe, 1.0, probe))
-            compile_if_you_can(_combine3_kernel, (probe, 1.0, probe, 1.0, probe, 1.0, probe))
+            ACCELERATOR.compile_examples(_apply_kernel, (probe, probe, probe))
+            ACCELERATOR.compile_examples(_norm_kernel, (probe,))
+            ACCELERATOR.compile_examples(_scale_kernel, (probe, 1.0, probe))
+            ACCELERATOR.compile_examples(_combine2_kernel, (probe, 1.0, probe, 1.0, probe))
+            ACCELERATOR.compile_examples(_combine3_kernel, (probe, 1.0, probe, 1.0, probe, 1.0, probe))
             self.__class__._compiled = True
 
     def __repr__(self) -> str:
@@ -183,215 +182,73 @@ class RobertsonWorkbench:
         return RobertsonTranslation(np.zeros(3, dtype=np.float64))
 
 
-class RobertsonDerivative:
+class RobertsonFullDerivative:
     __slots__ = ()
     _compiled = False
 
     def __init__(self) -> None:
         if not self.__class__._compiled:
             probe = np.zeros(3, dtype=np.float64)
-            compile_if_you_can(_rhs_kernel, (probe, probe))
+            ACCELERATOR.compile_examples(_full_rhs_kernel, (probe, probe))
             self.__class__._compiled = True
 
     def __repr__(self) -> str:
-        return "RobertsonDerivative()"
+        return "RobertsonFullDerivative()"
 
     __str__ = __repr__
 
-    def __call__(self, state, out):
-        if NUMBA_AVAILABLE:
-            _rhs_kernel(state.y, out.dy)
-        else:
-            y1, y2, y3 = state.y
-            out.dy[0] = -0.04 * y1 + 1.0e4 * y2 * y3
-            out.dy[1] = 0.04 * y1 - 1.0e4 * y2 * y3 - 3.0e7 * y2 * y2
-            out.dy[2] = 3.0e7 * y2 * y2
+    def _call_numba(self, interval, state, out):
+        del interval
+        _full_rhs_kernel(state.y, out.dy)
 
+    def _call_python(self, interval, state, out):
+        del interval
+        y1 = state.y[0]
+        y2 = state.y[1]
+        y3 = state.y[2]
+        coupling = 1.0e4 * y2 * y3
+        quadratic = 3.0e7 * y2 * y2
+        out.dy[0] = -0.04 * y1 + coupling
+        out.dy[1] = 0.04 * y1 - coupling - quadratic
+        out.dy[2] = quadratic
 
-class RobertsonLinearizer:
-    __slots__ = ()
-    _compiled = False
-
-    def __init__(self) -> None:
-        if not self.__class__._compiled:
-            probe = np.zeros(3, dtype=np.float64)
-            compile_if_you_can(_jacobian_apply_kernel, (0.0, 0.0, probe, probe))
-            self.__class__._compiled = True
-
-    def __repr__(self) -> str:
-        return "RobertsonLinearizer()"
-
-    __str__ = __repr__
-
-    def __call__(self, out, state):
-        y2 = float(state.y[1])
-        y3 = float(state.y[2])
-
-        def apply(result, translation):
-            if NUMBA_AVAILABLE:
-                _jacobian_apply_kernel(y2, y3, translation.dy, result.dy)
-            else:
-                dy1, dy2, dy3 = translation.dy
-                result.dy[0] = -0.04 * dy1 + 1.0e4 * y3 * dy2 + 1.0e4 * y2 * dy3
-                result.dy[1] = 0.04 * dy1 + (-1.0e4 * y3 - 6.0e7 * y2) * dy2 - 1.0e4 * y2 * dy3
-                result.dy[2] = 6.0e7 * y2 * dy2
-
-        out.apply = apply
-
-
-def robertson_inner_product(left, right):
-    return float(np.dot(left.dy, right.dy))
+RobertsonFullDerivative.__call__ = RobertsonFullDerivative._call_numba if USE_NUMBA_ACCELERATION else RobertsonFullDerivative._call_python
 
 
 def _initial_state(initial_conditions):
     return RobertsonState(initial_conditions["y"].copy())
 
 
-def prepare_be_picard(problem_parameters, stark_parameters, initial_conditions, reference):
-    safety = Safety.fast()
-    workbench = RobertsonWorkbench()
-    derivative = RobertsonDerivative()
-    resolver = ResolverPicard(
-        workbench,
-        tolerance=ResolverTolerance(
-            atol=stark_parameters["resolution_atol"],
-            rtol=stark_parameters["resolution_rtol"],
-        ),
-        policy=ResolverPolicy(max_iterations=stark_parameters["resolution_max_iterations"]),
-        safety=safety,
-    )
-    scheme = SchemeBackwardEuler(derivative, workbench, resolver=resolver)
-    marcher = Marcher(scheme, tolerance=Tolerance(), safety=safety)
-    integrate = Integrator(safety=safety)
-
-    def solve_once():
-        interval = Interval(problem_parameters["t0"], stark_parameters["step"], problem_parameters["t1"])
-        state = _initial_state(initial_conditions)
-        steps = 0
-
-        for _interval, _state in integrate.live(marcher, interval, state):
-            steps += 1
-
-        return {
-            "library": "STARK",
-            "solver": "BE Picard",
-            "error": state.error_against(reference),
-            "steps": steps,
-        }
-
-    return solve_once
+def _full_derivative():
+    return RobertsonFullDerivative()
 
 
-def run_be_picard(problem_parameters, stark_parameters, initial_conditions, reference):
-    return prepare_be_picard(problem_parameters, stark_parameters, initial_conditions, reference)()
-
-
-def prepare_be_newton(problem_parameters, stark_parameters, initial_conditions, reference):
-    safety = Safety.fast()
-    workbench = RobertsonWorkbench()
-    derivative = RobertsonDerivative()
-    linearizer = RobertsonLinearizer()
-    inverter = InverterGMRES(
-        workbench,
-        robertson_inner_product,
-        tolerance=InverterTolerance(
-            atol=stark_parameters["inversion_atol"],
-            rtol=stark_parameters["inversion_rtol"],
-        ),
-        policy=InverterPolicy(
-            max_iterations=stark_parameters["inversion_max_iterations"],
-            restart=stark_parameters["inversion_restart"],
-        ),
-        safety=safety,
-    )
-    resolver = ResolverNewton(
-        workbench,
-        inverter=inverter,
-        tolerance=ResolverTolerance(
-            atol=stark_parameters["resolution_atol"],
-            rtol=stark_parameters["resolution_rtol"],
-        ),
-        policy=ResolverPolicy(max_iterations=stark_parameters["resolution_max_iterations"]),
-        safety=safety,
-    )
-    scheme = SchemeBackwardEuler(derivative, workbench, linearizer=linearizer, resolver=resolver)
-    marcher = Marcher(scheme, tolerance=Tolerance(), safety=safety)
-    integrate = Integrator(safety=safety)
-
-    def solve_once():
-        interval = Interval(problem_parameters["t0"], stark_parameters["step"], problem_parameters["t1"])
-        state = _initial_state(initial_conditions)
-        steps = 0
-
-        for _interval, _state in integrate.live(marcher, interval, state):
-            steps += 1
-
-        return {
-            "library": "STARK",
-            "solver": "BE Newton",
-            "error": state.error_against(reference),
-            "steps": steps,
-        }
-
-    return solve_once
-
-
-def run_be_newton(problem_parameters, stark_parameters, initial_conditions, reference):
-    return prepare_be_newton(problem_parameters, stark_parameters, initial_conditions, reference)()
-
-
-def prepare_sdirk21_newton(problem_parameters, stark_parameters, initial_conditions, reference):
-    safety = Safety.fast()
-    workbench = RobertsonWorkbench()
-    derivative = RobertsonDerivative()
-    linearizer = RobertsonLinearizer()
-    inverter = InverterGMRES(
-        workbench,
-        robertson_inner_product,
-        tolerance=InverterTolerance(
-            atol=stark_parameters["inversion_atol"],
-            rtol=stark_parameters["inversion_rtol"],
-        ),
-        policy=InverterPolicy(
-            max_iterations=stark_parameters["inversion_max_iterations"],
-            restart=stark_parameters["inversion_restart"],
-        ),
-        safety=safety,
-    )
-    resolver = ResolverNewton(
-        workbench,
-        inverter=inverter,
-        tolerance=ResolverTolerance(
-            atol=stark_parameters["resolution_atol"],
-            rtol=stark_parameters["resolution_rtol"],
-        ),
-        policy=ResolverPolicy(max_iterations=stark_parameters["resolution_max_iterations"]),
-        safety=safety,
-    )
-    scheme = SchemeSDIRK21(
+def _build_implicit_solver(scheme_type, derivative, workbench, resolvent, stark_parameters, safety):
+    scheme = scheme_type(
         derivative,
         workbench,
-        linearizer=linearizer,
-        resolver=resolver,
-        regulator=Regulator(
-            safety=stark_parameters.get("sdirk_regulator_safety", 1.0),
-            error_exponent=stark_parameters.get("sdirk_regulator_error_exponent", 0.4),
-        ),
+        resolvent=resolvent,
     )
     marcher = Marcher(
         scheme,
-        tolerance=Tolerance(
-            atol=stark_parameters["tolerance_atol"],
-            rtol=stark_parameters["tolerance_rtol"],
+        Executor(
+            tolerance=Tolerance(
+                atol=stark_parameters["tolerance_atol"],
+                rtol=stark_parameters["tolerance_rtol"],
+            ),
+            safety=safety,
+            accelerator=ACCELERATOR,
         ),
-        safety=safety,
     )
-    integrate = Integrator(safety=safety)
+    integrate = Integrator(executor=Executor(safety=safety, accelerator=ACCELERATOR))
+    return marcher, integrate
 
+
+def _prepare_solver(name, marcher, integrate, problem_parameters, stark_parameters, initial_conditions, reference):
     def solve_once():
         interval = Interval(
             problem_parameters["t0"],
-            stark_parameters.get("sdirk_step", stark_parameters["step"]),
+            stark_parameters["step"],
             problem_parameters["t1"],
         )
         state = _initial_state(initial_conditions)
@@ -402,14 +259,151 @@ def prepare_sdirk21_newton(problem_parameters, stark_parameters, initial_conditi
 
         return {
             "library": "STARK",
-            "solver": "SDIRK21 Newton",
+            "solver": name,
             "error": state.error_against(reference),
             "steps": steps,
         }
 
     return solve_once
 
+class RobertsonFullCubicResolvent:
+    __slots__ = ("tableau", "state", "cubic")
 
-def run_sdirk21_newton(problem_parameters, stark_parameters, initial_conditions, reference):
-    return prepare_sdirk21_newton(problem_parameters, stark_parameters, initial_conditions, reference)()
+    def __init__(self, tableau=None) -> None:
+        self.tableau = tableau
+        self.state = None
+        self.cubic = RobertsonCubicRoot()
+
+    def __repr__(self) -> str:
+        return f"RobertsonFullCubicResolvent(tableau={self.tableau!r})"
+
+    __str__ = __repr__
+
+    def bind(self, interval, state) -> None:
+        del interval
+        self.state = state
+
+    def __call__(self, out, alpha, rhs=None) -> None:
+        state = self.state
+        if state is None:
+            raise RuntimeError("RobertsonFullCubicResolvent must be bound before use.")
+
+        delta = out[0]
+        if alpha == 0.0:
+            if rhs is None:
+                delta.dy[0] = 0.0
+                delta.dy[1] = 0.0
+                delta.dy[2] = 0.0
+            else:
+                np.copyto(delta.dy, rhs[0].dy)
+            return
+
+        y = state.y
+        rhs_y = rhs[0].dy if rhs is not None else None
+        rhs0 = float(rhs_y[0]) if rhs_y is not None else 0.0
+        rhs1 = float(rhs_y[1]) if rhs_y is not None else 0.0
+        rhs2 = float(rhs_y[2]) if rhs_y is not None else 0.0
+
+        shifted_y2 = float(y[1]) + rhs1
+        shifted_y3 = float(y[2]) + rhs2
+        total = float(y[0] + y[1] + y[2] + rhs0 + rhs1 + rhs2)
+
+        coefficient3 = alpha * alpha * 1.0e4 * 3.0e7
+        coefficient2 = alpha * 3.0e7 * (1.0 + 0.04 * alpha)
+        coefficient1 = 1.0 + 0.04 * alpha + alpha * 1.0e4 * shifted_y3
+        coefficient0 = -(shifted_y2 + 0.04 * alpha * (total - shifted_y3))
+
+        z2 = self.cubic.solve(
+            coefficient3,
+            coefficient2,
+            coefficient1,
+            coefficient0,
+            lower=0.0,
+            upper=total,
+            target=shifted_y2,
+        )
+        z3 = shifted_y3 + alpha * 3.0e7 * z2 * z2
+        z1 = total - z2 - z3
+
+        delta.dy[0] = z1 - y[0]
+        delta.dy[1] = z2 - y[1]
+        delta.dy[2] = z3 - y[2]
+
+
+class RobertsonCubicRoot:
+    __slots__ = ()
+
+    @staticmethod
+    def _cbrt(value: float) -> float:
+        if value == 0.0:
+            return 0.0
+        return copysign(abs(value) ** (1.0 / 3.0), value)
+
+    def solve(
+        self,
+        coefficient3: float,
+        coefficient2: float,
+        coefficient1: float,
+        coefficient0: float,
+        *,
+        lower: float,
+        upper: float,
+        target: float,
+    ) -> float:
+        a = coefficient2 / coefficient3
+        b = coefficient1 / coefficient3
+        c = coefficient0 / coefficient3
+        p = b - (a * a) / 3.0
+        q = (2.0 * a * a * a) / 27.0 - (a * b) / 3.0 + c
+        half_q = 0.5 * q
+        third_p = p / 3.0
+        discriminant = half_q * half_q + third_p * third_p * third_p
+
+        if discriminant >= 0.0:
+            root = self._cbrt(-half_q + sqrt(discriminant)) + self._cbrt(-half_q - sqrt(discriminant))
+            return root - a / 3.0
+
+        radius = 2.0 * sqrt(-third_p)
+        angle = acos(max(-1.0, min(1.0, -half_q / sqrt(-(third_p * third_p * third_p)))))
+        roots = [
+            radius * cos((angle + 2.0 * pi * index) / 3.0) - a / 3.0
+            for index in range(3)
+        ]
+        bounded = [root for root in roots if lower - 1.0e-12 <= root <= upper + 1.0e-12]
+        if bounded:
+            return min(bounded, key=lambda root: abs(root - target))
+        return min(roots, key=lambda root: abs(root - target))
+def prepare_implicit_custom(name, scheme_type, problem_parameters, stark_parameters, initial_conditions, reference):
+    safety = Safety.fast()
+    workbench = RobertsonWorkbench()
+    derivative = _full_derivative()
+    marcher, integrate = _build_implicit_solver(
+        scheme_type,
+        derivative,
+        workbench,
+        RobertsonFullCubicResolvent(tableau=scheme_type.tableau),
+        stark_parameters,
+        safety,
+    )
+    return _prepare_solver(name, marcher, integrate, problem_parameters, stark_parameters, initial_conditions, reference)
+def prepare_kvaerno4_full_custom(problem_parameters, stark_parameters, initial_conditions, reference):
+    return prepare_implicit_custom(
+        "Kvaerno4 Full Cubic",
+        SchemeKvaerno4,
+        problem_parameters,
+        stark_parameters,
+        initial_conditions,
+        reference,
+    )
+
+
+
+
+
+
+
+
+
+
+
 

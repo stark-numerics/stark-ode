@@ -4,11 +4,15 @@ from math import sqrt
 
 import numpy as np
 
-from stark.jit import NUMBA_AVAILABLE, compile_if_you_can, jit_if_you_can
-from stark import Marcher, Integrator, Interval, Safety, Tolerance
-from stark.scheme_library.adaptive import SchemeCashKarp, SchemeDormandPrince
+from stark import Executor, Marcher, Integrator, Interval, Safety, Tolerance
+from stark.accelerators import Accelerator
+from stark.schemes.explicit_adaptive import SchemeCashKarp, SchemeDormandPrince
 
-@jit_if_you_can
+
+ACCELERATOR = Accelerator.numba()
+USE_NUMBA_ACCELERATION = ACCELERATOR.available
+
+@ACCELERATOR.decorate
 def _apply_kernel(origin_q, origin_p, dq, dp, result_q, result_p):
     size = origin_q.size
     for i in range(size):
@@ -16,7 +20,7 @@ def _apply_kernel(origin_q, origin_p, dq, dp, result_q, result_p):
         result_p[i] = origin_p[i] + dp[i]
 
 
-@jit_if_you_can
+@ACCELERATOR.decorate
 def _norm_kernel(dq, dp):
     size = dq.size
     total = 0.0
@@ -25,7 +29,7 @@ def _norm_kernel(dq, dp):
     return (total / size) ** 0.5
 
 
-@jit_if_you_can
+@ACCELERATOR.decorate
 def _scale_kernel(out_dq, out_dp, a, x_dq, x_dp):
     size = out_dq.size
     for i in range(size):
@@ -33,7 +37,7 @@ def _scale_kernel(out_dq, out_dp, a, x_dq, x_dp):
         out_dp[i] = a * x_dp[i]
 
 
-@jit_if_you_can
+@ACCELERATOR.decorate
 def _combine2_kernel(out_dq, out_dp, a0, x0_dq, x0_dp, a1, x1_dq, x1_dp):
     size = out_dq.size
     for i in range(size):
@@ -41,7 +45,7 @@ def _combine2_kernel(out_dq, out_dp, a0, x0_dq, x0_dp, a1, x1_dq, x1_dp):
         out_dp[i] = a0 * x0_dp[i] + a1 * x1_dp[i]
 
 
-@jit_if_you_can
+@ACCELERATOR.decorate
 def _combine3_kernel(out_dq, out_dp, a0, x0_dq, x0_dp, a1, x1_dq, x1_dp, a2, x2_dq, x2_dp):
     size = out_dq.size
     for i in range(size):
@@ -49,7 +53,7 @@ def _combine3_kernel(out_dq, out_dp, a0, x0_dq, x0_dp, a1, x1_dq, x1_dp, a2, x2_
         out_dp[i] = a0 * x0_dp[i] + a1 * x1_dp[i] + a2 * x2_dp[i]
 
 
-@jit_if_you_can
+@ACCELERATOR.decorate
 def _combine4_kernel(
     out_dq,
     out_dp,
@@ -72,7 +76,7 @@ def _combine4_kernel(
         out_dp[i] = a0 * x0_dp[i] + a1 * x1_dp[i] + a2 * x2_dp[i] + a3 * x3_dp[i]
 
 
-@jit_if_you_can
+@ACCELERATOR.decorate
 def _combine5_kernel(
     out_dq,
     out_dp,
@@ -98,7 +102,7 @@ def _combine5_kernel(
         out_dp[i] = a0 * x0_dp[i] + a1 * x1_dp[i] + a2 * x2_dp[i] + a3 * x3_dp[i] + a4 * x4_dp[i]
 
 
-@jit_if_you_can
+@ACCELERATOR.decorate
 def _combine6_kernel(
     out_dq,
     out_dp,
@@ -141,7 +145,7 @@ def _combine6_kernel(
         )
 
 
-@jit_if_you_can
+@ACCELERATOR.decorate
 def _combine7_kernel(
     out_dq,
     out_dp,
@@ -189,7 +193,7 @@ def _combine7_kernel(
         )
 
 
-@jit_if_you_can
+@ACCELERATOR.decorate
 def _rhs_kernel(q, p, dq, dp, beta):
     size = q.size
     for i in range(size):
@@ -201,7 +205,7 @@ def _rhs_kernel(q, p, dq, dp, beta):
 
 
 def _scale_translation(out, a, x):
-    if NUMBA_AVAILABLE:
+    if USE_NUMBA_ACCELERATION:
         _scale_kernel(out.dq, out.dp, a, x.dq, x.dp)
     else:
         np.multiply(x.dq, a, out=out.dq)
@@ -210,7 +214,7 @@ def _scale_translation(out, a, x):
 
 
 def _combine2_translation(out, a0, x0, a1, x1):
-    if NUMBA_AVAILABLE:
+    if USE_NUMBA_ACCELERATION:
         _combine2_kernel(out.dq, out.dp, a0, x0.dq, x0.dp, a1, x1.dq, x1.dp)
     else:
         np.multiply(x0.dq, a0, out=out.dq)
@@ -221,7 +225,7 @@ def _combine2_translation(out, a0, x0, a1, x1):
 
 
 def _combine3_translation(out, a0, x0, a1, x1, a2, x2):
-    if NUMBA_AVAILABLE:
+    if USE_NUMBA_ACCELERATION:
         _combine3_kernel(out.dq, out.dp, a0, x0.dq, x0.dp, a1, x1.dq, x1.dp, a2, x2.dq, x2.dp)
     else:
         np.multiply(x0.dq, a0, out=out.dq)
@@ -234,7 +238,7 @@ def _combine3_translation(out, a0, x0, a1, x1, a2, x2):
 
 
 def _combine4_translation(out, a0, x0, a1, x1, a2, x2, a3, x3):
-    if NUMBA_AVAILABLE:
+    if USE_NUMBA_ACCELERATION:
         _combine4_kernel(out.dq, out.dp, a0, x0.dq, x0.dp, a1, x1.dq, x1.dp, a2, x2.dq, x2.dp, a3, x3.dq, x3.dp)
     else:
         np.multiply(x0.dq, a0, out=out.dq)
@@ -249,7 +253,7 @@ def _combine4_translation(out, a0, x0, a1, x1, a2, x2, a3, x3):
 
 
 def _combine5_translation(out, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4):
-    if NUMBA_AVAILABLE:
+    if USE_NUMBA_ACCELERATION:
         _combine5_kernel(
             out.dq,
             out.dp,
@@ -284,7 +288,7 @@ def _combine5_translation(out, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4):
 
 
 def _combine6_translation(out, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5):
-    if NUMBA_AVAILABLE:
+    if USE_NUMBA_ACCELERATION:
         _combine6_kernel(
             out.dq,
             out.dp,
@@ -324,7 +328,7 @@ def _combine6_translation(out, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5):
 
 
 def _combine7_translation(out, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6):
-    if NUMBA_AVAILABLE:
+    if USE_NUMBA_ACCELERATION:
         _combine7_kernel(
             out.dq,
             out.dp,
@@ -400,14 +404,14 @@ class FPUTTranslation:
     __str__ = __repr__
 
     def __call__(self, origin, result):
-        if NUMBA_AVAILABLE:
+        if USE_NUMBA_ACCELERATION:
             _apply_kernel(origin.q, origin.p, self.dq, self.dp, result.q, result.p)
         else:
             np.add(origin.q, self.dq, out=result.q)
             np.add(origin.p, self.dp, out=result.p)
 
     def norm(self):
-        if NUMBA_AVAILABLE:
+        if USE_NUMBA_ACCELERATION:
             return float(_norm_kernel(self.dq, self.dp))
         energy = np.dot(self.dq.ravel(), self.dq.ravel()) + np.dot(self.dp.ravel(), self.dp.ravel())
         return sqrt(float(energy) / self.dq.size)
@@ -437,19 +441,19 @@ class FPUTWorkbench:
         self.chain_size = problem_parameters["chain_size"]
         if not self.__class__._compiled:
             probe = np.zeros(self.chain_size, dtype=np.float64)
-            compile_if_you_can(_apply_kernel, (probe, probe, probe, probe, probe, probe))
-            compile_if_you_can(_norm_kernel, (probe, probe))
-            compile_if_you_can(_scale_kernel, (probe, probe, 1.0, probe, probe))
-            compile_if_you_can(_combine2_kernel, (probe, probe, 1.0, probe, probe, 1.0, probe, probe))
-            compile_if_you_can(
+            ACCELERATOR.compile_examples(_apply_kernel, (probe, probe, probe, probe, probe, probe))
+            ACCELERATOR.compile_examples(_norm_kernel, (probe, probe))
+            ACCELERATOR.compile_examples(_scale_kernel, (probe, probe, 1.0, probe, probe))
+            ACCELERATOR.compile_examples(_combine2_kernel, (probe, probe, 1.0, probe, probe, 1.0, probe, probe))
+            ACCELERATOR.compile_examples(
                 _combine3_kernel,
                 (probe, probe, 1.0, probe, probe, 1.0, probe, probe, 1.0, probe, probe),
             )
-            compile_if_you_can(
+            ACCELERATOR.compile_examples(
                 _combine4_kernel,
                 (probe, probe, 1.0, probe, probe, 1.0, probe, probe, 1.0, probe, probe, 1.0, probe, probe),
             )
-            compile_if_you_can(
+            ACCELERATOR.compile_examples(
                 _combine5_kernel,
                 (
                     probe,
@@ -471,7 +475,7 @@ class FPUTWorkbench:
                     probe,
                 ),
             )
-            compile_if_you_can(
+            ACCELERATOR.compile_examples(
                 _combine6_kernel,
                 (
                     probe,
@@ -496,7 +500,7 @@ class FPUTWorkbench:
                     probe,
                 ),
             )
-            compile_if_you_can(
+            ACCELERATOR.compile_examples(
                 _combine7_kernel,
                 (
                     probe,
@@ -556,7 +560,7 @@ class FPUTDerivative:
         self.beta = problem_parameters["beta"]
         if not self.__class__._compiled:
             probe = np.zeros(problem_parameters["chain_size"], dtype=np.float64)
-            compile_if_you_can(_rhs_kernel, (probe, probe, probe, probe, self.beta))
+            ACCELERATOR.compile_examples(_rhs_kernel, (probe, probe, probe, probe, self.beta))
             self.__class__._compiled = True
 
     def __repr__(self) -> str:
@@ -564,8 +568,9 @@ class FPUTDerivative:
 
     __str__ = __repr__
 
-    def __call__(self, state, out):
-        if NUMBA_AVAILABLE:
+    def __call__(self, interval, state, out):
+        del interval
+        if USE_NUMBA_ACCELERATION:
             _rhs_kernel(state.q, state.p, out.dq, out.dp, self.beta)
             return
 
@@ -587,10 +592,13 @@ def prepare_rkck(problem_parameters, tolerance_parameters, initial_conditions, r
     scheme = SchemeCashKarp(derivative, workbench)
     marcher = Marcher(
         scheme,
-        tolerance=Tolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
-        safety=safety,
+        Executor(
+            tolerance=Tolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
+            safety=safety,
+            accelerator=ACCELERATOR,
+        ),
     )
-    integrate = Integrator(safety=safety)
+    integrate = Integrator(executor=Executor(safety=safety, accelerator=ACCELERATOR))
 
     def solve_once():
         interval = Interval(
@@ -625,10 +633,13 @@ def prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, r
     scheme = SchemeDormandPrince(derivative, workbench)
     marcher = Marcher(
         scheme,
-        tolerance=Tolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
-        safety=safety,
+        Executor(
+            tolerance=Tolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
+            safety=safety,
+            accelerator=ACCELERATOR,
+        ),
     )
-    integrate = Integrator(safety=safety)
+    integrate = Integrator(executor=Executor(safety=safety, accelerator=ACCELERATOR))
 
     def solve_once():
         interval = Interval(
@@ -654,3 +665,19 @@ def prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, r
 
 def run_rkdp(problem_parameters, tolerance_parameters, initial_conditions, reference):
     return prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, reference)()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

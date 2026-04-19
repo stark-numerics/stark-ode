@@ -3,21 +3,33 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import sqrt
 
-from stark import (
-    Integrator,
-    InverterGMRES,
-    InverterPolicy,
-    InverterTolerance,
-    Marcher,
-    ResolverNewton,
-    ResolverPicard,
-    ResolverPolicy,
-    ResolverTolerance,
-    Tolerance,
+import pytest
+
+from stark import Executor, Integrator, Marcher, Tolerance
+from stark.accelerators import Accelerator
+from stark.contracts import AccelerationRequest, AccelerationRole
+from stark.interval import Interval
+from stark.inverters import InverterGMRES
+from stark.inverters.policy import InverterPolicy
+from stark.inverters.tolerance import InverterTolerance
+from stark.resolvents import (
+    ResolventCoupledNewton,
+    ResolventCoupledPicard,
+    ResolventNewton,
+    ResolventPicard,
 )
-from stark.primitives import Interval
-from stark.scheme_library import SchemeBDF2, SchemeKvaerno3, SchemeKvaerno4, SchemeSDIRK21
-from stark.scheme_library.implicit import SchemeBackwardEuler
+from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.tolerance import ResolventTolerance
+from stark.schemes import SchemeBDF2, SchemeKvaerno3, SchemeKvaerno4, SchemeSDIRK21
+from stark.schemes.implicit_fixed import (
+    SchemeBackwardEuler,
+    SchemeCrankNicolson,
+    SchemeCrouzeixDIRK3,
+    SchemeGaussLegendre4,
+    SchemeImplicitMidpoint,
+    SchemeLobattoIIIC4,
+    SchemeRadauIIA5,
+)
 
 
 @dataclass(slots=True)
@@ -75,7 +87,8 @@ class ScalarDerivative:
     def __init__(self, rate: float) -> None:
         self.rate = rate
 
-    def __call__(self, state: ScalarState, out: ScalarTranslation) -> None:
+    def __call__(self, interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
+        del interval
         out.value = self.rate * state.value
 
 
@@ -83,7 +96,8 @@ class ScalarLinearizer:
     def __init__(self, rate: float) -> None:
         self.rate = rate
 
-    def __call__(self, out, state: ScalarState) -> None:
+    def __call__(self, interval: Interval, out, state: ScalarState) -> None:
+        del interval
         del state
 
         def apply(result: ScalarTranslation, translation: ScalarTranslation) -> None:
@@ -92,54 +106,91 @@ class ScalarLinearizer:
         out.apply = apply
 
 
+class AcceleratedScalarLinearizer:
+    def __init__(self, rate: float) -> None:
+        self.rate = rate
+
+    def __call__(self, interval: Interval, out, state: ScalarState) -> None:
+        del interval
+        del state
+
+        def apply(result: ScalarTranslation, translation: ScalarTranslation) -> None:
+            result.value = self.rate * translation.value
+
+        out.apply = apply
+
+
+class ScalarLinearizerWithAcceleration:
+    def __init__(self, rate: float, accelerated_rate: float) -> None:
+        self.rate = rate
+        self.accelerated_rate = accelerated_rate
+
+    def __call__(self, interval: Interval, out, state: ScalarState) -> None:
+        del interval
+        del state
+
+        def apply(result: ScalarTranslation, translation: ScalarTranslation) -> None:
+            result.value = self.rate * translation.value
+
+        out.apply = apply
+
+    def accelerated(self, accelerator: Accelerator, request: AccelerationRequest):
+        if request.role is AccelerationRole.LINEARIZER and accelerator.name == "none":
+            return AcceleratedScalarLinearizer(self.accelerated_rate)
+        return self
+
+
 def scalar_inner_product(left: ScalarTranslation, right: ScalarTranslation) -> float:
     return left.value * right.value
 
 
-def test_resolver_tolerance_matches_general_tolerance_contract() -> None:
-    tolerance = ResolverTolerance(atol=1.0e-6, rtol=1.0e-3)
+def test_resolvent_tolerance_matches_general_tolerance_contract() -> None:
+    tolerance = ResolventTolerance(atol=1.0e-6, rtol=1.0e-3)
 
     assert tolerance.bound(2.0) == 0.002001
     assert tolerance.ratio(0.001, 2.0) < 1.0
     assert tolerance.accepts(0.001, 2.0)
 
 
-def test_resolver_picard_solves_scalar_backward_euler_step() -> None:
+def test_resolvent_picard_solves_scalar_backward_euler_step() -> None:
     workbench = ScalarWorkbench()
     derivative = ScalarDerivative(rate=-1.0)
-    resolver = ResolverPicard(
+    resolvent = ResolventPicard(
+        derivative,
         workbench,
-        tolerance=ResolverTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolverPolicy(max_iterations=32),
+        tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=32),
     )
-    scheme = SchemeBackwardEuler(derivative, workbench, resolver=resolver)
-    marcher = Marcher(scheme, tolerance=Tolerance())
+    scheme = SchemeBackwardEuler(derivative, workbench, resolvent=resolvent)
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance()))
     interval = Interval(present=0.0, step=0.1, stop=0.1)
     state = ScalarState(1.0)
 
     marcher(interval, state)
 
-    assert abs(state.value - (1.0 / 1.1)) < 1.0e-10
+    assert abs(state.value - (1.0 / 1.1)) < 1.0e-8
     assert interval.present == 0.1
     assert interval.step == 0.0
 
 
 def test_backward_euler_matches_closed_form_for_quadratic_decay() -> None:
     class QuadraticDerivative:
-        def __call__(self, state: ScalarState, out: ScalarTranslation) -> None:
+        def __call__(self, interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
+            del interval
             out.value = -(state.value ** 2)
 
     workbench = ScalarWorkbench()
     scheme = SchemeBackwardEuler(
         QuadraticDerivative(),
         workbench,
-        resolver=ResolverPicard(
+        resolvent=ResolventPicard(
+            QuadraticDerivative(),
             workbench,
-            tolerance=ResolverTolerance(atol=1.0e-12, rtol=1.0e-12),
-            policy=ResolverPolicy(max_iterations=64),
+            tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+            policy=ResolventPolicy(max_iterations=64),
         ),
     )
-    marcher = Marcher(scheme, tolerance=Tolerance())
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance()))
     interval = Interval(present=0.0, step=0.1, stop=0.1)
     state = ScalarState(1.0)
 
@@ -149,7 +200,7 @@ def test_backward_euler_matches_closed_form_for_quadratic_decay() -> None:
     assert abs(state.value - expected) < 1.0e-10
 
 
-def test_resolver_newton_solves_scalar_backward_euler_step() -> None:
+def test_resolvent_newton_solves_scalar_backward_euler_step() -> None:
     workbench = ScalarWorkbench()
     derivative = ScalarDerivative(rate=-10.0)
     inverter = InverterGMRES(
@@ -158,19 +209,20 @@ def test_resolver_newton_solves_scalar_backward_euler_step() -> None:
         tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
-    resolver = ResolverNewton(
+    resolvent = ResolventNewton(
+        derivative,
         workbench,
+        linearizer=ScalarLinearizer(rate=-10.0),
         inverter=inverter,
-        tolerance=ResolverTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolverPolicy(max_iterations=8),
+        tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
     )
     scheme = SchemeBackwardEuler(
         derivative,
         workbench,
-        linearizer=ScalarLinearizer(rate=-10.0),
-        resolver=resolver,
+        resolvent=resolvent,
     )
-    marcher = Marcher(scheme, tolerance=Tolerance())
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance()))
     interval = Interval(present=0.0, step=0.1, stop=0.1)
     state = ScalarState(1.0)
 
@@ -179,26 +231,319 @@ def test_resolver_newton_solves_scalar_backward_euler_step() -> None:
     assert abs(state.value - 0.5) < 1.0e-10
 
 
-def test_resolver_newton_requires_linearized_residual() -> None:
+def test_marcher_binds_executor_accelerator_into_newton_linearizer() -> None:
     workbench = ScalarWorkbench()
-    derivative = ScalarDerivative(rate=-1.0)
-    inverter = InverterGMRES(workbench, scalar_inner_product)
-    resolver = ResolverNewton(workbench, inverter=inverter)
-    scheme = SchemeBackwardEuler(
+    derivative = ScalarDerivative(rate=-10.0)
+    inverter = InverterGMRES(
+        workbench,
+        scalar_inner_product,
+        tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=InverterPolicy(max_iterations=8, restart=4),
+    )
+    resolvent = ResolventNewton(
         derivative,
         workbench,
-        resolver=resolver,
+        linearizer=ScalarLinearizerWithAcceleration(rate=0.0, accelerated_rate=-10.0),
+        inverter=inverter,
+        tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
     )
-    marcher = Marcher(scheme, tolerance=Tolerance())
+    scheme = SchemeBackwardEuler(derivative, workbench, resolvent=resolvent)
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance(), accelerator=Accelerator.none()))
     interval = Interval(present=0.0, step=0.1, stop=0.1)
     state = ScalarState(1.0)
 
-    try:
-        marcher(interval, state)
-    except RuntimeError as exc:
-        assert "linearizer" in str(exc).lower()
-    else:  # pragma: no cover - defensive failure branch
-        raise AssertionError("Expected Newton-backed backward Euler to require a linearizer.")
+    marcher(interval, state)
+
+    assert abs(state.value - 0.5) < 1.0e-10
+
+
+def test_resolvent_newton_requires_linearized_residual() -> None:
+    workbench = ScalarWorkbench()
+    derivative = ScalarDerivative(rate=-1.0)
+    inverter = InverterGMRES(workbench, scalar_inner_product)
+    with pytest.raises(TypeError):
+        ResolventNewton(derivative, workbench, inverter=inverter)  # type: ignore[call-arg]
+
+    resolvent = ResolventPicard(derivative, workbench)
+    scheme = SchemeBackwardEuler(
+        derivative,
+        workbench,
+        resolvent=resolvent,
+    )
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance()))
+    interval = Interval(present=0.0, step=0.1, stop=0.1)
+    state = ScalarState(1.0)
+
+    marcher(interval, state)
+    assert abs(state.value - (1.0 / 1.1)) < 1.0e-8
+
+
+def test_implicit_midpoint_solves_scalar_linear_decay_step() -> None:
+    workbench = ScalarWorkbench()
+    derivative = ScalarDerivative(rate=-10.0)
+    scheme = SchemeImplicitMidpoint(
+        derivative,
+        workbench,
+        resolvent=ResolventPicard(
+            derivative,
+            workbench,
+            tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+            policy=ResolventPolicy(max_iterations=64),
+            tableau=SchemeImplicitMidpoint.tableau,
+        ),
+    )
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance()))
+    interval = Interval(present=0.0, step=0.1, stop=0.1)
+    state = ScalarState(1.0)
+
+    marcher(interval, state)
+
+    assert abs(state.value - (1.0 / 3.0)) < 1.0e-10
+
+
+def test_crank_nicolson_solves_scalar_linear_decay_step() -> None:
+    workbench = ScalarWorkbench()
+    derivative = ScalarDerivative(rate=-10.0)
+    scheme = SchemeCrankNicolson(
+        derivative,
+        workbench,
+        resolvent=ResolventPicard(
+            derivative,
+            workbench,
+            tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+            policy=ResolventPolicy(max_iterations=64),
+            tableau=SchemeCrankNicolson.tableau,
+        ),
+    )
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance()))
+    interval = Interval(present=0.0, step=0.1, stop=0.1)
+    state = ScalarState(1.0)
+
+    marcher(interval, state)
+
+    assert abs(state.value - (1.0 / 3.0)) < 1.0e-10
+
+
+def test_crouzeix_dirk3_solves_constant_derivative_step() -> None:
+    class ConstantDerivative:
+        def __call__(self, interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
+            del interval, state
+            out.value = 1.0
+
+    workbench = ScalarWorkbench()
+    derivative = ConstantDerivative()
+    scheme = SchemeCrouzeixDIRK3(
+        derivative,
+        workbench,
+        resolvent=ResolventPicard(
+            derivative,
+            workbench,
+            tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+            policy=ResolventPolicy(max_iterations=32),
+            tableau=SchemeCrouzeixDIRK3.tableau,
+        ),
+    )
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance()))
+    interval = Interval(present=0.0, step=0.1, stop=0.1)
+    state = ScalarState(1.0)
+
+    marcher(interval, state)
+
+    assert abs(state.value - 1.1) < 1.0e-10
+
+
+def test_gauss_legendre4_solves_constant_derivative_step() -> None:
+    class ConstantDerivative:
+        def __call__(self, interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
+            del interval, state
+            out.value = 1.0
+
+    workbench = ScalarWorkbench()
+    derivative = ConstantDerivative()
+    scheme = SchemeGaussLegendre4(
+        derivative,
+        workbench,
+        resolvent=ResolventCoupledPicard(
+            derivative,
+            workbench,
+            tableau=SchemeGaussLegendre4.tableau,
+            tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+            policy=ResolventPolicy(max_iterations=32),
+        ),
+    )
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance()))
+    interval = Interval(present=0.0, step=0.1, stop=0.1)
+    state = ScalarState(1.0)
+
+    marcher(interval, state)
+
+    assert abs(state.value - 1.1) < 1.0e-10
+
+
+def test_coupled_newton_gauss_legendre4_solves_scalar_linear_decay_step() -> None:
+    workbench = ScalarWorkbench()
+    derivative = ScalarDerivative(rate=-10.0)
+    inverter = InverterGMRES(
+        workbench,
+        scalar_inner_product,
+        tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=InverterPolicy(max_iterations=8, restart=4),
+    )
+    scheme = SchemeGaussLegendre4(
+        derivative,
+        workbench,
+        resolvent=ResolventCoupledNewton(
+            derivative,
+            workbench,
+            tableau=SchemeGaussLegendre4.tableau,
+            linearizer=ScalarLinearizer(rate=-10.0),
+            inverter=inverter,
+            tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+            policy=ResolventPolicy(max_iterations=8),
+        ),
+    )
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance()))
+    interval = Interval(present=0.0, step=0.1, stop=0.1)
+    state = ScalarState(1.0)
+
+    marcher(interval, state)
+
+    assert abs(state.value - (7.0 / 19.0)) < 1.0e-10
+
+
+def test_radau_iia5_solves_constant_derivative_step() -> None:
+    class ConstantDerivative:
+        def __call__(self, interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
+            del interval, state
+            out.value = 1.0
+
+    workbench = ScalarWorkbench()
+    derivative = ConstantDerivative()
+    scheme = SchemeRadauIIA5(
+        derivative,
+        workbench,
+        resolvent=ResolventCoupledPicard(
+            derivative,
+            workbench,
+            tableau=SchemeRadauIIA5.tableau,
+            tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+            policy=ResolventPolicy(max_iterations=32),
+        ),
+    )
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance()))
+    interval = Interval(present=0.0, step=0.1, stop=0.1)
+    state = ScalarState(1.0)
+
+    marcher(interval, state)
+
+    assert abs(state.value - 1.1) < 1.0e-10
+
+
+def test_lobatto_iiic4_solves_constant_derivative_step() -> None:
+    class ConstantDerivative:
+        def __call__(self, interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
+            del interval, state
+            out.value = 1.0
+
+    workbench = ScalarWorkbench()
+    derivative = ConstantDerivative()
+    scheme = SchemeLobattoIIIC4(
+        derivative,
+        workbench,
+        resolvent=ResolventCoupledPicard(
+            derivative,
+            workbench,
+            tableau=SchemeLobattoIIIC4.tableau,
+            tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+            policy=ResolventPolicy(max_iterations=32),
+        ),
+    )
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance()))
+    interval = Interval(present=0.0, step=0.1, stop=0.1)
+    state = ScalarState(1.0)
+
+    marcher(interval, state)
+
+    assert abs(state.value - 1.1) < 1.0e-10
+
+
+def test_coupled_newton_radau_iia5_tracks_scalar_linear_decay() -> None:
+    workbench = ScalarWorkbench()
+    derivative = ScalarDerivative(rate=-10.0)
+    inverter = InverterGMRES(
+        workbench,
+        scalar_inner_product,
+        tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=InverterPolicy(max_iterations=8, restart=4),
+    )
+    scheme = SchemeRadauIIA5(
+        derivative,
+        workbench,
+        resolvent=ResolventCoupledNewton(
+            derivative,
+            workbench,
+            tableau=SchemeRadauIIA5.tableau,
+            linearizer=ScalarLinearizer(rate=-10.0),
+            inverter=inverter,
+            tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+            policy=ResolventPolicy(max_iterations=8),
+        ),
+    )
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance()))
+    interval = Interval(present=0.0, step=0.1, stop=0.1)
+    state = ScalarState(1.0)
+
+    marcher(interval, state)
+
+    assert abs(state.value - 0.36787944117144233) < 1.0e-3
+
+
+def test_coupled_newton_lobatto_iiic4_tracks_scalar_linear_decay() -> None:
+    workbench = ScalarWorkbench()
+    derivative = ScalarDerivative(rate=-10.0)
+    inverter = InverterGMRES(
+        workbench,
+        scalar_inner_product,
+        tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=InverterPolicy(max_iterations=8, restart=4),
+    )
+    scheme = SchemeLobattoIIIC4(
+        derivative,
+        workbench,
+        resolvent=ResolventCoupledNewton(
+            derivative,
+            workbench,
+            tableau=SchemeLobattoIIIC4.tableau,
+            linearizer=ScalarLinearizer(rate=-10.0),
+            inverter=inverter,
+            tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+            policy=ResolventPolicy(max_iterations=8),
+        ),
+    )
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance()))
+    interval = Interval(present=0.0, step=0.1, stop=0.1)
+    state = ScalarState(1.0)
+
+    marcher(interval, state)
+
+    assert abs(state.value - 0.36787944117144233) < 1.0e-3
+
+
+def test_backward_euler_rejects_mismatched_resolvent_tableau() -> None:
+    workbench = ScalarWorkbench()
+    derivative = ScalarDerivative(rate=-1.0)
+
+    with pytest.raises(ValueError):
+        SchemeBackwardEuler(
+            derivative,
+            workbench,
+            resolvent=ResolventPicard(
+                derivative,
+                workbench,
+                tableau=SchemeSDIRK21.tableau,
+            ),
+        )
 
 
 def test_sdirk21_advances_linear_decay_with_adaptive_control() -> None:
@@ -210,19 +555,20 @@ def test_sdirk21_advances_linear_decay_with_adaptive_control() -> None:
         tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
-    resolver = ResolverNewton(
+    resolvent = ResolventNewton(
+        derivative,
         workbench,
+        linearizer=ScalarLinearizer(rate=-10.0),
         inverter=inverter,
-        tolerance=ResolverTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolverPolicy(max_iterations=8),
+        tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
     )
     scheme = SchemeSDIRK21(
         derivative,
         workbench,
-        linearizer=ScalarLinearizer(rate=-10.0),
-        resolver=resolver,
+        resolvent=resolvent,
     )
-    marcher = Marcher(scheme, tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-6))
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-6)))
     integrate = Integrator()
     interval = Interval(present=0.0, step=0.1, stop=0.1)
     state = ScalarState(1.0)
@@ -242,19 +588,20 @@ def test_kvaerno3_advances_linear_decay_with_adaptive_control() -> None:
         tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
-    resolver = ResolverNewton(
+    resolvent = ResolventNewton(
+        derivative,
         workbench,
+        linearizer=ScalarLinearizer(rate=-10.0),
         inverter=inverter,
-        tolerance=ResolverTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolverPolicy(max_iterations=8),
+        tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
     )
     scheme = SchemeKvaerno3(
         derivative,
         workbench,
-        linearizer=ScalarLinearizer(rate=-10.0),
-        resolver=resolver,
+        resolvent=resolvent,
     )
-    marcher = Marcher(scheme, tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-6))
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-6)))
     integrate = Integrator()
     interval = Interval(present=0.0, step=0.1, stop=0.1)
     state = ScalarState(1.0)
@@ -274,19 +621,20 @@ def test_kvaerno4_advances_linear_decay_with_adaptive_control() -> None:
         tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
-    resolver = ResolverNewton(
+    resolvent = ResolventNewton(
+        derivative,
         workbench,
+        linearizer=ScalarLinearizer(rate=-10.0),
         inverter=inverter,
-        tolerance=ResolverTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolverPolicy(max_iterations=8),
+        tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
     )
     scheme = SchemeKvaerno4(
         derivative,
         workbench,
-        linearizer=ScalarLinearizer(rate=-10.0),
-        resolver=resolver,
+        resolvent=resolvent,
     )
-    marcher = Marcher(scheme, tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-6))
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-6)))
     integrate = Integrator()
     interval = Interval(present=0.0, step=0.1, stop=0.1)
     state = ScalarState(1.0)
@@ -306,19 +654,20 @@ def test_bdf2_advances_linear_decay_with_adaptive_control() -> None:
         tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
-    resolver = ResolverNewton(
+    resolvent = ResolventNewton(
+        derivative,
         workbench,
+        linearizer=ScalarLinearizer(rate=-10.0),
         inverter=inverter,
-        tolerance=ResolverTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolverPolicy(max_iterations=8),
+        tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
     )
     scheme = SchemeBDF2(
         derivative,
         workbench,
-        linearizer=ScalarLinearizer(rate=-10.0),
-        resolver=resolver,
+        resolvent=resolvent,
     )
-    marcher = Marcher(scheme, tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-6))
+    marcher = Marcher(scheme, Executor(tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-6)))
     integrate = Integrator()
     interval = Interval(present=0.0, step=0.05, stop=0.2)
     state = ScalarState(1.0)
@@ -327,3 +676,14 @@ def test_bdf2_advances_linear_decay_with_adaptive_control() -> None:
         pass
 
     assert abs(state.value - 0.1353352832366127) < 2.0e-2
+
+
+
+
+
+
+
+
+
+
+

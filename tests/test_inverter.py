@@ -4,15 +4,12 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import (
-    Block,
-    BlockOperator,
-    InverterBiCGStab,
-    InverterFGMRES,
-    InverterGMRES,
-    InverterPolicy,
-    InverterTolerance,
-)
+from stark.accelerators import Accelerator
+from stark.block.operator import BlockOperator
+from stark.contracts import Block
+from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
+from stark.inverters.policy import InverterPolicy
+from stark.inverters.tolerance import InverterTolerance
 
 
 @dataclass(slots=True)
@@ -50,6 +47,57 @@ def scalar_inner_product(left: ScalarTranslation, right: ScalarTranslation) -> f
 INVERTER_TYPES = (InverterGMRES, InverterFGMRES, InverterBiCGStab)
 
 
+class RecordingAccelerator:
+    def __init__(self) -> None:
+        self.name = "recording"
+        self.available = True
+        self.strict = False
+        self.decorate_calls = 0
+        self.compile_examples_calls = 0
+
+    def decorate(self, function=None, /, **kwargs):
+        del kwargs
+        self.decorate_calls += 1
+
+        def decorate_function(target):
+            return target
+
+        if function is None:
+            return decorate_function
+        return decorate_function(function)
+
+    def compile_examples(self, function, *signatures):
+        del signatures
+        self.compile_examples_calls += 1
+        return function
+
+    def resolve(self, target, request):
+        del request
+        return target
+
+    def resolve_derivative(self, derivative):
+        return derivative
+
+    def resolve_linearizer(self, linearizer):
+        return linearizer
+
+    def resolve_support(self, worker, *, label=None, **values):
+        del label, values
+        return worker
+
+
+class ExactScalarPreconditioner:
+    def __init__(self) -> None:
+        self.bound = False
+
+    def bind(self, operator) -> None:
+        del operator
+        self.bound = True
+
+    def __call__(self, out: Block, rhs: Block) -> None:
+        out[0].value = 0.5 * rhs[0].value
+
+
 def test_inverter_tolerance_matches_general_tolerance_contract() -> None:
     tolerance = InverterTolerance(atol=1.0e-6, rtol=1.0e-3)
 
@@ -77,6 +125,31 @@ def test_inverter_solves_scalar_linear_system(inverter_type) -> None:
 
     inverter(solution, rhs)
 
+    assert abs(solution[0].value - 2.0) < 1.0e-10
+
+
+@pytest.mark.parametrize("inverter_type", INVERTER_TYPES)
+def test_inverter_accepts_preconditioner(inverter_type) -> None:
+    workbench = ScalarWorkbench()
+    preconditioner = ExactScalarPreconditioner()
+    inverter = inverter_type(
+        workbench,
+        scalar_inner_product,
+        tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=InverterPolicy(max_iterations=8, restart=4),
+        preconditioner=preconditioner,
+    )
+
+    def scale_by_two(out: ScalarTranslation, translation: ScalarTranslation) -> None:
+        out.value = 2.0 * translation.value
+
+    inverter.bind(BlockOperator([scale_by_two]))
+    solution = Block([ScalarTranslation(0.0)])
+    rhs = Block([ScalarTranslation(4.0)])
+
+    inverter(solution, rhs)
+
+    assert preconditioner.bound is True
     assert abs(solution[0].value - 2.0) < 1.0e-10
 
 
@@ -131,3 +204,34 @@ def test_inverter_requires_bound_operator(inverter_type, expected_message) -> No
         assert expected_message in str(exc)
     else:  # pragma: no cover - defensive failure branch
         raise AssertionError("Expected inverter to reject use before bind().")
+
+
+def test_krylov_inverters_use_their_configured_accelerator() -> None:
+    workbench = ScalarWorkbench()
+    accelerator = RecordingAccelerator()
+
+    gmres = InverterGMRES(workbench, scalar_inner_product, accelerator=accelerator)
+    fgmres = InverterFGMRES(workbench, scalar_inner_product, accelerator=accelerator)
+
+    assert gmres.accelerator is accelerator
+    assert fgmres.accelerator is accelerator
+    assert accelerator.decorate_calls >= 4
+    assert accelerator.compile_examples_calls >= 4
+
+
+@pytest.mark.parametrize("inverter_type", INVERTER_TYPES)
+def test_built_in_inverters_hold_an_explicit_accelerator(inverter_type) -> None:
+    accelerator = Accelerator.none()
+    inverter = inverter_type(ScalarWorkbench(), scalar_inner_product, accelerator=accelerator)
+
+    assert inverter.accelerator is accelerator
+
+
+
+
+
+
+
+
+
+

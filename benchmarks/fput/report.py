@@ -117,7 +117,11 @@ def describe_problem(problem, tolerances, reference_tolerances, reference, refer
     print(f"  STARK initial step: {tolerances['initial_step']:.0e}")
     print(
         "  STARK acceleration: "
-        + ("Numba-jitted RHS and fused translation kernels" if stark.NUMBA_AVAILABLE else "NumPy fallback kernels")
+        + (
+            "selected accelerator: numba, with compiled RHS and fused translation kernels active"
+            if stark.USE_NUMBA_ACCELERATION
+            else "selected accelerator: numba, but it is unavailable here so NumPy fallback kernels are active"
+        )
     )
     print("  all compared solver stacks are prewarmed once before timed rows")
     print("  each method performs setup once, then one complete untimed warmup solve")
@@ -267,3 +271,12 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+

@@ -100,7 +100,7 @@ In code, this is `Translation.norm()`.
 That norm drives:
 
 - adaptive step rejection/acceptance in `Marcher`
-- stopping tests for nonlinear resolvers
+- stopping tests for nonlinear resolvents
 - stopping tests for linear inverters
 
 There is nothing in the API forcing `T` to be a
@@ -114,23 +114,43 @@ an incomplete normed space; mathematics may be less forgiving than software.
 Once `S` and `T` are in place, the ODE
 
 ```text
-x'(t) = f(x(t))
+x'(t) = f(t, x(t))
 ```
 
 is encoded by a derivative worker
 
 ```text
-f : S -> T
+f : R x S -> T
 ```
 
-which writes its result into a translation buffer:
+which writes its result into a translation buffer together with the current
+integration interval:
 
 ```python
-derivative(state, out_translation)
+derivative(interval, state, out_translation)
 ```
 
 This is the first point where STARK turns the mathematical separation between
 states and increments directly into code.
+
+For IMEX methods the right-hand side is split into two pieces,
+
+```text
+f(t, x) = f_im(t, x) + f_ex(t, x),
+```
+
+with both maps landing in `T`. STARK represents that split with an
+`ImExDerivative` carrying two ordinary derivative workers:
+
+```python
+ImExDerivative(
+    implicit=implicit_derivative,
+    explicit=explicit_derivative,
+)
+```
+
+This keeps the user-facing interface close to the mathematics: one map is the
+implicitly treated part, one map is the explicitly treated part.
 
 ## The workbench contract
 
@@ -186,13 +206,13 @@ The `Operator` contract represents a map
 A : T -> T
 ```
 
-and `BlockOperator` lifts that idea to
+and the internal block operator used by Newton/Krylov workers lifts that idea to
 
 ```text
 A : T^m -> T^m
 ```
 
-The built-in Newton resolver does not form an explicit inverse. Instead it
+The built-in Newton resolvent does not form an explicit inverse. Instead it
 binds such an operator to an inverter and asks the inverter to approximately
 solve
 
@@ -211,7 +231,7 @@ side with respect to its state argument.
 If the ODE is
 
 ```text
-x' = f(x)
+x' = f(t, x)
 ```
 
 then the relevant object is the derivative of `f` at a state `x`. This is the
@@ -222,19 +242,19 @@ matrix.
 For a small translation `delta in T`, the linear approximation is
 
 ```text
-f(x + delta) = f(x) + J(x)[delta] + higher-order terms
+f(t, x + delta) = f(t, x) + J(t, x)[delta] + higher-order terms
 ```
 
 where
 
 ```text
-J(x) = Df(x)
+J(t, x) = D_x f(t, x)
 ```
 
 and
 
 ```text
-J(x) : T -> T
+J(t, x) : T -> T
 ```
 
 is a linear operator acting on translations.
@@ -242,7 +262,7 @@ is a linear operator acting on translations.
 So the user supplies a `Linearizer` that gives the action
 
 ```text
-delta |-> J(x)[delta]
+delta |-> J(t, x)[delta]
 ```
 
 without ever needing to materialize a full dense matrix.
@@ -250,7 +270,7 @@ without ever needing to materialize a full dense matrix.
 In code:
 
 ```python
-linearizer(out_operator, state)
+linearizer(interval, out_operator, state)
 ```
 
 where `out_operator(result, translation)` computes the Jacobian image. This is
@@ -260,11 +280,11 @@ numerics.
 The pencil-and-paper task for the user is therefore:
 
 1. derive the derivative of `f` with respect to its state argument
-2. express the Jacobian action `J(x)[delta]` on the chosen translation representation
+2. express the Jacobian action `J(t, x)[delta]` on the chosen translation representation
 3. write that action as an `Operator`
 
 That is enough for STARK to build the linearized operators needed by implicit
-schemes, such as `I - h J(x)` for backward Euler or the stage operators in
+schemes, such as `I - h J(t, x)` for backward Euler or the stage operators in
 ESDIRK methods.
 
 ## Inner products and Krylov methods
@@ -284,17 +304,17 @@ making `T` an [inner product space](https://en.wikipedia.org/wiki/Inner_product_
 when that extra structure is available.
 
 This is not required for explicit schemes. It becomes relevant when the user
-wants Newton-like resolvers with matrix-free Krylov inverters, or secant-based
-resolvers such as Anderson and Broyden that project histories in `T`.
+wants Newton-like resolvents with matrix-free Krylov inverters, or secant-based
+resolvents such as Anderson and Broyden that project histories in `T`.
 
-## Resolver layers
+## Resolver and resolvent layers
 
 At the nonlinear level STARK supports several solver ideas:
 
-- `ResolverPicard`: fixed-point iteration on the residual map
-- `ResolverAnderson`: accelerated fixed-point iteration
-- `ResolverBroyden`: quasi-Newton secant updates
-- `ResolverNewton`: true linearized Newton corrections
+- `ResolventPicard`: fixed-point iteration on the implicit residual map
+- `ResolventAnderson`: accelerated fixed-point iteration
+- `ResolventBroyden`: quasi-Newton secant updates
+- `ResolventNewton`: true linearized Newton corrections
 
 These are all strategies for solving
 
@@ -309,6 +329,18 @@ require:
 - Anderson and Broyden also benefit from an inner product and secant history
 - Newton needs residual linearization and an inverter
 
+Schemes do not talk to those nonlinear workers directly. They talk to
+a `Resolvent`, which binds the stage interval and stage state, then solves a
+shifted equation of the form
+
+```text
+delta - rhs - alpha f(t, x + delta) = 0.
+```
+
+That makes the scheme-facing implicit API closer to the mathematics of a stage
+solve and less entangled with the lower-level nonlinear machinery used to carry
+it out.
+
 ## How the code maps to the mathematics
 
 The key STARK contracts can be summarized this way:
@@ -320,14 +352,21 @@ The key STARK contracts can be summarized this way:
 | affine action `T x S -> S` | `Translation.__call__` |
 | vector-space operations on `T` | `__add__`, `__rmul__`, `linear_combine` |
 | norm `||.||` on `T` | `Translation.norm()` |
-| right-hand side `f : S -> T` | `Derivative` |
-| Jacobian action `Df(x)` | `Linearizer` + `Operator` |
+| right-hand side `f : R x S -> T` | `Derivative` |
+| Jacobian action `D_x f(t, x)` | `Linearizer` + `Operator` |
 | product space `T^m` | `Block` |
 | residual `R : T^m -> T^m` | `Residual` |
-| nonlinear solver | `ResolverLike` |
+| nonlinear implicit solver | `Resolvent` |
+| bound stage solve | `Resolvent` |
 | linear solve worker | `InverterLike` |
 | inner product `<.,.>` | `InnerProduct` |
 
 This is the core idea of the package: keep the mathematics honest, keep the
 state representation natural, and only ask for extra structure when a method
 really needs it.
+
+
+
+
+
+

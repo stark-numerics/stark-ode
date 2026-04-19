@@ -1,5 +1,5 @@
 from stark.integrate import Integrator
-from stark.safety import Safety
+from stark.execution.safety import Safety
 
 
 class DummyInterval:
@@ -176,3 +176,12 @@ def test_integrate_rejects_unordered_checkpoints() -> None:
         assert "strictly increasing" in str(exc)
     else:  # pragma: no cover - defensive failure branch
         raise AssertionError("Expected unordered checkpoints to be rejected.")
+
+
+
+
+
+
+
+
+

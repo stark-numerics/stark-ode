@@ -22,3 +22,10 @@ The initial condition excites the first normal mode:
 q_i(0) = amplitude * sin(pi i / (N + 1))
 p_i(0) = 0
 ```
+
+
+
+
+
+
+

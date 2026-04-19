@@ -157,3 +157,11 @@ def prepare_dopri5(problem_parameters, tolerance_parameters, initial_conditions,
 
 def run_dopri5(problem_parameters, tolerance_parameters, initial_conditions, reference):
     return prepare_dopri5(problem_parameters, tolerance_parameters, initial_conditions, reference)()
+
+
+
+
+
+
+
+

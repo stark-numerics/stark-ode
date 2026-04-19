@@ -25,20 +25,22 @@ The main pieces are:
 - `State`: your own problem object.
 - `Translation`: a linear update that can be added, scaled, measured, and
   applied to a state.
-- `Derivative`: a callable `derivative(state, out)` that writes the time
-  derivative into a translation object.
+- `Derivative`: a callable `derivative(interval, state, out)` that writes the
+  time derivative into a translation object.
 - `Workbench`: an object that allocates blank states/translations and copies
   states.
 - `Scheme`: a one-step integration method.
 - `Marcher`: couples a scheme to tolerances and performs one accepted step.
 - `Integrator`: runs repeated `Marcher` calls over an interval.
+- `Comparator`: compares two or more marcher setups on the same problem.
 - `Auditor`: checks that the objects satisfy the STARK contracts before a long
   run.
 
 The standard import path is:
 
 ```python
-from stark import Marcher, Auditor, Integrator, Interval, Tolerance
+from stark import Executor, Marcher, Auditor, Integrator, Interval, Tolerance
+from stark.accelerators import AcceleratorAbsent
 ```
 
 ## Integration
@@ -49,10 +51,14 @@ Use `Interval` to describe the current time, proposed step, and stop time:
 interval = Interval(present=0.0, step=1.0e-3, stop=1.0)
 ```
 
-Create a `Marcher` object from a scheme and tolerance:
+Create a `Marcher` object from a scheme and an `Executor`:
 
 ```python
-marcher = Marcher(scheme, tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6))
+executor = Executor(
+    tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6),
+    accelerator=AcceleratorAbsent(),
+)
+marcher = Marcher(scheme, executor)
 integrate = Integrator()
 ```
 
@@ -87,12 +93,56 @@ for output_interval, output_state in integrate.live(
     ...
 ```
 
+`Executor` also carries the selected `Accelerator`. Accelerators live under
+`stark.accelerators`, with contracts in `stark.contracts`, so the extension
+point is explicit and auditable rather than hidden behind backend checks. The
+default is `AcceleratorAbsent()`, so acceleration remains opt-in.
+
 Checkpoints are useful for plots and animations: the solver may adapt internally
 while the user only observes chosen output times.
 
+## Comparator
+
+`Comparator` is a small comparison tool for development work on custom schemes.
+
+It takes:
+
+- one `ComparatorProblem`
+- two or more `ComparatorEntry` objects
+
+and reports:
+
+- pairwise final-state differences
+- optional pairwise checkpoint-trajectory differences
+- setup, warmup, and repeated runtime timings
+- optional problem-supplied final-state diagnostics
+- a bucketed `cProfile` breakdown showing approximate shares of problem work,
+  scheme work, resolvent work, inverter work, and framework overhead
+
+This is meant for A/B testing schemes on one problem, not for replacing the
+problem-specific benchmark suite under `benchmarks/`.
+
+The returned `ComparatorReport` is also structured data, not just a printable
+report. Advanced users can inspect:
+
+- `report.results_by_name()`
+- `report.timings_by_name()`
+- `report.diagnostics_by_name()`
+- `report.final_difference_map()`
+- `report.trajectory_difference_map()`
+- `report.profiles_by_name()`
+- `report.as_dict()`
+
+`ComparatorEntry` also accepts an optional `profile_category(filename, lineno, function_name)`
+hook so a custom entry can teach the comparator how to bucket its own profiled
+code into `problem`, `scheme`, `resolvent`, `inverter`, `framework`, or `other`.
+
+For a worked example, see
+[`examples/allen_cahn.ipynb`](../examples/allen_cahn.ipynb).
+
 ## Built-in schemes
 
-The scheme library is available from `stark.scheme_library`.
+Built-in schemes are available from `stark.schemes`.
 
 Adaptive embedded schemes:
 
@@ -100,10 +150,19 @@ Adaptive embedded schemes:
 | --- | --- |
 | `SchemeBogackiShampine` | Bogacki-Shampine 3(2) |
 | `SchemeCashKarp` | Cash-Karp 5(4) |
-| `SchemeRKCK` | Alias for Cash-Karp |
 | `SchemeDormandPrince` | Dormand-Prince 5(4) |
 | `SchemeFehlberg45` | Fehlberg 4(5) |
 | `SchemeTsitouras5` | Tsitouras 5(4) |
+
+Adaptive IMEX schemes:
+
+| Class | Method |
+| --- | --- |
+| `SchemeKennedyCarpenter32` | Kennedy-Carpenter 3(2) |
+| `SchemeKennedyCarpenter43_6` | Kennedy-Carpenter 4(3), 6-stage |
+| `SchemeKennedyCarpenter43_7` | Kennedy-Carpenter 4(3), 7-stage |
+| `SchemeKennedyCarpenter54` | Kennedy-Carpenter 5(4) |
+| `SchemeKennedyCarpenter54b` | Kennedy-Carpenter 5(4) b |
 
 Fixed-step schemes:
 
@@ -118,11 +177,23 @@ Fixed-step schemes:
 | `SchemeRK38` | 3/8-rule Runge-Kutta |
 | `SchemeSSPRK33` | SSP RK33 |
 
+Fixed-step IMEX schemes:
+
+| Class | Method |
+| --- | --- |
+| `SchemeIMEXEuler` | IMEX Euler |
+
 Implicit schemes:
 
 | Class | Method |
 | --- | --- |
 | `SchemeBackwardEuler` | Backward Euler |
+| `SchemeImplicitMidpoint` | Implicit midpoint |
+| `SchemeCrankNicolson` | Crank-Nicolson / trapezoid |
+| `SchemeCrouzeixDIRK3` | Crouzeix DIRK3 |
+| `SchemeGaussLegendre4` | Gauss-Legendre 4 |
+| `SchemeLobattoIIIC4` | Lobatto IIIC 4 |
+| `SchemeRadauIIA5` | Radau IIA 5 |
 | `SchemeSDIRK21` | ESDIRK 2(1) / SDIRK21 |
 | `SchemeKvaerno3` | Kvaerno 3(2) |
 | `SchemeKvaerno4` | Kvaerno 4(3) |
@@ -131,29 +202,35 @@ Implicit schemes:
 For clarity, the physical subpackages are also importable:
 
 ```python
-from stark.scheme_library.adaptive import SchemeDormandPrince
-from stark.scheme_library.fixed_step import SchemeRK4
-from stark.scheme_library.adaptive_implicit import SchemeKvaerno3
+from stark.schemes.explicit_adaptive import SchemeDormandPrince
+from stark.schemes.explicit_fixed import SchemeRK4
+from stark.schemes.implicit_adaptive import SchemeKvaerno3
+from stark.schemes.imex_adaptive import SchemeKennedyCarpenter43_7
 ```
 
-## Built-in resolvers and inverters
+## Built-in resolvents and inverters
 
-Resolvers live in `stark.resolver_library`:
+Resolvents live in `stark.resolvents`:
 
 | Class | Method |
 | --- | --- |
-| `ResolverPicard` | Fixed-point / Picard iteration |
-| `ResolverAnderson` | Anderson-accelerated fixed-point iteration |
-| `ResolverBroyden` | Broyden quasi-Newton iteration |
-| `ResolverNewton` | Newton iteration |
+| `ResolventPicard` | Fixed-point / Picard implicit resolution |
+| `ResolventAnderson` | Anderson-accelerated implicit resolution |
+| `ResolventBroyden` | Broyden quasi-Newton implicit resolution |
+| `ResolventNewton` | Newton implicit resolution |
 
-Inverters live in `stark.inverter_library`:
+Inverters live in `stark.inverters`:
 
 | Class | Method |
 | --- | --- |
 | `InverterGMRES` | GMRES |
 | `InverterFGMRES` | Flexible GMRES |
 | `InverterBiCGStab` | BiCGStab |
+
+Each Krylov inverter also accepts an optional `preconditioner=` worker. The
+preconditioner follows the same bind-then-call shape as the inverters
+themselves, so users can supply problem-specific approximate inverse actions
+without forcing the rest of the solver stack to change shape.
 
 ## User state contracts
 
@@ -175,10 +252,26 @@ The `Workbench` must provide:
 The `Derivative` is usually the thinnest adapter:
 
 ```python
-def derivative(state, out):
+def derivative(interval, state, out):
+    t = interval.present
     out.position[:] = state.velocity
-    out.velocity[:] = acceleration_from_existing_code(state)
+    out.velocity[:] = acceleration_from_existing_code(t, state)
 ```
+
+For IMEX work, STARK now also provides a small split carrier:
+
+```python
+from stark import ImExDerivative
+
+imex = ImExDerivative(
+    implicit=implicit_derivative,
+    explicit=explicit_derivative,
+)
+```
+
+The field names are intentionally literal. Users usually think "this is the
+implicit part" and "this is the explicit part", so STARK preserves that
+language directly instead of hiding it behind a more abstract wrapper.
 
 Use `Auditor` before a long solve:
 
@@ -194,6 +287,12 @@ audit = Auditor(
 )
 print(audit)
 audit.raise_if_invalid()
+```
+
+Or, for an IMEX split:
+
+```python
+Auditor.require_imex_scheme_inputs(imex, workbench, workbench.allocate_translation())
 ```
 
 ## Fast translation paths
@@ -268,6 +367,41 @@ Fast paths should obey the same aliasing rule as translation application: the
 output buffer may be one of the input buffers, so kernels should be correct for
 in-place use.
 
+## Accelerators
+
+Accelerators are configured workers in the same sense as schemes, resolvents,
+and inverters. STARK ships a small built-in library under `stark.accelerators`
+and audits user-defined accelerators through `AcceleratorAudit` in
+`stark.contracts.acceleration`.
+
+The built-in import path is:
+
+```python
+from stark.accelerators import AcceleratorAbsent, AcceleratorJax, AcceleratorNumba
+```
+
+Users who want a custom accelerator implement the public accelerator protocol
+and, when a worker has an accelerated form, expose it with an
+`accelerated(accelerator, request)` hook:
+
+```python
+from stark.contracts.acceleration import AccelerationRequest, AccelerationRole
+
+
+class MyDerivative:
+    def __call__(self, interval, state, out):
+        ...
+
+    def accelerated(self, accelerator, request: AccelerationRequest):
+        if request.role is AccelerationRole.DERIVATIVE and accelerator.name == "numba":
+            return MyNumbaDerivative(...)
+        return self
+```
+
+`Auditor(..., accelerator=my_accelerator)` checks that a custom accelerator is
+conformant before a solve, just as `Auditor(..., scheme=...)` and
+`Auditor(..., marcher=...)` check the rest of the configured-worker stack.
+
 ## Custom schemes
 
 `Marcher` accepts any object that satisfies the `SchemeLike` contract. A custom
@@ -277,7 +411,7 @@ The minimal scheme interface is:
 
 ```python
 class MyScheme:
-    def __call__(self, interval, state, tolerance):
+    def __call__(self, interval, state, executor):
         ...
         return accepted_dt
 
@@ -302,7 +436,7 @@ instance. `SchemeWorkspace` resolves the workbench, scratch states, scratch
 translations, translation application, and linear-combination fast paths:
 
 ```python
-from stark import SchemeWorkspace
+from stark.machinery.stage_solve.workspace import SchemeWorkspace
 
 
 class MyScheme:
@@ -318,65 +452,83 @@ for `Marcher`.
 Run `Auditor(..., scheme=my_scheme)` to check a custom scheme alongside the
 state, translation, workbench, interval, and tolerance objects.
 
-## Implicit schemes
+## Implicit and IMEX schemes
 
-Built-in implicit schemes use the same `Marcher` and `Integrator` layer as the
-explicit schemes, but they ask the user for extra structure.
+Built-in implicit and IMEX schemes use the same `Marcher` and `Integrator`
+layer as the explicit schemes, but they ask the user for extra structure.
 
-The additional pieces depend on the resolver:
+The scheme-facing object is now a `Resolvent`. The additional pieces depend on
+which resolvent you choose:
 
-- `ResolverPicard` only needs residual evaluation.
-- `ResolverAnderson` and `ResolverBroyden` also need an `InnerProduct`.
-- `ResolverNewton` needs a `Linearizer` and an `InverterLike`.
+- `ResolventPicard` only needs the implicit derivative.
+- `ResolventAnderson` and `ResolventBroyden` also need an `InnerProduct`.
+- `ResolventNewton` needs a `Linearizer` and an `InverterLike`.
 
 The common implicit shape is:
 
 ```python
-from stark import (
-    InverterBiCGStab,
-    InverterPolicy,
-    InverterTolerance,
-    Marcher,
-    ResolverNewton,
-    ResolverPolicy,
-    ResolverTolerance,
-    Tolerance,
-)
-from stark.scheme_library import SchemeKvaerno3
+from stark import Executor, Marcher, Tolerance
+from stark.accelerators import AcceleratorAbsent
+from stark.inverters import InverterBiCGStab
+from stark.inverters.policy import InverterPolicy
+from stark.inverters.tolerance import InverterTolerance
+from stark.resolvents import ResolventNewton
+from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.tolerance import ResolventTolerance
+from stark.schemes import SchemeKvaerno3
 
 workbench = MyWorkbench()
 derivative = MyDerivative()
 linearizer = MyLinearizer()
+accelerator = AcceleratorAbsent()
 inverter = InverterBiCGStab(
     workbench,
     my_inner_product,
     tolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
     policy=InverterPolicy(max_iterations=24),
+    accelerator=accelerator,
 )
-resolver = ResolverNewton(
+resolvent = ResolventNewton(
+    derivative,
     workbench,
+    linearizer=linearizer,
     inverter=inverter,
-    tolerance=ResolverTolerance(atol=1.0e-7, rtol=1.0e-7),
-    policy=ResolverPolicy(max_iterations=24),
+    tolerance=ResolventTolerance(atol=1.0e-7, rtol=1.0e-7),
+    policy=ResolventPolicy(max_iterations=24),
+    accelerator=accelerator,
 )
 scheme = SchemeKvaerno3(
     derivative,
     workbench,
-    linearizer=linearizer,
-    resolver=resolver,
+    resolvent=resolvent,
 )
-marcher = Marcher(scheme, tolerance=Tolerance(atol=1.0e-6, rtol=1.0e-5))
+executor = Executor(tolerance=Tolerance(atol=1.0e-6, rtol=1.0e-5), accelerator=accelerator)
+marcher = Marcher(scheme, executor)
 ```
 
-For Anderson or Broyden, replace `ResolverNewton(...)` with the chosen
-resolver, pass an inner product directly to the resolver, and omit the
-linearizer/inverter pair.
+For Anderson or Broyden, replace `ResolventNewton(...)` with
+`ResolventAnderson(...)` or `ResolventBroyden(...)`, pass an inner product
+directly to that resolvent, and omit the linearizer/inverter pair.
+
+The same resolvent layer is what makes IMEX schemes fit naturally into the
+package: the explicit part advances directly, while the implicit diagonal stage
+corrections are handed to the chosen resolvent.
+
+The current package layout mirrors that structure directly:
+
+- `stark.accelerators`
+- `stark.schemes`
+- `stark.resolvents`
+- `stark.inverters`
+- `stark.execution`
+- `stark.comparison`
+- `stark.contracts`
 
 The `Auditor` is especially useful here because implicit methods rely on more
 contracts at once:
 
 - the `Translation` vector-space and norm structure;
-- the `Linearizer` Jacobian action for Newton-like methods;
+- the `Linearizer` Jacobian action for Newton-like resolvents;
 - the `InnerProduct` for Krylov and secant-based methods;
 - the in-place linear-combination kernels required for strict implicit
   operator algebra.
@@ -408,3 +560,14 @@ python -m benchmarks.robertson.report
 The STARK benchmark implementations intentionally use fast translation paths so
 the reports show both the generic interface and the performance-oriented
 extension point.
+
+
+
+
+
+
+
+
+
+
+

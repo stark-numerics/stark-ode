@@ -40,3 +40,11 @@ INITIAL_CONDITIONS = {
     "q": INITIAL_Q,
     "p": INITIAL_P,
 }
+
+
+
+
+
+
+
+

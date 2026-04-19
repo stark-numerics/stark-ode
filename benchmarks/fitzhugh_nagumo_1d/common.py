@@ -58,3 +58,11 @@ INITIAL_CONDITIONS = {
     "u": _u.astype(np.float64),
     "v": _v.astype(np.float64),
 }
+
+
+
+
+
+
+
+

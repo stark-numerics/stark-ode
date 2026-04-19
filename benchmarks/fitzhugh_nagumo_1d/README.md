@@ -24,8 +24,10 @@ outputs against a tight numerical reference solution.
 
 It compares:
 
-- STARK `SchemeKvaerno3` with `ResolverAnderson`, the current best local STARK
-  combination on this problem
+- STARK `SchemeKvaerno3` with `ResolventAnderson`, the current best generic
+  STARK combination on this problem
+- STARK `SchemeKennedyCarpenter43_7` with an IMEX split and a custom spectral
+  resolvent for the periodic diffusion stage
 - SciPy `Radau` and `BDF`
 - Diffrax `Kvaerno5` when Diffrax is installed
 
@@ -34,3 +36,10 @@ Run it with:
 ```powershell
 python -m benchmarks.fitzhugh_nagumo_1d.report
 ```
+
+
+
+
+
+
+

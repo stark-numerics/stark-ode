@@ -46,7 +46,6 @@ def timed_runner(
         "preparation": float(setup_elapsed + warmup_elapsed),
         "median": float(median(durations)),
         "min": float(min(durations)),
-        "note": "",
     }
 
 
@@ -87,12 +86,12 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
     print()
     print("Compared runs:")
     print(f"  SciPy compared tolerances: rtol={tolerances['rtol']:.0e}, atol={tolerances['atol']:.0e}")
-    print(f"  STARK step: {stark_parameters['step']:.0e}")
     print(
-        "  STARK adaptive tolerance for SDIRK21: "
+        "  STARK adaptive tolerance: "
         f"rtol={stark_parameters['tolerance_rtol']:.0e}, "
         f"atol={stark_parameters['tolerance_atol']:.0e}"
     )
+    print(f"  STARK initial step: {stark_parameters['step']:.0e}")
     print(
         "  STARK resolver tolerance/policy: "
         f"atol={stark_parameters['resolution_atol']:.0e}, "
@@ -100,21 +99,15 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
         f"max_iterations={stark_parameters['resolution_max_iterations']}"
     )
     print(
-        "  STARK inverter tolerance/policy for Newton: "
-        f"atol={stark_parameters['inversion_atol']:.0e}, "
-        f"rtol={stark_parameters['inversion_rtol']:.0e}, "
-        f"max_iterations={stark_parameters['inversion_max_iterations']}, "
-        f"restart={stark_parameters['inversion_restart']}"
-    )
-    print(
         "  STARK acceleration: "
         + (
-            "Numba-jitted RHS/Jacobian kernels and fused translation kernels"
-            if stark.NUMBA_AVAILABLE
-            else "pure Python kernels with fused translation fast paths"
+            "selected accelerator: numba, with compiled RHS/Jacobian kernels and fused translation kernels active"
+            if stark.USE_NUMBA_ACCELERATION
+            else "selected accelerator: numba, but it is unavailable here so the benchmark is using pure Python kernels"
         )
     )
-    print("  STARK currently uses fixed-step backward Euler and adaptive SDIRK21")
+    print("  STARK Robertson uses a fully implicit Kvaerno4 solve with a custom exact cubic resolvent")
+    print("  the whole Robertson right-hand side is treated implicitly in that resolvent")
     print("  Diffrax uses Kvaerno5, an adaptive stiffly accurate ESDIRK method")
     print("  all compared solver stacks are prewarmed once before timed rows")
     print("  each method performs setup once, then one complete untimed warmup solve")
@@ -163,9 +156,7 @@ def main() -> None:
     reference = scipy.run_reference(problem, reference_tolerances, initial_conditions)
     reference_elapsed = perf_counter() - started
 
-    prewarm_runner(stark.prepare_be_picard, problem, stark_parameters, initial_conditions, reference)
-    prewarm_runner(stark.prepare_be_newton, problem, stark_parameters, initial_conditions, reference)
-    prewarm_runner(stark.prepare_sdirk21_newton, problem, stark_parameters, initial_conditions, reference)
+    prewarm_runner(stark.prepare_kvaerno4_full_custom, problem, stark_parameters, initial_conditions, reference)
     prewarm_runner(scipy.prepare_radau, problem, tolerances, initial_conditions, reference)
     prewarm_runner(scipy.prepare_bdf, problem, tolerances, initial_conditions, reference)
     if diffrax.DIFFRAX_AVAILABLE:
@@ -184,9 +175,7 @@ def main() -> None:
         )
 
     rows = [
-        timed_runner("STARK", "BE Picard", stark.prepare_be_picard, repeats, problem, stark_parameters, initial_conditions, reference),
-        timed_runner("STARK", "BE Newton", stark.prepare_be_newton, repeats, problem, stark_parameters, initial_conditions, reference),
-        timed_runner("STARK", "SDIRK21 Newton", stark.prepare_sdirk21_newton, repeats, problem, stark_parameters, initial_conditions, reference),
+        timed_runner("STARK", "Kvaerno4 Full Cubic", stark.prepare_kvaerno4_full_custom, repeats, problem, stark_parameters, initial_conditions, reference),
         timed_runner("SciPy", "Radau", scipy.prepare_radau, repeats, problem, tolerances, initial_conditions, reference),
         timed_runner("SciPy", "BDF", scipy.prepare_bdf, repeats, problem, tolerances, initial_conditions, reference),
     ]
@@ -270,3 +259,12 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+

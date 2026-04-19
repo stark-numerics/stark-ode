@@ -14,6 +14,21 @@ with the initial condition:
 y(0) = [1, 0, 0]
 ```
 
-The benchmark compares fixed-step backward Euler in STARK, with both Picard and
-Newton resolution, against SciPy's stiff solvers and Diffrax's `Kvaerno5` when
-Diffrax is installed.
+The benchmark compares:
+
+- STARK `SchemeKvaerno4` with the full Robertson right-hand side treated
+  implicitly and a custom exact cubic resolvent
+- SciPy `Radau` and `BDF`
+- Diffrax `Kvaerno5` when Diffrax is installed
+
+This makes Robertson a benchmark of the custom resolvent architecture as much as a raw solver race: the problem-specific cubic resolvent lets STARK treat the
+whole Robertson right-hand side implicitly while still avoiding a generic
+nonlinear iterative stage solve, so the report exposes what that exact stage
+solve is buying against SciPy and Diffrax stiff solvers.
+
+
+
+
+
+
+

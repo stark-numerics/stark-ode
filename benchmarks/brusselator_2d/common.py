@@ -59,3 +59,11 @@ INITIAL_CONDITIONS = {
     "u": INITIAL_U,
     "v": INITIAL_V,
 }
+
+
+
+
+
+
+
+

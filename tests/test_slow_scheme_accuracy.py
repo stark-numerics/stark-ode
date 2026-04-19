@@ -5,8 +5,8 @@ from math import cos, sin, sqrt
 
 import pytest
 
-from stark import Marcher, Integrator, Interval, Tolerance
-from stark.scheme_library import (
+from stark import Executor, Marcher, Integrator, Interval, Tolerance
+from stark.schemes import (
     SchemeBogackiShampine,
     SchemeCashKarp,
     SchemeDormandPrince,
@@ -230,8 +230,8 @@ def constant_coefficient(t: float) -> float:
 
 
 class RiccatiDerivative:
-    def __call__(self, state: RiccatiState, out: RiccatiTranslation) -> None:
-        t = state.t
+    def __call__(self, interval: Interval, state: RiccatiState, out: RiccatiTranslation) -> None:
+        t = interval.present
         x = state.x
         out.dt = 1.0
         out.dx = constant_coefficient(t) + linear_coefficient(t) * x + quadratic_coefficient(t) * x * x
@@ -243,7 +243,7 @@ def test_scheme_matches_time_dependent_riccati_solution(case: SchemeCase) -> Non
     state = RiccatiState(0.0, exact_solution(0.0))
     interval = Interval(present=0.0, step=case.step, stop=STOP)
     scheme = case.scheme_type(RiccatiDerivative(), RiccatiWorkbench())
-    marcher = Marcher(scheme, tolerance=case.tolerance)
+    marcher = Marcher(scheme, Executor(tolerance=case.tolerance if case.tolerance is not None else Tolerance()))
     integrate = Integrator()
 
     steps = 0
@@ -259,3 +259,13 @@ def test_scheme_matches_time_dependent_riccati_solution(case: SchemeCase) -> Non
 
     assert abs(state.t - STOP) < 1.0e-12
     assert error < case.max_error
+
+
+
+
+
+
+
+
+
+

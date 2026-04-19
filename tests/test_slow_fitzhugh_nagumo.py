@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from benchmarks.fitzhugh_nagumo_1d.stark import FitzHughNagumoParameters, run_inverter_example
-from stark import InverterBiCGStab, InverterFGMRES, InverterGMRES
+from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
 
 
 @pytest.mark.slow
@@ -44,3 +44,11 @@ def test_fitzhugh_nagumo_inverters_track_each_other() -> None:
         for right in range(left + 1, len(trajectories)):
             assert np.max(np.abs(final_u[left] - final_u[right])) < 5.0e-2
             assert np.max(np.abs(final_v[left] - final_v[right])) < 5.0e-2
+
+
+
+
+
+
+
+

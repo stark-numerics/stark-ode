@@ -21,9 +21,16 @@ htmlcov/
 .profiles/
 examples/*.png
 examples/.ipynb_checkpoints/
+examples/gray_scott_accelerators.py
 
 # Editors and OS files
 .vscode/
 .idea/
 Thumbs.db
 .DS_Store
+
+# Local development notes
+refactor_plan.md
+future_plans.md
+TODO.md
+git_cribsheet.md
