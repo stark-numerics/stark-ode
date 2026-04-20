@@ -6,6 +6,8 @@ from time import perf_counter
 import numpy as np
 
 from stark import (
+    Algebraist,
+    AlgebraistField,
     Executor,
     ImExDerivative,
     Integrator,
@@ -24,6 +26,16 @@ from stark.schemes import SchemeKennedyCarpenter43_7, SchemeKvaerno3
 ACCELERATOR = Accelerator.numba()
 USE_NUMBA_ACCELERATION = ACCELERATOR.available
 
+ALGEBRAIST = Algebraist(
+    fields=(
+        AlgebraistField("du", style="looped", rank=1, apply_to="u"),
+        AlgebraistField("dv", style="looped", rank=1, apply_to="v"),
+    ),
+    accelerator=ACCELERATOR,
+    fused_up_to=7,
+    generate_norm="rms",
+)
+
 
 @ACCELERATOR.decorate
 def _laplacian_periodic(field, out, inv_dx2):
@@ -33,41 +45,6 @@ def _laplacian_periodic(field, out, inv_dx2):
         centre = field[index]
         right = field[index + 1 if index + 1 < size else 0]
         out[index] = (left - 2.0 * centre + right) * inv_dx2
-
-
-@ACCELERATOR.decorate
-def _apply_kernel(origin_u, origin_v, delta_u, delta_v, result_u, result_v):
-    result_u[:] = origin_u + delta_u
-    result_v[:] = origin_v + delta_v
-
-
-@ACCELERATOR.decorate
-def _norm_kernel(delta_u, delta_v):
-    total = 0.0
-    size = delta_u.size + delta_v.size
-    for value in delta_u:
-        total += value * value
-    for value in delta_v:
-        total += value * value
-    return (total / size) ** 0.5
-
-
-@ACCELERATOR.decorate
-def _scale_kernel(out_u, out_v, a, x_u, x_v):
-    out_u[:] = a * x_u
-    out_v[:] = a * x_v
-
-
-@ACCELERATOR.decorate
-def _combine2_kernel(out_u, out_v, a0, x0_u, x0_v, a1, x1_u, x1_v):
-    out_u[:] = a0 * x0_u + a1 * x1_u
-    out_v[:] = a0 * x0_v + a1 * x1_v
-
-
-@ACCELERATOR.decorate
-def _combine3_kernel(out_u, out_v, a0, x0_u, x0_v, a1, x1_u, x1_v, a2, x2_u, x2_v):
-    out_u[:] = a0 * x0_u + a1 * x1_u + a2 * x2_u
-    out_v[:] = a0 * x0_v + a1 * x1_v + a2 * x2_v
 
 
 @ACCELERATOR.decorate
@@ -86,30 +63,6 @@ def _explicit_rhs_kernel(u, v, out_u, out_v, epsilon, a, b):
 def _implicit_rhs_kernel(laplacian_u, out_u, out_v, diffusivity_u):
     out_u[:] = diffusivity_u * laplacian_u
     out_v[:] = 0.0
-
-
-def _apply_translation(origin, delta, result):
-    _apply_kernel(origin.u, origin.v, delta.du, delta.dv, result.u, result.v)
-
-
-def _norm_translation(delta):
-    return float(_norm_kernel(delta.du, delta.dv))
-
-
-def _scale_translation(out, a, x):
-    _scale_kernel(out.du, out.dv, a, x.du, x.dv)
-    return out
-
-
-def _combine2_translation(out, a0, x0, a1, x1):
-    _combine2_kernel(out.du, out.dv, a0, x0.du, x0.dv, a1, x1.du, x1.dv)
-    return out
-
-
-def _combine3_translation(out, a0, x0, a1, x1, a2, x2):
-    _combine3_kernel(out.du, out.dv, a0, x0.du, x0.dv, a1, x1.du, x1.dv, a2, x2.du, x2.dv)
-    return out
-
 
 def _translation_inner_product(left, right):
     return float(np.dot(left.du, right.du) + np.dot(left.dv, right.dv))
@@ -193,19 +146,15 @@ class FitzHughNagumoTranslation:
 
     __str__ = __repr__
 
-    def __call__(self, origin: FitzHughNagumoState, result: FitzHughNagumoState) -> None:
-        _apply_translation(origin, self, result)
-
-    def norm(self) -> float:
-        return _norm_translation(self)
-
     def __add__(self, other: FitzHughNagumoTranslation) -> FitzHughNagumoTranslation:
         return FitzHughNagumoTranslation(self.du + other.du, self.dv + other.dv)
 
     def __rmul__(self, scalar: float) -> FitzHughNagumoTranslation:
         return FitzHughNagumoTranslation(scalar * self.du, scalar * self.dv)
 
-    linear_combine = [_scale_translation, _combine2_translation, _combine3_translation]
+    linear_combine = ALGEBRAIST.linear_combination
+    __call__ = ALGEBRAIST.apply
+    norm = ALGEBRAIST.norm
 
 
 class FitzHughNagumoWorkbench:
@@ -217,14 +166,7 @@ class FitzHughNagumoWorkbench:
         if not self.__class__._compiled:
             probe = np.zeros(grid_size, dtype=np.float64)
             ACCELERATOR.compile_examples(_laplacian_periodic, (probe, probe, 1.0))
-            ACCELERATOR.compile_examples(_apply_kernel, (probe, probe, probe, probe, probe, probe))
-            ACCELERATOR.compile_examples(_norm_kernel, (probe, probe))
-            ACCELERATOR.compile_examples(_scale_kernel, (probe, probe, 1.0, probe, probe))
-            ACCELERATOR.compile_examples(_combine2_kernel, (probe, probe, 1.0, probe, probe, 1.0, probe, probe))
-            ACCELERATOR.compile_examples(
-                _combine3_kernel,
-                (probe, probe, 1.0, probe, probe, 1.0, probe, probe, 1.0, probe, probe),
-            )
+            ALGEBRAIST.compile_examples(probe, probe)
             self.__class__._compiled = True
 
     def __repr__(self) -> str:

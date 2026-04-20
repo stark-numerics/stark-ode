@@ -42,7 +42,7 @@ class Integrator:
     every accepted step and raise a helpful error if a scheme stalls.
     """
 
-    __slots__ = ("executor", "_snapshot_impl", "_live_impl")
+    __slots__ = ("executor", "redirect_call_snapshot", "redirect_call_live")
 
     def __init__(
         self,
@@ -51,8 +51,8 @@ class Integrator:
         safety: Safety | None = None,
     ) -> None:
         self.executor = Executor.resolve(executor, safety=safety)
-        self._snapshot_impl = self._call_snapshot_safe if self.executor.safety.progress else self._call_snapshot_fast
-        self._live_impl = self._call_live_safe if self.executor.safety.progress else self._call_live_fast
+        self.redirect_call_snapshot = self.call_snapshot_safe if self.executor.safety.progress else self.call_snapshot_fast
+        self.redirect_call_live = self.call_live_safe if self.executor.safety.progress else self.call_live_fast
 
     def __repr__(self) -> str:
         return f"Integrator(executor={self.executor!r})"
@@ -73,8 +73,8 @@ class Integrator:
         """
         Auditor.require_integration_inputs(marcher, interval, state, snapshots=True)
         if checkpoints is not None:
-            return self._call_snapshot_checkpoints(marcher, interval, state, checkpoints)
-        return self._snapshot_impl(marcher, interval, state)
+            return self.call_snapshot_checkpoints(marcher, interval, state, checkpoints)
+        return self.redirect_call_snapshot(marcher, interval, state)
 
     def live(
         self,
@@ -88,8 +88,8 @@ class Integrator:
         """
         Auditor.require_integration_inputs(marcher, interval, state, snapshots=False)
         if checkpoints is not None:
-            return self._call_live_checkpoints(marcher, interval, state, checkpoints)
-        return self._live_impl(marcher, interval, state)
+            return self.call_live_checkpoints(marcher, interval, state, checkpoints)
+        return self.redirect_call_live(marcher, interval, state)
 
     def monitored(
         self,
@@ -99,7 +99,7 @@ class Integrator:
         monitor: Monitor,
         checkpoints: Checkpoints | None = None,
     ) -> Iterator[tuple[IntervalLike, State]]:
-        with self._monitoring(marcher, monitor):
+        with self.monitoring(marcher, monitor):
             yield from self(marcher, interval, state, checkpoints=checkpoints)
 
     def live_monitored(
@@ -110,10 +110,10 @@ class Integrator:
         monitor: Monitor,
         checkpoints: Checkpoints | None = None,
     ) -> Iterator[tuple[IntervalLike, State]]:
-        with self._monitoring(marcher, monitor):
+        with self.monitoring(marcher, monitor):
             yield from self.live(marcher, interval, state, checkpoints=checkpoints)
 
-    def _snapshot(
+    def snapshot(
         self,
         marcher: Marcher,
         interval: IntervalLike,
@@ -121,7 +121,7 @@ class Integrator:
     ) -> tuple[IntervalLike, State]:
         return interval.copy(), marcher.snapshot_state(state)
 
-    def _call_snapshot_checkpoints(
+    def call_snapshot_checkpoints(
         self,
         marcher: Marcher,
         interval: IntervalLike,
@@ -130,48 +130,49 @@ class Integrator:
     ) -> Iterator[tuple[IntervalLike, State]]:
         copy_interval = interval.copy
         snapshot_state = marcher.snapshot_state
-        for _checkpoint in self._call_live_checkpoints(marcher, interval, state, checkpoints):
+        for checkpoint in self.call_live_checkpoints(marcher, interval, state, checkpoints):
+            del checkpoint
             yield copy_interval(), snapshot_state(state)
 
-    def _call_live_checkpoints(
+    def call_live_checkpoints(
         self,
         marcher: Marcher,
         interval: IntervalLike,
         state: State,
         checkpoints: Checkpoints,
     ) -> Iterator[tuple[IntervalLike, State]]:
-        targets = self._checkpoint_targets(interval, checkpoints)
-        live_impl = self._live_impl
-        same_time = self._same_time
+        targets = self.checkpoint_targets(interval, checkpoints)
+        live_impl = self.redirect_call_live
+        same_time = self.same_time
         original_stop = interval.stop
-        last_positive_step = interval.step if interval.step > 0.0 else None
+        last_positive_step = interval.step if self.advances_time(interval.present, interval.step) else None
         try:
             for index, target in enumerate(targets):
                 interval.stop = target
-                if interval.step <= 0.0 and last_positive_step is not None:
-                    interval.step = min(last_positive_step, target - interval.present)
-                for _checkpoint in live_impl(marcher, interval, state):
+                remaining = target - interval.present
+                if interval.step <= 0.0 or not self.advances_time(interval.present, min(interval.step, remaining)):
+                    interval.step = min(last_positive_step, remaining) if last_positive_step is not None else remaining
+                for checkpoint in live_impl(marcher, interval, state):
+                    del checkpoint
                     pass
                 if not same_time(interval.present, target):
                     raise RuntimeError(
                         "Integration did not land on the requested checkpoint. "
                         "Use Marcher(...) or a checkpoint-aware marcher that clamps to interval.stop."
                     )
-                if interval.step > 0.0:
+                if self.advances_time(interval.present, interval.step):
                     last_positive_step = interval.step
-                elif index + 1 < len(targets) and last_positive_step is None:
-                    raise RuntimeError("Integration left no positive step size for the next checkpoint.")
                 yield interval, state
         finally:
             interval.stop = original_stop
 
     @classmethod
-    def _checkpoint_targets(cls, interval: IntervalLike, checkpoints: Checkpoints) -> tuple[float, ...]:
+    def checkpoint_targets(cls, interval: IntervalLike, checkpoints: Checkpoints) -> tuple[float, ...]:
         start = float(interval.present)
         stop = float(interval.stop)
         if stop < start:
             raise ValueError("Interval stop must be greater than or equal to present.")
-        if cls._same_time(start, stop):
+        if cls.same_time(start, stop):
             return ()
 
         if isinstance(checkpoints, int):
@@ -185,43 +186,50 @@ class Integrator:
         targets = [float(checkpoint) for checkpoint in checkpoints]
         previous = start
         for target in targets:
-            if cls._same_time(target, previous) or target < previous:
+            if cls.same_time(target, previous) or target < previous:
                 raise ValueError("Checkpoints must be strictly increasing and after interval.present.")
-            if target > stop and not cls._same_time(target, stop):
+            if target > stop and not cls.same_time(target, stop):
                 raise ValueError("Checkpoints must not exceed interval.stop.")
             previous = target
 
-        if not targets or not cls._same_time(targets[-1], stop):
+        if not targets or not cls.same_time(targets[-1], stop):
             targets.append(stop)
         else:
             targets[-1] = stop
         return tuple(targets)
 
     @staticmethod
-    def _same_time(left: float, right: float) -> bool:
+    def same_time(left: float, right: float) -> bool:
         return abs(left - right) <= 1.0e-12 * max(1.0, abs(left), abs(right))
 
     @staticmethod
+    def advances_time(present: float, step: float) -> bool:
+        return step > 0.0 and present + step > present
+
+    @staticmethod
     @contextmanager
-    def _monitoring(marcher: Marcher, monitor: Monitor) -> Iterator[None]:
+    def monitoring(marcher: Marcher, monitor: Monitor) -> Iterator[None]:
         marcher.assign_monitor(monitor)
         try:
             yield
         finally:
             marcher.unassign_monitor()
 
-    def _call_live_fast(
+    def call_live_fast(
         self,
         marcher: Marcher,
         interval: IntervalLike,
         state: State,
     ) -> Iterator[tuple[IntervalLike, State]]:
         march = marcher
-        while interval.present < interval.stop:
+        same_time = self.same_time
+        while interval.present < interval.stop and not same_time(interval.present, interval.stop):
+            if not self.advances_time(interval.present, interval.step):
+                interval.step = interval.stop - interval.present
             march(interval, state)
             yield interval, state
 
-    def _call_live_safe(
+    def call_live_safe(
         self,
         marcher: Marcher,
         interval: IntervalLike,
@@ -231,10 +239,16 @@ class Integrator:
             raise ValueError("Interval step must be positive.")
 
         march = marcher
-        while interval.present < interval.stop:
+        same_time = self.same_time
+        while interval.present < interval.stop and not same_time(interval.present, interval.stop):
+            if not self.advances_time(interval.present, interval.step):
+                interval.step = interval.stop - interval.present
             previous_present = interval.present
             march(interval, state)
             if interval.present <= previous_present:
+                if same_time(interval.present, interval.stop) or same_time(previous_present, interval.stop):
+                    interval.present = interval.stop
+                    break
                 raise RuntimeError(
                     "Integration made no progress. "
                     "The scheme may have returned a non-positive step size. "
@@ -242,7 +256,7 @@ class Integrator:
                 )
             yield interval, state
 
-    def _call_snapshot_fast(
+    def call_snapshot_fast(
         self,
         marcher: Marcher,
         interval: IntervalLike,
@@ -251,11 +265,14 @@ class Integrator:
         march = marcher
         copy_interval = interval.copy
         snapshot_state = marcher.snapshot_state
-        while interval.present < interval.stop:
+        same_time = self.same_time
+        while interval.present < interval.stop and not same_time(interval.present, interval.stop):
+            if not self.advances_time(interval.present, interval.step):
+                interval.step = interval.stop - interval.present
             march(interval, state)
             yield copy_interval(), snapshot_state(state)
 
-    def _call_snapshot_safe(
+    def call_snapshot_safe(
         self,
         marcher: Marcher,
         interval: IntervalLike,
@@ -267,10 +284,16 @@ class Integrator:
         march = marcher
         copy_interval = interval.copy
         snapshot_state = marcher.snapshot_state
-        while interval.present < interval.stop:
+        same_time = self.same_time
+        while interval.present < interval.stop and not same_time(interval.present, interval.stop):
+            if not self.advances_time(interval.present, interval.step):
+                interval.step = interval.stop - interval.present
             previous_present = interval.present
             march(interval, state)
             if interval.present <= previous_present:
+                if same_time(interval.present, interval.stop) or same_time(previous_present, interval.stop):
+                    interval.present = interval.stop
+                    break
                 raise RuntimeError(
                     "Integration made no progress. "
                     "The scheme may have returned a non-positive step size. "

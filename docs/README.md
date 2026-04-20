@@ -302,40 +302,39 @@ and expressive, but it may allocate many temporary objects. For array-backed
 or performance-sensitive problems, translations can expose optimized
 linear-combination kernels.
 
-These kernels belong with the translation implementation for a particular
-problem. In practice, define them in the same module as the translation class
-or import compiled kernels into that module, then attach them to the
-translation class with a `linear_combine` class attribute. STARK discovers them
-from a translation instance allocated by the workbench:
+The easiest way to do that is with `Algebraist`, which generates inspectable
+fast paths from field metadata:
 
 ```python
-def scale_array(out, a, x):
-    out.values[:] = a * x.values
-    return out
+from stark import Algebraist, AlgebraistField
 
-
-def combine2_array(out, a0, x0, a1, x1):
-    out.values[:] = a0 * x0.values + a1 * x1.values
-    return out
+ALGEBRAIST = Algebraist(
+    fields=(
+        AlgebraistField("du", style="looped", rank=2, apply_to="u"),
+        AlgebraistField("dv", style="looped", rank=2, apply_to="v"),
+    ),
+    accelerator=ACCELERATOR,
+    fused_up_to=7,
+    generate_norm="rms",
+)
 
 
 class ArrayTranslation:
-    linear_combine = [scale_array, combine2_array]
+    __slots__ = ("du", "dv")
 
-    def __init__(self, values):
-        self.values = values
-
-    def __call__(self, origin, result):
-        result.values[:] = origin.values + self.values
-
-    def norm(self):
-        return float((self.values * self.values).sum() ** 0.5)
+    def __init__(self, du, dv):
+        self.du = du
+        self.dv = dv
 
     def __add__(self, other):
-        return ArrayTranslation(self.values + other.values)
+        return ArrayTranslation(self.du + other.du, self.dv + other.dv)
 
     def __rmul__(self, scalar):
-        return ArrayTranslation(scalar * self.values)
+        return ArrayTranslation(scalar * self.du, scalar * self.dv)
+
+    linear_combine = ALGEBRAIST.linear_combination
+    __call__ = ALGEBRAIST.apply
+    norm = ALGEBRAIST.norm
 ```
 
 The workbench still returns ordinary translation objects:
@@ -346,10 +345,32 @@ class ArrayWorkbench:
         return ArrayTranslation(np.zeros_like(self.prototype))
 ```
 
+If you are using an accelerator, the workbench can also precompile the emitted
+kernels on probe data:
+
+```python
+class ArrayWorkbench:
+    def __init__(self, prototype):
+        self.prototype = prototype
+        probe = np.zeros_like(prototype)
+        ALGEBRAIST.compile_examples(probe, probe)
+
+    def allocate_translation(self):
+        return ArrayTranslation(
+            np.zeros_like(self.prototype),
+            np.zeros_like(self.prototype),
+        )
+```
+
 When a scheme is constructed, STARK asks the workbench for a translation,
 inspects that translation for `linear_combine`, and stores the resolved kernels
 inside the scheme. The rest of the integration code does not need to pass the
 fast paths around explicitly.
+
+`Algebraist` keeps the generated source on `sources`, `kernel_sources`, and
+`wrapper_sources`, so users can inspect exactly what it emitted before trusting
+it. If a problem is better served by handwritten code, users can override the
+generated `linear_combine`, `__call__`, or `norm` methods directly.
 
 The entries are:
 
@@ -361,7 +382,8 @@ The entries are:
 If only `scale` and `combine2` are supplied, STARK builds the higher-arity
 combinations from `combine2` and scratch translations allocated by the
 workbench. For best performance, provide fused `combine3`, `combine4`, ...
-kernels directly. The benchmarks use this hook with Numba-jitted kernels.
+kernels directly. `Algebraist` can generate those fused kernels, but users can
+still attach handwritten kernels when that is a better fit.
 
 Fast paths should obey the same aliasing rule as translation application: the
 output buffer may be one of the input buffers, so kernels should be correct for
@@ -557,9 +579,9 @@ python -m benchmarks.fitzhugh_nagumo_1d.report
 python -m benchmarks.robertson.report
 ```
 
-The STARK benchmark implementations intentionally use fast translation paths so
-the reports show both the generic interface and the performance-oriented
-extension point.
+The STARK benchmark implementations intentionally use `Algebraist`-generated
+fast translation paths so the reports show both the generic interface and the
+performance-oriented extension point.
 
 
 

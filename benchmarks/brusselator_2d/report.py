@@ -60,8 +60,8 @@ def timed_runner(
         }
 
     return {
-        "library": result["library"],
-        "solver": result["solver"],
+        "library": library,
+        "solver": solver,
         "error": result["error"],
         "steps": result["steps"],
         "setup": float(setup_elapsed),

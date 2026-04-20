@@ -6,6 +6,8 @@ from math import acos, copysign, cos, pi, sqrt
 import numpy as np
 
 from stark import (
+    Algebraist,
+    AlgebraistField,
     Executor,
     Integrator,
     Interval,
@@ -20,39 +22,12 @@ from stark.schemes import SchemeKvaerno4
 ACCELERATOR = Accelerator.numba()
 USE_NUMBA_ACCELERATION = ACCELERATOR.available
 
-
-@ACCELERATOR.decorate
-def _apply_kernel(origin_y, delta_y, result_y):
-    result_y[0] = origin_y[0] + delta_y[0]
-    result_y[1] = origin_y[1] + delta_y[1]
-    result_y[2] = origin_y[2] + delta_y[2]
-
-
-@ACCELERATOR.decorate
-def _norm_kernel(delta_y):
-    total = delta_y[0] * delta_y[0] + delta_y[1] * delta_y[1] + delta_y[2] * delta_y[2]
-    return (total / 3.0) ** 0.5
-
-
-@ACCELERATOR.decorate
-def _scale_kernel(out_y, a, x_y):
-    out_y[0] = a * x_y[0]
-    out_y[1] = a * x_y[1]
-    out_y[2] = a * x_y[2]
-
-
-@ACCELERATOR.decorate
-def _combine2_kernel(out_y, a0, x0_y, a1, x1_y):
-    out_y[0] = a0 * x0_y[0] + a1 * x1_y[0]
-    out_y[1] = a0 * x0_y[1] + a1 * x1_y[1]
-    out_y[2] = a0 * x0_y[2] + a1 * x1_y[2]
-
-
-@ACCELERATOR.decorate
-def _combine3_kernel(out_y, a0, x0_y, a1, x1_y, a2, x2_y):
-    out_y[0] = a0 * x0_y[0] + a1 * x1_y[0] + a2 * x2_y[0]
-    out_y[1] = a0 * x0_y[1] + a1 * x1_y[1] + a2 * x2_y[1]
-    out_y[2] = a0 * x0_y[2] + a1 * x1_y[2] + a2 * x2_y[2]
+ALGEBRAIST = Algebraist(
+    fields=(AlgebraistField("dy", style="small_fixed", shape=(3,), apply_to="y"),),
+    accelerator=ACCELERATOR,
+    fused_up_to=3,
+    generate_norm="rms",
+)
 
 
 @ACCELERATOR.decorate
@@ -65,40 +40,6 @@ def _full_rhs_kernel(state_y, out_y):
     out_y[0] = -0.04 * y1 + coupling
     out_y[1] = 0.04 * y1 - coupling - quadratic
     out_y[2] = quadratic
-
-
-def _scale_translation_numba(out, a, x):
-    _scale_kernel(out.dy, a, x.dy)
-    return out
-
-
-def _scale_translation_python(out, a, x):
-    np.multiply(x.dy, a, out=out.dy)
-    return out
-
-
-def _combine2_translation_numba(out, a0, x0, a1, x1):
-    _combine2_kernel(out.dy, a0, x0.dy, a1, x1.dy)
-    return out
-
-
-def _combine2_translation_python(out, a0, x0, a1, x1):
-    np.multiply(x0.dy, a0, out=out.dy)
-    out.dy += a1 * x1.dy
-    return out
-
-
-def _combine3_translation_numba(out, a0, x0, a1, x1, a2, x2):
-    _combine3_kernel(out.dy, a0, x0.dy, a1, x1.dy, a2, x2.dy)
-    return out
-
-
-def _combine3_translation_python(out, a0, x0, a1, x1, a2, x2):
-    np.multiply(x0.dy, a0, out=out.dy)
-    out.dy += a1 * x1.dy
-    out.dy += a2 * x2.dy
-    return out
-
 
 @dataclass(slots=True)
 class RobertsonState:
@@ -125,32 +66,15 @@ class RobertsonTranslation:
 
     __str__ = __repr__
 
-    def _apply_numba(self, origin, result):
-        _apply_kernel(origin.y, self.dy, result.y)
-
-    def _apply_python(self, origin, result):
-        np.add(origin.y, self.dy, out=result.y)
-
-    def _norm_numba(self):
-        return float(_norm_kernel(self.dy))
-
-    def _norm_python(self):
-        return sqrt(float(np.dot(self.dy, self.dy)) / self.dy.size)
-
     def __add__(self, other):
         return RobertsonTranslation(self.dy + other.dy)
 
     def __rmul__(self, scalar):
         return RobertsonTranslation(scalar * self.dy)
 
-
-RobertsonTranslation.__call__ = RobertsonTranslation._apply_numba if USE_NUMBA_ACCELERATION else RobertsonTranslation._apply_python
-RobertsonTranslation.norm = RobertsonTranslation._norm_numba if USE_NUMBA_ACCELERATION else RobertsonTranslation._norm_python
-RobertsonTranslation.linear_combine = [
-    _scale_translation_numba if USE_NUMBA_ACCELERATION else _scale_translation_python,
-    _combine2_translation_numba if USE_NUMBA_ACCELERATION else _combine2_translation_python,
-    _combine3_translation_numba if USE_NUMBA_ACCELERATION else _combine3_translation_python,
-]
+    linear_combine = ALGEBRAIST.linear_combination
+    __call__ = ALGEBRAIST.apply
+    norm = ALGEBRAIST.norm
 
 
 class RobertsonWorkbench:
@@ -160,11 +84,7 @@ class RobertsonWorkbench:
     def __init__(self) -> None:
         if not self.__class__._compiled:
             probe = np.zeros(3, dtype=np.float64)
-            ACCELERATOR.compile_examples(_apply_kernel, (probe, probe, probe))
-            ACCELERATOR.compile_examples(_norm_kernel, (probe,))
-            ACCELERATOR.compile_examples(_scale_kernel, (probe, 1.0, probe))
-            ACCELERATOR.compile_examples(_combine2_kernel, (probe, 1.0, probe, 1.0, probe))
-            ACCELERATOR.compile_examples(_combine3_kernel, (probe, 1.0, probe, 1.0, probe, 1.0, probe))
+            ALGEBRAIST.compile_examples(probe)
             self.__class__._compiled = True
 
     def __repr__(self) -> str:

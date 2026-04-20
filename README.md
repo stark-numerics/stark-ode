@@ -32,7 +32,7 @@ flattening everything just to call a solver would obscure the code.
   times.
 - An auditor that checks whether user objects satisfy the STARK contracts.
 - Extension points for custom schemes and problem-specific fast translation
-  kernels.
+  kernels, including `Algebraist` for inspectable generated boilerplate.
 - An `ImExDerivative` helper for splitting a right-hand side into implicit and
   explicit parts ahead of IMEX schemes.
 
@@ -188,7 +188,7 @@ linearizer or inverter. They do need an inner product on translations.
 The compact functionality guide is
 [`docs/README.md`](docs/README.md). It lists the integration APIs, built-in
 schemes, resolvents, inverters, accelerators, execution tools, auditing hooks,
-custom scheme contracts, and translation fast paths.
+custom scheme contracts, `Algebraist`, and translation fast paths.
 
 Accelerators follow the same philosophy. Built-in workers live under
 `stark.accelerators`, the contracts live under `stark.contracts`, and custom
