@@ -195,15 +195,26 @@ class SchemeBaseImplicit(SchemeBase):
 
 
 class SchemeBaseExplicitFixed(SchemeBaseExplicit, SchemeBaseFixed):
-    __slots__ = ("derivative", "k1", "workspace")
+    __slots__ = ("derivative", "k1", "workspace", "redirect_call")
 
     def __init__(self, derivative: Derivative, workbench: Workbench) -> None:
         self.initialise_explicit(derivative, workbench)
         self.initialise_buffers()
+        self.redirect_call = self.generic_call
 
     @abstractmethod
     def initialise_buffers(self) -> None:
         """Allocate stage-specific scratch storage beyond the shared `k1`."""
+
+    @abstractmethod
+    def generic_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+        """Advance one fixed step using the generic translation operations."""
+
+    def bind_fixed_call(self, call) -> None:
+        self.redirect_call = call
+
+    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+        return self.redirect_call(interval, state, executor)
 
 class SchemeBaseExplicitAdaptive(SchemeBaseExplicit, SchemeBaseAdaptive):
     __slots__ = ("derivative", "k1", "workspace")

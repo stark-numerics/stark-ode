@@ -12,8 +12,7 @@ def field_combine_assignment(field: AlgebraistField, term_count: int) -> str:
     if isinstance(policy, AlgebraistSmallFixed):
         return small_fixed_combine_assignment(field, policy.shape, term_count)
     if isinstance(policy, AlgebraistLooped):
-        assert policy.rank is not None
-        return looped_combine_assignment(field, policy.rank, term_count)
+        return looped_combine_assignment(field, looped_rank(field, policy), term_count)
     if isinstance(policy, AlgebraistBroadcast):
         return broadcast_combine_assignment(field, term_count)
     raise TypeError(f"Unknown Algebraist policy {policy!r}.")
@@ -28,8 +27,7 @@ def field_tableau_combine_assignment(
     if isinstance(policy, AlgebraistSmallFixed):
         return small_fixed_tableau_combine_assignment(field, policy.shape, coefficients, term_count)
     if isinstance(policy, AlgebraistLooped):
-        assert policy.rank is not None
-        return looped_tableau_combine_assignment(field, policy.rank, coefficients, term_count)
+        return looped_tableau_combine_assignment(field, looped_rank(field, policy), coefficients, term_count)
     if isinstance(policy, AlgebraistBroadcast):
         return broadcast_tableau_combine_assignment(field, coefficients, term_count)
     raise TypeError(f"Unknown Algebraist policy {policy!r}.")
@@ -44,8 +42,7 @@ def field_tableau_stage_assignment(
     if isinstance(policy, AlgebraistSmallFixed):
         return small_fixed_tableau_stage_assignment(field, policy.shape, coefficients, term_count)
     if isinstance(policy, AlgebraistLooped):
-        assert policy.rank is not None
-        return looped_tableau_stage_assignment(field, policy.rank, coefficients, term_count)
+        return looped_tableau_stage_assignment(field, looped_rank(field, policy), coefficients, term_count)
     if isinstance(policy, AlgebraistBroadcast):
         return broadcast_tableau_stage_assignment(field, coefficients, term_count)
     raise TypeError(f"Unknown Algebraist policy {policy!r}.")
@@ -56,8 +53,7 @@ def field_apply_assignment(field: AlgebraistField) -> str:
     if isinstance(policy, AlgebraistSmallFixed):
         return small_fixed_apply_assignment(field, policy.shape)
     if isinstance(policy, AlgebraistLooped):
-        assert policy.rank is not None
-        return looped_apply_assignment(field, policy.rank)
+        return looped_apply_assignment(field, looped_rank(field, policy))
     if isinstance(policy, AlgebraistBroadcast):
         return broadcast_apply_assignment(field)
     raise TypeError(f"Unknown Algebraist policy {policy!r}.")
@@ -262,8 +258,7 @@ def field_norm_body(fields: Sequence[AlgebraistField], kind: str) -> list[str]:
         if isinstance(policy, AlgebraistSmallFixed):
             lines.extend(small_fixed_norm_body(field, policy.shape, kind))
         elif isinstance(policy, AlgebraistLooped):
-            assert policy.rank is not None
-            lines.extend(looped_norm_body(field, policy.rank, kind))
+            lines.extend(looped_norm_body(field, looped_rank(field, policy), kind))
         else:
             lines.extend(broadcast_norm_body(field, kind))
 
@@ -330,3 +325,11 @@ def fixed_locations(shape: tuple[int, ...]) -> tuple[str, ...]:
 
     visit((), 0)
     return tuple(locations)
+
+
+def looped_rank(field: AlgebraistField, policy: AlgebraistLooped) -> int:
+    if policy.rank is None:
+        raise ValueError(
+            f"Looped Algebraist field {field.translation_name!r} needs an explicit rank or shape."
+        )
+    return policy.rank

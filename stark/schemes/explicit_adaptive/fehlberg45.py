@@ -98,7 +98,7 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
         self.bound_stage_interval = workspace.stage_interval
 
     def bind_algebraist_path(self, algebraist: Algebraist) -> None:
-        calls = algebraist.bind_explicit_scheme(self.tableau, self.workspace)
+        calls = algebraist.bind_explicit_scheme(self.tableau)
         error = calls.error
         if error is None:
             raise ValueError("Fehlberg45 requires an embedded error combination.")

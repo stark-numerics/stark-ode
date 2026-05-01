@@ -46,11 +46,12 @@ class SchemeHeun(SchemeBaseExplicitFixed):
         self.trial, self.k2 = workspace.allocate_translation_buffers(2)
 
     def bind_algebraist_path(self, algebraist: Algebraist) -> None:
-        calls = algebraist.bind_explicit_scheme(self.tableau, self.workspace)
+        calls = algebraist.bind_explicit_scheme(self.tableau)
         self.combine_stage2 = calls.stages[1]
         self.advance_state = calls.solution_state
+        self.bind_fixed_call(self.algebraist_call)
 
-    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def generic_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         del executor
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
@@ -69,12 +70,6 @@ class SchemeHeun(SchemeBaseExplicitFixed):
 
         dt = interval.step if interval.step <= remaining else remaining
         derivative(interval, state, k1)
-        advance_state = self.advance_state
-        if advance_state is not None:
-            self.combine_stage2(stage, state, dt, k1)
-            derivative(stage_interval(interval, dt, dt), stage, k2)
-            advance_state(state, state, dt, k1, k2)
-            return dt
 
         trial = scale(trial_buffer, dt, k1)
         trial(state, stage)
@@ -88,6 +83,23 @@ class SchemeHeun(SchemeBaseExplicitFixed):
             k2,
         )
         apply_delta(delta, state)
+        return dt
+
+    def algebraist_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+        del executor
+        remaining = interval.stop - interval.present
+        if remaining <= 0.0:
+            return 0.0
+
+        dt = interval.step if interval.step <= remaining else remaining
+        stage = self.stage
+        k1 = self.k1
+        k2 = self.k2
+        derivative = self.derivative
+        derivative(interval, state, k1)
+        self.combine_stage2(stage, state, dt, k1)
+        derivative(self.workspace.stage_interval(interval, dt, dt), stage, k2)
+        self.advance_state(state, state, dt, k1, k2)
         return dt
 
 

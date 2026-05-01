@@ -185,7 +185,7 @@ Find Z = (z_1, ..., z_m) in T^m such that R(Z) = 0
 ```
 
 STARK calls that product-space object a `Block`. So `Block` is code for an
-element of `T^m`, not a new mathematical mystery.
+element of `T^m`, not a separate mathematical object.
 
 The `Residual` contract represents
 

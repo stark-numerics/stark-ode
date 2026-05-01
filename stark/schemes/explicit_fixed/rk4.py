@@ -53,13 +53,14 @@ class SchemeRK4(SchemeBaseExplicitFixed):
         self.trial, self.k2, self.k3, self.k4 = workspace.allocate_translation_buffers(4)
 
     def bind_algebraist_path(self, algebraist: Algebraist) -> None:
-        calls = algebraist.bind_explicit_scheme(self.tableau, self.workspace)
+        calls = algebraist.bind_explicit_scheme(self.tableau)
         self.combine_stage2 = calls.stages[1]
         self.combine_stage3 = calls.stages[2]
         self.combine_stage4 = calls.stages[3]
         self.advance_state = calls.solution_state
+        self.bind_fixed_call(self.algebraist_call)
 
-    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def generic_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         del executor
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
@@ -81,16 +82,6 @@ class SchemeRK4(SchemeBaseExplicitFixed):
         dt = interval.step if interval.step <= remaining else remaining
 
         derivative(interval, state, k1)
-        advance_state = self.advance_state
-        if advance_state is not None:
-            self.combine_stage2(stage, state, dt, k1)
-            derivative(stage_interval(interval, dt, 0.5 * dt), stage, k2)
-            self.combine_stage3(stage, state, dt, k2)
-            derivative(stage_interval(interval, dt, 0.5 * dt), stage, k3)
-            self.combine_stage4(stage, state, dt, k3)
-            derivative(stage_interval(interval, dt, dt), stage, k4)
-            advance_state(state, state, dt, k1, k2, k3, k4)
-            return dt
 
         trial = scale(trial_buffer, 0.5 * dt, k1)
         trial(state, stage)
@@ -116,6 +107,31 @@ class SchemeRK4(SchemeBaseExplicitFixed):
             k4,
         )
         apply_delta(delta, state)
+        return dt
+
+    def algebraist_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+        del executor
+        remaining = interval.stop - interval.present
+        if remaining <= 0.0:
+            return 0.0
+
+        dt = interval.step if interval.step <= remaining else remaining
+        stage = self.stage
+        k1 = self.k1
+        k2 = self.k2
+        k3 = self.k3
+        k4 = self.k4
+        derivative = self.derivative
+        stage_interval = self.workspace.stage_interval
+
+        derivative(interval, state, k1)
+        self.combine_stage2(stage, state, dt, k1)
+        derivative(stage_interval(interval, dt, 0.5 * dt), stage, k2)
+        self.combine_stage3(stage, state, dt, k2)
+        derivative(stage_interval(interval, dt, 0.5 * dt), stage, k3)
+        self.combine_stage4(stage, state, dt, k3)
+        derivative(stage_interval(interval, dt, dt), stage, k4)
+        self.advance_state(state, state, dt, k1, k2, k3, k4)
         return dt
 
 

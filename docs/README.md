@@ -3,11 +3,14 @@
 This page is a compact map of the public functionality in STARK. It is meant
 to answer two questions:
 
-- what can I use out of the box?
-- where can I plug in my own problem-specific code?
+- what is available out of the box?
+- where can problem-specific code plug in?
 
 For ordinary scalar or array-valued initial-value problems, start with the
 public interface guide: [`docs/interface.md`](interface.md).
+
+For a conceptual map of the object families in STARK, see
+[`docs/object_map.md`](object_map.md).
 
 For a worked narrative example using the explicit core API, start with
 [`examples/three_body_stark.ipynb`](../examples/three_body_stark.ipynb).
@@ -284,7 +287,7 @@ def derivative(interval, state, out):
     out.velocity[:] = acceleration_from_existing_code(t, state)
 ```
 
-For IMEX work, STARK now also provides a small split carrier:
+For IMEX work, STARK provides a small split carrier:
 
 ```python
 from stark import ImExDerivative
@@ -514,7 +517,7 @@ state, translation, workbench, interval, and tolerance objects.
 Built-in implicit and IMEX schemes use the same `Marcher` and `Integrator`
 layer as the explicit schemes, but they ask the user for extra structure.
 
-The scheme-facing object is now a `Resolvent`. The additional pieces depend on
+The scheme-facing object is a `Resolvent`. The additional pieces depend on
 which resolvent you choose:
 
 - `ResolventPicard` only needs the implicit derivative.

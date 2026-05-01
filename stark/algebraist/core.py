@@ -84,12 +84,10 @@ class Algebraist:
         if self.generate_norm is not None:
             accelerator.compile_examples(self.kernels["norm_kernel"], tuple(probes))
 
-    def bind_tableau(self, tableau: ButcherTableauLike, workspace: object | None = None):
-        del workspace
+    def bind_tableau(self, tableau: ButcherTableauLike):
         return AlgebraistTableauBinder(self)(tableau)
 
-    def bind_explicit_scheme(self, tableau: ButcherTableauLike, workspace: object | None = None):
-        del workspace
+    def bind_explicit_scheme(self, tableau: ButcherTableauLike):
         return AlgebraistExplicitSchemeBinder(self)(tableau)
 
     def build_kernels(self) -> tuple[dict[str, Callable[..., object]], dict[str, str]]:

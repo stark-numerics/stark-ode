@@ -13,7 +13,7 @@ Start with `stark.interface.StarkIVP` when your state is a Python scalar,
 sequence, NumPy array, CuPy array, or JAX array. Move to the core STARK objects
 when a simulation already has its own domain model: particles, fields,
 lattices, structured arrays, nested dataclasses, or other objects where
-flattening everything just to call a solver would obscure the code.
+flattening everything solely to call a solver would obscure the code.
 
 For performance-sensitive ordinary array problems, dense NumPy arrays are a
 good first choice. They can be one-dimensional or multidimensional, and the
@@ -186,8 +186,8 @@ state objects, custom translation types, implicit or IMEX method setup,
 problem-specific fast paths, or detailed control over schemes, resolvents, and
 inverters.
 
-`Executor` also carries the selected `Accelerator`. Accelerators now live under
-`stark.accelerators` as concrete configured workers, parallel to schemes,
+`Executor` also carries the selected `Accelerator`. Built-in accelerators live
+under `stark.accelerators` as concrete configured workers, parallel to schemes,
 resolvents, and inverters. The default is `AcceleratorAbsent()`, so
 acceleration is always opt-in rather than a hidden dependency.
 
@@ -270,6 +270,9 @@ The compact functionality guide is [`docs/README.md`](docs/README.md). It
 maps the explicit core API: integration objects, built-in schemes, resolvents,
 inverters, accelerators, execution tools, auditing hooks, custom scheme
 contracts, `Algebraist`, and translation fast paths.
+
+For a conceptual guide to the main object families and extension points, see
+[`docs/object_map.md`](docs/object_map.md).
 
 Accelerators follow the same philosophy. Built-in workers live under
 `stark.accelerators`, the contracts live under `stark.contracts`, and custom

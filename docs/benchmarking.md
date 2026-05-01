@@ -72,8 +72,8 @@ Full ASV runs build the project from Git commits. Use them after committing the
 code you want to benchmark.
 
 If benchmark files in the working tree require package code that is not
-committed yet, a full ASV run may import a mismatch: new benchmarks from the
-working tree against old installed package code.
+committed yet, a full ASV run may import a mismatch: benchmark files from the
+working tree against package code built from the selected commit.
 
 Publish local HTML output with:
 
@@ -118,8 +118,7 @@ names such as:
 
 ## Default Problem
 
-The first standard benchmark problem is the
-Fermi-Pasta-Ulam-Tsingou beta lattice.
+The standard benchmark problem is the Fermi-Pasta-Ulam-Tsingou beta lattice.
 
 FPUT is a useful default because it is:
 
@@ -130,12 +129,12 @@ FPUT is a useful default because it is:
 - large enough to show whether Algebraist-generated kernels repay their setup
   cost.
 
-The initial ASV suite uses small, medium, and large FPUT chains. Small cases
-show overhead. Larger cases show whether generated translation kernels scale.
+The ASV suite uses small, medium, and large FPUT chains. Small cases show
+overhead. Larger cases show whether generated translation kernels scale.
 
-## What The First Suite Measures
+## What The Suite Measures
 
-The first benchmark campaign measures:
+The benchmark suite measures:
 
 - explicit schemes without `algebraist=`;
 - the same explicit schemes with `algebraist=`;
@@ -150,8 +149,8 @@ solves, generated kernels may win.
 
 ## NumPy Version
 
-The initial ASV matrix installs the latest NumPy compatible with the selected
-Python. This keeps local development smooth on new Python versions.
+The ASV matrix installs the latest NumPy compatible with the selected Python.
+This keeps local development smooth on recent Python versions.
 
 Historical NumPy pins can be added later when the project needs cross-version
 performance history.

@@ -44,10 +44,11 @@ class SchemeEuler(SchemeBaseExplicitFixed):
         self.delta = self.workspace.allocate_translation()
 
     def bind_algebraist_path(self, algebraist: Algebraist) -> None:
-        calls = algebraist.bind_explicit_scheme(self.tableau, self.workspace)
+        calls = algebraist.bind_explicit_scheme(self.tableau)
         self.advance_state = calls.solution_state
+        self.bind_fixed_call(self.algebraist_call)
 
-    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def generic_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         del executor
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
@@ -62,13 +63,21 @@ class SchemeEuler(SchemeBaseExplicitFixed):
 
         dt = interval.step if interval.step <= remaining else remaining
         derivative(interval, state, k1)
-        advance_state = self.advance_state
-        if advance_state is not None:
-            advance_state(state, state, dt, k1)
-            return dt
 
         delta = scale(delta_buffer, dt * EULER_B[0], k1)
         apply_delta(delta, state)
+        return dt
+
+    def algebraist_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+        del executor
+        remaining = interval.stop - interval.present
+        if remaining <= 0.0:
+            return 0.0
+
+        dt = interval.step if interval.step <= remaining else remaining
+        k1 = self.k1
+        self.derivative(interval, state, k1)
+        self.advance_state(state, state, dt, k1)
         return dt
 
 
