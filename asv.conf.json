@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "project": "stark-ode",
+  "project_url": "https://github.com/jonmfellows/stark-ode",
+  "repo": ".",
+  "branches": ["main"],
+  "benchmark_dir": "benchmarks",
+  "env_dir": ".asv/env",
+  "results_dir": ".asv/results",
+  "html_dir": ".asv/html",
+  "environment_type": "virtualenv",
+  "show_commit_url": "https://github.com/jonmfellows/stark-ode/commit/",
+  "matrix": {
+    "req": {
+      "numpy": [""]
+    }
+  }
+}

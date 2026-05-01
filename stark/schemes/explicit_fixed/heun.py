@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from stark.algebraist import Algebraist
 from stark.execution.executor import Executor
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.schemes.tableau import ButcherTableau
@@ -27,18 +28,28 @@ class SchemeHeun(SchemeBaseExplicitFixed):
     Further reading: https://en.wikipedia.org/wiki/Heun%27s_method
     """
 
-    __slots__ = ("k2", "stage", "trial")
+    __slots__ = ("advance_state", "combine_stage2", "k2", "stage", "trial")
 
     descriptor = SchemeDescriptor("Heun", "Heun")
     tableau = HEUN_TABLEAU
 
-    def __init__(self, derivative: Derivative, workbench: Workbench) -> None:
+    def __init__(self, derivative: Derivative, workbench: Workbench, algebraist: Algebraist | None = None) -> None:
+        self.advance_state = None
+        self.combine_stage2 = None
         super().__init__(derivative, workbench)
+        if algebraist is not None:
+            self.bind_algebraist_path(algebraist)
 
     def initialise_buffers(self) -> None:
         workspace = self.workspace
         self.stage = workspace.allocate_state_buffer()
         self.trial, self.k2 = workspace.allocate_translation_buffers(2)
+
+    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+        calls = algebraist.bind_explicit_scheme(self.tableau, self.workspace)
+        self.combine_stage2 = calls.stages[1]
+        self.advance_state = calls.solution_state
+
     def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         del executor
         remaining = interval.stop - interval.present
@@ -58,6 +69,12 @@ class SchemeHeun(SchemeBaseExplicitFixed):
 
         dt = interval.step if interval.step <= remaining else remaining
         derivative(interval, state, k1)
+        advance_state = self.advance_state
+        if advance_state is not None:
+            self.combine_stage2(stage, state, dt, k1)
+            derivative(stage_interval(interval, dt, dt), stage, k2)
+            advance_state(state, state, dt, k1, k2)
+            return dt
 
         trial = scale(trial_buffer, dt, k1)
         trial(state, stage)

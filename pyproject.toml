@@ -50,12 +50,17 @@ notebooks = [
     "nbformat>=5",
     "numba>=0.60",
 ]
-benchmarks = [
+comparison = [
     "diffrax>=0.6",
     "jax>=0.4",
     "numba>=0.60",
     "numpy>=1.26",
     "scipy>=1.13",
+]
+asv = [
+    "asv>=0.6",
+    "numpy>=1.26",
+    "virtualenv>=20",
 ]
 
 [project.urls]
@@ -64,7 +69,8 @@ Repository = "https://github.com/jonmfellows/stark-ode"
 Issues = "https://github.com/jonmfellows/stark-ode/issues"
 
 [tool.setuptools.packages.find]
-include = ["stark*", "benchmarks*"]
+include = ["stark*", "examples", "examples.comparison*"]
+exclude = ["examples.local*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

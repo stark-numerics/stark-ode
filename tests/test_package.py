@@ -71,6 +71,7 @@ def test_package_imports() -> None:
     assert AcceleratorNumba is not None
     assert ImExDerivative is not None
     assert Resolvent is not None
+    assert not hasattr(stark, "Algebraist")
     assert not hasattr(stark, "ResolventNewton")
     assert not hasattr(stark, "InverterGMRES")
     assert not hasattr(stark, "SchemeDormandPrince")
@@ -84,6 +85,17 @@ def test_marcher_module_imports() -> None:
 def test_audit_module_imports() -> None:
     """The audit module should exist and import cleanly."""
     assert importlib.import_module("stark.auditor") is not None
+
+
+def test_algebraist_package_imports() -> None:
+    """The algebraist package should expose generated-kernel helpers."""
+    algebraist = importlib.import_module("stark.algebraist")
+
+    assert algebraist.Algebraist is not None
+    assert algebraist.AlgebraistField is not None
+    assert algebraist.AlgebraistBroadcast is not None
+    assert algebraist.AlgebraistLooped is not None
+    assert algebraist.AlgebraistSmallFixed is not None
 
 
 def test_regulator_module_imports() -> None:
@@ -349,7 +361,7 @@ def test_core_objects_have_readable_representations() -> None:
     assert SchemeRadauIIA5 is not None
     assert SchemeIMEXEuler is not None
     assert str(Integrator()) == "STARK integrator (safe mode)"
-    assert repr(marcher) == "Marcher(scheme='MinimalScheme', executor=Executor(tolerance=Tolerance(atol=1e-08, rtol=1e-06), safety=Safety(progress=True, block_sizes=True, apply_delta=True), regulator=Regulator(safety=0.8, min_factor=0.1, max_factor=5.0, error_exponent=0.2), accelerator=AcceleratorAbsent(available=True, strict=False, values={}), values={}))"
+    assert repr(marcher) == "Marcher(scheme='MinimalScheme', executor=Executor(tolerance=Tolerance(atol=1e-08, rtol=1e-06), safety=Safety(progress=True, block_sizes=True, apply_delta=True), regulator=Regulator(safety=0.8, min_factor=0.1, max_factor=5.0, error_exponent=0.2), accelerator=AcceleratorAbsent(strict=False, values={}), values={}))"
     assert str(marcher) == "Marcher MinimalScheme with atol=1e-08, rtol=1e-06"
     assert "Auditor(status=" in repr(auditor)
     assert "ResolventPicard" in repr(auto_picard)
@@ -382,9 +394,9 @@ def test_scheme_classes_can_display_their_resolvent_problems() -> None:
 
 
 def test_benchmark_packages_import() -> None:
-    assert importlib.import_module("benchmarks.brusselator_2d.common") is not None
-    assert importlib.import_module("benchmarks.fitzhugh_nagumo_1d.common") is not None
-    assert importlib.import_module("benchmarks.fput.common") is not None
+    assert importlib.import_module("examples.comparison.brusselator_2d.common") is not None
+    assert importlib.import_module("examples.comparison.fitzhugh_nagumo_1d.common") is not None
+    assert importlib.import_module("examples.comparison.fput.common") is not None
 
 
 

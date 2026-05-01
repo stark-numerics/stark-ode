@@ -2,9 +2,22 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from stark.contracts import Combine2, Combine3, Combine4, Combine5, Combine6, Combine7, Scale, Translation
-
-LinearCombine = tuple[Scale | Combine2 | Combine3 | Combine4 | Combine5 | Combine6 | Combine7, ...]
+from stark.contracts import (
+    Combine2,
+    Combine3,
+    Combine4,
+    Combine5,
+    Combine6,
+    Combine7,
+    Combine8,
+    Combine9,
+    Combine10,
+    Combine11,
+    Combine12,
+    LinearCombine,
+    Scale,
+    Translation,
+)
 
 
 def fallback_scale(out: Translation, a: float, x: Translation) -> Translation:
@@ -100,6 +113,43 @@ def fallback_combine7(
 ) -> Translation:
     del out
     return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4 + a5 * x5 + a6 * x6
+
+
+def _fallback_combine_many(out: Translation, *terms: object) -> Translation:
+    del out
+    if len(terms) % 2 != 0:
+        raise TypeError("Linear combination terms must be coefficient/translation pairs.")
+    if not terms:
+        raise ValueError("Linear combination requires at least one term.")
+
+    coefficient = terms[0]
+    translation = terms[1]
+    result = coefficient * translation
+    for index in range(2, len(terms), 2):
+        coefficient = terms[index]
+        translation = terms[index + 1]
+        result = result + coefficient * translation
+    return result
+
+
+def fallback_combine8(out: Translation, *terms: object) -> Translation:
+    return _fallback_combine_many(out, *terms)
+
+
+def fallback_combine9(out: Translation, *terms: object) -> Translation:
+    return _fallback_combine_many(out, *terms)
+
+
+def fallback_combine10(out: Translation, *terms: object) -> Translation:
+    return _fallback_combine_many(out, *terms)
+
+
+def fallback_combine11(out: Translation, *terms: object) -> Translation:
+    return _fallback_combine_many(out, *terms)
+
+
+def fallback_combine12(out: Translation, *terms: object) -> Translation:
+    return _fallback_combine_many(out, *terms)
 
 
 class Combine3Worker:
@@ -236,6 +286,32 @@ class Combine7Worker:
         return self.combine2(out, 1.0, left_value, 1.0, right_value)
 
 
+class CombineNWorker:
+    __slots__ = ("arity", "combine2", "left", "right")
+
+    def __init__(self, arity: int, combine2: Combine2, allocate_translation: Callable[[], Translation]) -> None:
+        if arity < 3:
+            raise ValueError("CombineNWorker requires arity >= 3.")
+        self.arity = arity
+        self.combine2 = combine2
+        self.left = allocate_translation()
+        self.right = allocate_translation()
+
+    def __call__(self, out: Translation, *terms: object) -> Translation:
+        if len(terms) != 2 * self.arity:
+            raise TypeError(
+                f"combine{self.arity} requires {self.arity} coefficient/translation pairs."
+            )
+
+        total = self.combine2(self.left, terms[0], terms[1], terms[2], terms[3])
+        target = self.right
+        for index in range(4, len(terms), 2):
+            is_last = index == len(terms) - 2
+            target = out if is_last else (self.right if total is self.left else self.left)
+            total = self.combine2(target, 1.0, total, terms[index], terms[index + 1])
+        return total
+
+
 class Combiner:
     """
     Resolve a translation's available linear-combination kernels into one worker.
@@ -247,7 +323,20 @@ class Combiner:
     hot scheme, resolvent, and inverter paths.
     """
 
-    __slots__ = ("scale", "combine2", "combine3", "combine4", "combine5", "combine6", "combine7")
+    __slots__ = (
+        "scale",
+        "combine2",
+        "combine3",
+        "combine4",
+        "combine5",
+        "combine6",
+        "combine7",
+        "combine8",
+        "combine9",
+        "combine10",
+        "combine11",
+        "combine12",
+    )
 
     def __init__(self, linear_combine: LinearCombine, allocate_translation: Callable[[], Translation]) -> None:
         self.scale = linear_combine[0] if len(linear_combine) >= 1 else fallback_scale
@@ -259,6 +348,11 @@ class Combiner:
             self.combine5 = fallback_combine5
             self.combine6 = fallback_combine6
             self.combine7 = fallback_combine7
+            self.combine8 = fallback_combine8
+            self.combine9 = fallback_combine9
+            self.combine10 = fallback_combine10
+            self.combine11 = fallback_combine11
+            self.combine12 = fallback_combine12
             return
 
         self.combine3 = linear_combine[2] if len(linear_combine) >= 3 else Combine3Worker(self.combine2, allocate_translation)
@@ -270,9 +364,42 @@ class Combiner:
             if len(linear_combine) >= 7
             else Combine7Worker(self.combine2, self.combine3, self.combine4, allocate_translation)
         )
+        self.combine8 = linear_combine[7] if len(linear_combine) >= 8 else CombineNWorker(8, self.combine2, allocate_translation)
+        self.combine9 = linear_combine[8] if len(linear_combine) >= 9 else CombineNWorker(9, self.combine2, allocate_translation)
+        self.combine10 = linear_combine[9] if len(linear_combine) >= 10 else CombineNWorker(10, self.combine2, allocate_translation)
+        self.combine11 = linear_combine[10] if len(linear_combine) >= 11 else CombineNWorker(11, self.combine2, allocate_translation)
+        self.combine12 = linear_combine[11] if len(linear_combine) >= 12 else CombineNWorker(12, self.combine2, allocate_translation)
 
-    def as_tuple(self) -> tuple[Scale, Combine2, Combine3, Combine4, Combine5, Combine6, Combine7]:
-        return (self.scale, self.combine2, self.combine3, self.combine4, self.combine5, self.combine6, self.combine7)
+    def as_tuple(
+        self,
+    ) -> tuple[
+        Scale,
+        Combine2,
+        Combine3,
+        Combine4,
+        Combine5,
+        Combine6,
+        Combine7,
+        Combine8,
+        Combine9,
+        Combine10,
+        Combine11,
+        Combine12,
+    ]:
+        return (
+            self.scale,
+            self.combine2,
+            self.combine3,
+            self.combine4,
+            self.combine5,
+            self.combine6,
+            self.combine7,
+            self.combine8,
+            self.combine9,
+            self.combine10,
+            self.combine11,
+            self.combine12,
+        )
 
 
 def resolve_linear_combine(translation: Translation) -> LinearCombine:
@@ -294,12 +421,17 @@ def resolve_linear_combine(translation: Translation) -> LinearCombine:
 __all__ = [
     "Combiner",
     "LinearCombine",
+    "fallback_combine10",
+    "fallback_combine11",
+    "fallback_combine12",
     "fallback_combine2",
     "fallback_combine3",
     "fallback_combine4",
     "fallback_combine5",
     "fallback_combine6",
     "fallback_combine7",
+    "fallback_combine8",
+    "fallback_combine9",
     "fallback_scale",
     "resolve_linear_combine",
 ]

@@ -6,7 +6,10 @@ to answer two questions:
 - what can I use out of the box?
 - where can I plug in my own problem-specific code?
 
-For a worked narrative example, start with
+For ordinary scalar or array-valued initial-value problems, start with the
+public interface guide: [`docs/interface.md`](interface.md).
+
+For a worked narrative example using the explicit core API, start with
 [`examples/three_body_stark.ipynb`](../examples/three_body_stark.ipynb).
 
 For the package's internal design language and coding conventions, see
@@ -15,7 +18,23 @@ For the package's internal design language and coding conventions, see
 For the mathematical interpretation of the contracts, see
 [`docs/contracts_math.md`](contracts_math.md).
 
+For contributor performance-regression tracking and the ASV suite, see
+[`docs/benchmarking.md`](benchmarking.md).
+
 ## Core idea
+
+The front door for Python scalars, sequences, NumPy arrays, CuPy arrays, and
+Python-level JAX array solves is `stark.interface.StarkIVP`. It prepares the
+carrier-backed state and derivative, chooses routing, builds the core objects,
+and returns the existing STARK integration result. Use the rest of this guide
+when you need custom state objects, handwritten translation types, implicit
+resolvents, inverters, accelerators, or problem-specific fast paths.
+
+Dense NumPy arrays are the recommended starting point for performance-sensitive
+ordinary problems. They may be one-dimensional or multidimensional, and the
+interface layer uses in-place carrier routing where possible. Move to custom
+structured state objects when the domain model or a specialized fast path needs
+that extra structure.
 
 STARK integrates rich mutable Python state objects by separating the nonlinear
 state from the linear increments used by Runge-Kutta schemes.
@@ -41,6 +60,13 @@ The standard import path is:
 ```python
 from stark import Executor, Marcher, Auditor, Integrator, Interval, Tolerance
 from stark.accelerators import AcceleratorAbsent
+```
+
+The standard interface import path is:
+
+```python
+from stark import Interval
+from stark.interface import StarkIVP, StarkDerivative
 ```
 
 ## Integration
@@ -120,7 +146,7 @@ and reports:
   scheme work, resolvent work, inverter work, and framework overhead
 
 This is meant for A/B testing schemes on one problem, not for replacing the
-problem-specific benchmark suite under `benchmarks/`.
+problem-specific comparison reports under `examples/comparison/`.
 
 The returned `ComparatorReport` is also structured data, not just a printable
 report. Advanced users can inspect:
@@ -306,15 +332,14 @@ The easiest way to do that is with `Algebraist`, which generates inspectable
 fast paths from field metadata:
 
 ```python
-from stark import Algebraist, AlgebraistField
+from stark.algebraist import Algebraist, AlgebraistField, AlgebraistLooped
 
 ALGEBRAIST = Algebraist(
     fields=(
-        AlgebraistField("du", style="looped", rank=2, apply_to="u"),
-        AlgebraistField("dv", style="looped", rank=2, apply_to="v"),
+        AlgebraistField("du", "u", policy=AlgebraistLooped(rank=2)),
+        AlgebraistField("dv", "v", policy=AlgebraistLooped(rank=2)),
     ),
     accelerator=ACCELERATOR,
-    fused_up_to=7,
     generate_norm="rms",
 )
 
@@ -332,7 +357,7 @@ class ArrayTranslation:
     def __rmul__(self, scalar):
         return ArrayTranslation(scalar * self.du, scalar * self.dv)
 
-    linear_combine = ALGEBRAIST.linear_combination
+    linear_combine = ALGEBRAIST.linear_combine
     __call__ = ALGEBRAIST.apply
     norm = ALGEBRAIST.norm
 ```
@@ -372,18 +397,28 @@ fast paths around explicitly.
 it. If a problem is better served by handwritten code, users can override the
 generated `linear_combine`, `__call__`, or `norm` methods directly.
 
+Explicit schemes can also receive the same object with `algebraist=ALGEBRAIST`.
+That asks STARK to generate scheme-specific state-update kernels for explicit
+Runge-Kutta stages and final updates. It is useful when the problem is large
+enough, or repeated often enough, to offset accelerator warmup and compilation
+costs. For small one-off solves, constructing the scheme without `algebraist=`
+may still be faster.
+
 The entries are:
 
 - `linear_combine[0]`: `scale(out, a, x)`
 - `linear_combine[1]`: `combine2(out, a0, x0, a1, x1)`
 - `linear_combine[2]`: `combine3(out, a0, x0, a1, x1, a2, x2)`
-- and so on up to `combine7`.
+- and so on through the fused arity supplied by the translation.
 
 If only `scale` and `combine2` are supplied, STARK builds the higher-arity
 combinations from `combine2` and scratch translations allocated by the
-workbench. For best performance, provide fused `combine3`, `combine4`, ...
-kernels directly. `Algebraist` can generate those fused kernels, but users can
-still attach handwritten kernels when that is a better fit.
+workbench. The generic scheme workspace has named combination slots through
+`combine12`, which covers the current built-in explicit, implicit, and IMEX
+schemes. For best performance, provide fused `combine3`, `combine4`, ...
+kernels directly. `Algebraist` can generate fused kernels according to its
+configured `fused_up_to`, and users can still attach handwritten kernels when
+that is a better fit.
 
 Fast paths should obey the same aliasing rule as translation application: the
 output buffer may be one of the input buffers, so kernels should be correct for
@@ -558,30 +593,33 @@ contracts at once:
 For the mathematical meaning of those contracts, see
 [`docs/contracts_math.md`](contracts_math.md).
 
-## Benchmarks
+## Comparison Reports
 
-The benchmark reports live under `benchmarks/` and are intended to be readable
+The comparison reports live under `examples/comparison/` and are intended to be readable
 examples of idiomatic STARK, SciPy, and Diffrax implementations of the same
 problems.
 
-Install benchmark dependencies with:
+Install comparison dependencies with:
 
 ```powershell
-python -m pip install -e ".[benchmarks]"
+python -m pip install -e ".[comparison]"
 ```
 
 Run:
 
 ```powershell
-python -m benchmarks.brusselator_2d.report
-python -m benchmarks.fput.report
-python -m benchmarks.fitzhugh_nagumo_1d.report
-python -m benchmarks.robertson.report
+python -m examples.comparison.brusselator_2d.report
+python -m examples.comparison.fput.report
+python -m examples.comparison.fitzhugh_nagumo_1d.report
+python -m examples.comparison.robertson.report
 ```
 
-The STARK benchmark implementations intentionally use `Algebraist`-generated
+The STARK comparison implementations intentionally use `Algebraist`-generated
 fast translation paths so the reports show both the generic interface and the
 performance-oriented extension point.
+
+Formal performance-regression tracking belongs in an ASV suite, not in these
+comparison reports. See [`docs/benchmarking.md`](benchmarking.md).
 
 
 

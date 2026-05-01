@@ -126,14 +126,86 @@ class Combine7(Protocol):
         ...
 
 
+class Combine8(Protocol):
+    """Set `out` to an eight-term linear combination and return `out`."""
+
+    def __call__(self, out: Translation, *terms: object) -> Translation:
+        ...
+
+
+class Combine9(Protocol):
+    """Set `out` to a nine-term linear combination and return `out`."""
+
+    def __call__(self, out: Translation, *terms: object) -> Translation:
+        ...
+
+
+class Combine10(Protocol):
+    """Set `out` to a ten-term linear combination and return `out`."""
+
+    def __call__(self, out: Translation, *terms: object) -> Translation:
+        ...
+
+
+class Combine11(Protocol):
+    """Set `out` to an eleven-term linear combination and return `out`."""
+
+    def __call__(self, out: Translation, *terms: object) -> Translation:
+        ...
+
+
+class Combine12(Protocol):
+    """Set `out` to a twelve-term linear combination and return `out`."""
+
+    def __call__(self, out: Translation, *terms: object) -> Translation:
+        ...
+
+
+LinearCombine = tuple[
+    Scale
+    | Combine2
+    | Combine3
+    | Combine4
+    | Combine5
+    | Combine6
+    | Combine7
+    | Combine8
+    | Combine9
+    | Combine10
+    | Combine11
+    | Combine12,
+    ...,
+]
+
+
+class SupportsLinearCombine(Protocol):
+    """
+    Translation-like object with generic vector linear-combination kernels.
+
+    `linear_combine[0]` is `scale`; `linear_combine[1]` is `combine2`;
+    higher entries are `combine3`, `combine4`, and so on. This remains the
+    generic scheme/workspace fast-path contract. Tableau-specialized kernels
+    should use a separate contract rather than overloading this tuple.
+    """
+
+    linear_combine: LinearCombine
+
+
 __all__ = [
+    "Combine10",
+    "Combine11",
+    "Combine12",
     "Combine2",
     "Combine3",
     "Combine4",
     "Combine5",
     "Combine6",
     "Combine7",
+    "Combine8",
+    "Combine9",
+    "LinearCombine",
     "Scale",
+    "SupportsLinearCombine",
 ]
 
 

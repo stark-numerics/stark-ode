@@ -39,7 +39,6 @@ class AccelerationBackend(Protocol):
     """Minimal backend protocol used by built-in accelerator workers."""
 
     name: str
-    available: bool
 
     def decorate(self, function: CompiledCallable | None = None, /, **kwargs: Any) -> Callable[..., Any]:
         ...
@@ -52,7 +51,6 @@ class AcceleratorLike(Protocol):
     """Public protocol for STARK acceleration workers."""
 
     name: str
-    available: bool
     strict: bool
 
     def decorate(self, function: CompiledCallable | None = None, /, **kwargs: Any) -> Callable[..., Any]:
@@ -82,11 +80,6 @@ class AcceleratorAudit:
             isinstance(getattr(accelerator, "name", None), str),
             "Accelerator provides a string name.",
             "Add accelerator.name so diagnostics can report the selected acceleration worker.",
-        )
-        recorder.check(
-            isinstance(getattr(accelerator, "available", None), bool),
-            "Accelerator reports backend availability as a bool.",
-            "Add accelerator.available so STARK can report whether the worker is ready.",
         )
         recorder.check(
             isinstance(getattr(accelerator, "strict", None), bool),

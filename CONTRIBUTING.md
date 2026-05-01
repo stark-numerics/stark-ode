@@ -30,11 +30,37 @@ Run the default test suite with:
 python -m pytest
 ```
 
+Check pytest discovery after moving tests with:
+
+```powershell
+python -m pytest --collect-only
+```
+
+Focused package-area commands:
+
+```powershell
+python -m pytest tests/interface
+python -m pytest tests/carriers
+python -m pytest tests/algebraist
+python -m pytest tests/schemes
+python -m pytest tests/resolvents tests/inverters
+python -m pytest tests/comparison
+```
+
 Run slow tests with:
 
 ```powershell
 python -m pytest -m slow
 ```
+
+Run slow integration tests with:
+
+```powershell
+python -m pytest tests/integration -m slow
+```
+
+Examples and benchmarks are not part of the pytest suite. Run them directly
+when changing example or benchmark code.
 
 ## Code style
 

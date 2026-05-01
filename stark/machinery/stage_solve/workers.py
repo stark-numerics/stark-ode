@@ -167,6 +167,16 @@ class ImExStepper:
         if term_count == 0:
             return workspace.scale(out, 0.0, out)
 
+        if term_count == 1:
+            return workspace.scale(out, coefficients[0], translations[0])
+
+        if term_count <= 12:
+            terms = []
+            for index in range(term_count):
+                terms.append(coefficients[index])
+                terms.append(translations[index])
+            return getattr(workspace, f"combine{term_count}")(out, *terms)
+
         total = workspace.scale(out, coefficients[0], translations[0])
         combine2 = workspace.combine2
         for index in range(1, term_count):

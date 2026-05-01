@@ -1,10 +1,1 @@
-"""Benchmark suites for comparing STARK with other solver libraries."""
-
-
-
-
-
-
-
-
-
+"""ASV benchmarks for STARK performance-regression tracking."""

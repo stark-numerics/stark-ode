@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from stark.algebraist import Algebraist
 from stark.execution.executor import Executor
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.schemes.tableau import ButcherTableau
@@ -32,18 +33,32 @@ class SchemeRK4(SchemeBaseExplicitFixed):
     Further reading: https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
     """
 
-    __slots__ = ("k2", "k3", "k4", "stage", "trial")
+    __slots__ = ("advance_state", "combine_stage2", "combine_stage3", "combine_stage4", "k2", "k3", "k4", "stage", "trial")
 
     descriptor = SchemeDescriptor("RK4", "Classical Runge-Kutta")
     tableau = RK4_TABLEAU
 
-    def __init__(self, derivative: Derivative, workbench: Workbench) -> None:
+    def __init__(self, derivative: Derivative, workbench: Workbench, algebraist: Algebraist | None = None) -> None:
+        self.advance_state = None
+        self.combine_stage2 = None
+        self.combine_stage3 = None
+        self.combine_stage4 = None
         super().__init__(derivative, workbench)
+        if algebraist is not None:
+            self.bind_algebraist_path(algebraist)
 
     def initialise_buffers(self) -> None:
         workspace = self.workspace
         self.stage = workspace.allocate_state_buffer()
         self.trial, self.k2, self.k3, self.k4 = workspace.allocate_translation_buffers(4)
+
+    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+        calls = algebraist.bind_explicit_scheme(self.tableau, self.workspace)
+        self.combine_stage2 = calls.stages[1]
+        self.combine_stage3 = calls.stages[2]
+        self.combine_stage4 = calls.stages[3]
+        self.advance_state = calls.solution_state
+
     def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         del executor
         remaining = interval.stop - interval.present
@@ -66,6 +81,16 @@ class SchemeRK4(SchemeBaseExplicitFixed):
         dt = interval.step if interval.step <= remaining else remaining
 
         derivative(interval, state, k1)
+        advance_state = self.advance_state
+        if advance_state is not None:
+            self.combine_stage2(stage, state, dt, k1)
+            derivative(stage_interval(interval, dt, 0.5 * dt), stage, k2)
+            self.combine_stage3(stage, state, dt, k2)
+            derivative(stage_interval(interval, dt, 0.5 * dt), stage, k3)
+            self.combine_stage4(stage, state, dt, k3)
+            derivative(stage_interval(interval, dt, dt), stage, k4)
+            advance_state(state, state, dt, k1, k2, k3, k4)
+            return dt
 
         trial = scale(trial_buffer, 0.5 * dt, k1)
         trial(state, stage)

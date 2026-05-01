@@ -19,9 +19,10 @@ pytest-cache-files-*/
 .coverage
 htmlcov/
 .profiles/
+.asv/
 examples/*.png
 examples/.ipynb_checkpoints/
-examples/gray_scott_accelerators.py
+examples/local/
 
 # Editors and OS files
 .vscode/

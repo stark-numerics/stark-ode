@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from stark.algebraist import Algebraist
 from stark.execution.executor import Executor
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.schemes.tableau import ButcherTableau
@@ -28,16 +29,24 @@ class SchemeEuler(SchemeBaseExplicitFixed):
     Further reading: https://en.wikipedia.org/wiki/Euler_method
     """
 
-    __slots__ = ("delta",)
+    __slots__ = ("advance_state", "delta")
 
     descriptor = SchemeDescriptor("Euler", "Forward Euler")
     tableau = EULER_TABLEAU
 
-    def __init__(self, derivative: Derivative, workbench: Workbench) -> None:
+    def __init__(self, derivative: Derivative, workbench: Workbench, algebraist: Algebraist | None = None) -> None:
+        self.advance_state = None
         super().__init__(derivative, workbench)
+        if algebraist is not None:
+            self.bind_algebraist_path(algebraist)
 
     def initialise_buffers(self) -> None:
         self.delta = self.workspace.allocate_translation()
+
+    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+        calls = algebraist.bind_explicit_scheme(self.tableau, self.workspace)
+        self.advance_state = calls.solution_state
+
     def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         del executor
         remaining = interval.stop - interval.present
@@ -53,6 +62,11 @@ class SchemeEuler(SchemeBaseExplicitFixed):
 
         dt = interval.step if interval.step <= remaining else remaining
         derivative(interval, state, k1)
+        advance_state = self.advance_state
+        if advance_state is not None:
+            advance_state(state, state, dt, k1)
+            return dt
+
         delta = scale(delta_buffer, dt * EULER_B[0], k1)
         apply_delta(delta, state)
         return dt

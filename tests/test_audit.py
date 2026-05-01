@@ -81,12 +81,10 @@ class DummyScheme:
 
 class BadAccelerator:
     name = "bad"
-    available = True
 
 
 class UserAccelerator:
     name = "user"
-    available = True
     strict = False
 
     @staticmethod

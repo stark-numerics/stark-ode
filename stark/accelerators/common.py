@@ -17,16 +17,14 @@ class BuiltinAccelerator:
 
     strict: bool = False
     values: dict[str, Any] = field(default_factory=dict, repr=False)
-    available: bool = field(init=False, default=True)
 
     name: ClassVar[str]
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(available={self.available!r}, strict={self.strict!r}, values={self.values!r})"
+        return f"{type(self).__name__}(strict={self.strict!r}, values={self.values!r})"
 
     def __str__(self) -> str:
-        state = "ready" if self.available else "unavailable"
-        return f"{self.name} ({state})"
+        return self.name
 
     def with_updates(self, **updates: Any) -> "BuiltinAccelerator":
         values = dict(self.values)

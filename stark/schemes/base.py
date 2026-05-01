@@ -60,6 +60,7 @@ class SchemeBaseAdaptive(SchemeBase):
         "controller",
         "advance_report",
         "redirect_call",
+        "redirect_advance_body",
         "_controller",
         "_monitor",
         "_ratio",
@@ -76,6 +77,7 @@ class SchemeBaseAdaptive(SchemeBase):
         self._ratio = None
         self._bound = None
         self._runtime_bound = False
+        self.redirect_advance_body = self.advance_body
         self.refresh_call()
 
     @staticmethod
@@ -114,18 +116,21 @@ class SchemeBaseAdaptive(SchemeBase):
             return
         self.redirect_call = self.monitored_call if self._monitor is not None else self.pure_call
 
+    def bind_advance_body(self, advance_body) -> None:
+        self.redirect_advance_body = advance_body
+
     def bind_and_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         self.assign_executor(executor)
         return self.redirect_call(interval, state, executor)
 
     def pure_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         del executor
-        self.advance_body(interval, state)
+        self.redirect_advance_body(interval, state)
         return self.advance_report[_ADVANCE_ACCEPTED_DT]
 
     def monitored_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         del executor
-        self.advance_body(interval, state)
+        self.redirect_advance_body(interval, state)
         advance_report = self.advance_report
         accepted_dt = advance_report[_ADVANCE_ACCEPTED_DT]
         monitor = self._monitor

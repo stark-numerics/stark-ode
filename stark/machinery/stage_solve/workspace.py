@@ -49,6 +49,11 @@ class SchemeWorkspace:
     combine5: Callable[..., Translation]
     combine6: Callable[..., Translation]
     combine7: Callable[..., Translation]
+    combine8: Callable[..., Translation]
+    combine9: Callable[..., Translation]
+    combine10: Callable[..., Translation]
+    combine11: Callable[..., Translation]
+    combine12: Callable[..., Translation]
 
     def __init__(self, workbench: Workbench, translation: Translation) -> None:
         self.allocate_state = workbench.allocate_state
@@ -65,6 +70,11 @@ class SchemeWorkspace:
         self.combine5 = combiner.combine5
         self.combine6 = combiner.combine6
         self.combine7 = combiner.combine7
+        self.combine8 = combiner.combine8
+        self.combine9 = combiner.combine9
+        self.combine10 = combiner.combine10
+        self.combine11 = combiner.combine11
+        self.combine12 = combiner.combine12
 
     def __repr__(self) -> str:
         allocate_state_name = getattr(self.allocate_state, "__qualname__", type(self.allocate_state).__name__)
