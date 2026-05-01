@@ -9,8 +9,8 @@ authors:
 version: "0.1.0"
 date-released: "2026-04-10"
 license: "MIT"
-repository-code: "https://github.com/jonmfellows/stark-ode"
-url: "https://github.com/jonmfellows/stark-ode"
+repository-code: "https://github.com/stark-numerics/stark-ode"
+url: "https://github.com/stark-numerics/stark-ode"
 keywords:
   - "ODE"
   - "Runge-Kutta"

@@ -60,13 +60,13 @@ Algebraist.
 Install directly from GitHub:
 
 ```powershell
-python -m pip install git+https://github.com/jonmfellows/stark-ode.git
+python -m pip install git+https://github.com/stark-numerics/stark-ode.git
 ```
 
 For a local editable checkout:
 
 ```powershell
-git clone https://github.com/jonmfellows/stark-ode.git
+git clone https://github.com/stark-numerics/stark-ode.git
 cd stark-ode
 python -m pip install -e .
 ```

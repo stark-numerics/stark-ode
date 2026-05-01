@@ -64,9 +64,9 @@ asv = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jonmfellows/stark-ode"
-Repository = "https://github.com/jonmfellows/stark-ode"
-Issues = "https://github.com/jonmfellows/stark-ode/issues"
+Homepage = "https://github.com/stark-numerics/stark-ode"
+Repository = "https://github.com/stark-numerics/stark-ode"
+Issues = "https://github.com/stark-numerics/stark-ode/issues"
 
 [tool.setuptools.packages.find]
 include = ["stark*", "examples", "examples.comparison*"]
