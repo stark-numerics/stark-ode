@@ -11,6 +11,7 @@ from benchmarks.common import FPUT_SIZES
 
 
 ARITIES = (1, 2, 4, 8, 12)
+_ACCELERATED_CONTEXTS: dict[int, Algebraist] = {}
 
 
 def numba_available() -> bool:
@@ -34,6 +35,14 @@ def accelerated_algebraist():
         accelerator=Accelerator.numba(cache=False),
         generate_norm="l2",
     )
+
+
+def accelerated_context(size: int) -> Algebraist:
+    algebraist = _ACCELERATED_CONTEXTS.get(size)
+    if algebraist is None:
+        algebraist = accelerated_algebraist()
+        _ACCELERATED_CONTEXTS[size] = algebraist
+    return algebraist
 
 
 def vector_terms(size: int, arity: int) -> tuple[StarkVectorTranslation, ...]:
@@ -102,9 +111,7 @@ if numba_available():
         param_names = ("chain_size", "arity")
 
         def setup(self, chain_size: int, arity: int) -> None:
-            algebraist = accelerated_algebraist()
-            probe = np.zeros(chain_size, dtype=np.float64)
-            algebraist.compile_examples(probe, probe)
+            algebraist = accelerated_context(chain_size)
             self.coefficients = coefficients(arity)
             self.out = AcceleratedTranslation(
                 np.zeros(chain_size, dtype=np.float64),
