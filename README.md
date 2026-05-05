@@ -1,7 +1,5 @@
 # stark-ode
 
-[![asv](https://img.shields.io/badge/benchmarked%20by-asv-blue.svg?style=flat)](https://your-url-here/)
-
 **State Translation Adaptive Runge-Kutta** for Python values, arrays, and
 user-defined state types.
 
