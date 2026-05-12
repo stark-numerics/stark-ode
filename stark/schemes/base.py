@@ -1,18 +1,29 @@
 from __future__ import annotations
 
+"""Transitional support classes for built-in scheme implementations.
+
+STARK schemes are public structural contracts: a scheme is usable when it
+provides `__call__(interval, state, executor)`, `snapshot_state(state)`, and
+`set_apply_delta_safety(enabled)`.
+
+Historically, many built-in schemes inherited their algorithmic call routing
+from these base classes. New and refactored built-in schemes should instead own
+their public `__call__` directly and use these bases only for temporary shared
+setup while the scheme family is migrated.
+
+Do not add new scheme algorithms that depend on inherited `__call__` routing.
+"""
+
 from abc import ABC, abstractmethod
 
-from stark.auditor import Auditor
 from stark.contracts import Derivative, ImExDerivative, IntervalLike, State, Workbench
-from stark.execution.adaptive_controller import AdaptiveController
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
-from stark.machinery.stage_solve.workspace import SchemeWorkspace
 from stark.monitor import Monitor, MonitorStep
-from stark.schemes.display import display_imex_resolvent_problem, display_implicit_resolvent_problem
-from stark.schemes.support.display import SchemeDisplay
-from stark.schemes.support.explicit import SchemeSupportExplicit
-from stark.execution.adaptive_controller import AdaptiveController
+from stark.schemes.display import (
+    display_imex_resolvent_problem,
+    display_implicit_resolvent_problem,
+)
 from stark.schemes.support.adaptive import (
     _ADVANCE_ACCEPTED_DT,
     _ADVANCE_ERROR_RATIO,
@@ -22,6 +33,9 @@ from stark.schemes.support.adaptive import (
     _ADVANCE_T_START,
     SchemeSupportAdaptive,
 )
+from stark.schemes.support.display import SchemeDisplay
+from stark.schemes.support.explicit import SchemeSupportExplicit
+
 
 class SchemeBase(ABC):
     descriptor: object
@@ -52,7 +66,15 @@ class SchemeBase(ABC):
     def __format__(self, format_spec: str) -> str:
         return type(self).scheme_display().format_for(format_spec)
 
+
 class SchemeBaseFixed(SchemeBase):
+    """Temporary fixed-step monitor surface for unconverted fixed schemes.
+
+    Fixed schemes currently do not emit monitor records. Converted fixed schemes
+    should own their own call routing so later monitor support can redirect at
+    the concrete-scheme boundary.
+    """
+
     def assign_monitor(self, monitor: Monitor) -> None:
         del monitor
 
@@ -61,6 +83,17 @@ class SchemeBaseFixed(SchemeBase):
 
 
 class SchemeBaseAdaptive(SchemeBase):
+    """Transitional adaptive runtime binder.
+
+    This class still owns executor/monitor redirection for unconverted adaptive
+    schemes. Converted adaptive schemes should define their own `__call__`,
+    `pure_call`, and `monitored_call`, while delegating controller state to
+    `SchemeSupportAdaptive`.
+
+    The inherited routing here remains only to keep unconverted schemes working
+    during migration.
+    """
+
     __slots__ = (
         "adaptive",
         "redirect_call",
@@ -142,6 +175,12 @@ class SchemeBaseAdaptive(SchemeBase):
         )
 
     def bind_advance_body(self, advance_body) -> None:
+        """Legacy advance-body hook for unconverted adaptive schemes.
+
+        Converted adaptive schemes should select their own pure advance path in
+        the concrete scheme instead of relying on this inherited hook.
+        """
+
         self.redirect_advance_body = advance_body
 
     def bind_and_call(
@@ -192,9 +231,12 @@ class SchemeBaseAdaptive(SchemeBase):
 
         return report.accepted_dt
 
+
 class SchemeBaseExplicit(SchemeBase):
     def initialise_explicit(self, derivative: Derivative, workbench: Workbench) -> None:
         self.explicit = SchemeSupportExplicit.from_inputs(derivative, workbench)
+
+        # Preserve the attributes existing concrete schemes already use.
         self.derivative = self.explicit.derivative
         self.workspace = self.explicit.workspace
         self.k1 = self.explicit.k1
@@ -209,12 +251,22 @@ class SchemeBaseExplicit(SchemeBase):
 class SchemeBaseImEx(SchemeBase):
     def initialise_imex(self, derivative: ImExDerivative, workbench: Workbench) -> None:
         translation_probe = workbench.allocate_translation()
+
+        # Kept here for now. This will likely move into a support object when
+        # IMEX schemes are converted to scheme-owned call routing.
+        from stark.auditor import Auditor
+        from stark.machinery.stage_solve.workspace import SchemeWorkspace
+
         Auditor.require_imex_scheme_inputs(derivative, workbench, translation_probe)
         self.workspace = SchemeWorkspace(workbench, translation_probe)
 
     @classmethod
     def display_resolvent_problem(cls) -> str:
-        return display_imex_resolvent_problem(cls.tableau, cls.descriptor.short_name, cls.descriptor.full_name)
+        return display_imex_resolvent_problem(
+            cls.tableau,
+            cls.descriptor.short_name,
+            cls.descriptor.full_name,
+        )
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
         self.workspace.set_apply_delta_safety(enabled)
@@ -226,7 +278,11 @@ class SchemeBaseImEx(SchemeBase):
 class SchemeBaseImplicit(SchemeBase):
     @classmethod
     def display_resolvent_problem(cls) -> str:
-        return display_implicit_resolvent_problem(cls.tableau, cls.descriptor.short_name, cls.descriptor.full_name)
+        return display_implicit_resolvent_problem(
+            cls.tableau,
+            cls.descriptor.short_name,
+            cls.descriptor.full_name,
+        )
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
         self.stepper.set_apply_delta_safety(enabled)
@@ -236,7 +292,15 @@ class SchemeBaseImplicit(SchemeBase):
 
 
 class SchemeBaseExplicitFixed(SchemeBaseExplicit, SchemeBaseFixed):
-    __slots__ = ("derivative", "k1", "workspace", "redirect_call")
+    """Legacy fixed-explicit routing base for unconverted schemes.
+
+    Converted fixed explicit schemes should define `__call__` in the concrete
+    scheme and route through scheme-owned `pure_call` / `redirect_call`
+    attributes. This inherited `__call__` remains only until the fixed explicit
+    family has been migrated.
+    """
+
+    __slots__ = ("derivative", "explicit", "k1", "workspace", "redirect_call")
 
     def __init__(self, derivative: Derivative, workbench: Workbench) -> None:
         self.initialise_explicit(derivative, workbench)
@@ -252,15 +316,36 @@ class SchemeBaseExplicitFixed(SchemeBaseExplicit, SchemeBaseFixed):
         """Advance one fixed step using the generic translation operations."""
 
     def bind_fixed_call(self, call) -> None:
+        """Legacy call-routing hook for unconverted fixed explicit schemes.
+
+        New or converted schemes should select their own pure call path inside
+        the concrete scheme instead of using this base hook.
+        """
+
         self.redirect_call = call
 
     def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+        """Legacy inherited call route for unconverted fixed explicit schemes."""
+
         return self.redirect_call(interval, state, executor)
 
-class SchemeBaseExplicitAdaptive(SchemeBaseExplicit, SchemeBaseAdaptive):
-    __slots__ = ("derivative", "k1", "workspace")
 
-    def __init__(self, derivative: Derivative, workbench: Workbench, regulator: Regulator | None = None) -> None:
+class SchemeBaseExplicitAdaptive(SchemeBaseExplicit, SchemeBaseAdaptive):
+    """Shared setup base for explicit adaptive schemes during migration.
+
+    Converted adaptive schemes should own their public `__call__` and make their
+    rejection/acceptance flow visible in the concrete scheme file. This base
+    still provides setup and transitional adaptive runtime binding.
+    """
+
+    __slots__ = ("derivative", "explicit", "k1", "workspace")
+
+    def __init__(
+        self,
+        derivative: Derivative,
+        workbench: Workbench,
+        regulator: Regulator | None = None,
+    ) -> None:
         self.initialise_explicit(derivative, workbench)
         self.initialise_runtime(regulator)
         self.initialise_buffers()
@@ -271,14 +356,29 @@ class SchemeBaseExplicitAdaptive(SchemeBaseExplicit, SchemeBaseAdaptive):
 
 
 class SchemeBaseImplicitFixed(SchemeBaseImplicit, SchemeBaseFixed):
-    pass
+    """Shared implicit fixed-step support.
+
+    Converted implicit fixed schemes should own their public `__call__` directly
+    in the concrete scheme file.
+    """
 
 
 class SchemeBaseImplicitAdaptive(SchemeBaseImplicit, SchemeBaseAdaptive):
-    pass
+    """Shared implicit adaptive support during scheme-call migration.
+
+    Converted implicit adaptive schemes should own their public `__call__`
+    directly and keep adaptive accept/reject flow visible in the concrete scheme
+    file.
+    """
 
 
 class SchemeBaseImExFixed(SchemeBaseImEx, SchemeBaseFixed):
+    """Shared IMEX fixed-step setup.
+
+    Converted IMEX fixed schemes should own their public `__call__` directly in
+    the concrete scheme file.
+    """
+
     __slots__ = ("workspace",)
 
     def __init__(self, derivative: ImExDerivative, workbench: Workbench) -> None:
@@ -286,9 +386,21 @@ class SchemeBaseImExFixed(SchemeBaseImEx, SchemeBaseFixed):
 
 
 class SchemeBaseImExAdaptive(SchemeBaseImEx, SchemeBaseAdaptive):
+    """Shared IMEX adaptive setup during scheme-call migration.
+
+    Converted IMEX adaptive schemes should own their public `__call__` directly
+    and keep explicit/implicit adaptive flow visible in the concrete scheme
+    file.
+    """
+
     __slots__ = ("workspace",)
 
-    def __init__(self, derivative: ImExDerivative, workbench: Workbench, regulator: Regulator | None = None) -> None:
+    def __init__(
+        self,
+        derivative: ImExDerivative,
+        workbench: Workbench,
+        regulator: Regulator | None = None,
+    ) -> None:
         self.initialise_imex(derivative, workbench)
         self.initialise_runtime(regulator)
 
@@ -306,4 +418,10 @@ __all__ = [
     "SchemeBaseImplicit",
     "SchemeBaseImplicitAdaptive",
     "SchemeBaseImplicitFixed",
+    "_ADVANCE_ACCEPTED_DT",
+    "_ADVANCE_ERROR_RATIO",
+    "_ADVANCE_NEXT_DT",
+    "_ADVANCE_PROPOSED_DT",
+    "_ADVANCE_REJECTION_COUNT",
+    "_ADVANCE_T_START",
 ]
