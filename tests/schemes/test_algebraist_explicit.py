@@ -145,7 +145,12 @@ def test_adaptive_explicit_scheme_algebraist_path_matches_generic_path(scheme_ty
     np.testing.assert_allclose(algebraist_state.y, generic_state.y, rtol=1.0e-14, atol=1.0e-14)
 
 
-def test_adaptive_scheme_algebraist_binding_uses_base_advance_body_redirect():
+def test_adaptive_scheme_algebraist_binding_selects_scheme_owned_call_algebraist():
     scheme = SchemeCashKarp(ArrayDerivative(), ArrayWorkbench(3), algebraist=ALGEBRAIST)
 
-    assert scheme.redirect_advance_body.__func__ is scheme.advance_body_algebraist.__func__
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is SchemeCashKarp.call_algebraist
+
+    # Adaptive schemes still bind executor runtime lazily on first call.
+    assert scheme.redirect_call.__self__ is scheme
+    assert scheme.redirect_call.__func__ is scheme.bind_and_call.__func__
