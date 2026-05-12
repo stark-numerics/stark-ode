@@ -5,10 +5,10 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Executor, Interval, Tolerance
-from stark.accelerators import AcceleratorAbsent
+from stark.accelerators import Accelerator
 from stark.resolvents import ResolventPicard
 from stark.resolvents.policy import ResolventPolicy
-from stark.schemes.implicit_fixed.backward_euler import SchemeBackwardEuler
+from stark.schemes.implicit_fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
 
 
 @dataclass(slots=True)
@@ -53,36 +53,36 @@ def constant_rhs(
     out.value = 1.0
 
 
-def make_scheme() -> SchemeBackwardEuler:
+def make_scheme() -> SchemeCrouzeixDIRK3:
     workbench = ScalarWorkbench()
     resolvent = ResolventPicard(
         constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
-        accelerator=AcceleratorAbsent(),
-        tableau=SchemeBackwardEuler.tableau,
+        accelerator=Accelerator.none(),
+        tableau=SchemeCrouzeixDIRK3.tableau,
     )
-    return SchemeBackwardEuler(
+    return SchemeCrouzeixDIRK3(
         constant_rhs,
         workbench,
         resolvent=resolvent,
     )
 
 
-def test_backward_euler_owns_its_public_call_method() -> None:
-    assert "__call__" in SchemeBackwardEuler.__dict__
+def test_crouzeix_dirk3_owns_its_public_call_method() -> None:
+    assert "__call__" in SchemeCrouzeixDIRK3.__dict__
 
 
-def test_backward_euler_default_call_path_is_scheme_owned_generic_call() -> None:
+def test_crouzeix_dirk3_default_call_path_is_scheme_owned_generic_call() -> None:
     scheme = make_scheme()
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeBackwardEuler.call_generic
+    assert scheme.call_pure.__func__ is SchemeCrouzeixDIRK3.call_generic
     assert scheme.redirect_call == scheme.call_pure
 
 
-def test_backward_euler_public_call_uses_redirect_call() -> None:
+def test_crouzeix_dirk3_public_call_uses_redirect_call() -> None:
     scheme = make_scheme()
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(0.0)
@@ -104,7 +104,7 @@ def test_backward_euler_public_call_uses_redirect_call() -> None:
     assert state.value == pytest.approx(42.0)
 
 
-def test_backward_euler_generic_call_performs_one_implicit_step() -> None:
+def test_crouzeix_dirk3_call_performs_one_constant_rhs_step() -> None:
     scheme = make_scheme()
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(0.0)
@@ -116,7 +116,7 @@ def test_backward_euler_generic_call_performs_one_implicit_step() -> None:
     assert interval.step == pytest.approx(0.125)
 
 
-def test_backward_euler_generic_call_clips_to_remaining_interval() -> None:
+def test_crouzeix_dirk3_call_clips_to_remaining_interval() -> None:
     scheme = make_scheme()
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(0.0)
@@ -128,7 +128,7 @@ def test_backward_euler_generic_call_clips_to_remaining_interval() -> None:
     assert interval.step == pytest.approx(0.0)
 
 
-def test_backward_euler_returns_zero_when_interval_is_already_complete() -> None:
+def test_crouzeix_dirk3_returns_zero_when_interval_is_complete() -> None:
     scheme = make_scheme()
     interval = Interval(present=1.0, step=0.125, stop=1.0)
     state = ScalarState(0.0)
@@ -139,7 +139,7 @@ def test_backward_euler_returns_zero_when_interval_is_already_complete() -> None
     assert state.value == pytest.approx(0.0)
 
 
-def test_backward_euler_snapshot_and_safety_are_exposed_through_scheme() -> None:
+def test_crouzeix_dirk3_snapshot_and_safety_are_exposed_through_scheme() -> None:
     scheme = make_scheme()
     state = ScalarState(3.0)
 

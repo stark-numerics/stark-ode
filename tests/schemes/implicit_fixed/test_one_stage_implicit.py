@@ -5,10 +5,12 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Executor, Interval, Tolerance
-from stark.accelerators import AcceleratorAbsent
+from stark.accelerators import Accelerator
 from stark.resolvents import ResolventPicard
 from stark.resolvents.policy import ResolventPolicy
 from stark.schemes.implicit_fixed.backward_euler import SchemeBackwardEuler
+from stark.schemes.implicit_fixed.crank_nicolson import SchemeCrankNicolson
+from stark.schemes.implicit_fixed.implicit_midpoint import SchemeImplicitMidpoint
 
 
 @dataclass(slots=True)
@@ -53,37 +55,66 @@ def constant_rhs(
     out.value = 1.0
 
 
-def make_scheme() -> SchemeBackwardEuler:
-    workbench = ScalarWorkbench()
-    resolvent = ResolventPicard(
+def make_resolvent(scheme_cls, workbench: ScalarWorkbench) -> ResolventPicard:
+    return ResolventPicard(
         constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
-        accelerator=AcceleratorAbsent(),
-        tableau=SchemeBackwardEuler.tableau,
+        accelerator=Accelerator.none(),
+        tableau=scheme_cls.tableau,
     )
-    return SchemeBackwardEuler(
+
+
+def make_scheme(scheme_cls):
+    workbench = ScalarWorkbench()
+    return scheme_cls(
         constant_rhs,
         workbench,
-        resolvent=resolvent,
+        resolvent=make_resolvent(scheme_cls, workbench),
     )
 
 
-def test_backward_euler_owns_its_public_call_method() -> None:
-    assert "__call__" in SchemeBackwardEuler.__dict__
+@pytest.mark.parametrize(
+    "scheme_cls",
+    [
+        SchemeBackwardEuler,
+        SchemeImplicitMidpoint,
+        SchemeCrankNicolson,
+    ],
+)
+def test_one_stage_implicit_scheme_owns_its_public_call_method(scheme_cls) -> None:
+    assert "__call__" in scheme_cls.__dict__
 
 
-def test_backward_euler_default_call_path_is_scheme_owned_generic_call() -> None:
-    scheme = make_scheme()
+@pytest.mark.parametrize(
+    "scheme_cls",
+    [
+        SchemeBackwardEuler,
+        SchemeImplicitMidpoint,
+        SchemeCrankNicolson,
+    ],
+)
+def test_one_stage_implicit_default_call_path_is_scheme_owned_generic_call(
+    scheme_cls,
+) -> None:
+    scheme = make_scheme(scheme_cls)
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeBackwardEuler.call_generic
+    assert scheme.call_pure.__func__ is scheme_cls.call_generic
     assert scheme.redirect_call == scheme.call_pure
 
 
-def test_backward_euler_public_call_uses_redirect_call() -> None:
-    scheme = make_scheme()
+@pytest.mark.parametrize(
+    "scheme_cls",
+    [
+        SchemeBackwardEuler,
+        SchemeImplicitMidpoint,
+        SchemeCrankNicolson,
+    ],
+)
+def test_one_stage_implicit_public_call_uses_redirect_call(scheme_cls) -> None:
+    scheme = make_scheme(scheme_cls)
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(0.0)
 
@@ -104,8 +135,16 @@ def test_backward_euler_public_call_uses_redirect_call() -> None:
     assert state.value == pytest.approx(42.0)
 
 
-def test_backward_euler_generic_call_performs_one_implicit_step() -> None:
-    scheme = make_scheme()
+@pytest.mark.parametrize(
+    "scheme_cls",
+    [
+        SchemeBackwardEuler,
+        SchemeImplicitMidpoint,
+        SchemeCrankNicolson,
+    ],
+)
+def test_one_stage_implicit_call_performs_one_constant_rhs_step(scheme_cls) -> None:
+    scheme = make_scheme(scheme_cls)
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(0.0)
 
@@ -116,8 +155,16 @@ def test_backward_euler_generic_call_performs_one_implicit_step() -> None:
     assert interval.step == pytest.approx(0.125)
 
 
-def test_backward_euler_generic_call_clips_to_remaining_interval() -> None:
-    scheme = make_scheme()
+@pytest.mark.parametrize(
+    "scheme_cls",
+    [
+        SchemeBackwardEuler,
+        SchemeImplicitMidpoint,
+        SchemeCrankNicolson,
+    ],
+)
+def test_one_stage_implicit_call_clips_to_remaining_interval(scheme_cls) -> None:
+    scheme = make_scheme(scheme_cls)
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(0.0)
 
@@ -128,8 +175,16 @@ def test_backward_euler_generic_call_clips_to_remaining_interval() -> None:
     assert interval.step == pytest.approx(0.0)
 
 
-def test_backward_euler_returns_zero_when_interval_is_already_complete() -> None:
-    scheme = make_scheme()
+@pytest.mark.parametrize(
+    "scheme_cls",
+    [
+        SchemeBackwardEuler,
+        SchemeImplicitMidpoint,
+        SchemeCrankNicolson,
+    ],
+)
+def test_one_stage_implicit_returns_zero_when_interval_is_complete(scheme_cls) -> None:
+    scheme = make_scheme(scheme_cls)
     interval = Interval(present=1.0, step=0.125, stop=1.0)
     state = ScalarState(0.0)
 
@@ -139,8 +194,18 @@ def test_backward_euler_returns_zero_when_interval_is_already_complete() -> None
     assert state.value == pytest.approx(0.0)
 
 
-def test_backward_euler_snapshot_and_safety_are_exposed_through_scheme() -> None:
-    scheme = make_scheme()
+@pytest.mark.parametrize(
+    "scheme_cls",
+    [
+        SchemeBackwardEuler,
+        SchemeImplicitMidpoint,
+        SchemeCrankNicolson,
+    ],
+)
+def test_one_stage_implicit_snapshot_and_safety_are_exposed_through_scheme(
+    scheme_cls,
+) -> None:
+    scheme = make_scheme(scheme_cls)
     state = ScalarState(3.0)
 
     snapshot = scheme.snapshot_state(state)

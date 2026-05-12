@@ -14,7 +14,12 @@ from stark.schemes.explicit_fixed.euler import SchemeEuler
 from stark.schemes.explicit_fixed.heun import SchemeHeun
 from stark.schemes.explicit_fixed.rk4 import SchemeRK4
 from stark.schemes.implicit_fixed.backward_euler import SchemeBackwardEuler
-
+from stark.schemes.implicit_fixed.crank_nicolson import SchemeCrankNicolson
+from stark.schemes.implicit_fixed.implicit_midpoint import SchemeImplicitMidpoint
+from stark.schemes.implicit_fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
+from stark.schemes.implicit_fixed.gauss_legendre4 import SchemeGaussLegendre4
+from stark.schemes.implicit_fixed.lobatto_iiic4 import SchemeLobattoIIIC4
+from stark.schemes.implicit_fixed.radau_iia5 import SchemeRadauIIA5
 
 @dataclass(slots=True)
 class ScalarState:
@@ -76,7 +81,7 @@ def zero_rhs(
     out.value = 0.0
 
 
-def make_backward_euler() -> SchemeBackwardEuler:
+def make_implicit_fixed_scheme(scheme_cls):
     workbench = ScalarWorkbench()
     resolvent = ResolventPicard(
         constant_rhs,
@@ -84,13 +89,17 @@ def make_backward_euler() -> SchemeBackwardEuler:
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
-        tableau=SchemeBackwardEuler.tableau,
+        tableau=scheme_cls.tableau,
     )
-    return SchemeBackwardEuler(
+    return scheme_cls(
         constant_rhs,
         workbench,
         resolvent=resolvent,
     )
+
+
+def make_backward_euler() -> SchemeBackwardEuler:
+    return make_implicit_fixed_scheme(SchemeBackwardEuler)
 
 
 def test_fixed_scheme_call_returns_accepted_dt() -> None:
@@ -142,9 +151,15 @@ def test_adaptive_scheme_call_clips_next_accepted_dt_to_remaining_interval() -> 
 @pytest.mark.parametrize(
     "scheme",
     [
-        SchemeRK4(exponential_growth, ScalarWorkbench()),
-        SchemeBogackiShampine(zero_rhs, ScalarWorkbench()),
-        make_backward_euler(),
+    SchemeRK4(exponential_growth, ScalarWorkbench()),
+    SchemeBogackiShampine(zero_rhs, ScalarWorkbench()),
+    make_implicit_fixed_scheme(SchemeBackwardEuler),
+    make_implicit_fixed_scheme(SchemeImplicitMidpoint),
+    make_implicit_fixed_scheme(SchemeCrankNicolson),
+    make_implicit_fixed_scheme(SchemeCrouzeixDIRK3),
+    make_implicit_fixed_scheme(SchemeGaussLegendre4),
+    make_implicit_fixed_scheme(SchemeLobattoIIIC4),
+    make_implicit_fixed_scheme(SchemeRadauIIA5),
     ],
 )
 def test_snapshot_state_works_through_scheme_object(scheme) -> None:
@@ -163,9 +178,15 @@ def test_snapshot_state_works_through_scheme_object(scheme) -> None:
 @pytest.mark.parametrize(
     "scheme",
     [
-        SchemeRK4(exponential_growth, ScalarWorkbench()),
-        SchemeBogackiShampine(zero_rhs, ScalarWorkbench()),
-        make_backward_euler(),
+    SchemeRK4(exponential_growth, ScalarWorkbench()),
+    SchemeBogackiShampine(zero_rhs, ScalarWorkbench()),
+    make_implicit_fixed_scheme(SchemeBackwardEuler),
+    make_implicit_fixed_scheme(SchemeImplicitMidpoint),
+    make_implicit_fixed_scheme(SchemeCrankNicolson),
+    make_implicit_fixed_scheme(SchemeCrouzeixDIRK3),
+    make_implicit_fixed_scheme(SchemeGaussLegendre4),
+    make_implicit_fixed_scheme(SchemeLobattoIIIC4),
+    make_implicit_fixed_scheme(SchemeRadauIIA5),
     ],
 )
 def test_set_apply_delta_safety_works_through_scheme_object(scheme) -> None:
@@ -185,6 +206,12 @@ def test_self_contained_scheme_exemplars_own_public_call_method() -> None:
     assert "__call__" in SchemeRK4.__dict__
     assert "__call__" in SchemeBogackiShampine.__dict__
     assert "__call__" in SchemeBackwardEuler.__dict__
+    assert "__call__" in SchemeImplicitMidpoint.__dict__
+    assert "__call__" in SchemeCrankNicolson.__dict__
+    assert "__call__" in SchemeCrouzeixDIRK3.__dict__
+    assert "__call__" in SchemeGaussLegendre4.__dict__
+    assert "__call__" in SchemeLobattoIIIC4.__dict__
+    assert "__call__" in SchemeRadauIIA5.__dict__
 
 
 def test_unconverted_fixed_explicit_scheme_still_works_without_deprecation_warning() -> None:

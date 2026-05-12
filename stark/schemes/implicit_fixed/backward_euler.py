@@ -31,7 +31,7 @@ class SchemeBackwardEuler(SchemeBaseImplicitFixed):
     """
 
     __slots__ = (
-        "pure_call",
+        "call_pure",
         "redirect_call",
         "stepper",
     )
@@ -52,8 +52,8 @@ class SchemeBackwardEuler(SchemeBaseImplicitFixed):
             workbench,
             resolvent,
         )
-        self.pure_call = self.generic_call
-        self.redirect_call = self.pure_call
+        self.call_pure = self.call_generic
+        self.redirect_call = self.call_pure
 
     def __call__(
         self,
@@ -63,7 +63,7 @@ class SchemeBackwardEuler(SchemeBaseImplicitFixed):
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def generic_call(
+    def call_generic(
         self,
         interval: IntervalLike,
         state: State,
