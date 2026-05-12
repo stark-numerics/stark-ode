@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from stark.algebraist import Algebraist
-from stark.execution.executor import Executor
 from stark.contracts import Derivative, IntervalLike, State, Workbench
-from stark.schemes.tableau import ButcherTableau
-from stark.schemes.descriptor import SchemeDescriptor
+from stark.execution.executor import Executor
 from stark.schemes.base import SchemeBaseExplicitFixed
+from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.tableau import ButcherTableau
 
 
 KUTTA3_TABLEAU = ButcherTableau(
@@ -14,13 +14,13 @@ KUTTA3_TABLEAU = ButcherTableau(
     b=(1.0 / 6.0, 2.0 / 3.0, 1.0 / 6.0),
     order=3,
 )
+
 KUTTA3_A = KUTTA3_TABLEAU.a
 KUTTA3_B = KUTTA3_TABLEAU.b
 
 
 class SchemeKutta3(SchemeBaseExplicitFixed):
-    """
-    The classical three-stage third-order Runge-Kutta method.
+    """The classical three-stage third-order Runge-Kutta method.
 
     This is the traditional third-order Kutta scheme often used as a compact
     fixed-step method when fourth-order accuracy is not needed but better
@@ -29,18 +29,46 @@ class SchemeKutta3(SchemeBaseExplicitFixed):
     Further reading: https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
     """
 
-    __slots__ = ("advance_state", "combine_stage2", "combine_stage3", "k2", "k3", "stage", "trial")
+    __slots__ = (
+        "advance_state",
+        "combine_stage2",
+        "combine_stage3",
+        "k2",
+        "k3",
+        "pure_call",
+        "redirect_call",
+        "stage",
+        "trial",
+    )
 
     descriptor = SchemeDescriptor("Kutta3", "Kutta Third-Order")
     tableau = KUTTA3_TABLEAU
 
-    def __init__(self, derivative: Derivative, workbench: Workbench, algebraist: Algebraist | None = None) -> None:
+    def __init__(
+        self,
+        derivative: Derivative,
+        workbench: Workbench,
+        algebraist: Algebraist | None = None,
+    ) -> None:
         self.advance_state = None
         self.combine_stage2 = None
         self.combine_stage3 = None
+
         super().__init__(derivative, workbench)
+
+        self.pure_call = self.generic_call
+        self.redirect_call = self.pure_call
+
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
+
+    def __call__(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        return self.redirect_call(interval, state, executor)
 
     def initialise_buffers(self) -> None:
         workspace = self.workspace
@@ -52,10 +80,17 @@ class SchemeKutta3(SchemeBaseExplicitFixed):
         self.combine_stage2 = calls.stages[1]
         self.combine_stage3 = calls.stages[2]
         self.advance_state = calls.solution_state
-        self.bind_fixed_call(self.algebraist_call)
+        self.pure_call = self.algebraist_call
+        self.redirect_call = self.pure_call
 
-    def generic_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def generic_call(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
         del executor
+
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
@@ -67,6 +102,7 @@ class SchemeKutta3(SchemeBaseExplicitFixed):
         combine3 = workspace.combine3
         apply_delta = workspace.apply_delta
         stage_interval = workspace.stage_interval
+
         stage = self.stage
         trial_buffer = self.trial
         k1 = self.k1
@@ -74,11 +110,13 @@ class SchemeKutta3(SchemeBaseExplicitFixed):
         k3 = self.k3
 
         dt = interval.step if interval.step <= remaining else remaining
+        half_dt = 0.5 * dt
+
         derivative(interval, state, k1)
 
-        trial = scale(trial_buffer, dt * KUTTA3_A[1][0], k1)
+        trial = scale(trial_buffer, half_dt, k1)
         trial(state, stage)
-        derivative(stage_interval(interval, dt, 0.5 * dt), stage, k2)
+        derivative(stage_interval(interval, dt, half_dt), stage, k2)
 
         trial = combine2(
             trial_buffer,
@@ -99,45 +137,46 @@ class SchemeKutta3(SchemeBaseExplicitFixed):
             dt * KUTTA3_B[2],
             k3,
         )
+
         apply_delta(delta, state)
         return dt
 
-    def algebraist_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def algebraist_call(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
         del executor
+
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
 
         dt = interval.step if interval.step <= remaining else remaining
+        half_dt = 0.5 * dt
+
         stage = self.stage
         k1 = self.k1
         k2 = self.k2
         k3 = self.k3
+
         derivative = self.derivative
         stage_interval = self.workspace.stage_interval
+        combine_stage2 = self.combine_stage2
+        combine_stage3 = self.combine_stage3
+        advance_state = self.advance_state
+
         derivative(interval, state, k1)
-        self.combine_stage2(stage, state, dt, k1)
-        derivative(stage_interval(interval, dt, 0.5 * dt), stage, k2)
-        self.combine_stage3(stage, state, dt, k1, k2)
+
+        combine_stage2(stage, state, dt, k1)
+        derivative(stage_interval(interval, dt, half_dt), stage, k2)
+
+        combine_stage3(stage, state, dt, k1, k2)
         derivative(stage_interval(interval, dt, dt), stage, k3)
-        self.advance_state(state, state, dt, k1, k2, k3)
+
+        advance_state(state, state, dt, k1, k2, k3)
         return dt
 
 
 __all__ = ["KUTTA3_TABLEAU", "SchemeKutta3"]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from stark.algebraist import Algebraist
-from stark.execution.executor import Executor
 from stark.contracts import Derivative, IntervalLike, State, Workbench
-from stark.schemes.tableau import ButcherTableau
-from stark.schemes.descriptor import SchemeDescriptor
+from stark.execution.executor import Executor
 from stark.schemes.base import SchemeBaseExplicitFixed
+from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.tableau import ButcherTableau
 
 
 HEUN_TABLEAU = ButcherTableau(
@@ -14,12 +14,12 @@ HEUN_TABLEAU = ButcherTableau(
     b=(0.5, 0.5),
     order=2,
 )
+
 HEUN_B = HEUN_TABLEAU.b
 
 
 class SchemeHeun(SchemeBaseExplicitFixed):
-    """
-    Heun's explicit two-stage second-order Runge-Kutta method.
+    """Heun's explicit two-stage second-order Runge-Kutta method.
 
     This method averages a forward-Euler predictor slope with a slope evaluated
     at the end of the step, giving a simple second-order scheme sometimes
@@ -28,17 +28,43 @@ class SchemeHeun(SchemeBaseExplicitFixed):
     Further reading: https://en.wikipedia.org/wiki/Heun%27s_method
     """
 
-    __slots__ = ("advance_state", "combine_stage2", "k2", "stage", "trial")
+    __slots__ = (
+        "advance_state",
+        "combine_stage2",
+        "k2",
+        "pure_call",
+        "redirect_call",
+        "stage",
+        "trial",
+    )
 
     descriptor = SchemeDescriptor("Heun", "Heun")
     tableau = HEUN_TABLEAU
 
-    def __init__(self, derivative: Derivative, workbench: Workbench, algebraist: Algebraist | None = None) -> None:
+    def __init__(
+        self,
+        derivative: Derivative,
+        workbench: Workbench,
+        algebraist: Algebraist | None = None,
+    ) -> None:
         self.advance_state = None
         self.combine_stage2 = None
+
         super().__init__(derivative, workbench)
+
+        self.pure_call = self.generic_call
+        self.redirect_call = self.pure_call
+
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
+
+    def __call__(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        return self.redirect_call(interval, state, executor)
 
     def initialise_buffers(self) -> None:
         workspace = self.workspace
@@ -49,10 +75,17 @@ class SchemeHeun(SchemeBaseExplicitFixed):
         calls = algebraist.bind_explicit_scheme(self.tableau)
         self.combine_stage2 = calls.stages[1]
         self.advance_state = calls.solution_state
-        self.bind_fixed_call(self.algebraist_call)
+        self.pure_call = self.algebraist_call
+        self.redirect_call = self.pure_call
 
-    def generic_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def generic_call(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
         del executor
+
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
@@ -63,12 +96,14 @@ class SchemeHeun(SchemeBaseExplicitFixed):
         combine2 = workspace.combine2
         apply_delta = workspace.apply_delta
         stage_interval = workspace.stage_interval
+
         stage = self.stage
         trial_buffer = self.trial
         k1 = self.k1
         k2 = self.k2
 
         dt = interval.step if interval.step <= remaining else remaining
+
         derivative(interval, state, k1)
 
         trial = scale(trial_buffer, dt, k1)
@@ -83,40 +118,38 @@ class SchemeHeun(SchemeBaseExplicitFixed):
             k2,
         )
         apply_delta(delta, state)
+
         return dt
 
-    def algebraist_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def algebraist_call(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
         del executor
+
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
 
         dt = interval.step if interval.step <= remaining else remaining
+
         stage = self.stage
         k1 = self.k1
         k2 = self.k2
         derivative = self.derivative
+        stage_interval = self.workspace.stage_interval
+        combine_stage2 = self.combine_stage2
+        advance_state = self.advance_state
+
         derivative(interval, state, k1)
-        self.combine_stage2(stage, state, dt, k1)
-        derivative(self.workspace.stage_interval(interval, dt, dt), stage, k2)
-        self.advance_state(state, state, dt, k1, k2)
+
+        combine_stage2(stage, state, dt, k1)
+        derivative(stage_interval(interval, dt, dt), stage, k2)
+
+        advance_state(state, state, dt, k1, k2)
         return dt
 
 
 __all__ = ["HEUN_TABLEAU", "SchemeHeun"]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
