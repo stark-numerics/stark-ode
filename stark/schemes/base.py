@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from stark.accelerators.binding import BoundDerivative
 from stark.auditor import Auditor
 from stark.contracts import Derivative, ImExDerivative, IntervalLike, State, Workbench
 from stark.execution.adaptive_controller import AdaptiveController
@@ -11,40 +10,47 @@ from stark.execution.regulator import Regulator
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
 from stark.monitor import Monitor, MonitorStep
 from stark.schemes.display import display_imex_resolvent_problem, display_implicit_resolvent_problem
-
-_ADVANCE_ACCEPTED_DT = 0
-_ADVANCE_T_START = 1
-_ADVANCE_PROPOSED_DT = 2
-_ADVANCE_NEXT_DT = 3
-_ADVANCE_ERROR_RATIO = 4
-_ADVANCE_REJECTION_COUNT = 5
-
+from stark.schemes.support.display import SchemeDisplay
+from stark.schemes.support.explicit import SchemeSupportExplicit
+from stark.execution.adaptive_controller import AdaptiveController
+from stark.schemes.support.adaptive import (
+    _ADVANCE_ACCEPTED_DT,
+    _ADVANCE_ERROR_RATIO,
+    _ADVANCE_NEXT_DT,
+    _ADVANCE_PROPOSED_DT,
+    _ADVANCE_REJECTION_COUNT,
+    _ADVANCE_T_START,
+    SchemeSupportAdaptive,
+)
 
 class SchemeBase(ABC):
     descriptor: object
     tableau: object
 
     @classmethod
+    def scheme_display(cls) -> SchemeDisplay:
+        return SchemeDisplay(cls.descriptor, cls.tableau)
+
+    @classmethod
     def display_tableau(cls) -> str:
-        return cls.descriptor.display_tableau(cls.tableau)
+        return cls.scheme_display().display_tableau()
 
     @property
     def short_name(self) -> str:
-        return self.descriptor.short_name
+        return type(self).scheme_display().short_name
 
     @property
     def full_name(self) -> str:
-        return self.descriptor.full_name
+        return type(self).scheme_display().full_name
 
     def __repr__(self) -> str:
-        return self.descriptor.repr_for(type(self).__name__, self.tableau)
+        return type(self).scheme_display().repr_for(type(self).__name__)
 
     def __str__(self) -> str:
-        return self.display_tableau()
+        return type(self).scheme_display().str_for()
 
     def __format__(self, format_spec: str) -> str:
-        return format(str(self), format_spec)
-
+        return type(self).scheme_display().format_for(format_spec)
 
 class SchemeBaseFixed(SchemeBase):
     def assign_monitor(self, monitor: Monitor) -> None:
@@ -56,27 +62,15 @@ class SchemeBaseFixed(SchemeBase):
 
 class SchemeBaseAdaptive(SchemeBase):
     __slots__ = (
-        "regulator",
-        "controller",
-        "advance_report",
+        "adaptive",
         "redirect_call",
         "redirect_advance_body",
-        "_controller",
-        "_monitor",
-        "_ratio",
-        "_bound",
-        "_runtime_bound",
     )
 
     def initialise_runtime(self, regulator: Regulator | None = None) -> None:
-        self.regulator = regulator if regulator is not None else self.default_regulator()
-        self.controller = AdaptiveController(self.regulator)
-        self.advance_report = [0.0, 0.0, 0.0, 0.0, 0.0, 0]
-        self._controller = None
-        self._monitor = None
-        self._ratio = None
-        self._bound = None
-        self._runtime_bound = False
+        self.adaptive = SchemeSupportAdaptive(
+            regulator if regulator is not None else self.default_regulator()
+        )
         self.redirect_advance_body = self.advance_body
         self.refresh_call()
 
@@ -84,85 +78,132 @@ class SchemeBaseAdaptive(SchemeBase):
     def default_regulator() -> Regulator:
         return Regulator()
 
+    @property
+    def regulator(self) -> Regulator:
+        return self.adaptive.regulator
+
+    @property
+    def controller(self):
+        return self.adaptive.controller
+
+    @property
+    def advance_report(self) -> list[float | int]:
+        return self.adaptive.advance_report
+
+    @property
+    def _controller(self):
+        return self.adaptive.active_controller
+
+    @property
+    def _monitor(self):
+        return self.adaptive.monitor
+
+    @property
+    def _ratio(self):
+        return self.adaptive.ratio
+
+    @property
+    def _bound(self):
+        return self.adaptive.bound
+
+    @property
+    def _runtime_bound(self) -> bool:
+        return self.adaptive.runtime_bound
+
     @abstractmethod
     def advance_body(self, interval: IntervalLike, state: State) -> None:
         """Advance one accepted step and overwrite `advance_report`."""
 
     def assign_executor(self, executor: Executor) -> None:
-        self._controller = executor.adaptive_controller()
-        self._ratio = executor.ratio
-        self._bound = executor.bound
-        self._runtime_bound = True
+        self.adaptive.assign_executor(executor)
         self.refresh_call()
 
     def unassign_executor(self) -> None:
-        self._runtime_bound = False
-        self._controller = None
-        self._ratio = None
-        self._bound = None
+        self.adaptive.unassign_executor()
         self.refresh_call()
 
     def assign_monitor(self, monitor: Monitor) -> None:
-        self._monitor = monitor
+        self.adaptive.assign_monitor(monitor)
         self.refresh_call()
 
     def unassign_monitor(self) -> None:
-        self._monitor = None
+        self.adaptive.unassign_monitor()
         self.refresh_call()
 
     def refresh_call(self) -> None:
-        if not self._runtime_bound:
+        if not self.adaptive.runtime_bound:
             self.redirect_call = self.bind_and_call
             return
-        self.redirect_call = self.monitored_call if self._monitor is not None else self.pure_call
+
+        self.redirect_call = (
+            self.monitored_call
+            if self.adaptive.monitor is not None
+            else self.pure_call
+        )
 
     def bind_advance_body(self, advance_body) -> None:
         self.redirect_advance_body = advance_body
 
-    def bind_and_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def bind_and_call(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
         self.assign_executor(executor)
         return self.redirect_call(interval, state, executor)
 
-    def pure_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def pure_call(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
         del executor
+
         self.redirect_advance_body(interval, state)
         return self.advance_report[_ADVANCE_ACCEPTED_DT]
 
-    def monitored_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def monitored_call(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
         del executor
+
         self.redirect_advance_body(interval, state)
-        advance_report = self.advance_report
-        accepted_dt = advance_report[_ADVANCE_ACCEPTED_DT]
-        monitor = self._monitor
+        report = self.adaptive.report()
+        monitor = self.adaptive.monitor
+
         if monitor is not None:
             monitor(
                 MonitorStep(
                     scheme=self.short_name,
-                    t_start=advance_report[_ADVANCE_T_START],
-                    t_end=advance_report[_ADVANCE_T_START] + accepted_dt,
-                    proposed_dt=advance_report[_ADVANCE_PROPOSED_DT],
-                    accepted_dt=accepted_dt,
-                    next_dt=advance_report[_ADVANCE_NEXT_DT],
-                    error_ratio=advance_report[_ADVANCE_ERROR_RATIO],
-                    rejection_count=advance_report[_ADVANCE_REJECTION_COUNT],
+                    t_start=report.t_start,
+                    t_end=report.t_end,
+                    proposed_dt=report.proposed_dt,
+                    accepted_dt=report.accepted_dt,
+                    next_dt=report.next_dt,
+                    error_ratio=report.error_ratio,
+                    rejection_count=report.rejection_count,
                 )
             )
-        return accepted_dt
 
+        return report.accepted_dt
 
 class SchemeBaseExplicit(SchemeBase):
     def initialise_explicit(self, derivative: Derivative, workbench: Workbench) -> None:
-        translation_probe = workbench.allocate_translation()
-        Auditor.require_scheme_inputs(derivative, workbench, translation_probe)
-        self.derivative = BoundDerivative(derivative)
-        self.workspace = SchemeWorkspace(workbench, translation_probe)
-        self.k1 = translation_probe
+        self.explicit = SchemeSupportExplicit.from_inputs(derivative, workbench)
+        self.derivative = self.explicit.derivative
+        self.workspace = self.explicit.workspace
+        self.k1 = self.explicit.k1
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
-        self.workspace.set_apply_delta_safety(enabled)
+        self.explicit.set_apply_delta_safety(enabled)
 
     def snapshot_state(self, state: State) -> State:
-        return self.workspace.snapshot_state(state)
+        return self.explicit.snapshot_state(state)
 
 
 class SchemeBaseImEx(SchemeBase):

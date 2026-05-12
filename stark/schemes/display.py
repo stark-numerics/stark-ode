@@ -1,3 +1,10 @@
+
+"""Legacy scheme display helpers.
+
+TODO: delete this module once resolvent-problem display helpers have moved to
+`stark.schemes.support.display` or a more specific support module.
+"""
+
 from __future__ import annotations
 
 from math import isclose

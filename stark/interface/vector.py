@@ -7,12 +7,24 @@ from stark.routing import RoutingVector, RoutingVectorReturn
 
 @dataclass
 class StarkVector:
+    """State wrapper for ordinary vector-space IVPs.
+
+    In the simple vector-space interface, both the state and the increment live
+    in the same mathematical vector space. STARK still represents them with
+    separate wrapper classes so the general state/translation contract remains
+    explicit.
+    """
     value: Any
     carrier: CarrierBound
 
 
 @dataclass
 class StarkVectorTranslation:
+    """Increment wrapper for ordinary vector-space IVPs.
+
+    This is a vector-space increment: it supports scaling, linear combination,
+    addition, and application to a `StarkVector` state.
+    """
     value: Any
     carrier: CarrierBound
     routing: RoutingVector = field(default_factory=RoutingVectorReturn)

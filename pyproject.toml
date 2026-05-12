@@ -77,4 +77,5 @@ testpaths = ["tests"]
 addopts = "-ra -m \"not slow\""
 markers = [
     "slow: longer-running profiling and benchmark-oriented tests",
+    "performance: local performance/smoke checks that are not strict correctness tests",
 ]

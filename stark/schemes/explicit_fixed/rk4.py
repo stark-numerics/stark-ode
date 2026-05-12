@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from stark.algebraist import Algebraist
-from stark.execution.executor import Executor
 from stark.contracts import Derivative, IntervalLike, State, Workbench
-from stark.schemes.tableau import ButcherTableau
-from stark.schemes.descriptor import SchemeDescriptor
+from stark.execution.executor import Executor
 from stark.schemes.base import SchemeBaseExplicitFixed
+from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.tableau import ButcherTableau
 
 
 RK4_TABLEAU = ButcherTableau(
@@ -19,12 +19,12 @@ RK4_TABLEAU = ButcherTableau(
     b=(1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0),
     order=4,
 )
+
 RK4_B = RK4_TABLEAU.b
 
 
 class SchemeRK4(SchemeBaseExplicitFixed):
-    """
-    The classical four-stage fourth-order Runge-Kutta method.
+    """The classical four-stage fourth-order Runge-Kutta method.
 
     RK4 is the best-known fixed-step explicit Runge-Kutta scheme. It is a very
     common general-purpose baseline because it offers fourth-order accuracy,
@@ -33,19 +33,53 @@ class SchemeRK4(SchemeBaseExplicitFixed):
     Further reading: https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
     """
 
-    __slots__ = ("advance_state", "combine_stage2", "combine_stage3", "combine_stage4", "k2", "k3", "k4", "stage", "trial")
+    __slots__ = (
+        "advance_state",
+        "combine_stage2",
+        "combine_stage3",
+        "combine_stage4",
+        "k2",
+        "k3",
+        "k4",
+        "pure_call",
+        "redirect_call",
+        "stage",
+        "trial",
+    )
 
     descriptor = SchemeDescriptor("RK4", "Classical Runge-Kutta")
     tableau = RK4_TABLEAU
 
-    def __init__(self, derivative: Derivative, workbench: Workbench, algebraist: Algebraist | None = None) -> None:
+    def __init__(
+        self,
+        derivative: Derivative,
+        workbench: Workbench,
+        algebraist: Algebraist | None = None,
+    ) -> None:
         self.advance_state = None
         self.combine_stage2 = None
         self.combine_stage3 = None
         self.combine_stage4 = None
+        self.pure_call = self.generic_call
+        self.redirect_call = self.pure_call
+
         super().__init__(derivative, workbench)
+
+        # RK4 owns its public call routing. The inherited fixed-scheme routing
+        # remains temporarily for unconverted schemes only.
+        self.pure_call = self.generic_call
+        self.redirect_call = self.pure_call
+
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
+
+    def __call__(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        return self.redirect_call(interval, state, executor)
 
     def initialise_buffers(self) -> None:
         workspace = self.workspace
@@ -58,10 +92,17 @@ class SchemeRK4(SchemeBaseExplicitFixed):
         self.combine_stage3 = calls.stages[2]
         self.combine_stage4 = calls.stages[3]
         self.advance_state = calls.solution_state
-        self.bind_fixed_call(self.algebraist_call)
+        self.pure_call = self.algebraist_call
+        self.redirect_call = self.pure_call
 
-    def generic_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def generic_call(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
         del executor
+
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
@@ -72,6 +113,7 @@ class SchemeRK4(SchemeBaseExplicitFixed):
         combine4 = workspace.combine4
         apply_delta = workspace.apply_delta
         stage_interval = workspace.stage_interval
+
         stage = self.stage
         trial_buffer = self.trial
         k1 = self.k1
@@ -80,16 +122,17 @@ class SchemeRK4(SchemeBaseExplicitFixed):
         k4 = self.k4
 
         dt = interval.step if interval.step <= remaining else remaining
+        half_dt = 0.5 * dt
 
         derivative(interval, state, k1)
 
-        trial = scale(trial_buffer, 0.5 * dt, k1)
+        trial = scale(trial_buffer, half_dt, k1)
         trial(state, stage)
-        derivative(stage_interval(interval, dt, 0.5 * dt), stage, k2)
+        derivative(stage_interval(interval, dt, half_dt), stage, k2)
 
-        trial = scale(trial_buffer, 0.5 * dt, k2)
+        trial = scale(trial_buffer, half_dt, k2)
         trial(state, stage)
-        derivative(stage_interval(interval, dt, 0.5 * dt), stage, k3)
+        derivative(stage_interval(interval, dt, half_dt), stage, k3)
 
         trial = scale(trial_buffer, dt, k3)
         trial(state, stage)
@@ -106,49 +149,51 @@ class SchemeRK4(SchemeBaseExplicitFixed):
             dt * RK4_B[3],
             k4,
         )
+
         apply_delta(delta, state)
         return dt
 
-    def algebraist_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def algebraist_call(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
         del executor
+
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
 
         dt = interval.step if interval.step <= remaining else remaining
+        half_dt = 0.5 * dt
+
         stage = self.stage
         k1 = self.k1
         k2 = self.k2
         k3 = self.k3
         k4 = self.k4
+
         derivative = self.derivative
         stage_interval = self.workspace.stage_interval
+        combine_stage2 = self.combine_stage2
+        combine_stage3 = self.combine_stage3
+        combine_stage4 = self.combine_stage4
+        advance_state = self.advance_state
 
         derivative(interval, state, k1)
-        self.combine_stage2(stage, state, dt, k1)
-        derivative(stage_interval(interval, dt, 0.5 * dt), stage, k2)
-        self.combine_stage3(stage, state, dt, k2)
-        derivative(stage_interval(interval, dt, 0.5 * dt), stage, k3)
-        self.combine_stage4(stage, state, dt, k3)
+
+        combine_stage2(stage, state, dt, k1)
+        derivative(stage_interval(interval, dt, half_dt), stage, k2)
+
+        combine_stage3(stage, state, dt, k2)
+        derivative(stage_interval(interval, dt, half_dt), stage, k3)
+
+        combine_stage4(stage, state, dt, k3)
         derivative(stage_interval(interval, dt, dt), stage, k4)
-        self.advance_state(state, state, dt, k1, k2, k3, k4)
+
+        advance_state(state, state, dt, k1, k2, k3, k4)
         return dt
 
 
 __all__ = ["RK4_TABLEAU", "SchemeRK4"]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
