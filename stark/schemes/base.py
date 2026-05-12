@@ -6,8 +6,8 @@ STARK schemes are public structural contracts: a scheme is usable when it
 provides `__call__(interval, state, executor)`, `snapshot_state(state)`, and
 `set_apply_delta_safety(enabled)`.
 
-Historically, many built-in schemes inherited their algorithmic call routing
-from these base classes. New and refactored built-in schemes should instead own
+Historically, many built-in schemes inherited algorithmic call routing from
+these base classes. New and refactored built-in schemes should instead own
 their public `__call__` directly and use these bases only for temporary shared
 setup while the scheme family is migrated.
 
@@ -87,7 +87,7 @@ class SchemeBaseAdaptive(SchemeBase):
 
     This class still owns executor/monitor redirection for unconverted adaptive
     schemes. Converted adaptive schemes should define their own `__call__`,
-    `pure_call`, and `monitored_call`, while delegating controller state to
+    `call_pure`, and `call_monitored`, while delegating controller state to
     `SchemeSupportAdaptive`.
 
     The inherited routing here remains only to keep unconverted schemes working
@@ -165,25 +165,25 @@ class SchemeBaseAdaptive(SchemeBase):
 
     def refresh_call(self) -> None:
         if not self.adaptive.runtime_bound:
-            self.redirect_call = self.bind_and_call
+            self.redirect_call = self.call_bind
             return
 
         self.redirect_call = (
-            self.monitored_call
+            self.call_monitored
             if self.adaptive.monitor is not None
-            else self.pure_call
+            else self.call_pure
         )
 
     def bind_advance_body(self, advance_body) -> None:
         """Legacy advance-body hook for unconverted adaptive schemes.
 
-        Converted adaptive schemes should select their own pure advance path in
-        the concrete scheme instead of relying on this inherited hook.
+        Converted adaptive schemes should select their own pure call path in the
+        concrete scheme instead of relying on this inherited hook.
         """
 
         self.redirect_advance_body = advance_body
 
-    def bind_and_call(
+    def call_bind(
         self,
         interval: IntervalLike,
         state: State,
@@ -192,7 +192,17 @@ class SchemeBaseAdaptive(SchemeBase):
         self.assign_executor(executor)
         return self.redirect_call(interval, state, executor)
 
-    def pure_call(
+    def bind_and_call(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        """Legacy alias for the old adaptive base-routing name."""
+
+        return self.call_bind(interval, state, executor)
+
+    def call_pure(
         self,
         interval: IntervalLike,
         state: State,
@@ -203,7 +213,17 @@ class SchemeBaseAdaptive(SchemeBase):
         self.redirect_advance_body(interval, state)
         return self.advance_report[_ADVANCE_ACCEPTED_DT]
 
-    def monitored_call(
+    def pure_call(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        """Legacy alias for the old adaptive pure-call name."""
+
+        return self.call_pure(interval, state, executor)
+
+    def call_monitored(
         self,
         interval: IntervalLike,
         state: State,
@@ -230,6 +250,16 @@ class SchemeBaseAdaptive(SchemeBase):
             )
 
         return report.accepted_dt
+
+    def monitored_call(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        """Legacy alias for the old adaptive monitored-call name."""
+
+        return self.call_monitored(interval, state, executor)
 
 
 class SchemeBaseExplicit(SchemeBase):
@@ -295,7 +325,7 @@ class SchemeBaseExplicitFixed(SchemeBaseExplicit, SchemeBaseFixed):
     """Legacy fixed-explicit routing base for unconverted schemes.
 
     Converted fixed explicit schemes should define `__call__` in the concrete
-    scheme and route through scheme-owned `pure_call` / `redirect_call`
+    scheme and route through scheme-owned `call_pure` / `redirect_call`
     attributes. This inherited `__call__` remains only until the fixed explicit
     family has been migrated.
     """
@@ -305,15 +335,30 @@ class SchemeBaseExplicitFixed(SchemeBaseExplicit, SchemeBaseFixed):
     def __init__(self, derivative: Derivative, workbench: Workbench) -> None:
         self.initialise_explicit(derivative, workbench)
         self.initialise_buffers()
-        self.redirect_call = self.generic_call
+        self.redirect_call = self.call_generic
 
     @abstractmethod
     def initialise_buffers(self) -> None:
         """Allocate stage-specific scratch storage beyond the shared `k1`."""
 
     @abstractmethod
-    def generic_call(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def call_generic(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
         """Advance one fixed step using the generic translation operations."""
+
+    def generic_call(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        """Legacy alias for the old fixed-explicit generic-call name."""
+
+        return self.call_generic(interval, state, executor)
 
     def bind_fixed_call(self, call) -> None:
         """Legacy call-routing hook for unconverted fixed explicit schemes.

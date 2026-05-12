@@ -6,20 +6,25 @@ import warnings
 import pytest
 
 from stark import Executor, Interval, Tolerance
-from stark.resolvents import ResolventPicard
-from stark.resolvents.policy import ResolventPolicy
 from stark.accelerators import Accelerator
+from stark.resolvents import ResolventCoupledPicard, ResolventPicard
+from stark.resolvents.policy import ResolventPolicy
 from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.schemes.explicit_fixed.euler import SchemeEuler
 from stark.schemes.explicit_fixed.heun import SchemeHeun
 from stark.schemes.explicit_fixed.rk4 import SchemeRK4
+from stark.schemes.implicit_adaptive.bdf2 import SchemeBDF2
+from stark.schemes.implicit_adaptive.kvaerno3 import SchemeKvaerno3
+from stark.schemes.implicit_adaptive.kvaerno4 import SchemeKvaerno4
+from stark.schemes.implicit_adaptive.sdirk21 import SchemeSDIRK21
 from stark.schemes.implicit_fixed.backward_euler import SchemeBackwardEuler
 from stark.schemes.implicit_fixed.crank_nicolson import SchemeCrankNicolson
-from stark.schemes.implicit_fixed.implicit_midpoint import SchemeImplicitMidpoint
 from stark.schemes.implicit_fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
 from stark.schemes.implicit_fixed.gauss_legendre4 import SchemeGaussLegendre4
+from stark.schemes.implicit_fixed.implicit_midpoint import SchemeImplicitMidpoint
 from stark.schemes.implicit_fixed.lobatto_iiic4 import SchemeLobattoIIIC4
 from stark.schemes.implicit_fixed.radau_iia5 import SchemeRadauIIA5
+
 
 @dataclass(slots=True)
 class ScalarState:
@@ -81,9 +86,8 @@ def zero_rhs(
     out.value = 0.0
 
 
-def make_implicit_fixed_scheme(scheme_cls):
-    workbench = ScalarWorkbench()
-    resolvent = ResolventPicard(
+def make_one_stage_resolvent(scheme_cls, workbench: ScalarWorkbench) -> ResolventPicard:
+    return ResolventPicard(
         constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
@@ -91,15 +95,85 @@ def make_implicit_fixed_scheme(scheme_cls):
         accelerator=Accelerator.none(),
         tableau=scheme_cls.tableau,
     )
-    return scheme_cls(
+
+
+def make_bdf2_resolvent(workbench: ScalarWorkbench) -> ResolventPicard:
+    return ResolventPicard(
         constant_rhs,
         workbench,
-        resolvent=resolvent,
+        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
+        accelerator=Accelerator.none(),
+        tableau=None,
     )
 
 
-def make_backward_euler() -> SchemeBackwardEuler:
-    return make_implicit_fixed_scheme(SchemeBackwardEuler)
+def make_coupled_resolvent(
+    scheme_cls,
+    workbench: ScalarWorkbench,
+) -> ResolventCoupledPicard:
+    return ResolventCoupledPicard(
+        constant_rhs,
+        workbench,
+        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
+        accelerator=Accelerator.none(),
+        tableau=scheme_cls.tableau,
+    )
+
+
+def make_implicit_fixed_scheme(scheme_cls):
+    workbench = ScalarWorkbench()
+    return scheme_cls(
+        constant_rhs,
+        workbench,
+        resolvent=make_one_stage_resolvent(scheme_cls, workbench),
+    )
+
+
+def make_coupled_implicit_fixed_scheme(scheme_cls):
+    workbench = ScalarWorkbench()
+    return scheme_cls(
+        constant_rhs,
+        workbench,
+        resolvent=make_coupled_resolvent(scheme_cls, workbench),
+    )
+
+
+def make_implicit_adaptive_scheme(scheme_cls):
+    workbench = ScalarWorkbench()
+    return scheme_cls(
+        constant_rhs,
+        workbench,
+        resolvent=make_one_stage_resolvent(scheme_cls, workbench),
+    )
+
+
+def make_bdf2_scheme() -> SchemeBDF2:
+    workbench = ScalarWorkbench()
+    return SchemeBDF2(
+        constant_rhs,
+        workbench,
+        resolvent=make_bdf2_resolvent(workbench),
+    )
+
+
+def public_contract_schemes():
+    return [
+        SchemeRK4(exponential_growth, ScalarWorkbench()),
+        SchemeBogackiShampine(zero_rhs, ScalarWorkbench()),
+        make_implicit_fixed_scheme(SchemeBackwardEuler),
+        make_implicit_fixed_scheme(SchemeImplicitMidpoint),
+        make_implicit_fixed_scheme(SchemeCrankNicolson),
+        make_implicit_fixed_scheme(SchemeCrouzeixDIRK3),
+        make_coupled_implicit_fixed_scheme(SchemeGaussLegendre4),
+        make_coupled_implicit_fixed_scheme(SchemeLobattoIIIC4),
+        make_coupled_implicit_fixed_scheme(SchemeRadauIIA5),
+        make_implicit_adaptive_scheme(SchemeSDIRK21),
+        make_implicit_adaptive_scheme(SchemeKvaerno3),
+        make_implicit_adaptive_scheme(SchemeKvaerno4),
+        make_bdf2_scheme(),
+    ]
 
 
 def test_fixed_scheme_call_returns_accepted_dt() -> None:
@@ -148,20 +222,7 @@ def test_adaptive_scheme_call_clips_next_accepted_dt_to_remaining_interval() -> 
     assert state.value == pytest.approx(2.0)
 
 
-@pytest.mark.parametrize(
-    "scheme",
-    [
-    SchemeRK4(exponential_growth, ScalarWorkbench()),
-    SchemeBogackiShampine(zero_rhs, ScalarWorkbench()),
-    make_implicit_fixed_scheme(SchemeBackwardEuler),
-    make_implicit_fixed_scheme(SchemeImplicitMidpoint),
-    make_implicit_fixed_scheme(SchemeCrankNicolson),
-    make_implicit_fixed_scheme(SchemeCrouzeixDIRK3),
-    make_implicit_fixed_scheme(SchemeGaussLegendre4),
-    make_implicit_fixed_scheme(SchemeLobattoIIIC4),
-    make_implicit_fixed_scheme(SchemeRadauIIA5),
-    ],
-)
+@pytest.mark.parametrize("scheme", public_contract_schemes())
 def test_snapshot_state_works_through_scheme_object(scheme) -> None:
     state = ScalarState(3.0)
 
@@ -175,20 +236,7 @@ def test_snapshot_state_works_through_scheme_object(scheme) -> None:
     assert snapshot.value == pytest.approx(3.0)
 
 
-@pytest.mark.parametrize(
-    "scheme",
-    [
-    SchemeRK4(exponential_growth, ScalarWorkbench()),
-    SchemeBogackiShampine(zero_rhs, ScalarWorkbench()),
-    make_implicit_fixed_scheme(SchemeBackwardEuler),
-    make_implicit_fixed_scheme(SchemeImplicitMidpoint),
-    make_implicit_fixed_scheme(SchemeCrankNicolson),
-    make_implicit_fixed_scheme(SchemeCrouzeixDIRK3),
-    make_implicit_fixed_scheme(SchemeGaussLegendre4),
-    make_implicit_fixed_scheme(SchemeLobattoIIIC4),
-    make_implicit_fixed_scheme(SchemeRadauIIA5),
-    ],
-)
+@pytest.mark.parametrize("scheme", public_contract_schemes())
 def test_set_apply_delta_safety_works_through_scheme_object(scheme) -> None:
     # This is a public contract guard. It deliberately avoids asserting private
     # workspace/stepper internals; the important point for the refactor is that
@@ -212,9 +260,13 @@ def test_self_contained_scheme_exemplars_own_public_call_method() -> None:
     assert "__call__" in SchemeGaussLegendre4.__dict__
     assert "__call__" in SchemeLobattoIIIC4.__dict__
     assert "__call__" in SchemeRadauIIA5.__dict__
+    assert "__call__" in SchemeSDIRK21.__dict__
+    assert "__call__" in SchemeKvaerno3.__dict__
+    assert "__call__" in SchemeKvaerno4.__dict__
+    assert "__call__" in SchemeBDF2.__dict__
 
 
-def test_unconverted_fixed_explicit_scheme_still_works_without_deprecation_warning() -> None:
+def test_converted_fixed_explicit_scheme_still_works_without_warning() -> None:
     scheme = SchemeHeun(exponential_growth, ScalarWorkbench())
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
