@@ -24,7 +24,7 @@ from stark.schemes.implicit_fixed.gauss_legendre4 import SchemeGaussLegendre4
 from stark.schemes.implicit_fixed.implicit_midpoint import SchemeImplicitMidpoint
 from stark.schemes.implicit_fixed.lobatto_iiic4 import SchemeLobattoIIIC4
 from stark.schemes.implicit_fixed.radau_iia5 import SchemeRadauIIA5
-
+from stark.schemes.imex_fixed.euler import SchemeIMEXEuler
 
 @dataclass(slots=True)
 class ScalarState:
@@ -58,6 +58,10 @@ class ScalarWorkbench:
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
 
+@dataclass(slots=True)
+class SplitDerivative:
+    explicit: object
+    implicit: object
 
 def exponential_growth(
     interval: Interval,
@@ -157,6 +161,26 @@ def make_bdf2_scheme() -> SchemeBDF2:
         resolvent=make_bdf2_resolvent(workbench),
     )
 
+def make_imex_fixed_scheme() -> SchemeIMEXEuler:
+    workbench = ScalarWorkbench()
+    implicit = constant_rhs
+    derivative = SplitDerivative(
+        explicit=zero_rhs,
+        implicit=implicit,
+    )
+    resolvent = ResolventPicard(
+        implicit,
+        workbench,
+        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
+        accelerator=Accelerator.none(),
+        tableau=SchemeIMEXEuler.tableau,
+    )
+    return SchemeIMEXEuler(
+        derivative,
+        workbench,
+        resolvent=resolvent,
+    )
 
 def public_contract_schemes():
     return [
@@ -173,6 +197,7 @@ def public_contract_schemes():
         make_implicit_adaptive_scheme(SchemeKvaerno3),
         make_implicit_adaptive_scheme(SchemeKvaerno4),
         make_bdf2_scheme(),
+        make_imex_fixed_scheme(),
     ]
 
 
@@ -264,6 +289,7 @@ def test_self_contained_scheme_exemplars_own_public_call_method() -> None:
     assert "__call__" in SchemeKvaerno3.__dict__
     assert "__call__" in SchemeKvaerno4.__dict__
     assert "__call__" in SchemeBDF2.__dict__
+    assert "__call__" in SchemeIMEXEuler.__dict__
 
 
 def test_converted_fixed_explicit_scheme_still_works_without_warning() -> None:
