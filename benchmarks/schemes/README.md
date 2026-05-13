@@ -10,7 +10,6 @@ performance claims. They are local before/after smoke checks for contributors.
 
 Run from the repository root:
 
-```powershell
 python -m benchmarks.schemes.bench_scheme_refactor
 
 The benchmark covers one representative from each currently refactored scheme
@@ -42,30 +41,30 @@ Command-line options
     The comparison reports median timing ratios. Values above 1.00x are
     slower than the saved baseline.
 
-Example workflows
+## Example workflows
 
-Run a quick timing check:
+### Run a quick timing check:
 
 python -m benchmarks.schemes.bench_scheme_refactor
 
-Run a slightly more stable local check:
+### Run a slightly more stable local check:
 
 python -m benchmarks.schemes.bench_scheme_refactor --warmup 3 --repeat 10
 
-Save a baseline before a risky refactor:
+### Save a baseline before a risky refactor:
 
 python -m benchmarks.schemes.bench_scheme_refactor --save-baseline pre-support-audit
 
-Compare current timings against that baseline later:
+### Compare current timings against that baseline later:
 
 python -m benchmarks.schemes.bench_scheme_refactor --compare-baseline pre-support-audit
 
-You can combine run-count options with baseline options:
+### You can combine run-count options with baseline options:
 
 python -m benchmarks.schemes.bench_scheme_refactor --warmup 3 --repeat 10 --compare-baseline pre-support-audit
 Baseline files
 
-Baseline files are written to:
+### Baseline files are written to:
 
 benchmarks/results/
 

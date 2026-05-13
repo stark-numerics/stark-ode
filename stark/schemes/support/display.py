@@ -39,4 +39,4 @@ class SchemeDisplay:
         return format(self.str_for(), format_spec)
 
 
-__all__ = ["SchemeDisplay", "SchemeSupportExplicit"]
+__all__ = ["SchemeDisplay"]
