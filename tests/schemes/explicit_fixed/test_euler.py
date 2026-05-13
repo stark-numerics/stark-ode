@@ -56,6 +56,7 @@ class StubAlgebraist:
 
         return SimpleNamespace(
             stage_state_calls=(None,),
+            require_stage_state_call=lambda index, scheme_name: (None,)[index],
             solution_state_call=solution_state,
         )
 

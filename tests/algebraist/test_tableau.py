@@ -184,3 +184,34 @@ def test_algebraist_binds_explicit_tableau_stages_as_state_calls():
     assert "stage1_state_kernel" in algebraist.sources
     assert "solution_state" in algebraist.sources
     assert "solution_state_kernel" in algebraist.sources
+
+def test_explicit_scheme_binding_requires_stage_state_call() -> None:
+    algebraist = Algebraist(fields=(AlgebraistField("value", "value"),))
+    fake = FakeButcherTableau(
+        c=(0.0, 1.0),
+        a=((), (0.5,)),
+        b=(1.0, 0.0),
+        order=1,
+    )
+
+    binding = algebraist.bind_explicit_scheme(fake)
+
+    assert binding.require_stage_state_call(1, "test") is binding.stage_state_calls[1]
+
+    with pytest.raises(ValueError, match="requires generated explicit stage-state call 2"):
+        binding.require_stage_state_call(2, "test")
+
+
+def test_explicit_scheme_binding_requires_error_delta_call() -> None:
+    algebraist = Algebraist(fields=(AlgebraistField("value", "value"),))
+    fake = FakeButcherTableau(
+        c=(0.0, 1.0),
+        a=((), (0.5,)),
+        b=(1.0, 0.0),
+        order=1,
+    )
+
+    binding = algebraist.bind_explicit_scheme(fake)
+
+    with pytest.raises(ValueError, match="requires an embedded generated error-delta call"):
+        binding.require_error_delta_call("test")

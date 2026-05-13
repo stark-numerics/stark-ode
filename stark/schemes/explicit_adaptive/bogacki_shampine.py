@@ -147,15 +147,11 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
 
     def bind_algebraist_path(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_explicit_scheme(self.tableau)
-        error = calls.error_delta_call
-        if error is None:
-            raise ValueError("Bogacki-Shampine requires an embedded error combination.")
-        if len(calls.stage_state_calls) < 4:
-            raise ValueError("Bogacki-Shampine requires four tableau stage combinations.")
+        error = calls.require_error_delta_call(type(self).__name__)
 
-        self.combine_stage2 = calls.stage_state_calls[1]
-        self.combine_stage3 = calls.stage_state_calls[2]
-        self.combine_stage4 = calls.stage_state_calls[3]
+        self.combine_stage2 = calls.require_stage_state_call(1, type(self).__name__)
+        self.combine_stage3 = calls.require_stage_state_call(2, type(self).__name__)
+        self.combine_stage4 = calls.require_stage_state_call(3, type(self).__name__)
         self.combine_solution = calls.solution_delta_call
         self.combine_error = error
 

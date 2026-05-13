@@ -21,6 +21,38 @@ class AlgebraistExplicitSchemeBinding:
     error_delta_call: Callable[..., object] | None
     tableau_binding: AlgebraistTableauBinding
 
+    def require_stage_state_call(
+        self,
+        stage_index: int,
+        scheme_name: str,
+    ) -> Callable[..., object]:
+        if stage_index < 0:
+            raise ValueError(
+                f"{scheme_name} requested invalid generated stage-state call "
+                f"{stage_index}."
+            )
+
+        try:
+            return self.stage_state_calls[stage_index]
+        except IndexError as exc:
+            raise ValueError(
+                f"{scheme_name} requires generated explicit stage-state call "
+                f"{stage_index}, but only {len(self.stage_state_calls)} calls "
+                "were bound."
+            ) from exc
+
+    def require_error_delta_call(
+        self,
+        scheme_name: str,
+    ) -> Callable[..., object]:
+        error_delta_call = self.error_delta_call
+        if error_delta_call is None:
+            raise ValueError(
+                f"{scheme_name} requires an embedded generated error-delta call."
+            )
+
+        return error_delta_call
+
 
 @dataclass(frozen=True, slots=True)
 class AlgebraistExplicitSchemeBinder:

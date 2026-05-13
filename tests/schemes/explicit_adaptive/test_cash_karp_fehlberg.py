@@ -102,8 +102,10 @@ class StubAlgebraist:
 
         return SimpleNamespace(
             stage_state_calls=stages,
+            require_stage_state_call=lambda index, scheme_name: stages[index],
             solution_delta_call=solution,
             error_delta_call=error,
+            require_error_delta_call=lambda scheme_name: error,
         )
 
 

@@ -88,9 +88,9 @@ class SchemeRK4(SchemeBaseExplicitFixed):
 
     def bind_algebraist_path(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_explicit_scheme(self.tableau)
-        self.combine_stage2 = calls.stage_state_calls[1]
-        self.combine_stage3 = calls.stage_state_calls[2]
-        self.combine_stage4 = calls.stage_state_calls[3]
+        self.combine_stage2 = calls.require_stage_state_call(1, type(self).__name__)
+        self.combine_stage3 = calls.require_stage_state_call(2, type(self).__name__)
+        self.combine_stage4 = calls.require_stage_state_call(3, type(self).__name__)
         self.advance_state = calls.solution_state_call
         self.call_pure = self.call_algebraist
         self.redirect_call = self.call_pure
