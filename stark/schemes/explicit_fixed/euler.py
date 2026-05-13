@@ -70,7 +70,7 @@ class SchemeEuler(SchemeBaseExplicitFixed):
 
     def bind_algebraist_path(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_explicit_scheme(self.tableau)
-        self.advance_state = calls.solution_state
+        self.advance_state = calls.solution_state_call
         self.call_pure = self.call_algebraist
         self.redirect_call = self.call_pure
 

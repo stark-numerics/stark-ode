@@ -55,8 +55,8 @@ class StubAlgebraist:
             result.value = origin.value + dt * k1.value
 
         return SimpleNamespace(
-            stages=(None,),
-            solution_state=solution_state,
+            stage_state_calls=(None,),
+            solution_state_call=solution_state,
         )
 
 

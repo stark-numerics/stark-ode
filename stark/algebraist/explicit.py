@@ -15,10 +15,10 @@ from stark.algebraist.tableau import (
 
 @dataclass(frozen=True, slots=True)
 class AlgebraistExplicitSchemeBinding:
-    stages: tuple[Callable[..., object], ...]
-    solution_state: Callable[..., object]
-    solution: Callable[..., object]
-    error: Callable[..., object] | None
+    stage_state_calls: tuple[Callable[..., object], ...]
+    solution_state_call: Callable[..., object]
+    solution_delta_call: Callable[..., object]
+    error_delta_call: Callable[..., object] | None
     tableau_binding: AlgebraistTableauBinding
 
 
@@ -39,13 +39,13 @@ class AlgebraistExplicitSchemeBinder:
         tableau_binding = tableau_binder(tableau)
 
         return AlgebraistExplicitSchemeBinding(
-            stages=tuple(
+            stage_state_calls=tuple(
                 self.stage(f"{combination.role}_state", combination)
                 for combination in tableau_binding.tableau.stages
             ),
-            solution_state=self.stage("solution_state", tableau_binding.tableau.solution),
-            solution=tableau_binding.solution,
-            error=tableau_binding.error,
+            solution_state_call=self.stage("solution_state", tableau_binding.tableau.solution),
+            solution_delta_call=tableau_binding.solution,
+            error_delta_call=tableau_binding.error,
             tableau_binding=tableau_binding,
         )
 

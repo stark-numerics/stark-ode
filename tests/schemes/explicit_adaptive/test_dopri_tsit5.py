@@ -101,9 +101,9 @@ class StubAlgebraist:
         )
 
         return SimpleNamespace(
-            stages=stages,
-            solution=solution,
-            error=error,
+            stage_state_calls=stages,
+            solution_delta_call=solution,
+            error_delta_call=error,
         )
 
 

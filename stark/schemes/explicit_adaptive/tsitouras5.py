@@ -186,21 +186,21 @@ class SchemeTsitouras5(SchemeBaseExplicitAdaptive):
 
     def bind_algebraist_path(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_explicit_scheme(self.tableau)
-        error = calls.error
+        error = calls.error_delta_call
 
         if error is None:
             raise ValueError("Tsitouras5 requires an embedded error combination.")
 
-        if len(calls.stages) < 7:
+        if len(calls.stage_state_calls) < 7:
             raise ValueError("Tsitouras5 requires seven tableau stage combinations.")
 
-        self.combine_stage2 = calls.stages[1]
-        self.combine_stage3 = calls.stages[2]
-        self.combine_stage4 = calls.stages[3]
-        self.combine_stage5 = calls.stages[4]
-        self.combine_stage6 = calls.stages[5]
-        self.combine_stage7 = calls.stages[6]
-        self.combine_solution = calls.solution
+        self.combine_stage2 = calls.stage_state_calls[1]
+        self.combine_stage3 = calls.stage_state_calls[2]
+        self.combine_stage4 = calls.stage_state_calls[3]
+        self.combine_stage5 = calls.stage_state_calls[4]
+        self.combine_stage6 = calls.stage_state_calls[5]
+        self.combine_stage7 = calls.stage_state_calls[6]
+        self.combine_solution = calls.solution_delta_call
         self.combine_error = error
 
         self.call_pure = self.call_algebraist

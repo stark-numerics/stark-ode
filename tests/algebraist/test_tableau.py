@@ -168,9 +168,9 @@ def test_algebraist_binds_explicit_tableau_stages_as_state_calls():
     origin = FakeState(np.array([10.0, 20.0]))
     k0 = FakeTranslation(np.array([2.0, 4.0]))
 
-    calls.stages[1](result, origin, 3.0, k0)
+    calls.stage_state_calls[1](result, origin, 3.0, k0)
 
     np.testing.assert_allclose(result.value, np.array([13.0, 26.0]))
 
-    calls.solution_state(result, origin, 2.0, k0)
+    calls.solution_state_call(result, origin, 2.0, k0)
     np.testing.assert_allclose(result.value, np.array([14.0, 28.0]))

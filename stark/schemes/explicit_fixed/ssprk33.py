@@ -77,9 +77,9 @@ class SchemeSSPRK33(SchemeBaseExplicitFixed):
 
     def bind_algebraist_path(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_explicit_scheme(self.tableau)
-        self.combine_stage2 = calls.stages[1]
-        self.combine_stage3 = calls.stages[2]
-        self.advance_state = calls.solution_state
+        self.combine_stage2 = calls.stage_state_calls[1]
+        self.combine_stage3 = calls.stage_state_calls[2]
+        self.advance_state = calls.solution_state_call
         self.call_pure = self.call_algebraist
         self.redirect_call = self.call_pure
 

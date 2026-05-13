@@ -108,9 +108,9 @@ class StubAlgebraist:
             return out
 
         return SimpleNamespace(
-            stages=(None, stage2, stage3, stage4),
-            solution=solution,
-            error=error,
+            stage_state_calls=(None, stage2, stage3, stage4),
+            solution_delta_call=solution,
+            error_delta_call=error,
         )
 
 
@@ -143,8 +143,8 @@ def test_bogacki_shampine_owns_its_public_call_method() -> None:
 def test_bogacki_shampine_default_advance_path_is_scheme_owned_generic_advance() -> None:
     scheme = SchemeBogackiShampine(zero_rhs, ScalarWorkbench())
 
-    assert scheme.pure_advance.__self__ is scheme
-    assert scheme.pure_advance.__func__ is SchemeBogackiShampine.advance_generic
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is SchemeBogackiShampine.call_generic
     assert scheme.redirect_call.__self__ is scheme
     assert scheme.redirect_call.__self__ is scheme
     assert scheme.redirect_call.__func__ is scheme.call_bind.__func__
@@ -202,8 +202,8 @@ def test_bogacki_shampine_algebraist_path_is_selected_inside_scheme() -> None:
         algebraist=StubAlgebraist(),
     )
 
-    assert scheme.pure_advance.__self__ is scheme
-    assert scheme.pure_advance.__func__ is SchemeBogackiShampine.advance_algebraist
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is SchemeBogackiShampine.call_algebraist 
 
 
 def test_bogacki_shampine_generic_and_algebraist_paths_match_for_one_step() -> None:

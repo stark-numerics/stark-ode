@@ -70,8 +70,8 @@ class StubAlgebraist:
             )
 
         return SimpleNamespace(
-            stages=(None, stage2),
-            solution_state=solution_state,
+            stage_state_calls=(None, stage2),
+            solution_state_call=solution_state,
         )
 
 
