@@ -146,8 +146,8 @@ def test_bogacki_shampine_default_advance_path_is_scheme_owned_generic_advance()
     assert scheme.pure_advance.__self__ is scheme
     assert scheme.pure_advance.__func__ is SchemeBogackiShampine.advance_generic
     assert scheme.redirect_call.__self__ is scheme
-    assert scheme.redirect_call.__func__ is SchemeBogackiShampine.bind_and_call
-
+    assert scheme.redirect_call.__self__ is scheme
+    assert scheme.redirect_call.__func__ is scheme.call_bind.__func__
 
 def test_bogacki_shampine_public_call_uses_redirect_call() -> None:
     scheme = SchemeBogackiShampine(zero_rhs, ScalarWorkbench())

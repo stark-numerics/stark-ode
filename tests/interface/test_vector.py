@@ -270,3 +270,48 @@ def test_workbench_uses_routing_when_constructing_translations():
     translation = workbench.allocate_translation()
 
     assert translation.routing is routing
+
+def test_stark_vector_creates_translation_with_same_carrier():
+    carrier = CarrierNative().bind([1.0, 2.0])
+    vector = StarkVector([1.0, 2.0], carrier)
+
+    translation = vector.translation([3.0, 4.0])
+
+    assert isinstance(translation, StarkVectorTranslation)
+    assert translation.value == [3.0, 4.0]
+    assert translation.carrier is carrier
+
+
+def test_stark_vector_creates_zero_translation_with_same_carrier():
+    carrier = CarrierNative().bind([1.0, 2.0])
+    vector = StarkVector([1.0, 2.0], carrier)
+
+    translation = vector.zero_translation()
+
+    assert isinstance(translation, StarkVectorTranslation)
+    assert translation.value == [0.0, 0.0]
+    assert translation.carrier is carrier
+
+
+def test_stark_vector_creates_workbench_with_same_carrier():
+    carrier = CarrierNative().bind([1.0, 2.0])
+    vector = StarkVector([1.0, 2.0], carrier)
+
+    workbench = vector.workbench()
+
+    assert isinstance(workbench, StarkVectorWorkbench)
+    assert workbench.carrier is carrier
+
+
+def test_stark_vector_factories_accept_routing():
+    carrier = CarrierNumpy().bind(np.array([1.0, 2.0]))
+    routing = RoutingVectorPreferInPlace()
+    vector = StarkVector(np.array([1.0, 2.0]), carrier)
+
+    translation = vector.translation(np.array([3.0, 4.0]), routing)
+    zero_translation = vector.zero_translation(routing)
+    workbench = vector.workbench(routing)
+
+    assert translation.routing is routing
+    assert zero_translation.routing is routing
+    assert workbench.routing is routing

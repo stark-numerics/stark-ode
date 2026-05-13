@@ -153,4 +153,4 @@ def test_adaptive_scheme_algebraist_binding_selects_scheme_owned_call_algebraist
 
     # Adaptive schemes still bind executor runtime lazily on first call.
     assert scheme.redirect_call.__self__ is scheme
-    assert scheme.redirect_call.__func__ is scheme.bind_and_call.__func__
+    assert scheme.redirect_call.__func__ is scheme.call_bind.__func__

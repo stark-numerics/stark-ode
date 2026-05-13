@@ -41,7 +41,7 @@ class SchemeRK4(SchemeBaseExplicitFixed):
         "k2",
         "k3",
         "k4",
-        "pure_call",
+        "call_pure",
         "redirect_call",
         "stage",
         "trial",
@@ -60,15 +60,15 @@ class SchemeRK4(SchemeBaseExplicitFixed):
         self.combine_stage2 = None
         self.combine_stage3 = None
         self.combine_stage4 = None
-        self.pure_call = self.generic_call
-        self.redirect_call = self.pure_call
+        self.call_pure = self.call_generic
+        self.redirect_call = self.call_pure
 
         super().__init__(derivative, workbench)
 
         # RK4 owns its public call routing. The inherited fixed-scheme routing
         # remains temporarily for unconverted schemes only.
-        self.pure_call = self.generic_call
-        self.redirect_call = self.pure_call
+        self.call_pure = self.call_generic
+        self.redirect_call = self.call_pure
 
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
@@ -92,10 +92,10 @@ class SchemeRK4(SchemeBaseExplicitFixed):
         self.combine_stage3 = calls.stages[2]
         self.combine_stage4 = calls.stages[3]
         self.advance_state = calls.solution_state
-        self.pure_call = self.algebraist_call
-        self.redirect_call = self.pure_call
+        self.call_pure = self.algebraist_call
+        self.redirect_call = self.call_pure
 
-    def generic_call(
+    def call_generic(
         self,
         interval: IntervalLike,
         state: State,

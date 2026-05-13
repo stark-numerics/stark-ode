@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -7,24 +9,43 @@ from stark.routing import RoutingVector, RoutingVectorReturn
 
 @dataclass
 class StarkVector:
-    """State wrapper for ordinary vector-space IVPs.
-
-    In the simple vector-space interface, both the state and the increment live
-    in the same mathematical vector space. STARK still represents them with
-    separate wrapper classes so the general state/translation contract remains
-    explicit.
-    """
     value: Any
     carrier: CarrierBound
+
+    def translation(
+        self,
+        value: Any,
+        routing: RoutingVector | None = None,
+    ) -> "StarkVectorTranslation":
+        """Return a translation over the same vector-space carrier."""
+
+        if routing is None:
+            return StarkVectorTranslation(value, self.carrier)
+
+        return StarkVectorTranslation(value, self.carrier, routing)
+
+    def zero_translation(
+        self,
+        routing: RoutingVector | None = None,
+    ) -> "StarkVectorTranslation":
+        """Return a zero translation over the same vector-space carrier."""
+
+        return self.translation(self.carrier.zero_translation(), routing)
+
+    def workbench(
+        self,
+        routing: RoutingVector | None = None,
+    ) -> "StarkVectorWorkbench":
+        """Return a workbench over the same vector-space carrier."""
+
+        if routing is None:
+            return StarkVectorWorkbench(self.carrier)
+
+        return StarkVectorWorkbench(self.carrier, routing)
 
 
 @dataclass
 class StarkVectorTranslation:
-    """Increment wrapper for ordinary vector-space IVPs.
-
-    This is a vector-space increment: it supports scaling, linear combination,
-    addition, and application to a `StarkVector` state.
-    """
     value: Any
     carrier: CarrierBound
     routing: RoutingVector = field(default_factory=RoutingVectorReturn)
@@ -101,6 +122,7 @@ class StarkVectorTranslation:
 
         coefficients = terms[0::2]
         values = terms[1::2]
+
         self.routing.combine(self.carrier.kernel, out, coefficients, values)
         return out
 

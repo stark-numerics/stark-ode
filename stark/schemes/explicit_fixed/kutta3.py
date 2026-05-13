@@ -35,7 +35,7 @@ class SchemeKutta3(SchemeBaseExplicitFixed):
         "combine_stage3",
         "k2",
         "k3",
-        "pure_call",
+        "call_pure",
         "redirect_call",
         "stage",
         "trial",
@@ -56,8 +56,8 @@ class SchemeKutta3(SchemeBaseExplicitFixed):
 
         super().__init__(derivative, workbench)
 
-        self.pure_call = self.generic_call
-        self.redirect_call = self.pure_call
+        self.call_pure = self.call_generic
+        self.redirect_call = self.call_pure
 
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
@@ -80,10 +80,10 @@ class SchemeKutta3(SchemeBaseExplicitFixed):
         self.combine_stage2 = calls.stages[1]
         self.combine_stage3 = calls.stages[2]
         self.advance_state = calls.solution_state
-        self.pure_call = self.algebraist_call
-        self.redirect_call = self.pure_call
+        self.call_pure = self.algebraist_call
+        self.redirect_call = self.call_pure
 
-    def generic_call(
+    def call_generic(
         self,
         interval: IntervalLike,
         state: State,

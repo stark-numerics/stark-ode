@@ -91,12 +91,12 @@ def test_rk4_owns_its_public_call_method() -> None:
     assert "__call__" in SchemeRK4.__dict__
 
 
-def test_rk4_default_call_path_is_scheme_owned_generic_call() -> None:
+def test_rk4_default_call_path_is_scheme_owned_call_generic() -> None:
     scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
 
-    assert scheme.pure_call.__self__ is scheme
-    assert scheme.pure_call.__func__ is SchemeRK4.generic_call
-    assert scheme.redirect_call == scheme.pure_call
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is SchemeRK4.call_generic
+    assert scheme.redirect_call == scheme.call_pure
 
 
 def test_rk4_public_call_uses_redirect_call() -> None:
@@ -121,7 +121,7 @@ def test_rk4_public_call_uses_redirect_call() -> None:
     assert state.value == pytest.approx(42.0)
 
 
-def test_rk4_generic_call_still_performs_one_rk4_step() -> None:
+def test_rk4_call_generic_still_performs_one_rk4_step() -> None:
     scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
@@ -132,7 +132,7 @@ def test_rk4_generic_call_still_performs_one_rk4_step() -> None:
     assert state.value == pytest.approx(1.133148193359375)
 
 
-def test_rk4_generic_call_clips_to_remaining_interval() -> None:
+def test_rk4_call_generic_clips_to_remaining_interval() -> None:
     scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(1.0)
@@ -150,9 +150,9 @@ def test_rk4_algebraist_path_is_selected_inside_scheme() -> None:
         algebraist=StubAlgebraist(),
     )
 
-    assert scheme.pure_call.__self__ is scheme
-    assert scheme.pure_call.__func__ is SchemeRK4.algebraist_call
-    assert scheme.redirect_call == scheme.pure_call
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is SchemeRK4.algebraist_call
+    assert scheme.redirect_call == scheme.call_pure
 
 
 def test_rk4_generic_and_algebraist_paths_match_for_one_step() -> None:
@@ -203,7 +203,7 @@ def test_rk4_satisfies_public_scheme_contract_without_base_class_assertions() ->
 def test_rk4_exposes_copyable_fixed_explicit_scheme_shape() -> None:
     required_names = {
         "__call__",
-        "generic_call",
+        "call_generic",
         "initialise_buffers",
         "snapshot_state",
         "set_apply_delta_safety",

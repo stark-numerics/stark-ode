@@ -104,12 +104,12 @@ def test_rk2_scheme_owns_its_public_call_method(scheme_cls) -> None:
         SchemeRalston,
     ],
 )
-def test_rk2_default_call_path_is_scheme_owned_generic_call(scheme_cls) -> None:
+def test_rk2_default_call_path_is_scheme_owned_call_generic(scheme_cls) -> None:
     scheme = scheme_cls(exponential_growth, ScalarWorkbench())
 
-    assert scheme.pure_call.__self__ is scheme
-    assert scheme.pure_call.__func__ is scheme_cls.generic_call
-    assert scheme.redirect_call == scheme.pure_call
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is scheme_cls.call_generic
+    assert scheme.redirect_call == scheme.call_pure
 
 
 @pytest.mark.parametrize(
@@ -150,7 +150,7 @@ def test_rk2_public_call_uses_redirect_call(scheme_cls) -> None:
         SchemeRalston,
     ],
 )
-def test_rk2_generic_call_performs_one_second_order_step(scheme_cls) -> None:
+def test_rk2_call_generic_performs_one_second_order_step(scheme_cls) -> None:
     scheme = scheme_cls(exponential_growth, ScalarWorkbench())
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
@@ -169,7 +169,7 @@ def test_rk2_generic_call_performs_one_second_order_step(scheme_cls) -> None:
         SchemeRalston,
     ],
 )
-def test_rk2_generic_call_clips_to_remaining_interval(scheme_cls) -> None:
+def test_rk2_call_generic_clips_to_remaining_interval(scheme_cls) -> None:
     scheme = scheme_cls(exponential_growth, ScalarWorkbench())
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(1.0)
@@ -195,9 +195,9 @@ def test_rk2_algebraist_path_is_selected_inside_scheme(scheme_cls) -> None:
         algebraist=StubAlgebraist(),
     )
 
-    assert scheme.pure_call.__self__ is scheme
-    assert scheme.pure_call.__func__ is scheme_cls.algebraist_call
-    assert scheme.redirect_call == scheme.pure_call
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is scheme_cls.algebraist_call
+    assert scheme.redirect_call == scheme.call_pure
 
 
 @pytest.mark.parametrize(

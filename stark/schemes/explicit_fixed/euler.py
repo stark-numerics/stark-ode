@@ -32,7 +32,7 @@ class SchemeEuler(SchemeBaseExplicitFixed):
     __slots__ = (
         "advance_state",
         "delta",
-        "pure_call",
+        "call_pure",
         "redirect_call",
     )
 
@@ -46,13 +46,13 @@ class SchemeEuler(SchemeBaseExplicitFixed):
         algebraist: Algebraist | None = None,
     ) -> None:
         self.advance_state = None
-        self.pure_call = self.generic_call
-        self.redirect_call = self.pure_call
+        self.call_pure = self.call_generic
+        self.redirect_call = self.call_pure
 
         super().__init__(derivative, workbench)
 
-        self.pure_call = self.generic_call
-        self.redirect_call = self.pure_call
+        self.call_pure = self.call_generic
+        self.redirect_call = self.call_pure
 
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
@@ -71,10 +71,10 @@ class SchemeEuler(SchemeBaseExplicitFixed):
     def bind_algebraist_path(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_explicit_scheme(self.tableau)
         self.advance_state = calls.solution_state
-        self.pure_call = self.algebraist_call
-        self.redirect_call = self.pure_call
+        self.call_pure = self.algebraist_call
+        self.redirect_call = self.call_pure
 
-    def generic_call(
+    def call_generic(
         self,
         interval: IntervalLike,
         state: State,

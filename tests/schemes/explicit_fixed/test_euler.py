@@ -76,9 +76,9 @@ def test_euler_owns_its_public_call_method() -> None:
 def test_euler_default_call_path_is_scheme_owned_generic_call() -> None:
     scheme = SchemeEuler(exponential_growth, ScalarWorkbench())
 
-    assert scheme.pure_call.__self__ is scheme
-    assert scheme.pure_call.__func__ is SchemeEuler.generic_call
-    assert scheme.redirect_call == scheme.pure_call
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is SchemeEuler.call_generic
+    assert scheme.redirect_call == scheme.call_pure
 
 
 def test_euler_public_call_uses_redirect_call() -> None:
@@ -132,9 +132,9 @@ def test_euler_algebraist_path_is_selected_inside_scheme() -> None:
         algebraist=StubAlgebraist(),
     )
 
-    assert scheme.pure_call.__self__ is scheme
-    assert scheme.pure_call.__func__ is SchemeEuler.algebraist_call
-    assert scheme.redirect_call == scheme.pure_call
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is SchemeEuler.algebraist_call
+    assert scheme.redirect_call == scheme.call_pure
 
 
 def test_euler_generic_and_algebraist_paths_match_for_one_step() -> None:
