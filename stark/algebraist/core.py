@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from types import MappingProxyType
 
-from stark.algebraist.build import build_function
 from stark.algebraist.codegen import AlgebraistCodegen
 from stark.algebraist.explicit import AlgebraistExplicitSchemeBinder
 from stark.algebraist.fields import AlgebraistField
@@ -76,6 +75,24 @@ class Algebraist:
         )
         self.apply = wrappers["apply"]
         self.norm = wrappers.get("norm")
+
+    def compile_function(
+        self,
+        name: str,
+        source: str,
+        *,
+        namespace: dict[str, object] | None = None,
+        accelerate: bool = False,
+    ) -> Callable[..., object]:
+        local_namespace: dict[str, object] = {} if namespace is None else dict(namespace)
+
+        exec(source, local_namespace)
+
+        function = local_namespace[name]
+        if accelerate and self.accelerator is not None:
+            return self.accelerator.decorate(cache=False)(function)
+
+        return function
 
     def compile_examples(self, *probes: object) -> None:
         accelerator = self.accelerator
@@ -181,7 +198,7 @@ class Algebraist:
 
         return (
             kernel_name,
-            build_function(kernel_name, source, accelerator=self.accelerator),
+            self.compile_function(kernel_name, source, accelerate=True),
             source,
         )
 
@@ -216,7 +233,7 @@ class Algebraist:
 
         return (
             wrapper_name,
-            build_function(
+            self.compile_function(
                 wrapper_name,
                 source,
                 namespace={"kernel": self.kernels[kernel_name]},
@@ -250,7 +267,7 @@ class Algebraist:
 
         return (
             kernel_name,
-            build_function(kernel_name, source, accelerator=self.accelerator),
+            self.compile_function(kernel_name, source, accelerate=True),
             source,
         )
 
@@ -276,7 +293,7 @@ class Algebraist:
 
         return (
             "apply",
-            build_function(
+            self.compile_function(
                 "apply",
                 source,
                 namespace={"kernel": self.kernels["apply_kernel"]},
@@ -294,7 +311,7 @@ class Algebraist:
 
         return (
             "norm_kernel",
-            build_function("norm_kernel", source, accelerator=self.accelerator),
+            self.compile_function("norm_kernel", source, accelerate=True),
             source,
         )
 
@@ -311,7 +328,7 @@ class Algebraist:
 
         return (
             "norm",
-            build_function(
+            self.compile_function(
                 "norm",
                 source,
                 namespace={"kernel": self.kernels["norm_kernel"]},

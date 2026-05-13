@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field as dataclass_field
 
-from stark.algebraist.build import build_function
 from stark.algebraist.codegen import AlgebraistCodegen
 from stark.algebraist.paths import path_expression
 from stark.algebraist.tableau import (
@@ -60,7 +59,7 @@ class AlgebraistExplicitSchemeBinder:
                 f"def {name}(result, origin, step):\n"
                 " raise ValueError('Cannot call an empty Algebraist explicit stage.')\n"
             )
-            return build_function(name, source)
+            return self.algebraist.compile_function(name, source)
 
         kernel_name = f"{name}_kernel"
         kernel, _kernel_source = self.stage_kernel(kernel_name, combination)
@@ -90,7 +89,7 @@ class AlgebraistExplicitSchemeBinder:
             " return result\n"
         )
 
-        return build_function(
+        return self.algebraist.compile_function(
             name,
             wrapper_source,
             namespace={"kernel": kernel},
@@ -132,10 +131,10 @@ class AlgebraistExplicitSchemeBinder:
             f"{body}\n"
         )
 
-        function = build_function(
+        function = self.algebraist.compile_function(
             name,
             source,
-            accelerator=self.algebraist.accelerator,
+            accelerate=True,
         )
         return function, source
 
