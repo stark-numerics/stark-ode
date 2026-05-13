@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field as dataclass_field
 from typing import Protocol
 
 from stark.algebraist.build import build_function
-from stark.algebraist.codegen import field_tableau_combine_assignment
+from stark.algebraist.codegen import AlgebraistCodegen
 from stark.algebraist.paths import path_expression
 
 
@@ -59,20 +59,21 @@ class AlgebraistTableauPlanner:
     zero: float = 0.0
 
     def __call__(self, tableau: ButcherTableauLike) -> AlgebraistTableau:
-        self._validate_tableau(tableau)
+        self.validate_tableau(tableau)
 
         stages = tuple(
-            self._combination(f"stage{index}", row)
+            self.combination(f"stage{index}", row)
             for index, row in enumerate(tableau.a)
         )
-        solution = self._combination("solution", tableau.b)
+        solution = self.combination("solution", tableau.b)
+
         error = None
         if tableau.b_embedded is not None:
             error_coefficients = tuple(
                 high - low
                 for high, low in zip(tableau.b, tableau.b_embedded, strict=True)
             )
-            error = self._combination("error", error_coefficients)
+            error = self.combination("error", error_coefficients)
 
         return AlgebraistTableau(
             stages=stages,
@@ -84,16 +85,18 @@ class AlgebraistTableauPlanner:
             full_name=tableau.full_name,
         )
 
-    def _combination(
+    def combination(
         self,
         role: str,
         coefficients: Sequence[float],
     ) -> AlgebraistTableauCombination:
         kept_coefficients: list[float] = []
         term_indices: list[int] = []
+
         for index, coefficient in enumerate(coefficients):
-            if self._is_zero(coefficient):
+            if self.is_zero(coefficient):
                 continue
+
             kept_coefficients.append(coefficient)
             term_indices.append(index)
 
@@ -103,14 +106,16 @@ class AlgebraistTableauPlanner:
             term_indices=tuple(term_indices),
         )
 
-    def _is_zero(self, value: float) -> bool:
+    def is_zero(self, value: float) -> bool:
         if self.zero == 0.0:
             return value == 0.0
+
         return abs(value) <= self.zero
 
     @staticmethod
-    def _validate_tableau(tableau: ButcherTableauLike) -> None:
+    def validate_tableau(tableau: ButcherTableauLike) -> None:
         stage_count = len(tableau.c)
+
         if len(tableau.a) != stage_count:
             raise ValueError("Butcher tableau stage rows must match c.")
         if len(tableau.b) != stage_count:
@@ -123,15 +128,20 @@ class AlgebraistTableauPlanner:
 class AlgebraistTableauBinder:
     algebraist: object
     planner: AlgebraistTableauPlanner = AlgebraistTableauPlanner()
+    codegen: AlgebraistCodegen = dataclass_field(default_factory=AlgebraistCodegen)
 
     def __call__(self, tableau: ButcherTableauLike) -> AlgebraistTableauCallSet:
         algebraist_tableau = self.planner(tableau)
+
         return AlgebraistTableauCallSet(
             stages=tuple(
                 self.combination(f"{combination.role}_combine", combination)
                 for combination in algebraist_tableau.stages
             ),
-            solution=self.combination("solution_combine", algebraist_tableau.solution),
+            solution=self.combination(
+                "solution_combine",
+                algebraist_tableau.solution,
+            ),
             error=(
                 None
                 if algebraist_tableau.error is None
@@ -148,30 +158,41 @@ class AlgebraistTableauBinder:
         if combination.term_count == 0:
             source = (
                 f"def {name}(out, step):\n"
-                "    raise ValueError('Cannot call an empty Algebraist tableau combination.')\n"
+                " raise ValueError("
+                "'Cannot call an empty Algebraist tableau combination.'"
+                ")\n"
             )
             return build_function(name, source)
 
         kernel_name = f"{name}_kernel"
         kernel, _kernel_source = self.combination_kernel(kernel_name, combination)
+
         parameters = ["out", "step"]
         wrapper_arguments = [
             path_expression("out", field.translation_path)
             for field in self.algebraist.fields
         ]
         wrapper_arguments.append("step")
+
         for local_index, term_index in enumerate(combination.term_indices):
+            del term_index
             parameters.append(f"k{local_index}")
             wrapper_arguments.extend(
                 path_expression(f"k{local_index}", field.translation_path)
                 for field in self.algebraist.fields
             )
+
         wrapper_source = (
             f"def {name}({', '.join(parameters)}):\n"
-            f"    kernel({', '.join(wrapper_arguments)})\n"
-            "    return out\n"
+            f" kernel({', '.join(wrapper_arguments)})\n"
+            " return out\n"
         )
-        return build_function(name, wrapper_source, namespace={"kernel": kernel})
+
+        return build_function(
+            name,
+            wrapper_source,
+            namespace={"kernel": kernel},
+        )
 
     def combination_kernel(
         self,
@@ -182,21 +203,27 @@ class AlgebraistTableauBinder:
             f"out_{field.translation_name}"
             for field in self.algebraist.fields
         ]
+
         term_arguments: list[str] = ["step"]
         for index in range(combination.term_count):
             term_arguments.extend(
                 f"x{index}_{field.translation_name}"
                 for field in self.algebraist.fields
             )
+
         body = "\n".join(
-            field_tableau_combine_assignment(
+            self.codegen.tableau_combine_assignment(
                 field,
                 combination.coefficients,
                 combination.term_count,
             )
             for field in self.algebraist.fields
         )
-        source = f"def {name}({', '.join(field_arguments + term_arguments)}):\n{body}\n"
+        source = (
+            f"def {name}({', '.join(field_arguments + term_arguments)}):\n"
+            f"{body}\n"
+        )
+
         function = build_function(
             name,
             source,
