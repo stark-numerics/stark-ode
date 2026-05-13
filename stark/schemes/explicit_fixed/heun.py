@@ -75,7 +75,7 @@ class SchemeHeun(SchemeBaseExplicitFixed):
         calls = algebraist.bind_explicit_scheme(self.tableau)
         self.combine_stage2 = calls.stages[1]
         self.advance_state = calls.solution_state
-        self.call_pure = self.algebraist_call
+        self.call_pure = self.call_algebraist
         self.redirect_call = self.call_pure
 
     def call_generic(
@@ -121,7 +121,7 @@ class SchemeHeun(SchemeBaseExplicitFixed):
 
         return dt
 
-    def algebraist_call(
+    def call_algebraist(
         self,
         interval: IntervalLike,
         state: State,

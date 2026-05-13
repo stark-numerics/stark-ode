@@ -151,7 +151,7 @@ def test_rk4_algebraist_path_is_selected_inside_scheme() -> None:
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeRK4.algebraist_call
+    assert scheme.call_pure.__func__ is SchemeRK4.call_algebraist
     assert scheme.redirect_call == scheme.call_pure
 
 

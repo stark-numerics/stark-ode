@@ -80,7 +80,7 @@ class SchemeKutta3(SchemeBaseExplicitFixed):
         self.combine_stage2 = calls.stages[1]
         self.combine_stage3 = calls.stages[2]
         self.advance_state = calls.solution_state
-        self.call_pure = self.algebraist_call
+        self.call_pure = self.call_algebraist
         self.redirect_call = self.call_pure
 
     def call_generic(
@@ -141,7 +141,7 @@ class SchemeKutta3(SchemeBaseExplicitFixed):
         apply_delta(delta, state)
         return dt
 
-    def algebraist_call(
+    def call_algebraist(
         self,
         interval: IntervalLike,
         state: State,

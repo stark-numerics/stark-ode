@@ -196,7 +196,7 @@ def test_rk2_algebraist_path_is_selected_inside_scheme(scheme_cls) -> None:
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.algebraist_call
+    assert scheme.call_pure.__func__ is scheme_cls.call_algebraist
     assert scheme.redirect_call == scheme.call_pure
 
 

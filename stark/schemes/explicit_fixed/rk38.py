@@ -84,7 +84,7 @@ class SchemeRK38(SchemeBaseExplicitFixed):
         self.combine_stage3 = calls.stages[2]
         self.combine_stage4 = calls.stages[3]
         self.advance_state = calls.solution_state
-        self.call_pure = self.algebraist_call
+        self.call_pure = self.call_algebraist
         self.redirect_call = self.call_pure
 
     def call_generic(
@@ -162,7 +162,7 @@ class SchemeRK38(SchemeBaseExplicitFixed):
         apply_delta(delta, state)
         return dt
 
-    def algebraist_call(
+    def call_algebraist(
         self,
         interval: IntervalLike,
         state: State,
