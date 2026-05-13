@@ -12,6 +12,7 @@ from stark.algebraist.policies import (
     AlgebraistSmallFixed,
 )
 from stark.algebraist.signatures import apply_signature, combine_signature
+from stark.algebraist.source import AlgebraistSource
 from stark.algebraist.tableau import (
     AlgebraistTableau,
     AlgebraistTableauBinder,
@@ -29,6 +30,7 @@ __all__ = [
     "AlgebraistField",
     "AlgebraistLooped",
     "AlgebraistSmallFixed",
+    "AlgebraistSource",
     "AlgebraistTableau",
     "AlgebraistTableauBinder",
     "AlgebraistTableauBinding",

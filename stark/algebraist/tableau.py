@@ -161,7 +161,7 @@ class AlgebraistTableauBinder:
                 "'Cannot call an empty Algebraist tableau combination.'"
                 ")\n"
             )
-            return self.algebraist.compile_function(name, source)
+            return self.algebraist.compile_function(name, source, source_kind="wrapper")
 
         kernel_name = f"{name}_kernel"
         kernel, _kernel_source = self.combination_kernel(kernel_name, combination)
@@ -191,6 +191,7 @@ class AlgebraistTableauBinder:
             name,
             wrapper_source,
             namespace={"kernel": kernel},
+            source_kind="wrapper",
         )
 
     def combination_kernel(
@@ -227,6 +228,7 @@ class AlgebraistTableauBinder:
             name,
             source,
             accelerate=True,
+            source_kind="kernel",
         )
         return function, source
 

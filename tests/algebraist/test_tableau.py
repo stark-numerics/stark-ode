@@ -154,6 +154,11 @@ def test_algebraist_binds_tableau_combinations_as_specific_calls():
     calls.solution(out, 2.0, k0, k1)
     np.testing.assert_allclose(out.value, np.array([10.0, 14.0]))
 
+    assert "stage1_combine" in algebraist.sources
+    assert "stage1_combine_kernel" in algebraist.sources
+    assert "solution_combine" in algebraist.sources
+    assert "solution_combine_kernel" in algebraist.sources
+
 
 def test_algebraist_binds_explicit_tableau_stages_as_state_calls():
     algebraist = Algebraist(fields=(AlgebraistField("value", "value"),))
@@ -174,3 +179,8 @@ def test_algebraist_binds_explicit_tableau_stages_as_state_calls():
 
     calls.solution_state_call(result, origin, 2.0, k0)
     np.testing.assert_allclose(result.value, np.array([14.0, 28.0]))
+
+    assert "stage1_state" in algebraist.sources
+    assert "stage1_state_kernel" in algebraist.sources
+    assert "solution_state" in algebraist.sources
+    assert "solution_state_kernel" in algebraist.sources

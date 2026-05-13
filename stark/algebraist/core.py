@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from types import MappingProxyType
+from typing import Literal
 
 from stark.algebraist.codegen import AlgebraistCodegen
 from stark.algebraist.explicit import AlgebraistExplicitSchemeBinder
@@ -13,6 +14,7 @@ from stark.algebraist.names import (
 )
 from stark.algebraist.paths import path_expression
 from stark.algebraist.signatures import apply_signature, combine_signature
+from stark.algebraist.source import AlgebraistSource
 from stark.algebraist.tableau import AlgebraistTableauBinder, ButcherTableauLike
 from stark.contracts.acceleration import AcceleratorLike
 
@@ -20,8 +22,8 @@ from stark.contracts.acceleration import AcceleratorLike
 class Algebraist:
     """Generate inspectable translation kernels from field metadata.
 
-    Generated source is retained on `sources`, `kernel_sources`, and
-    `wrapper_sources` so users can inspect exactly what was emitted.
+    Generated source is retained on `source`, and exposed through `sources`,
+    `kernel_sources`, and `wrapper_sources` for inspection.
     """
 
     __slots__ = (
@@ -31,10 +33,8 @@ class Algebraist:
         "fused_up_to",
         "generate_norm",
         "kernels",
-        "kernel_sources",
         "wrappers",
-        "wrapper_sources",
-        "sources",
+        "source",
         "linear_combine",
         "apply",
         "norm",
@@ -60,21 +60,28 @@ class Algebraist:
         self.fields = tuple(fields)
         self.fused_up_to = fused_up_to
         self.generate_norm = generate_norm
+        self.source = AlgebraistSource()
 
-        kernels, kernel_sources = self.build_kernels()
-        self.kernels = MappingProxyType(kernels)
-        self.kernel_sources = MappingProxyType(kernel_sources)
+        self.kernels = MappingProxyType(self.build_kernels())
+        self.wrappers = MappingProxyType(self.build_wrappers())
 
-        wrappers, wrapper_sources = self.build_wrappers()
-        self.wrappers = MappingProxyType(wrappers)
-        self.wrapper_sources = MappingProxyType(wrapper_sources)
-
-        self.sources = MappingProxyType({**kernel_sources, **wrapper_sources})
         self.linear_combine = tuple(
-            wrappers[name] for name in linear_combine_names(fused_up_to)
+            self.wrappers[name] for name in linear_combine_names(fused_up_to)
         )
-        self.apply = wrappers["apply"]
-        self.norm = wrappers.get("norm")
+        self.apply = self.wrappers["apply"]
+        self.norm = self.wrappers.get("norm")
+
+    @property
+    def kernel_sources(self):
+        return self.source.kernel_sources
+
+    @property
+    def wrapper_sources(self):
+        return self.source.wrapper_sources
+
+    @property
+    def sources(self):
+        return self.source.sources
 
     def compile_function(
         self,
@@ -83,10 +90,18 @@ class Algebraist:
         *,
         namespace: dict[str, object] | None = None,
         accelerate: bool = False,
+        source_kind: Literal["kernel", "wrapper"] | None = None,
     ) -> Callable[..., object]:
         local_namespace: dict[str, object] = {} if namespace is None else dict(namespace)
 
         exec(source, local_namespace)
+
+        if source_kind == "kernel":
+            self.source.record_kernel(name, source)
+        elif source_kind == "wrapper":
+            self.source.record_wrapper(name, source)
+        elif source_kind is not None:
+            raise ValueError("source_kind must be None, 'kernel', or 'wrapper'.")
 
         function = local_namespace[name]
         if accelerate and self.accelerator is not None:
@@ -127,54 +142,45 @@ class Algebraist:
     def bind_explicit_scheme(self, tableau: ButcherTableauLike):
         return AlgebraistExplicitSchemeBinder(self)(tableau)
 
-    def build_kernels(self) -> tuple[dict[str, Callable[..., object]], dict[str, str]]:
+    def build_kernels(self) -> dict[str, Callable[..., object]]:
         kernels: dict[str, Callable[..., object]] = {}
-        sources: dict[str, str] = {}
 
-        name, function, source = self.make_combine_kernel(1)
+        name, function = self.make_combine_kernel(1)
         kernels[name] = function
-        sources[name] = source
 
         for term_count in range(2, self.fused_up_to + 1):
-            name, function, source = self.make_combine_kernel(term_count)
+            name, function = self.make_combine_kernel(term_count)
             kernels[name] = function
-            sources[name] = source
 
-        name, function, source = self.make_apply_kernel()
+        name, function = self.make_apply_kernel()
         kernels[name] = function
-        sources[name] = source
 
         if self.generate_norm is not None:
-            name, function, source = self.make_norm_kernel(self.generate_norm)
+            name, function = self.make_norm_kernel(self.generate_norm)
             kernels[name] = function
-            sources[name] = source
 
-        return kernels, sources
+        return kernels
 
-    def build_wrappers(self) -> tuple[dict[str, Callable[..., object]], dict[str, str]]:
+    def build_wrappers(self) -> dict[str, Callable[..., object]]:
         wrappers: dict[str, Callable[..., object]] = {}
-        sources: dict[str, str] = {}
 
         for term_count in range(1, self.fused_up_to + 1):
-            name, function, source = self.make_combine_wrapper(term_count)
+            name, function = self.make_combine_wrapper(term_count)
             wrappers[name] = function
-            sources[name] = source
 
-        name, function, source = self.make_apply_wrapper()
+        name, function = self.make_apply_wrapper()
         wrappers[name] = function
-        sources[name] = source
 
         if self.generate_norm is not None:
-            name, function, source = self.make_norm_wrapper()
+            name, function = self.make_norm_wrapper()
             wrappers[name] = function
-            sources[name] = source
 
-        return wrappers, sources
+        return wrappers
 
     def make_combine_kernel(
         self,
         term_count: int,
-    ) -> tuple[str, Callable[..., object], str]:
+    ) -> tuple[str, Callable[..., object]]:
         kernel_name = combine_kernel_name(term_count)
 
         field_arguments = [
@@ -198,14 +204,18 @@ class Algebraist:
 
         return (
             kernel_name,
-            self.compile_function(kernel_name, source, accelerate=True),
-            source,
+            self.compile_function(
+                kernel_name,
+                source,
+                accelerate=True,
+                source_kind="kernel",
+            ),
         )
 
     def make_combine_wrapper(
         self,
         term_count: int,
-    ) -> tuple[str, Callable[..., object], str]:
+    ) -> tuple[str, Callable[..., object]]:
         wrapper_name = combine_wrapper_name(term_count)
         kernel_name = combine_kernel_name(term_count)
 
@@ -237,11 +247,11 @@ class Algebraist:
                 wrapper_name,
                 source,
                 namespace={"kernel": self.kernels[kernel_name]},
+                source_kind="wrapper",
             ),
-            source,
         )
 
-    def make_apply_kernel(self) -> tuple[str, Callable[..., object], str]:
+    def make_apply_kernel(self) -> tuple[str, Callable[..., object]]:
         kernel_name = "apply_kernel"
 
         origin_arguments = [
@@ -267,11 +277,15 @@ class Algebraist:
 
         return (
             kernel_name,
-            self.compile_function(kernel_name, source, accelerate=True),
-            source,
+            self.compile_function(
+                kernel_name,
+                source,
+                accelerate=True,
+                source_kind="kernel",
+            ),
         )
 
-    def make_apply_wrapper(self) -> tuple[str, Callable[..., object], str]:
+    def make_apply_wrapper(self) -> tuple[str, Callable[..., object]]:
         arguments = [
             path_expression("origin", field.state_path)
             for field in self.fields
@@ -297,25 +311,29 @@ class Algebraist:
                 "apply",
                 source,
                 namespace={"kernel": self.kernels["apply_kernel"]},
+                source_kind="wrapper",
             ),
-            source,
         )
 
     def make_norm_kernel(
         self,
         kind: str,
-    ) -> tuple[str, Callable[..., object], str]:
+    ) -> tuple[str, Callable[..., object]]:
         signature = ", ".join(field.translation_name for field in self.fields)
         body = "\n".join(self.codegen.norm_body(self.fields, kind))
         source = f"def norm_kernel({signature}):\n{body}\n"
 
         return (
             "norm_kernel",
-            self.compile_function("norm_kernel", source, accelerate=True),
-            source,
+            self.compile_function(
+                "norm_kernel",
+                source,
+                accelerate=True,
+                source_kind="kernel",
+            ),
         )
 
-    def make_norm_wrapper(self) -> tuple[str, Callable[..., object], str]:
+    def make_norm_wrapper(self) -> tuple[str, Callable[..., object]]:
         arguments = ", ".join(
             path_expression("translation", field.translation_path)
             for field in self.fields
@@ -332,6 +350,6 @@ class Algebraist:
                 "norm",
                 source,
                 namespace={"kernel": self.kernels["norm_kernel"]},
+                source_kind="wrapper",
             ),
-            source,
         )

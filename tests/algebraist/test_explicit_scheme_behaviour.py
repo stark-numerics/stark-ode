@@ -188,6 +188,14 @@ def test_algebraist_generated_source_is_inspectable() -> None:
     assert "norm" in algebraist.sources
     assert "norm_kernel" in algebraist.sources
 
+    algebraist.bind_explicit_scheme(SchemeRK4.tableau)
+    assert "stage1_state" in algebraist.sources
+    assert "stage1_state_kernel" in algebraist.sources
+    assert "solution_state" in algebraist.sources
+    assert "solution_state_kernel" in algebraist.sources
+    assert "solution_combine" in algebraist.sources
+    assert "solution_combine_kernel" in algebraist.sources
+
     for source in algebraist.sources.values():
         assert isinstance(source, str)
         assert source.startswith("def ")

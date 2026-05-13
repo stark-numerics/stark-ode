@@ -59,7 +59,7 @@ class AlgebraistExplicitSchemeBinder:
                 f"def {name}(result, origin, step):\n"
                 " raise ValueError('Cannot call an empty Algebraist explicit stage.')\n"
             )
-            return self.algebraist.compile_function(name, source)
+            return self.algebraist.compile_function(name, source, source_kind="wrapper")
 
         kernel_name = f"{name}_kernel"
         kernel, _kernel_source = self.stage_kernel(kernel_name, combination)
@@ -93,6 +93,7 @@ class AlgebraistExplicitSchemeBinder:
             name,
             wrapper_source,
             namespace={"kernel": kernel},
+            source_kind="wrapper",
         )
 
     def stage_kernel(
@@ -135,6 +136,7 @@ class AlgebraistExplicitSchemeBinder:
             name,
             source,
             accelerate=True,
+            source_kind="kernel",
         )
         return function, source
 
