@@ -25,6 +25,11 @@ from stark.schemes.implicit_fixed.implicit_midpoint import SchemeImplicitMidpoin
 from stark.schemes.implicit_fixed.lobatto_iiic4 import SchemeLobattoIIIC4
 from stark.schemes.implicit_fixed.radau_iia5 import SchemeRadauIIA5
 from stark.schemes.imex_fixed.euler import SchemeIMEXEuler
+from stark.schemes.imex_adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
+from stark.schemes.imex_adaptive.kennedy_carpenter43_6 import SchemeKennedyCarpenter43_6
+from stark.schemes.imex_adaptive.kennedy_carpenter43_7 import SchemeKennedyCarpenter43_7
+from stark.schemes.imex_adaptive.kennedy_carpenter54 import SchemeKennedyCarpenter54
+from stark.schemes.imex_adaptive.kennedy_carpenter54b import SchemeKennedyCarpenter54b
 
 @dataclass(slots=True)
 class ScalarState:
@@ -182,6 +187,86 @@ def make_imex_fixed_scheme() -> SchemeIMEXEuler:
         resolvent=resolvent,
     )
 
+def make_kennedy_carpenter32_scheme():
+    workbench = ScalarWorkbench()
+    derivative = SplitDerivative(
+        explicit=zero_rhs,
+        implicit=zero_rhs,
+    )
+    resolvent = ResolventPicard(
+        zero_rhs,
+        workbench,
+        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
+        accelerator=Accelerator.none(),
+        tableau=SchemeKennedyCarpenter32.tableau,
+    )
+    return SchemeKennedyCarpenter32(
+        derivative,
+        workbench,
+        resolvent=resolvent,
+    )
+
+def make_kennedy_carpenter43_6_scheme():
+    workbench = ScalarWorkbench()
+    derivative = SplitDerivative(
+        explicit=zero_rhs,
+        implicit=zero_rhs,
+    )
+    resolvent = ResolventPicard(
+        zero_rhs,
+        workbench,
+        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
+        accelerator=Accelerator.none(),
+        tableau=SchemeKennedyCarpenter43_6.tableau,
+    )
+    return SchemeKennedyCarpenter43_6(
+        derivative,
+        workbench,
+        resolvent=resolvent,
+    )
+
+def make_kennedy_carpenter43_7_scheme():
+    workbench = ScalarWorkbench()
+    derivative = SplitDerivative(
+        explicit=zero_rhs,
+        implicit=zero_rhs,
+    )
+    resolvent = ResolventPicard(
+        zero_rhs,
+        workbench,
+        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
+        accelerator=Accelerator.none(),
+        tableau=SchemeKennedyCarpenter43_7.tableau,
+    )
+    return SchemeKennedyCarpenter43_7(
+        derivative,
+        workbench,
+        resolvent=resolvent,
+    )
+
+def make_kennedy_carpenter54_scheme():
+    workbench = ScalarWorkbench()
+    derivative = SplitDerivative(
+        explicit=zero_rhs,
+        implicit=zero_rhs,
+    )
+    resolvent = ResolventPicard(
+        zero_rhs,
+        workbench,
+        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
+        accelerator=Accelerator.none(),
+        tableau=SchemeKennedyCarpenter54.tableau,
+    )
+    return SchemeKennedyCarpenter54(
+        derivative,
+        workbench,
+        resolvent=resolvent,
+    )
+
 def public_contract_schemes():
     return [
         SchemeRK4(exponential_growth, ScalarWorkbench()),
@@ -198,6 +283,10 @@ def public_contract_schemes():
         make_implicit_adaptive_scheme(SchemeKvaerno4),
         make_bdf2_scheme(),
         make_imex_fixed_scheme(),
+        make_kennedy_carpenter32_scheme(),
+        make_kennedy_carpenter43_6_scheme(),
+        make_kennedy_carpenter43_7_scheme(),
+        make_kennedy_carpenter54_scheme(),
     ]
 
 
@@ -290,6 +379,10 @@ def test_self_contained_scheme_exemplars_own_public_call_method() -> None:
     assert "__call__" in SchemeKvaerno4.__dict__
     assert "__call__" in SchemeBDF2.__dict__
     assert "__call__" in SchemeIMEXEuler.__dict__
+    assert "__call__" in SchemeKennedyCarpenter32.__dict__
+    assert "__call__" in SchemeKennedyCarpenter43_6.__dict__
+    assert "__call__" in SchemeKennedyCarpenter43_7.__dict__
+    assert "__call__" in SchemeKennedyCarpenter54.__dict__
 
 
 def test_converted_fixed_explicit_scheme_still_works_without_warning() -> None:

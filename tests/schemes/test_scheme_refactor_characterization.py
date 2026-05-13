@@ -10,6 +10,7 @@ from stark.resolvents import ResolventPicard
 from stark.resolvents.policy import ResolventPolicy
 from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.schemes.explicit_fixed.rk4 import SchemeRK4
+from stark.schemes.imex_adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
 from stark.schemes.implicit_fixed.backward_euler import SchemeBackwardEuler
 
 
@@ -44,6 +45,12 @@ class ScalarWorkbench:
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
+
+
+@dataclass(slots=True)
+class SplitDerivative:
+    explicit: object
+    implicit: object
 
 
 def exponential_growth(
@@ -110,6 +117,42 @@ def test_rk4_fixed_explicit_characterization() -> None:
 
 def test_bogacki_shampine_adaptive_explicit_characterization() -> None:
     scheme = SchemeBogackiShampine(zero_rhs, ScalarWorkbench())
+    interval = Interval(present=0.0, step=0.1, stop=0.3)
+    state = ScalarState(2.0)
+
+    outputs, final_state, final_interval = run_live(
+        scheme,
+        state=state,
+        interval=interval,
+        executor=Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9)),
+    )
+
+    assert len(outputs) == 2
+    assert [present for present, _, _ in outputs] == pytest.approx([0.1, 0.3])
+    assert final_interval.present == pytest.approx(0.3)
+    assert final_interval.step == pytest.approx(0.0)
+    assert final_state.value == pytest.approx(2.0)
+
+
+def test_kennedy_carpenter32_adaptive_imex_characterization() -> None:
+    workbench = ScalarWorkbench()
+    derivative = SplitDerivative(
+        explicit=zero_rhs,
+        implicit=zero_rhs,
+    )
+    resolvent = ResolventPicard(
+        zero_rhs,
+        workbench,
+        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
+        accelerator=Accelerator.none(),
+        tableau=SchemeKennedyCarpenter32.tableau,
+    )
+    scheme = SchemeKennedyCarpenter32(
+        derivative,
+        workbench,
+        resolvent=resolvent,
+    )
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
 

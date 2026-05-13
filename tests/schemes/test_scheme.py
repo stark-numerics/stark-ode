@@ -17,11 +17,11 @@ from stark.schemes.explicit_adaptive.cash_karp import SchemeCashKarp
 from stark.schemes.explicit_adaptive.dormand_prince import SchemeDormandPrince
 from stark.schemes.explicit_adaptive.fehlberg45 import SchemeFehlberg45
 from stark.schemes.explicit_adaptive.tsitouras5 import SchemeTsitouras5
-from stark.schemes.imex_adaptive.ark324l2sa import SchemeKennedyCarpenter32
-from stark.schemes.imex_adaptive.ark436l2sa import SchemeKennedyCarpenter43_6
-from stark.schemes.imex_adaptive.ark437l2sa import SchemeKennedyCarpenter43_7
-from stark.schemes.imex_adaptive.ark548l2sa import SchemeKennedyCarpenter54
-from stark.schemes.imex_adaptive.ark548l2sab import SchemeKennedyCarpenter54b
+from stark.schemes.imex_adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
+from stark.schemes.imex_adaptive.kennedy_carpenter43_6 import SchemeKennedyCarpenter43_6
+from stark.schemes.imex_adaptive.kennedy_carpenter43_7 import SchemeKennedyCarpenter43_7
+from stark.schemes.imex_adaptive.kennedy_carpenter54 import SchemeKennedyCarpenter54
+from stark.schemes.imex_adaptive.kennedy_carpenter54b import SchemeKennedyCarpenter54b
 from stark.schemes.imex_fixed.euler import SchemeIMEXEuler
 from stark.schemes.explicit_fixed.euler import SchemeEuler
 from stark.schemes.explicit_fixed.heun import SchemeHeun

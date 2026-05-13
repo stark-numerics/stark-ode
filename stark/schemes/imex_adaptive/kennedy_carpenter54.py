@@ -1,22 +1,15 @@
 from __future__ import annotations
 
-from stark.schemes.tableau import ButcherTableau, ImExButcherTableau
 from stark.contracts import ImExDerivative, IntervalLike, Resolvent, State, Workbench
-from stark.execution.regulator import Regulator
-from stark.resolvents.support.guard import ResolventTableauGuard
-from stark.resolvents.failure import ResolventError
-from stark.schemes.descriptor import SchemeDescriptor
-from stark.machinery.stage_solve.workers import ImExStepper
-from stark.schemes.base import (
-    SchemeBaseImExAdaptive,
-    _ADVANCE_ACCEPTED_DT,
-    _ADVANCE_ERROR_RATIO,
-    _ADVANCE_NEXT_DT,
-    _ADVANCE_PROPOSED_DT,
-    _ADVANCE_REJECTION_COUNT,
-    _ADVANCE_T_START,
-)
 from stark.execution.executor import Executor
+from stark.execution.regulator import Regulator
+from stark.machinery.stage_solve.workers import ImExStepper
+from stark.monitor import MonitorStep
+from stark.resolvents.failure import ResolventError
+from stark.resolvents.support.guard import ResolventTableauGuard
+from stark.schemes.base import SchemeBaseImExAdaptive
+from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.tableau import ButcherTableau, ImExButcherTableau
 
 
 ARK548L2SA_EXPLICIT = ButcherTableau(
@@ -94,6 +87,7 @@ ARK548L2SA_EXPLICIT = ButcherTableau(
     embedded_order=4,
 )
 
+
 ARK548L2SA_IMPLICIT = ButcherTableau(
     c=ARK548L2SA_EXPLICIT.c,
     a=(
@@ -151,6 +145,7 @@ ARK548L2SA_IMPLICIT = ButcherTableau(
     embedded_order=4,
 )
 
+
 ARK548L2SA_TABLEAU = ImExButcherTableau(
     explicit=ARK548L2SA_EXPLICIT,
     implicit=ARK548L2SA_IMPLICIT,
@@ -158,27 +153,33 @@ ARK548L2SA_TABLEAU = ImExButcherTableau(
     full_name="ARK5(4)8L[2]SA",
 )
 
+KENNEDY_CARPENTER54_TABLEAU = ARK548L2SA_TABLEAU
+
 
 class SchemeKennedyCarpenter54(SchemeBaseImExAdaptive):
-    """
-    Adaptive Kennedy-Carpenter ARK5(4)8L[2]SA IMEX method.
+    """Adaptive Kennedy-Carpenter ARK5(4)8L[2]SA IMEX method.
 
     This is the original eight-stage fifth-order Kennedy-Carpenter additive
     Runge-Kutta pair. It extends the current IMEX coverage into the practical
     fifth-order regime without leaving the additive RK family.
+
+    The scheme owns the public call routing and adaptive accept/reject loop.
+    The `ImExStepper` owns the explicit/implicit stage machinery and keeps
+    diagonal implicit solves inside the configured resolvent boundary.
 
     Further reading: Kennedy and Carpenter, Applied Numerical Mathematics 44,
     2003; SUNDIALS ARKODE Butcher tables.
     """
 
     __slots__ = (
+        "call_pure",
         "resolvent",
         "stepper",
         "tableau_guard",
     )
 
     descriptor = SchemeDescriptor("KC54", "Kennedy-Carpenter 5(4)")
-    tableau = ARK548L2SA_TABLEAU
+    tableau = KENNEDY_CARPENTER54_TABLEAU
 
     def __init__(
         self,
@@ -188,84 +189,176 @@ class SchemeKennedyCarpenter54(SchemeBaseImExAdaptive):
         regulator: Regulator | None = None,
     ) -> None:
         super().__init__(derivative, workbench, regulator)
+
         self.tableau_guard = ResolventTableauGuard("KennedyCarpenter54", self.tableau)
         if resolvent is None:
             raise TypeError("KennedyCarpenter54 requires an explicit resolvent.")
+
         self.resolvent = resolvent
         self.tableau_guard(self.resolvent)
-        self.stepper = ImExStepper(derivative, self.workspace, self.resolvent, self.tableau)
+
+        self.stepper = ImExStepper(
+            derivative,
+            self.workspace,
+            self.resolvent,
+            self.tableau,
+        )
+
+        self.call_pure = self.call_generic
+        self.refresh_call()
 
     @staticmethod
     def default_regulator() -> Regulator:
         return Regulator(error_exponent=0.2)
 
-
-    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
-        return self.redirect_call(interval, state, executor)
-
-    def advance_body(self, interval: IntervalLike, state: State) -> None:
-        remaining = interval.stop - interval.present
-        advance_report = self.advance_report
-        if remaining <= 0.0:
-            advance_report[_ADVANCE_ACCEPTED_DT] = 0.0
-            advance_report[_ADVANCE_T_START] = interval.present
-            advance_report[_ADVANCE_PROPOSED_DT] = 0.0
-            advance_report[_ADVANCE_NEXT_DT] = 0.0
-            advance_report[_ADVANCE_ERROR_RATIO] = 0.0
-            advance_report[_ADVANCE_REJECTION_COUNT] = 0
+    def refresh_call(self) -> None:
+        if not self.adaptive.runtime_bound:
+            self.redirect_call = self.call_bind
             return
 
-        controller = self._controller
-        ratio = self._ratio
+        self.redirect_call = (
+            self.call_monitored
+            if self.adaptive.monitor is not None
+            else self.call_pure
+        )
+
+    def __call__(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        return self.redirect_call(interval, state, executor)
+
+    def call_bind(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        self.assign_executor(executor)
+        return self.redirect_call(interval, state, executor)
+
+    def call_monitored(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        accepted_dt = self.call_pure(interval, state, executor)
+
+        report = self.adaptive.report()
+        monitor = self.adaptive.monitor
+        if monitor is not None:
+            monitor(
+                MonitorStep(
+                    scheme=self.short_name,
+                    t_start=report.t_start,
+                    t_end=report.t_end,
+                    proposed_dt=report.proposed_dt,
+                    accepted_dt=report.accepted_dt,
+                    next_dt=report.next_dt,
+                    error_ratio=report.error_ratio,
+                    rejection_count=report.rejection_count,
+                )
+            )
+
+        return accepted_dt
+
+    def advance_body(self, interval: IntervalLike, state: State) -> None:
+        """Compatibility bridge for the transitional adaptive base."""
+        self.call_pure(interval, state, Executor())
+
+    def call_generic(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        del executor
+
+        proposal = self.adaptive.propose_step(interval)
+        if proposal.remaining <= 0.0:
+            self.adaptive.record_stopped(interval)
+            return 0.0
+
         stepper = self.stepper
         workspace = self.workspace
-        assert controller is not None
+        apply_delta = workspace.apply_delta
+        ratio = self.adaptive.ratio
         assert ratio is not None
-        dt = interval.step if interval.step <= remaining else remaining
-        proposed_dt = dt
+
+        remaining = proposal.remaining
+        dt = proposal.dt
+        proposed_dt = proposal.proposed_dt
+        t_start = proposal.t_start
         rejection_count = 0
+
         while True:
             try:
-                delta_high, error, delta_high_norm, error_norm = stepper.step(interval, state, dt, include_norms=True)
+                (
+                    delta_high,
+                    error,
+                    delta_high_norm,
+                    error_norm,
+                ) = stepper.step(
+                    interval,
+                    state,
+                    dt,
+                    include_norms=True,
+                )
             except ResolventError:
                 rejection_count += 1
-                dt = controller.rejected_step(dt, 1.0, remaining, "KC54")
+                dt = self.adaptive.rejected_step(
+                    dt,
+                    1.0,
+                    remaining,
+                    self.short_name,
+                )
                 continue
 
             assert error is not None
             assert delta_high_norm is not None
             assert error_norm is not None
+
             error_ratio = ratio(error_norm, delta_high_norm)
             if error_ratio <= 1.0:
                 break
+
             rejection_count += 1
-            dt = controller.rejected_step(dt, error_ratio, remaining, "KC54")
+            dt = self.adaptive.rejected_step(
+                dt,
+                error_ratio,
+                remaining,
+                self.short_name,
+            )
 
         accepted_dt = dt
         remaining_after = remaining - accepted_dt
-        next_dt = controller.accepted_next_step(accepted_dt, error_ratio, remaining_after)
+        next_dt = self.adaptive.accepted_next_step(
+            accepted_dt,
+            error_ratio,
+            remaining_after,
+        )
+
         interval.step = next_dt
-        workspace.apply_delta(delta_high, state)
-        advance_report[_ADVANCE_ACCEPTED_DT] = accepted_dt
-        advance_report[_ADVANCE_T_START] = interval.present
-        advance_report[_ADVANCE_PROPOSED_DT] = proposed_dt
-        advance_report[_ADVANCE_NEXT_DT] = next_dt
-        advance_report[_ADVANCE_ERROR_RATIO] = error_ratio
-        advance_report[_ADVANCE_REJECTION_COUNT] = rejection_count
+        apply_delta(delta_high, state)
+
+        report = self.adaptive.record_accepted(
+            accepted_dt=accepted_dt,
+            t_start=t_start,
+            proposed_dt=proposed_dt,
+            next_dt=next_dt,
+            error_ratio=error_ratio,
+            rejection_count=rejection_count,
+        )
+        return report.accepted_dt
 
 
-__all__ = ["ARK548L2SA_TABLEAU", "SchemeKennedyCarpenter54"]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+__all__ = [
+    "ARK548L2SA_EXPLICIT",
+    "ARK548L2SA_IMPLICIT",
+    "ARK548L2SA_TABLEAU",
+    "KENNEDY_CARPENTER54_TABLEAU",
+    "SchemeKennedyCarpenter54",
+]
