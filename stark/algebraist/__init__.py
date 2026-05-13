@@ -3,7 +3,7 @@
 from stark.algebraist.core import Algebraist
 from stark.algebraist.explicit import (
     AlgebraistExplicitSchemeBinder,
-    AlgebraistExplicitSchemeCallSet,
+    AlgebraistExplicitSchemeBinding,
 )
 from stark.algebraist.fields import AlgebraistField
 from stark.algebraist.policies import (
@@ -15,7 +15,7 @@ from stark.algebraist.signatures import apply_signature, combine_signature
 from stark.algebraist.tableau import (
     AlgebraistTableau,
     AlgebraistTableauBinder,
-    AlgebraistTableauCallSet,
+    AlgebraistTableauBinding,
     AlgebraistTableauCombination,
     AlgebraistTableauPlanner,
     ButcherTableauLike,
@@ -25,13 +25,13 @@ __all__ = [
     "Algebraist",
     "AlgebraistBroadcast",
     "AlgebraistExplicitSchemeBinder",
-    "AlgebraistExplicitSchemeCallSet",
+    "AlgebraistExplicitSchemeBinding",
     "AlgebraistField",
     "AlgebraistLooped",
     "AlgebraistSmallFixed",
     "AlgebraistTableau",
     "AlgebraistTableauBinder",
-    "AlgebraistTableauCallSet",
+    "AlgebraistTableauBinding",
     "AlgebraistTableauCombination",
     "AlgebraistTableauPlanner",
     "ButcherTableauLike",

@@ -7,19 +7,19 @@ from stark.algebraist.codegen import AlgebraistCodegen
 from stark.algebraist.paths import path_expression
 from stark.algebraist.tableau import (
     AlgebraistTableauBinder,
-    AlgebraistTableauCallSet,
+    AlgebraistTableauBinding,
     AlgebraistTableauCombination,
     ButcherTableauLike,
 )
 
 
 @dataclass(frozen=True, slots=True)
-class AlgebraistExplicitSchemeCallSet:
+class AlgebraistExplicitSchemeBinding:
     stages: tuple[Callable[..., object], ...]
     solution_state: Callable[..., object]
     solution: Callable[..., object]
     error: Callable[..., object] | None
-    combinations: AlgebraistTableauCallSet
+    tableau_binding: AlgebraistTableauBinding
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,22 +31,22 @@ class AlgebraistExplicitSchemeBinder:
     def __call__(
         self,
         tableau: ButcherTableauLike,
-    ) -> AlgebraistExplicitSchemeCallSet:
+    ) -> AlgebraistExplicitSchemeBinding:
         tableau_binder = self.tableau_binder
         if tableau_binder is None:
             tableau_binder = AlgebraistTableauBinder(self.algebraist)
 
-        combinations = tableau_binder(tableau)
+        tableau_binding = tableau_binder(tableau)
 
-        return AlgebraistExplicitSchemeCallSet(
+        return AlgebraistExplicitSchemeBinding(
             stages=tuple(
                 self.stage(f"{combination.role}_state", combination)
-                for combination in combinations.tableau.stages
+                for combination in tableau_binding.tableau.stages
             ),
-            solution_state=self.stage("solution_state", combinations.tableau.solution),
-            solution=combinations.solution,
-            error=combinations.error,
-            combinations=combinations,
+            solution_state=self.stage("solution_state", tableau_binding.tableau.solution),
+            solution=tableau_binding.solution,
+            error=tableau_binding.error,
+            tableau_binding=tableau_binding,
         )
 
     def stage(
@@ -141,5 +141,5 @@ class AlgebraistExplicitSchemeBinder:
 
 __all__ = [
     "AlgebraistExplicitSchemeBinder",
-    "AlgebraistExplicitSchemeCallSet",
+    "AlgebraistExplicitSchemeBinding",
 ]

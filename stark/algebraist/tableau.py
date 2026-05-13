@@ -46,7 +46,7 @@ class AlgebraistTableau:
 
 
 @dataclass(frozen=True, slots=True)
-class AlgebraistTableauCallSet:
+class AlgebraistTableauBinding:
     stages: tuple[Callable[..., object], ...]
     solution: Callable[..., object]
     error: Callable[..., object] | None
@@ -129,10 +129,10 @@ class AlgebraistTableauBinder:
     planner: AlgebraistTableauPlanner = AlgebraistTableauPlanner()
     codegen: AlgebraistCodegen = dataclass_field(default_factory=AlgebraistCodegen)
 
-    def __call__(self, tableau: ButcherTableauLike) -> AlgebraistTableauCallSet:
+    def __call__(self, tableau: ButcherTableauLike) -> AlgebraistTableauBinding:
         algebraist_tableau = self.planner(tableau)
 
-        return AlgebraistTableauCallSet(
+        return AlgebraistTableauBinding(
             stages=tuple(
                 self.combination(f"{combination.role}_combine", combination)
                 for combination in algebraist_tableau.stages
@@ -233,7 +233,7 @@ class AlgebraistTableauBinder:
 
 __all__ = [
     "AlgebraistTableauBinder",
-    "AlgebraistTableauCallSet",
+    "AlgebraistTableauBinding",
     "AlgebraistTableau",
     "AlgebraistTableauCombination",
     "AlgebraistTableauPlanner",
