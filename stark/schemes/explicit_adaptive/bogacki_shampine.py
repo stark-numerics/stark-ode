@@ -97,7 +97,7 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def bind_and_call(
+    def call_bind(
         self,
         interval: IntervalLike,
         state: State,
@@ -106,7 +106,7 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
         self.assign_executor(executor)
         return self.redirect_call(interval, state, executor)
 
-    def pure_call(
+    def call_pure(
         self,
         interval: IntervalLike,
         state: State,
@@ -115,7 +115,7 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
         del executor
         return self.pure_advance(interval, state).accepted_dt
 
-    def monitored_call(
+    def call_monitored(
         self,
         interval: IntervalLike,
         state: State,

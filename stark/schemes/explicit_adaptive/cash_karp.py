@@ -152,11 +152,6 @@ class SchemeCashKarp(SchemeBaseExplicitAdaptive):
 
         return accepted_dt
 
-    def advance_body(self, interval: IntervalLike, state: State) -> None:
-        """Compatibility bridge for the transitional adaptive base."""
-
-        self.call_pure(interval, state, Executor())
-
     def initialise_buffers(self) -> None:
         workspace = self.workspace
 

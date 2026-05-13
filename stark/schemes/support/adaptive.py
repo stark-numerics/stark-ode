@@ -8,14 +8,6 @@ from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
 
 
-_ADVANCE_ACCEPTED_DT = 0
-_ADVANCE_T_START = 1
-_ADVANCE_PROPOSED_DT = 2
-_ADVANCE_NEXT_DT = 3
-_ADVANCE_ERROR_RATIO = 4
-_ADVANCE_REJECTION_COUNT = 5
-
-
 @dataclass(frozen=True, slots=True)
 class ReportAdaptiveAdvance:
     """Compact accepted-advance report for adaptive schemes."""
@@ -31,17 +23,6 @@ class ReportAdaptiveAdvance:
     def t_end(self) -> float:
         return self.t_start + self.accepted_dt
 
-    @classmethod
-    def from_advance_report(cls, advance_report: list[float | int]) -> ReportAdaptiveAdvance:
-        return cls(
-            accepted_dt=float(advance_report[_ADVANCE_ACCEPTED_DT]),
-            t_start=float(advance_report[_ADVANCE_T_START]),
-            proposed_dt=float(advance_report[_ADVANCE_PROPOSED_DT]),
-            next_dt=float(advance_report[_ADVANCE_NEXT_DT]),
-            error_ratio=float(advance_report[_ADVANCE_ERROR_RATIO]),
-            rejection_count=int(advance_report[_ADVANCE_REJECTION_COUNT]),
-        )
-
 
 @dataclass(frozen=True, slots=True)
 class ProposedAdaptiveStep:
@@ -56,27 +37,35 @@ class ProposedAdaptiveStep:
 class SchemeSupportAdaptive:
     """Runtime support object for adaptive schemes.
 
-    This owns adaptive-controller state that used to live directly on
-    `SchemeBaseAdaptive`, while leaving concrete schemes in control of their
-    stage algebra and rejection loops.
+    This object owns adaptive-controller binding, monitor binding, step-size
+    controller delegation, and the latest typed adaptive advance report.
+
+    Concrete schemes own their public call routing and their accept/reject
+    algorithm.
     """
 
     __slots__ = (
-        "advance_report",
         "controller",
         "regulator",
         "_bound",
         "_controller",
         "_monitor",
         "_ratio",
+        "_report",
         "_runtime_bound",
     )
 
     def __init__(self, regulator: Regulator | None = None) -> None:
         self.regulator = regulator if regulator is not None else Regulator()
         self.controller = AdaptiveController(self.regulator)
-        self.advance_report: list[float | int] = [0.0, 0.0, 0.0, 0.0, 0.0, 0]
-
+        self._report = ReportAdaptiveAdvance(
+            accepted_dt=0.0,
+            t_start=0.0,
+            proposed_dt=0.0,
+            next_dt=0.0,
+            error_ratio=0.0,
+            rejection_count=0,
+        )
         self._controller = None
         self._monitor = None
         self._ratio = None
@@ -153,6 +142,7 @@ class SchemeSupportAdaptive:
         controller = self._controller
         if controller is None:
             raise RuntimeError("Adaptive executor has not been assigned.")
+
         return controller.rejected_step(dt, error_ratio, remaining, label)
 
     def accepted_next_step(
@@ -164,16 +154,19 @@ class SchemeSupportAdaptive:
         controller = self._controller
         if controller is None:
             raise RuntimeError("Adaptive executor has not been assigned.")
+
         return controller.accepted_next_step(accepted_dt, error_ratio, remaining_after)
 
-    def record_stopped(self, interval: IntervalLike) -> None:
-        report = self.advance_report
-        report[_ADVANCE_ACCEPTED_DT] = 0.0
-        report[_ADVANCE_T_START] = interval.present
-        report[_ADVANCE_PROPOSED_DT] = 0.0
-        report[_ADVANCE_NEXT_DT] = 0.0
-        report[_ADVANCE_ERROR_RATIO] = 0.0
-        report[_ADVANCE_REJECTION_COUNT] = 0
+    def record_stopped(self, interval: IntervalLike) -> ReportAdaptiveAdvance:
+        self._report = ReportAdaptiveAdvance(
+            accepted_dt=0.0,
+            t_start=interval.present,
+            proposed_dt=0.0,
+            next_dt=0.0,
+            error_ratio=0.0,
+            rejection_count=0,
+        )
+        return self._report
 
     def record_accepted(
         self,
@@ -185,27 +178,22 @@ class SchemeSupportAdaptive:
         error_ratio: float,
         rejection_count: int,
     ) -> ReportAdaptiveAdvance:
-        report = self.advance_report
-        report[_ADVANCE_ACCEPTED_DT] = accepted_dt
-        report[_ADVANCE_T_START] = t_start
-        report[_ADVANCE_PROPOSED_DT] = proposed_dt
-        report[_ADVANCE_NEXT_DT] = next_dt
-        report[_ADVANCE_ERROR_RATIO] = error_ratio
-        report[_ADVANCE_REJECTION_COUNT] = rejection_count
-        return ReportAdaptiveAdvance.from_advance_report(report)
+        self._report = ReportAdaptiveAdvance(
+            accepted_dt=accepted_dt,
+            t_start=t_start,
+            proposed_dt=proposed_dt,
+            next_dt=next_dt,
+            error_ratio=error_ratio,
+            rejection_count=rejection_count,
+        )
+        return self._report
 
     def report(self) -> ReportAdaptiveAdvance:
-        return ReportAdaptiveAdvance.from_advance_report(self.advance_report)
+        return self._report
 
 
 __all__ = [
     "ProposedAdaptiveStep",
     "ReportAdaptiveAdvance",
     "SchemeSupportAdaptive",
-    "_ADVANCE_ACCEPTED_DT",
-    "_ADVANCE_ERROR_RATIO",
-    "_ADVANCE_NEXT_DT",
-    "_ADVANCE_PROPOSED_DT",
-    "_ADVANCE_REJECTION_COUNT",
-    "_ADVANCE_T_START",
 ]

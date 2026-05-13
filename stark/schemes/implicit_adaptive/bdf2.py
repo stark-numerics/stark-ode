@@ -206,11 +206,6 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
 
         return accepted_dt
 
-    def advance_body(self, interval: IntervalLike, state: State) -> None:
-        """Compatibility bridge for the transitional adaptive base."""
-
-        self.call_pure(interval, state, Executor())
-
     def call_generic(
         self,
         interval: IntervalLike,
