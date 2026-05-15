@@ -87,7 +87,7 @@ class BiCGStabCycle:
         self.t_buffer = workspace.allocate_block(size)
         self.temporary = workspace.allocate_block(size)
 
-    def initial_residual(self, out: Block, rhs: Block, operator: BlockOperator) -> float:
+    def initial_residual(self, rhs: Block, out: Block, operator: BlockOperator) -> float:
         """
         Compute `r = rhs - A out`, initialize the BiCG shadow state, and return
         the residual norm.
@@ -103,7 +103,7 @@ class BiCGStabCycle:
         assert shadow is not None
         assert direction is not None
         assert velocity is not None
-        operator(applied, out)
+        operator(out, applied)
         workspace.combine2_block(residual, 1.0, rhs, -1.0, applied)
         workspace.copy_block(shadow, residual)
         workspace.zero_block(direction)
@@ -112,8 +112,8 @@ class BiCGStabCycle:
 
     def iterate(
         self,
-        out: Block,
         rhs: Block,
+        out: Block,
         operator: BlockOperator,
         tolerance: InverterTolerance,
         policy: InverterPolicy,
@@ -159,8 +159,8 @@ class BiCGStabCycle:
             workspace.combine3_block(temporary, 1.0, residual, beta, direction, -beta * omega, velocity)
             workspace.copy_block(direction, temporary)
 
-            apply_preconditioner(preconditioned_direction, direction)
-            operator(velocity, preconditioned_direction)
+            apply_preconditioner(direction, preconditioned_direction)
+            operator(preconditioned_direction, velocity)
             denominator = workspace.inner_product(shadow, velocity)
             if abs(denominator) <= policy.breakdown_tol:
                 raise RuntimeError(
@@ -174,8 +174,8 @@ class BiCGStabCycle:
                 workspace.copy_block(out, temporary)
                 return workspace.norm(s_buffer)
 
-            apply_preconditioner(preconditioned_s, s_buffer)
-            operator(t_buffer, preconditioned_s)
+            apply_preconditioner(s_buffer, preconditioned_s)
+            operator(preconditioned_s, t_buffer)
             tt = workspace.inner_product(t_buffer, t_buffer)
             if abs(tt) <= policy.breakdown_tol:
                 raise RuntimeError(f"{InverterBiCGStab.descriptor.short_name} broke down with a vanishing t norm.")
@@ -235,18 +235,18 @@ class InverterBiCGStab(InverterBase):
     def make_cycle(self) -> BiCGStabCycle:
         return BiCGStabCycle(self.workspace)
 
-    def solve_prepared(self, out: Block, rhs: Block) -> None:
+    def solve_prepared(self, rhs: Block, out: Block) -> None:
         operator = self.operator
         assert operator is not None
         tolerance = self.tolerance
         policy = self.policy
         workspace = self.workspace
         rhs_norm = workspace.norm(rhs)
-        residual_norm = self.cycle.initial_residual(out, rhs, operator)
+        residual_norm = self.cycle.initial_residual(rhs, out, operator)
         if tolerance.accepts(residual_norm, rhs_norm):
             return
 
-        residual_norm = self.cycle.iterate(out, rhs, operator, tolerance, policy, rhs_norm, self.preconditioner)
+        residual_norm = self.cycle.iterate(rhs, out, operator, tolerance, policy, rhs_norm, self.preconditioner)
         if tolerance.accepts(residual_norm, rhs_norm):
             return
 

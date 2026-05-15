@@ -314,12 +314,12 @@ class FitzHughNagumoLinearizer:
 
     __str__ = __repr__
 
-    def __call__(self, interval, out, state):
+    def __call__(self, interval, state, out):
         del interval
         parameters = self.parameters
         base_u = state.u
 
-        def apply(result, translation):
+        def apply(translation, result):
             du = translation.du
             dv = translation.dv
             _laplacian_periodic(du, self.laplacian_du, parameters.inv_dx2)
@@ -405,7 +405,7 @@ class FitzHughNagumoSpectralResolvent:
         del interval
         self.state = state
 
-    def __call__(self, out, alpha: float, rhs=None) -> None:
+    def __call__(self, alpha: float, rhs, out) -> None:
         del rhs
         state = self.state
         if state is None:

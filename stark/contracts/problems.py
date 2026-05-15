@@ -73,7 +73,7 @@ class Linearizer(Protocol):
     Jacobian image into `out`.
     """
 
-    def __call__(self, interval: Interval, out: Any, state: Any) -> None:
+    def __call__(self, interval: Interval, state: Any, out: Any) -> None:
         ...
 
 
@@ -110,12 +110,12 @@ class ProblemAudit:
             self.apply = self._unset
 
         @staticmethod
-        def _unset(out: Any, translation: Any) -> None:
-            del out, translation
+        def _unset(translation: Any, out: Any) -> None:
+            del translation, out
             raise RuntimeError("Linearizer did not configure the operator probe.")
 
-        def __call__(self, out: Any, translation: Any) -> Any:
-            return self.apply(out, translation)
+        def __call__(self, translation: Any, out: Any) -> Any:
+            return self.apply(translation, out)
 
     @staticmethod
     def derivative(recorder: AuditRecorder, derivative: Any) -> None:
@@ -185,8 +185,8 @@ class ProblemAudit:
     def linearizer(recorder: AuditRecorder, linearizer: Any) -> None:
         recorder.check(
             callable(linearizer),
-            "Linearizer provides __call__(interval, out, state).",
-            "Provide a callable linearizer(interval, out, state).",
+            "Linearizer provides __call__(interval, state, out).",
+            "Provide a callable linearizer(interval, state, out).",
         )
 
     @staticmethod
@@ -263,12 +263,12 @@ class ProblemAudit:
     ) -> None:
         operator = ProblemAudit.OperatorProbe()
         try:
-            linearizer(interval, operator, state)
+            linearizer(interval, state, operator)
         except Exception as exc:
-            recorder.record_exception("Linearizer(interval, out, state) can be called.", exc)
+            recorder.record_exception("Linearizer(interval, state, out) can be called.", exc)
             return
         else:
-            recorder.check(True, "Linearizer(interval, out, state) can be called.")
+            recorder.check(True, "Linearizer(interval, state, out) can be called.")
 
         try:
             result = operator(translation, translation)
@@ -280,7 +280,7 @@ class ProblemAudit:
             recorder.check(
                 result is None,
                 "Linearizer-configured operators fill in place and return None.",
-                "Make operator(out, translation) mutate out and return None.",
+                "Make operator(translation, out) mutate out and return None.",
             )
 
 

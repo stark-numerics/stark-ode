@@ -39,10 +39,10 @@ class Preconditioner:
         if self.worker is not None and hasattr(self.worker, "prepare"):
             self.worker.prepare(size)
 
-    def __call__(self, out: Block, rhs: Block) -> None:
-        self._apply(out, rhs)
+    def __call__(self, rhs: Block, out: Block) -> None:
+        self._apply(rhs, out)
 
-    def _copy(self, out: Block, rhs: Block) -> None:
+    def _copy(self, rhs: Block, out: Block) -> None:
         self.workspace.copy_block(out, rhs)
 
 

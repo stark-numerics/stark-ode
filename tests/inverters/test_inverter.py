@@ -93,7 +93,7 @@ class ExactScalarPreconditioner:
         del operator
         self.bound = True
 
-    def __call__(self, out: Block, rhs: Block) -> None:
+    def __call__(self, rhs: Block, out: Block) -> None:
         out[0].value = 0.5 * rhs[0].value
 
 
@@ -115,14 +115,14 @@ def test_inverter_solves_scalar_linear_system(inverter_type) -> None:
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
 
-    def scale_by_two(out: ScalarTranslation, translation: ScalarTranslation) -> None:
+    def scale_by_two(translation: ScalarTranslation, out: ScalarTranslation) -> None:
         out.value = 2.0 * translation.value
 
     inverter.bind(BlockOperator([scale_by_two]))
     solution = Block([ScalarTranslation(0.0)])
     rhs = Block([ScalarTranslation(4.0)])
 
-    inverter(solution, rhs)
+    inverter(rhs, solution)
 
     assert abs(solution[0].value - 2.0) < 1.0e-10
 
@@ -139,14 +139,14 @@ def test_inverter_accepts_preconditioner(inverter_type) -> None:
         preconditioner=preconditioner,
     )
 
-    def scale_by_two(out: ScalarTranslation, translation: ScalarTranslation) -> None:
+    def scale_by_two(translation: ScalarTranslation, out: ScalarTranslation) -> None:
         out.value = 2.0 * translation.value
 
     inverter.bind(BlockOperator([scale_by_two]))
     solution = Block([ScalarTranslation(0.0)])
     rhs = Block([ScalarTranslation(4.0)])
 
-    inverter(solution, rhs)
+    inverter(rhs, solution)
 
     assert preconditioner.bound is True
     assert abs(solution[0].value - 2.0) < 1.0e-10
@@ -168,19 +168,19 @@ def test_inverter_solves_two_by_two_block_system(inverter_type) -> None:
 
     del first_row
 
-    def apply_operator(out: Block, block: Block) -> None:
+    def apply_operator(block: Block, out: Block) -> None:
         out.items[0].value = 4.0 * block[0].value + block[1].value
         out.items[1].value = block[0].value + 3.0 * block[1].value
 
     class DenseBlockOperator(BlockOperator):
-        def __call__(self, out: Block, block: Block) -> None:
-            apply_operator(out, block)
+        def __call__(self, block: Block, out: Block) -> None:
+            apply_operator(block, out)
 
     inverter.bind(DenseBlockOperator([]))
     solution = Block([ScalarTranslation(0.0), ScalarTranslation(0.0)])
     rhs = Block([ScalarTranslation(1.0), ScalarTranslation(2.0)])
 
-    inverter(solution, rhs)
+    inverter(rhs, solution)
 
     assert abs(solution[0].value - (1.0 / 11.0)) < 1.0e-10
     assert abs(solution[1].value - (7.0 / 11.0)) < 1.0e-10
@@ -198,7 +198,7 @@ def test_inverter_requires_bound_operator(inverter_type, expected_message) -> No
     inverter = inverter_type(ScalarWorkbench(), scalar_inner_product)
 
     try:
-        inverter(Block([ScalarTranslation()]), Block([ScalarTranslation(1.0)]))
+        inverter(Block([ScalarTranslation(1.0)]), Block([ScalarTranslation()]))
     except RuntimeError as exc:
         assert expected_message in str(exc)
     else:  # pragma: no cover - defensive failure branch

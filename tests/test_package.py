@@ -244,8 +244,8 @@ class MinimalInverter:
     def bind(self, operator: object) -> None:
         del operator
 
-    def __call__(self, out: Block, rhs: Block) -> None:
-        del out, rhs
+    def __call__(self, rhs: Block, out: Block) -> None:
+        del rhs, out
 
 
 def test_core_objects_have_readable_representations() -> None:
@@ -295,7 +295,7 @@ def test_core_objects_have_readable_representations() -> None:
     auto_newton = ResolventNewton(
         lambda interval, state, out: None,
         workbench,
-        linearizer=lambda interval, out, state: setattr(out, "apply", lambda result, translation: None),
+        linearizer=lambda interval, state, out: setattr(out, "apply", lambda translation, result: None),
         inverter=MinimalInverter(),
     )
     auto_coupled_newton = ResolventCoupledNewton(
@@ -308,7 +308,7 @@ def test_core_objects_have_readable_representations() -> None:
             order=2,
             short_name="DummyCoupled",
         ),
-        linearizer=lambda interval, out, state: setattr(out, "apply", lambda result, translation: None),
+        linearizer=lambda interval, state, out: setattr(out, "apply", lambda translation, result: None),
         inverter=MinimalInverter(),
     )
 

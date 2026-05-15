@@ -132,20 +132,20 @@ class DerivativeWithAcceleration:
 
 
 class AcceleratedLinearizer:
-    def __call__(self, interval: Interval, out: object, state: dict[str, float]) -> None:
+    def __call__(self, interval: Interval, state: dict[str, float], out: object) -> None:
         del interval, state
 
-        def apply(result: DummyTranslation, translation: DummyTranslation) -> None:
+        def apply(translation: DummyTranslation, result: DummyTranslation) -> None:
             result.value = 3.0 * translation.value
 
         setattr(out, "apply", apply)
 
 
 class LinearizerWithAcceleration:
-    def __call__(self, interval: Interval, out: object, state: dict[str, float]) -> None:
+    def __call__(self, interval: Interval, state: dict[str, float], out: object) -> None:
         del interval, state
 
-        def apply(result: DummyTranslation, translation: DummyTranslation) -> None:
+        def apply(translation: DummyTranslation, result: DummyTranslation) -> None:
             result.value = translation.value
 
         setattr(out, "apply", apply)
@@ -211,14 +211,14 @@ def test_require_scheme_inputs_raises_helpful_error() -> None:
 
 def test_require_linear_residual_rejects_missing_linearize() -> None:
     class ResidualOnly:
-        def __call__(self, out, block) -> None:
-            del out, block
+        def __call__(self, block, out) -> None:
+            del block, out
 
     try:
         Auditor.require_linear_residual(ResidualOnly())
     except AuditError as exc:
         message = str(exc)
-        assert "Residual provides linearize(out, block)" in message
+        assert "Residual provides linearize(block, out)" in message
         assert "Overall: incomplete." in message
     else:  # pragma: no cover - defensive failure branch
         raise AssertionError("Expected the audit to reject a residual without linearize().")
@@ -296,8 +296,8 @@ def test_accelerated_linearizer_resolution_still_satisfies_linearizer_contract()
     result = DummyTranslation()
 
     Auditor.require_linearizer_inputs(linearizer, DummyWorkbench(), DummyTranslation())
-    linearizer(Interval(0.0, 0.1, 1.0), operator := type("OperatorProbe", (), {})(), {"x": 2.0})
-    operator.apply(result, DummyTranslation(4.0))
+    linearizer(Interval(0.0, 0.1, 1.0), {"x": 2.0}, operator := type("OperatorProbe", (), {})())
+    operator.apply(DummyTranslation(4.0), result)
 
     assert result.value == 12.0
 

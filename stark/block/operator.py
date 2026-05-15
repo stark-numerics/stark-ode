@@ -18,21 +18,21 @@ class BlockOperator:
     def __str__(self) -> str:
         return f"block operator[{len(self.operators)}]"
 
-    def __call__(self, out: Block, block: Block) -> None:
-        self.redirect_call(out, block)
+    def __call__(self, block: Block, out: Block) -> None:
+        self.redirect_call(block, out)
 
     def reset(self) -> None:
         for index in range(len(self.operators)):
             self.operators[index] = None  # type: ignore[list-item]
 
-    def call_checked(self, out: Block, block: Block) -> None:
+    def call_checked(self, block: Block, out: Block) -> None:
         if len(self.operators) != len(out) or len(out) != len(block):
             raise ValueError("BlockOperator sizes must match the input and output blocks.")
-        self.call_unchecked(out, block)
+        self.call_unchecked(block, out)
 
-    def call_unchecked(self, out: Block, block: Block) -> None:
+    def call_unchecked(self, block: Block, out: Block) -> None:
         for index, (operator, out_item, block_item) in enumerate(zip(self.operators, out, block, strict=True)):
-            operator(out_item, block_item)
+            operator(block_item, out_item)
             out.items[index] = out_item
 
 

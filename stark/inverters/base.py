@@ -77,21 +77,21 @@ class InverterBase(ABC):
         self.cycle.ensure_size(size)
         self.preconditioner.prepare(size)
 
-    def __call__(self, out: Block, rhs: Block) -> None:
-        self.redirect_call(out, rhs)
+    def __call__(self, rhs: Block, out: Block) -> None:
+        self.redirect_call(rhs, out)
 
-    def call_unbound(self, out: Block, rhs: Block) -> None:
-        del out, rhs
+    def call_unbound(self, rhs: Block, out: Block) -> None:
+        del rhs, out
         raise RuntimeError(f"{self.short_name} inverter must be bound to an operator before use.")
 
-    def call_checked(self, out: Block, rhs: Block) -> None:
+    def call_checked(self, rhs: Block, out: Block) -> None:
         self.workspace._check_size(out, rhs)
         self.prepare(len(out))
-        self.solve_prepared(out, rhs)
+        self.solve_prepared(rhs, out)
 
-    def call_unchecked(self, out: Block, rhs: Block) -> None:
+    def call_unchecked(self, rhs: Block, out: Block) -> None:
         self.prepare(len(out))
-        self.solve_prepared(out, rhs)
+        self.solve_prepared(rhs, out)
 
     def validate_policy(self) -> None:
         if self.policy.max_iterations < 1:
@@ -102,7 +102,7 @@ class InverterBase(ABC):
         """Construct the concrete iteration worker."""
 
     @abstractmethod
-    def solve_prepared(self, out: Block, rhs: Block) -> None:
+    def solve_prepared(self, rhs: Block, out: Block) -> None:
         """Solve the prepared linear system in place on `out`."""
 
 
@@ -112,7 +112,7 @@ class InverterBaseRestartedKrylov(InverterBase):
         if self.policy.restart < 1:
             raise ValueError("InverterPolicy.restart must be at least 1.")
 
-    def solve_prepared(self, out: Block, rhs: Block) -> None:
+    def solve_prepared(self, rhs: Block, out: Block) -> None:
         operator = self.operator
         assert operator is not None
         tolerance = self.tolerance
@@ -120,15 +120,15 @@ class InverterBaseRestartedKrylov(InverterBase):
         workspace = self.workspace
         cycle = self.cycle
         rhs_norm = workspace.norm(rhs)
-        residual_norm = cycle.initial_residual(out, rhs, operator)
+        residual_norm = cycle.initial_residual(rhs, out, operator)
         if tolerance.accepts(residual_norm, rhs_norm):
             return
 
         iterations = 0
         while iterations < policy.max_iterations:
             used_iterations, residual_norm = cycle.run(
-                out,
                 rhs,
+                out,
                 operator,
                 tolerance,
                 policy,

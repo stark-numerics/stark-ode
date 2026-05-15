@@ -96,11 +96,11 @@ class ScalarLinearizer:
     def __init__(self, rate: float) -> None:
         self.rate = rate
 
-    def __call__(self, interval: Interval, out, state: ScalarState) -> None:
+    def __call__(self, interval: Interval, state: ScalarState, out) -> None:
         del interval
         del state
 
-        def apply(result: ScalarTranslation, translation: ScalarTranslation) -> None:
+        def apply(translation: ScalarTranslation, result: ScalarTranslation) -> None:
             result.value = self.rate * translation.value
 
         out.apply = apply
@@ -110,11 +110,11 @@ class AcceleratedScalarLinearizer:
     def __init__(self, rate: float) -> None:
         self.rate = rate
 
-    def __call__(self, interval: Interval, out, state: ScalarState) -> None:
+    def __call__(self, interval: Interval, state: ScalarState, out) -> None:
         del interval
         del state
 
-        def apply(result: ScalarTranslation, translation: ScalarTranslation) -> None:
+        def apply(translation: ScalarTranslation, result: ScalarTranslation) -> None:
             result.value = self.rate * translation.value
 
         out.apply = apply
@@ -125,11 +125,11 @@ class ScalarLinearizerWithAcceleration:
         self.rate = rate
         self.accelerated_rate = accelerated_rate
 
-    def __call__(self, interval: Interval, out, state: ScalarState) -> None:
+    def __call__(self, interval: Interval, state: ScalarState, out) -> None:
         del interval
         del state
 
-        def apply(result: ScalarTranslation, translation: ScalarTranslation) -> None:
+        def apply(translation: ScalarTranslation, result: ScalarTranslation) -> None:
             result.value = self.rate * translation.value
 
         out.apply = apply

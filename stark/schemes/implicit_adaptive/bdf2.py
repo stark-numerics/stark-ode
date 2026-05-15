@@ -134,7 +134,7 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
                 "and the current step ratio.",
                 "",
                 "A custom resolvent for this method must accept arguments",
-                "`(out, alpha, rhs=None)` and overwrite `out` with the solved",
+                "`(alpha, rhs, out)` and overwrite `out` with the solved",
                 "one-block displacement, stored as `Block(Translation)`.",
             ]
         )
@@ -343,7 +343,7 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
         # `scale` may return a fresh zero translation; keep it in the block so
         # fallback algebra and in-place algebra both behave correctly.
         trial_block.items[0] = scale(trial_block[0], 0.0, trial_block[0])
-        self.resolvent(trial_block, dt)
+        self.resolvent(dt, None, trial_block)
 
         delta_high = trial_block[0]
         delta_low = scale(self.low, dt, self.startup_rate)
@@ -379,7 +379,7 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
 
         self.resolvent.bind(stage_interval(interval, dt, dt), state)
         trial_block.items[0] = scale(trial_block[0], 0.0, trial_block[0])
-        self.resolvent(trial_block, alpha, rhs=self.known_shift_block)
+        self.resolvent(alpha, self.known_shift_block, trial_block)
 
         delta_high = trial_block[0]
         delta_low = combine2(self.low, alpha0, delta_high, -alpha2, self.previous_delta)

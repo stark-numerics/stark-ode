@@ -68,7 +68,7 @@ def display_implicit_resolvent_problem(tableau: ButcherTableau, short_name: str,
                 else "Because this tableau is not lower triangular, the natural resolvent problem is a coupled block system."
             ),
             "",
-            "A custom resolvent for this method must accept arguments `(out, alpha, rhs=None)` and overwrite `out` with the solution block of the equation above, stored as `Block(Translation, Translation, ...)`.",
+            "A custom resolvent for this method must accept arguments `(alpha, rhs, out)` and overwrite `out` with the solution block of the equation above, stored as `Block(Translation, Translation, ...)`.",
         ]
     )
     return "\n".join(lines)
@@ -105,7 +105,7 @@ def display_imex_resolvent_problem(tableau: ImExButcherTableau, short_name: str,
             else "Because the implicit tableau is not lower triangular, the natural IMEX resolvent problem is a coupled block system."
         ),
         "",
-        "A custom resolvent for this method must accept arguments `(out, alpha, rhs=None)` and overwrite `out` with the solution block of the equation above, stored as `Block(Translation, Translation, ...)`.",
+        "A custom resolvent for this method must accept arguments `(alpha, rhs, out)` and overwrite `out` with the solution block of the equation above, stored as `Block(Translation, Translation, ...)`.",
     ]
     return "\n".join(lines)
 

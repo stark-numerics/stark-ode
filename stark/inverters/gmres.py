@@ -85,7 +85,7 @@ class GMRESCycle:
         self.search_basis = [workspace.allocate_block(size) for _ in range(self.restart)]
         self.arnoldi.ensure_size(size)
 
-    def initial_residual(self, out: Block, rhs: Block, operator: BlockOperator) -> float:
+    def initial_residual(self, rhs: Block, out: Block, operator: BlockOperator) -> float:
         """
         Compute `r = rhs - A out` in cached storage and return its norm.
 
@@ -96,14 +96,14 @@ class GMRESCycle:
         residual = self.residual
         assert applied is not None
         assert residual is not None
-        operator(applied, out)
+        operator(out, applied)
         workspace.combine2_block(residual, 1.0, rhs, -1.0, applied)
         return workspace.norm(residual)
 
     def run(
         self,
-        out: Block,
         rhs: Block,
+        out: Block,
         operator: BlockOperator,
         tolerance: InverterTolerance,
         policy: InverterPolicy,
@@ -128,7 +128,7 @@ class GMRESCycle:
 
         last_column = -1
         for column in range(window):
-            apply_preconditioner(self.search_basis[column], self.arnoldi.basis[column])
+            apply_preconditioner(self.arnoldi.basis[column], self.search_basis[column])
             self.arnoldi.build_column(
                 column,
                 operator,
@@ -144,10 +144,10 @@ class GMRESCycle:
             last_column = column
             if tolerance.accepts(residual_estimate, rhs_norm):
                 self._apply_correction(out, last_column + 1)
-                return column + 1, self.initial_residual(out, rhs, operator)
+                return column + 1, self.initial_residual(rhs, out, operator)
 
         self._apply_correction(out, last_column + 1)
-        return window, self.initial_residual(out, rhs, operator)
+        return window, self.initial_residual(rhs, out, operator)
 
     def _apply_correction(self, out: Block, width: int) -> None:
         """Form the Krylov correction and accumulate it into `out`."""

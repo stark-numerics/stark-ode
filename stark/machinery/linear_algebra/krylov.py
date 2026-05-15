@@ -200,7 +200,7 @@ class Arnoldi:
         assert temporary is not None
         hessenberg = least_squares.hessenberg
 
-        operator(work, search_vector)
+        operator(search_vector, work)
         for row in range(column + 1):
             hessenberg[row, column] = workspace.inner_product(work, self.basis[row])
             workspace.combine2_block(temporary, 1.0, work, -hessenberg[row, column], self.basis[row])

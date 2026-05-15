@@ -41,7 +41,7 @@ class _ImExStageSolver:
         block.items[0] = self.scale(block[0], 0.0, block[0])
         if alpha != 0.0:
             self.resolvent.bind(interval, self.stage_state)
-            self.resolvent(block, alpha)
+            self.resolvent(alpha, None, block)
             self.apply_delta(block[0], self.stage_state)
         return self.stage_state
 
@@ -217,7 +217,7 @@ class ShiftedOneStageResolventStep:
         workspace = self.workspace
         self.trial_block.items[0] = workspace.scale(self.trial_block[0], 0.0, self.trial_block[0])
         self.resolvent.bind(workspace.stage_at(interval, dt, stage_shift), state)
-        self.resolvent(self.trial_block, alpha, rhs=rhs)
+        self.resolvent(alpha, rhs, self.trial_block)
         return self.trial_block[0]
 
 
@@ -254,7 +254,7 @@ class CoupledCollocationResolventStep:
         self.resolvent.bind(interval, state)
         for index, item in enumerate(self.stage_block):
             self.stage_block.items[index] = workspace.scale(item, 0.0, item)
-        self.resolvent(self.stage_block, dt)
+        self.resolvent(dt, None, self.stage_block)
         return self.stage_block
 
 
@@ -308,7 +308,7 @@ class SequentialDIRKResolventStep:
         target = block[0] if out is None else out
         block.items[0] = workspace.scale(target, 0.0, target)
         self.resolvent.bind(workspace.stage_at(interval, dt, stage_shift), stage_state)
-        self.resolvent(block, alpha)
+        self.resolvent(alpha, None, block)
         return block[0]
 
 

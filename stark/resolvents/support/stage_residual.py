@@ -14,11 +14,11 @@ class StageJacobianOperator:
         self.method_name = method_name
         self.apply = self._unconfigured
 
-    def __call__(self, out, translation) -> None:
-        self.apply(out, translation)
+    def __call__(self, translation, out) -> None:
+        self.apply(translation, out)
 
-    def _unconfigured(self, out, translation) -> None:
-        del out, translation
+    def _unconfigured(self, translation, out) -> None:
+        del translation, out
         raise RuntimeError(f"{self.method_name} Jacobian operator was used before the linearizer configured it.")
 
 
@@ -33,8 +33,8 @@ class StageResidualOperator:
         self.jacobian = jacobian
         self.alpha = 0.0
 
-    def __call__(self, out, translation) -> None:
-        self.jacobian(self.jacobian_buffer, translation)
+    def __call__(self, translation, out) -> None:
+        self.jacobian(translation, self.jacobian_buffer)
         self.combine2(out, 1.0, translation, -self.alpha, self.jacobian_buffer)
 
 
@@ -56,7 +56,7 @@ class CoupledStageResidualOperator:
         for jacobian in self.jacobians:
             jacobian.apply = jacobian._unconfigured
 
-    def __call__(self, out: Block, block: Block) -> None:
+    def __call__(self, block: Block, out: Block) -> None:
         for row_index, row in enumerate(self.matrix):
             out_item = self.scale(out[row_index], 0.0, out[row_index])
             for column_index, coefficient in enumerate(row):
@@ -64,7 +64,7 @@ class CoupledStageResidualOperator:
                     out_item = self.combine2(out_item, 1.0, out_item, 1.0, block[column_index])
                 if coefficient == 0.0:
                     continue
-                self.jacobians[column_index](self.jacobian_buffer, block[column_index])
+                self.jacobians[column_index](block[column_index], self.jacobian_buffer)
                 out_item = self.combine2(out_item, 1.0, out_item, -self.step * coefficient, self.jacobian_buffer)
             out.items[row_index] = out_item
 
@@ -135,7 +135,7 @@ class StageResidual:
             return
         self.rhs = self.combine2(self.rhs, 0.0, self.rhs, 1.0, rhs[0])
 
-    def __call__(self, out: Block, block: Block) -> None:
+    def __call__(self, block: Block, out: Block) -> None:
         interval = self.interval
         assert interval is not None
         delta = block[0]
@@ -143,20 +143,20 @@ class StageResidual:
         self.derivative(interval, self.trial_state, self.derivative_buffer)
         out.items[0] = self.combine3(out[0], 1.0, delta, -1.0, self.rhs, -self.alpha, self.derivative_buffer)
 
-    def linearize(self, out, block: Block) -> None:
-        self._linearize(out, block)
+    def linearize(self, block: Block, out) -> None:
+        self._linearize(block, out)
 
-    def _linearize_missing(self, out, block: Block) -> None:
-        del out, block
+    def _linearize_missing(self, block: Block, out) -> None:
+        del block, out
         raise RuntimeError(f"{self.method_name} Newton resolution requires a linearizer.")
 
-    def _linearize_configured(self, out, block: Block) -> None:
+    def _linearize_configured(self, block: Block, out) -> None:
         linearizer = self.linearizer
         assert linearizer is not None
         interval = self.interval
         assert interval is not None
         block[0](self.base_state, self.trial_state)
-        linearizer(interval, self.jacobian_operator, self.trial_state)
+        linearizer(interval, self.trial_state, self.jacobian_operator)
         self.residual_operator.alpha = self.alpha
         out.operators[0] = self.residual_operator
 
@@ -246,7 +246,7 @@ class CoupledStageResidual:
         for index, item in enumerate(self.rhs_block):
             self.rhs_block.items[index] = self.combine2(item, 0.0, item, 1.0, rhs[index])
 
-    def __call__(self, out: Block, block: Block) -> None:
+    def __call__(self, block: Block, out: Block) -> None:
         if len(block) != self.stage_count or len(out) != self.stage_count:
             raise ValueError(f"{self.method_name} expects {self.stage_count}-item stage blocks.")
 
@@ -270,14 +270,14 @@ class CoupledStageResidual:
                 )
             out.items[row_index] = out_item
 
-    def linearize(self, out, block: Block) -> None:
-        self._linearize(out, block)
+    def linearize(self, block: Block, out) -> None:
+        self._linearize(block, out)
 
-    def _linearize_missing(self, out, block: Block) -> None:
-        del out, block
+    def _linearize_missing(self, block: Block, out) -> None:
+        del block, out
         raise RuntimeError(f"{self.method_name} Newton resolution requires a linearizer.")
 
-    def _linearize_configured(self, out, block: Block) -> None:
+    def _linearize_configured(self, block: Block, out) -> None:
         linearizer = self.linearizer
         assert linearizer is not None
         if len(block) != self.stage_count:
@@ -288,7 +288,7 @@ class CoupledStageResidual:
             delta(self.base_state, self.stage_states[index])
             interval = self.stage_intervals[index]
             assert interval is not None
-            linearizer(interval, self.jacobian_operators[index], self.stage_states[index])
+            linearizer(interval, self.stage_states[index], self.jacobian_operators[index])
 
 
 __all__ = [

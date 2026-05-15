@@ -41,11 +41,11 @@ class ResolventBase(ABC):
     def bind_accelerator(self, accelerator: AcceleratorLike) -> None:
         self.accelerator = accelerator
 
-    def __call__(self, out: Block, alpha: float, rhs: Block | None = None) -> None:
-        self.redirect_call(out, alpha, rhs)
+    def __call__(self, alpha: float, rhs: Block | None, out: Block) -> None:
+        self.redirect_call(alpha, rhs, out)
 
-    def call_unbound(self, out: Block, alpha: float, rhs: Block | None = None) -> None:
-        del out, alpha, rhs
+    def call_unbound(self, alpha: float, rhs: Block | None, out: Block) -> None:
+        del alpha, rhs, out
         raise RuntimeError(f"{type(self).__name__} must be bound before use.")
 
     @staticmethod
@@ -54,11 +54,11 @@ class ResolventBase(ABC):
             raise ValueError(f"{name} must be a one-item block for this resolvent.")
 
     @abstractmethod
-    def call_checked(self, out: Block, alpha: float, rhs: Block | None = None) -> None:
+    def call_checked(self, alpha: float, rhs: Block | None, out: Block) -> None:
         """Validate input sizes, then dispatch to the unchecked hot path."""
 
     @abstractmethod
-    def call_unchecked(self, out: Block, alpha: float, rhs: Block | None = None) -> None:
+    def call_unchecked(self, alpha: float, rhs: Block | None, out: Block) -> None:
         """Unchecked hot path for a bound resolvent."""
 
 
@@ -115,15 +115,15 @@ class ResolventBaseFixedPoint(ResolventBase):
     def __str__(self) -> str:
         return type(self).__name__
 
-    def call_checked(self, out: Block, alpha: float, rhs: Block | None = None) -> None:
+    def call_checked(self, alpha: float, rhs: Block | None, out: Block) -> None:
         self.check_block_sizes(out, rhs)
-        self.call_unchecked(out, alpha, rhs)
+        self.call_unchecked(alpha, rhs, out)
 
     @abstractmethod
     def check_block_sizes(self, out: Block, rhs: Block | None = None) -> None:
         """Validate block sizes for this fixed-point resolvent."""
 
-    def call_unchecked(self, out: Block, alpha: float, rhs: Block | None = None) -> None:
+    def call_unchecked(self, alpha: float, rhs: Block | None, out: Block) -> None:
         interval = self.interval
         state = self.state
         assert interval is not None
@@ -147,14 +147,14 @@ class ResolventBaseFixedPoint(ResolventBase):
         assert residual_buffer is not None
 
         for _ in range(self.policy.max_iterations):
-            self.residual(residual_buffer, block)
+            self.residual(block, residual_buffer)
             error = residual_buffer.norm()
             scale = block.norm()
             if self.tolerance.accepts(error, scale):
                 return
             self.resolvent_workspace.combine2_block(block, 1.0, block, -1.0, residual_buffer)
 
-        self.residual(residual_buffer, block)
+        self.residual(block, residual_buffer)
         error = residual_buffer.norm()
         scale = block.norm()
         if self.tolerance.accepts(error, scale):
@@ -226,13 +226,13 @@ class ResolventBaseSecant(ResolventBase):
     def __str__(self) -> str:
         return type(self).__name__
 
-    def call_checked(self, out: Block, alpha: float, rhs: Block | None = None) -> None:
+    def call_checked(self, alpha: float, rhs: Block | None, out: Block) -> None:
         self.check_one_stage_block("out", out)
         if rhs is not None:
             self.check_one_stage_block("rhs", rhs)
-        self.call_unchecked(out, alpha, rhs)
+        self.call_unchecked(alpha, rhs, out)
 
-    def call_unchecked(self, out: Block, alpha: float, rhs: Block | None = None) -> None:
+    def call_unchecked(self, alpha: float, rhs: Block | None, out: Block) -> None:
         interval = self.interval
         state = self.state
         assert interval is not None
@@ -315,15 +315,15 @@ class ResolventBaseLinearized(ResolventBase):
     def __str__(self) -> str:
         return type(self).__name__
 
-    def call_checked(self, out: Block, alpha: float, rhs: Block | None = None) -> None:
+    def call_checked(self, alpha: float, rhs: Block | None, out: Block) -> None:
         self.check_block_sizes(out, rhs)
-        self.call_unchecked(out, alpha, rhs)
+        self.call_unchecked(alpha, rhs, out)
 
     @abstractmethod
     def check_block_sizes(self, out: Block, rhs: Block | None = None) -> None:
         """Validate block sizes for this Newton-family resolvent."""
 
-    def call_unchecked(self, out: Block, alpha: float, rhs: Block | None = None) -> None:
+    def call_unchecked(self, alpha: float, rhs: Block | None, out: Block) -> None:
         interval = self.interval
         state = self.state
         assert interval is not None
@@ -364,21 +364,21 @@ class ResolventBaseLinearized(ResolventBase):
         operator = self.resolve_operator(len(block))
 
         for _ in range(self.policy.max_iterations):
-            self.residual(residual_buffer, block)
+            self.residual(block, residual_buffer)
             error = residual_buffer.norm()
             scale = block.norm()
             if self.tolerance.accepts(error, scale):
                 return
 
             operator.reset()
-            self.residual.linearize(operator, block)
+            self.residual.linearize(block, operator)
             self.resolvent_workspace.combine2_block(rhs_buffer, 0.0, residual_buffer, -1.0, residual_buffer)
             self.resolvent_workspace.zero_block(correction)
             self.inverter.bind(operator)
-            self.inverter(correction, rhs_buffer)
+            self.inverter(rhs_buffer, correction)
             self.resolvent_workspace.combine2_block(block, 1.0, block, 1.0, correction)
 
-        self.residual(residual_buffer, block)
+        self.residual(block, residual_buffer)
         error = residual_buffer.norm()
         scale = block.norm()
         if self.tolerance.accepts(error, scale):

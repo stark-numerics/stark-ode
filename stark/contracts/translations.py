@@ -86,7 +86,7 @@ class Operator(Protocol):
     GMRES, FGMRES, and BiCGStab.
     """
 
-    def __call__(self, out: Translation, translation: Translation) -> None:
+    def __call__(self, translation: Translation, out: Translation) -> None:
         ...
 
 

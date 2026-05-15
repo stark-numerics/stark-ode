@@ -36,8 +36,8 @@ class BoundLinearizer:
     def bind_accelerator(self, accelerator: AcceleratorLike) -> None:
         self.resolved = accelerator.resolve_linearizer(self.raw)
 
-    def __call__(self, interval, out, state) -> Any:
-        return self.resolved(interval, out, state)
+    def __call__(self, interval, state, out) -> Any:
+        return self.resolved(interval, state, out)
 
 
 def bind_worker_tree(worker: Any, accelerator: AcceleratorLike, _seen: set[int] | None = None) -> None:

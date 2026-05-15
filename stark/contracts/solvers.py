@@ -26,7 +26,7 @@ class Residual(Protocol):
     several coupled stage translations.
     """
 
-    def __call__(self, out: Block, block: Block) -> None:
+    def __call__(self, block: Block, out: Block) -> None:
         ...
 
 
@@ -41,7 +41,7 @@ class LinearResidual(Residual, Protocol):
     into the correct residual operator.
     """
 
-    def linearize(self, out: Any, block: Block) -> None:
+    def linearize(self, block: Block, out: Any) -> None:
         ...
 
 
@@ -62,7 +62,7 @@ class Resolvent(Protocol):
     def bind(self, interval: IntervalLike, state: State) -> None:
         ...
 
-    def __call__(self, out: Block, alpha: float, rhs: Block | None = None) -> None:
+    def __call__(self, alpha: float, rhs: Block | None, out: Block) -> None:
         ...
 
 
@@ -78,7 +78,7 @@ class InverterLike(Protocol):
     def bind(self, operator: Any) -> None:
         ...
 
-    def __call__(self, out: Block, rhs: Block) -> None:
+    def __call__(self, rhs: Block, out: Block) -> None:
         ...
 
 
@@ -95,7 +95,7 @@ class PreconditionerLike(Protocol):
     def bind(self, operator: Any) -> None:
         ...
 
-    def __call__(self, out: Block, rhs: Block) -> None:
+    def __call__(self, rhs: Block, out: Block) -> None:
         ...
 
 
@@ -104,14 +104,14 @@ class SolverAudit:
     def residual(recorder: AuditRecorder, residual: Any, *, linear: bool = False) -> None:
         recorder.check(
             callable(residual),
-            "Residual provides __call__(out, block).",
-            "Add __call__(out, block) to evaluate the nonlinear residual.",
+            "Residual provides __call__(block, out).",
+            "Add __call__(block, out) to evaluate the nonlinear residual.",
         )
         if linear:
             recorder.check(
                 callable(getattr(residual, "linearize", None)),
-                "Residual provides linearize(out, block).",
-                "Add linearize(out, block) for Newton-style resolvents.",
+                "Residual provides linearize(block, out).",
+                "Add linearize(block, out) for Newton-style resolvents.",
             )
 
     @staticmethod
@@ -123,8 +123,8 @@ class SolverAudit:
         )
         recorder.check(
             callable(resolvent),
-            "Resolvent provides __call__(out, alpha, rhs=None).",
-            "Add __call__(out, alpha, rhs=None) to solve the bound implicit problem.",
+            "Resolvent provides __call__(alpha, rhs, out).",
+            "Add __call__(alpha, rhs, out) to solve the bound implicit problem.",
         )
 
     @staticmethod
@@ -136,8 +136,8 @@ class SolverAudit:
         )
         recorder.check(
             callable(inverter),
-            "Inverter provides __call__(out, rhs).",
-            "Add __call__(out, rhs) to apply the approximate inverse action.",
+            "Inverter provides __call__(rhs, out).",
+            "Add __call__(rhs, out) to apply the approximate inverse action.",
         )
 
     @staticmethod
@@ -149,8 +149,8 @@ class SolverAudit:
         )
         recorder.check(
             callable(preconditioner),
-            "Preconditioner provides __call__(out, rhs).",
-            "Add __call__(out, rhs) to apply the preconditioning action.",
+            "Preconditioner provides __call__(rhs, out).",
+            "Add __call__(rhs, out) to apply the preconditioning action.",
         )
 
 

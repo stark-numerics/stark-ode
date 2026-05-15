@@ -199,7 +199,7 @@ class RobertsonFullCubicResolvent:
         del interval
         self.state = state
 
-    def __call__(self, out, alpha, rhs=None) -> None:
+    def __call__(self, alpha, rhs, out) -> None:
         state = self.state
         if state is None:
             raise RuntimeError("RobertsonFullCubicResolvent must be bound before use.")
