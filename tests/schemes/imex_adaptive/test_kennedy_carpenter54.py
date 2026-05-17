@@ -87,6 +87,7 @@ def test_kennedy_carpenter54_owns_converted_call_surface() -> None:
     assert "__call__" in SchemeKennedyCarpenter54.__dict__
     assert "call_bind" in SchemeKennedyCarpenter54.__dict__
     assert "call_generic" in SchemeKennedyCarpenter54.__dict__
+    assert "call_algebraist" in SchemeKennedyCarpenter54.__dict__
     assert "call_monitored" in SchemeKennedyCarpenter54.__dict__
     assert "refresh_call" in SchemeKennedyCarpenter54.__dict__
 

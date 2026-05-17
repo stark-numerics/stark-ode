@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from stark.algebraist import Algebraist
 from stark.contracts import ImExDerivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
@@ -148,6 +149,8 @@ class SchemeKennedyCarpenter43_6(SchemeBaseImExAdaptive):
         workbench: Workbench,
         resolvent: Resolvent,
         regulator: Regulator | None = None,
+        *,
+        algebraist: Algebraist | None = None,
     ) -> None:
         super().__init__(derivative, workbench, regulator)
 
@@ -167,6 +170,9 @@ class SchemeKennedyCarpenter43_6(SchemeBaseImExAdaptive):
 
         self.call_pure = self.call_generic
         self.refresh_call()
+
+        if algebraist is not None:
+            self.bind_algebraist_path(algebraist)
 
     def refresh_call(self) -> None:
         if not self.adaptive.runtime_bound:
@@ -222,6 +228,11 @@ class SchemeKennedyCarpenter43_6(SchemeBaseImExAdaptive):
 
         return accepted_dt
 
+    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+        self.stepper.bind_algebraist(algebraist)
+        self.call_pure = self.call_algebraist
+        self.refresh_call()
+
     def call_generic(
         self,
         interval: IntervalLike,
@@ -255,6 +266,91 @@ class SchemeKennedyCarpenter43_6(SchemeBaseImExAdaptive):
                     delta_high_norm,
                     error_norm,
                 ) = stepper.step(
+                    interval,
+                    state,
+                    dt,
+                    include_norms=True,
+                )
+            except ResolventError:
+                rejection_count += 1
+                dt = self.adaptive.rejected_step(
+                    dt,
+                    1.0,
+                    remaining,
+                    self.short_name,
+                )
+                continue
+
+            assert error is not None
+            assert delta_high_norm is not None
+            assert error_norm is not None
+
+            error_ratio = ratio(error_norm, delta_high_norm)
+            if error_ratio <= 1.0:
+                break
+
+            rejection_count += 1
+            dt = self.adaptive.rejected_step(
+                dt,
+                error_ratio,
+                remaining,
+                self.short_name,
+            )
+
+        accepted_dt = dt
+        remaining_after = remaining - accepted_dt
+        next_dt = self.adaptive.accepted_next_step(
+            accepted_dt,
+            error_ratio,
+            remaining_after,
+        )
+
+        interval.step = next_dt
+        apply_delta(delta_high, state)
+
+        report = self.adaptive.record_accepted(
+            accepted_dt=accepted_dt,
+            t_start=t_start,
+            proposed_dt=proposed_dt,
+            next_dt=next_dt,
+            error_ratio=error_ratio,
+            rejection_count=rejection_count,
+        )
+        return report.accepted_dt
+
+    def call_algebraist(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        del executor
+
+        proposal = self.adaptive.propose_step(interval)
+        if proposal.remaining <= 0.0:
+            self.adaptive.record_stopped(interval)
+            return 0.0
+
+        stepper = self.stepper
+        workspace = self.workspace
+        apply_delta = workspace.apply_delta
+        ratio = self.adaptive.ratio
+        assert ratio is not None
+
+        remaining = proposal.remaining
+        dt = proposal.dt
+        proposed_dt = proposal.proposed_dt
+        t_start = proposal.t_start
+        rejection_count = 0
+
+        while True:
+            try:
+                (
+                    delta_high,
+                    error,
+                    delta_high_norm,
+                    error_norm,
+                ) = stepper.step_algebraist(
                     interval,
                     state,
                     dt,
