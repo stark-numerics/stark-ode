@@ -6,6 +6,7 @@ import pytest
 
 from stark import Executor, Integrator, Interval, Marcher, Tolerance
 from stark.accelerators import Accelerator
+from stark.algebraist import Algebraist, AlgebraistField
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
 from stark.resolvents.policy import ResolventPolicy
@@ -54,7 +55,10 @@ def constant_rhs(
     out.value = 1.0
 
 
-def make_scheme() -> SchemeBDF2:
+def make_scheme(
+    *,
+    algebraist: Algebraist | None = None,
+) -> SchemeBDF2:
     workbench = ScalarWorkbench()
     resolvent = ResolventPicard(
         constant_rhs,
@@ -68,6 +72,7 @@ def make_scheme() -> SchemeBDF2:
         constant_rhs,
         workbench,
         resolvent=resolvent,
+        algebraist=algebraist,
     )
 
 
@@ -88,6 +93,27 @@ def test_bdf2_default_call_path_is_scheme_owned_generic_call() -> None:
     # Adaptive schemes bind executor runtime lazily on first public call.
     assert scheme.redirect_call.__self__ is scheme
     assert scheme.redirect_call.__func__ is scheme.call_bind.__func__
+
+
+def test_bdf2_accepts_algebraist_but_remains_generic_only() -> None:
+    algebraist = Algebraist(fields=(AlgebraistField("value", "value"),))
+    scheme = make_scheme(algebraist=algebraist)
+
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is SchemeBDF2.call_generic
+
+    # Adaptive schemes still route through executor binding first.
+    assert scheme.redirect_call.__self__ is scheme
+    assert scheme.redirect_call.__func__ is scheme.call_bind.__func__
+
+
+def test_bdf2_algebraist_hook_does_not_generate_multistep_source() -> None:
+    algebraist = Algebraist(fields=(AlgebraistField("value", "value"),))
+    initial_sources = set(algebraist.sources)
+
+    make_scheme(algebraist=algebraist)
+
+    assert set(algebraist.sources) == initial_sources
 
 
 def test_bdf2_public_call_uses_redirect_call() -> None:

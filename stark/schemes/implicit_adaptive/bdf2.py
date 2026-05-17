@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from stark.accelerators.binding import BoundDerivative
+from stark.algebraist import Algebraist
 from stark.auditor import Auditor
 from stark.contracts import Block, Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
@@ -64,7 +65,10 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
         workbench: Workbench,
         resolvent: Resolvent,
         regulator: Regulator | None = None,
+        *,
+        algebraist: Algebraist | None = None,
     ) -> None:
+        del algebraist
         translation_probe = workbench.allocate_translation()
         Auditor.require_scheme_inputs(derivative, workbench, translation_probe)
 
