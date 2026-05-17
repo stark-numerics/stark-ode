@@ -131,10 +131,11 @@ def make_scheme(scheme_cls):
     )
 
 
-def make_array_scalar_kvaerno3(
+def make_array_scalar_scheme(
+    scheme_cls,
     *,
     algebraist: Algebraist | None = None,
-) -> SchemeKvaerno3:
+):
     workbench = ArrayScalarWorkbench()
     resolvent = ResolventPicard(
         array_constant_rhs,
@@ -142,9 +143,9 @@ def make_array_scalar_kvaerno3(
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
-        tableau=SchemeKvaerno3.tableau,
+        tableau=scheme_cls.tableau,
     )
-    return SchemeKvaerno3(
+    return scheme_cls(
         array_constant_rhs,
         workbench,
         resolvent=resolvent,
@@ -190,6 +191,14 @@ def test_esdirk_adaptive_default_call_path_is_scheme_owned_generic_call(
 
 
 @pytest.mark.parametrize(
+    "scheme_cls",
+    [
+        SchemeSDIRK21,
+        SchemeKvaerno3,
+        SchemeKvaerno4,
+    ],
+)
+@pytest.mark.parametrize(
     "field",
     [
         AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
@@ -197,15 +206,17 @@ def test_esdirk_adaptive_default_call_path_is_scheme_owned_generic_call(
         AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
     ],
 )
-def test_kvaerno3_algebraist_path_is_scheme_owned_generated_call(
+def test_esdirk_adaptive_algebraist_path_is_scheme_owned_generated_call(
+    scheme_cls,
     field: AlgebraistField,
 ) -> None:
-    scheme = make_array_scalar_kvaerno3(
+    scheme = make_array_scalar_scheme(
+        scheme_cls,
         algebraist=Algebraist(fields=(field,))
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeKvaerno3.call_algebraist
+    assert scheme.call_pure.__func__ is scheme_cls.call_algebraist
 
     # Adaptive schemes still route through executor binding first.
     assert scheme.redirect_call.__self__ is scheme
@@ -285,6 +296,14 @@ def test_esdirk_adaptive_call_clips_to_remaining_interval(scheme_cls) -> None:
 
 
 @pytest.mark.parametrize(
+    "scheme_cls",
+    [
+        SchemeSDIRK21,
+        SchemeKvaerno3,
+        SchemeKvaerno4,
+    ],
+)
+@pytest.mark.parametrize(
     "field",
     [
         AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
@@ -292,12 +311,13 @@ def test_esdirk_adaptive_call_clips_to_remaining_interval(scheme_cls) -> None:
         AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
     ],
 )
-def test_kvaerno3_algebraist_path_matches_generic_path(
+def test_esdirk_adaptive_algebraist_path_matches_generic_path(
+    scheme_cls,
     field: AlgebraistField,
 ) -> None:
     algebraist = Algebraist(fields=(field,))
-    generic = make_array_scalar_kvaerno3()
-    generated = make_array_scalar_kvaerno3(algebraist=algebraist)
+    generic = make_array_scalar_scheme(scheme_cls)
+    generated = make_array_scalar_scheme(scheme_cls, algebraist=algebraist)
     generic_interval = Interval(present=0.0, step=0.1, stop=0.3)
     generated_interval = Interval(present=0.0, step=0.1, stop=0.3)
     generic_state = ArrayScalarState.zero()
@@ -311,14 +331,24 @@ def test_kvaerno3_algebraist_path_matches_generic_path(
     assert generated_interval.step == pytest.approx(generic_interval.step)
 
 
-def test_kvaerno3_algebraist_source_is_inspectable() -> None:
+@pytest.mark.parametrize(
+    ("scheme_cls", "known_names"),
+    [
+        (SchemeSDIRK21, ("known2", "known3")),
+        (SchemeKvaerno3, ("known2", "known3", "known4")),
+        (SchemeKvaerno4, ("known2", "known3", "known4", "known5")),
+    ],
+)
+def test_esdirk_adaptive_algebraist_source_is_inspectable(
+    scheme_cls,
+    known_names: tuple[str, ...],
+) -> None:
     algebraist = Algebraist(fields=(AlgebraistField("value", "value"),))
 
-    make_array_scalar_kvaerno3(algebraist=algebraist)
+    make_array_scalar_scheme(scheme_cls, algebraist=algebraist)
 
-    assert "known2_combine" in algebraist.sources
-    assert "known3_combine" in algebraist.sources
-    assert "known4_combine" in algebraist.sources
+    for name in known_names:
+        assert f"{name}_combine" in algebraist.sources
     assert "high_delta_combine" in algebraist.sources
     assert "error_delta_combine" in algebraist.sources
     assert "low_delta_combine" not in algebraist.sources
