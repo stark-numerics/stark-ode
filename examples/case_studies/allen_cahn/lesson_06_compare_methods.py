@@ -1,0 +1,141 @@
+from __future__ import annotations
+
+# Lesson 6: compare explicit, fully implicit, and IMEX methods
+#
+# At this point, a single IMEX run only tells us that the custom resolvent
+# works. The more interesting question is whether it actually improves the
+# solve.
+#
+# So we now compare three approaches on the same Allen-Cahn problem:
+#
+# - an adaptive explicit method,
+# - an adaptive fully implicit method with Newton,
+# - and the custom IMEX method with the spectral diffusion resolvent.
+#
+# This is the decision point in the story. We have added quite a lot of
+# machinery since lesson 1, and this comparison asks whether that extra
+# structure bought us a better balance between step count and internal cost.
+#
+# In a source checkout, run from the `stark-ode` directory with:
+#
+#     python -m examples.case_studies.allen_cahn.lesson_06_compare_methods
+
+from stark import Executor, Marcher
+from stark.comparison import Comparator, ComparatorEntry, ComparatorProblem
+from stark.contracts import ImExDerivative
+from stark.interface import StarkDerivative, StarkIVP, StarkVector
+from stark.inverters import InverterBiCGStab, InverterPolicy, InverterTolerance
+from stark.resolvents import ResolventNewton, ResolventPolicy, ResolventTolerance
+from stark.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7, SchemeSDIRK21
+
+from examples.case_studies.allen_cahn.lesson_01_problem import (
+    DIFFUSIVITY,
+    TOLERANCE,
+    AllenCahnRHS,
+    Geometry,
+    initial_profile,
+    make_interval,
+    state_diagnostics,
+    state_difference,
+)
+from examples.case_studies.allen_cahn.lesson_04_implicit_newton import (
+    AllenCahnLinearizer,
+    allen_cahn_inner_product,
+)
+from examples.case_studies.allen_cahn.lesson_05_imex_spectral import (
+    AllenCahnExplicitDerivative,
+    AllenCahnImplicitDerivative,
+    AllenCahnSpectralResolvent,
+)
+
+
+if __name__ == "__main__":
+    geometry = Geometry()
+    executor = Executor(tolerance=TOLERANCE)
+
+    # Prepare the vector-space boundary once. All three methods below solve the
+    # same semidiscrete Allen-Cahn problem on the same carrier.
+
+    template = StarkIVP(
+        derivative=StarkDerivative.in_place(
+            AllenCahnRHS(geometry, DIFFUSIVITY),
+        ),
+        initial=initial_profile(geometry),
+        interval=make_interval(),
+        scheme=SchemeCashKarp,
+        executor=executor,
+    ).build()
+
+    carrier = template.initial.carrier
+    full_derivative = template.derivative
+    workbench = template.workbench
+
+    # 1. Explicit baseline: simple to configure, but lesson 3 showed that it
+    # may take conservative steps on this problem.
+
+    explicit_scheme = SchemeCashKarp(full_derivative, workbench)
+
+    # 2. Fully implicit Newton: fewer macro steps may be possible, but each
+    # step carries nonlinear and Krylov linear-solve work.
+
+    linearizer = AllenCahnLinearizer(geometry, DIFFUSIVITY)
+    inverter = InverterBiCGStab(
+        workbench,
+        allen_cahn_inner_product,
+        tolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
+        policy=InverterPolicy(max_iterations=24, restart=12),
+        safety=executor.safety,
+    )
+    newton_resolvent = ResolventNewton(
+        full_derivative,
+        workbench,
+        linearizer=linearizer,
+        inverter=inverter,
+        tolerance=ResolventTolerance(atol=1.0e-7, rtol=1.0e-7),
+        policy=ResolventPolicy(max_iterations=12),
+        safety=executor.safety,
+        accelerator=executor.accelerator,
+        tableau=SchemeSDIRK21.tableau,
+    )
+    implicit_scheme = SchemeSDIRK21(
+        full_derivative,
+        workbench,
+        newton_resolvent,
+    )
+
+    # 3. IMEX spectral: treat only linear diffusion implicitly and solve that
+    # stage problem directly in Fourier space.
+
+    imex_derivative = ImExDerivative(
+        implicit=AllenCahnImplicitDerivative(geometry, DIFFUSIVITY),
+        explicit=AllenCahnExplicitDerivative(geometry),
+    )
+    spectral_resolvent = AllenCahnSpectralResolvent(geometry, DIFFUSIVITY)
+    imex_scheme = SchemeKennedyCarpenter43_7(
+        imex_derivative,
+        workbench,
+        resolvent=spectral_resolvent,
+    )
+
+    problem = ComparatorProblem(
+        name="Allen-Cahn method comparison",
+        build_state=lambda: StarkVector(initial_profile(geometry), carrier),
+        build_interval=make_interval,
+        difference=state_difference,
+        diagnostics=state_diagnostics,
+    )
+
+    entries = [
+        ComparatorEntry("Cash-Karp explicit", Marcher(explicit_scheme, executor)),
+        ComparatorEntry("SDIRK21 Newton", Marcher(implicit_scheme, executor)),
+        ComparatorEntry("KC43-7 IMEX spectral", Marcher(imex_scheme, executor)),
+    ]
+
+    report = Comparator(problem, entries, repeats=3)()
+    print(report)
+    print()
+    print("What to notice:")
+    print("- The explicit method is the simplest baseline.")
+    print("- The fully implicit method shows what generic nonlinear solving costs.")
+    print("- The IMEX spectral method tests whether problem structure pays for itself.")
+    print("- The best method here is not chosen by taste; it is chosen by evidence.")

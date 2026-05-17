@@ -21,6 +21,7 @@ htmlcov/
 .profiles/
 .asv/
 examples/*.png
+examples/**/*.png
 examples/.ipynb_checkpoints/
 examples/local/
 
