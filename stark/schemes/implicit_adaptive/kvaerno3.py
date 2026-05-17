@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from stark.accelerators.binding import BoundDerivative
+from stark.algebraist import Algebraist, AlgebraistImplicitCombination
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
@@ -100,6 +101,11 @@ class SchemeKvaerno3(SchemeBaseImplicitAdaptive):
         "delta4",
         "derivative",
         "error",
+        "error_delta_call",
+        "high_delta_call",
+        "known2_call",
+        "known3_call",
+        "known4_call",
         "known4",
         "stage1_rate",
         "stepper",
@@ -115,7 +121,15 @@ class SchemeKvaerno3(SchemeBaseImplicitAdaptive):
         workbench: Workbench,
         resolvent: Resolvent,
         regulator: Regulator | None = None,
+        *,
+        algebraist: Algebraist | None = None,
     ) -> None:
+        self.error_delta_call = None
+        self.high_delta_call = None
+        self.known2_call = None
+        self.known3_call = None
+        self.known4_call = None
+
         self.derivative = BoundDerivative(derivative)
         self.stepper = SequentialDIRKResolventStep(
             "Kvaerno3",
@@ -141,6 +155,9 @@ class SchemeKvaerno3(SchemeBaseImplicitAdaptive):
         self.initialise_runtime(regulator)
         self.call_pure = self.call_generic
         self.refresh_call()
+
+        if algebraist is not None:
+            self.bind_algebraist_path(algebraist)
 
     @staticmethod
     def default_regulator() -> Regulator:
@@ -188,6 +205,42 @@ class SchemeKvaerno3(SchemeBaseImplicitAdaptive):
             )
 
         return accepted_dt
+
+    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+        calls = algebraist.bind_implicit_adaptive_scheme(
+            known_shifts=(
+                AlgebraistImplicitCombination(
+                    "known2",
+                    (KVAERNO3_GAMMA,),
+                    step_scale=True,
+                ),
+                None,
+                AlgebraistImplicitCombination(
+                    "known3",
+                    (_DELTA31, _DELTA32),
+                ),
+                AlgebraistImplicitCombination(
+                    "known4",
+                    (_DELTA41, _DELTA42, _DELTA43),
+                ),
+            ),
+            high_delta=AlgebraistImplicitCombination(
+                "high_delta",
+                _STAGE_INCREMENT_WEIGHTS_HIGH,
+            ),
+            error_delta=AlgebraistImplicitCombination(
+                "error_delta",
+                _STAGE_INCREMENT_WEIGHTS_ERROR,
+            ),
+        )
+        scheme_name = type(self).__name__
+        self.known2_call = calls.require_known_shift_call(0, scheme_name)
+        self.known3_call = calls.require_known_shift_call(2, scheme_name)
+        self.known4_call = calls.require_known_shift_call(3, scheme_name)
+        self.high_delta_call = calls.require_high_delta_call(scheme_name)
+        self.error_delta_call = calls.require_error_delta_call(scheme_name)
+        self.call_pure = self.call_algebraist
+        self.refresh_call()
 
     def call_generic(
         self,
@@ -313,6 +366,155 @@ class SchemeKvaerno3(SchemeBaseImplicitAdaptive):
                 _STAGE_INCREMENT_WEIGHTS_ERROR[2],
                 delta3,
                 _STAGE_INCREMENT_WEIGHTS_ERROR[3],
+                delta4,
+            )
+
+            error_ratio = ratio(error.norm(), delta_high.norm())
+
+            if error_ratio <= 1.0:
+                break
+
+            rejection_count += 1
+            dt = self.adaptive.rejected_step(
+                dt,
+                error_ratio,
+                remaining,
+                self.short_name,
+            )
+
+        accepted_dt = dt
+        remaining_after = remaining - accepted_dt
+        next_dt = self.adaptive.accepted_next_step(
+            accepted_dt,
+            error_ratio,
+            remaining_after,
+        )
+
+        interval.step = next_dt
+        apply_delta(delta_high, state)
+
+        report = self.adaptive.record_accepted(
+            accepted_dt=accepted_dt,
+            t_start=t_start,
+            proposed_dt=proposed_dt,
+            next_dt=next_dt,
+            error_ratio=error_ratio,
+            rejection_count=rejection_count,
+        )
+        return report.accepted_dt
+
+    def call_algebraist(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        del executor
+
+        proposal = self.adaptive.propose_step(interval)
+
+        if proposal.remaining <= 0.0:
+            self.adaptive.record_stopped(interval)
+            return 0.0
+
+        stepper = self.stepper
+        workspace = stepper.workspace
+        derivative = self.derivative
+        apply_delta = workspace.apply_delta
+        ratio = self.adaptive.ratio
+        known2_call = self.known2_call
+        known3_call = self.known3_call
+        known4_call = self.known4_call
+        high_delta_call = self.high_delta_call
+        error_delta_call = self.error_delta_call
+
+        assert ratio is not None
+
+        remaining = proposal.remaining
+        dt = proposal.dt
+        proposed_dt = proposal.proposed_dt
+        t_start = proposal.t_start
+        rejection_count = 0
+
+        derivative(interval, state, self.stage1_rate)
+
+        while True:
+            delta1 = known2_call(
+                self.delta1,
+                dt,
+                self.stage1_rate,
+            )
+
+            try:
+                delta2 = stepper.solve(
+                    interval,
+                    state,
+                    dt,
+                    block_index=0,
+                    stage_shift=2.0 * KVAERNO3_GAMMA * dt,
+                    alpha=dt * KVAERNO3_GAMMA,
+                    known_shift=delta1,
+                    out=self.delta2,
+                )
+
+                known3 = known3_call(
+                    self.trial,
+                    delta1,
+                    delta2,
+                )
+
+                delta3 = stepper.solve(
+                    interval,
+                    state,
+                    dt,
+                    block_index=1,
+                    stage_shift=dt,
+                    alpha=dt * KVAERNO3_GAMMA,
+                    known_shift=known3,
+                    out=self.delta3,
+                )
+
+                known4 = known4_call(
+                    self.known4,
+                    delta1,
+                    delta2,
+                    delta3,
+                )
+
+                delta4 = stepper.solve(
+                    interval,
+                    state,
+                    dt,
+                    block_index=2,
+                    stage_shift=dt,
+                    alpha=dt * KVAERNO3_GAMMA,
+                    known_shift=known4,
+                    out=self.delta4,
+                )
+
+            except ResolventError:
+                rejection_count += 1
+                dt = self.adaptive.rejected_step(
+                    dt,
+                    1.0,
+                    remaining,
+                    self.short_name,
+                )
+                continue
+
+            delta_high = high_delta_call(
+                self.trial,
+                delta1,
+                delta2,
+                delta3,
+                delta4,
+            )
+
+            error = error_delta_call(
+                self.error,
+                delta1,
+                delta2,
+                delta3,
                 delta4,
             )
 

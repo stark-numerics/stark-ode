@@ -2,10 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
 import pytest
 
 from stark import Executor, Interval, Tolerance
 from stark.accelerators import Accelerator
+from stark.algebraist import (
+    Algebraist,
+    AlgebraistBroadcast,
+    AlgebraistField,
+    AlgebraistLooped,
+    AlgebraistSmallFixed,
+)
 from stark.resolvents import ResolventCoupledPicard
 from stark.resolvents.policy import ResolventPolicy
 from stark.schemes.implicit_fixed.gauss_legendre4 import SchemeGaussLegendre4
@@ -46,6 +54,47 @@ class ScalarWorkbench:
         return ScalarTranslation()
 
 
+@dataclass(slots=True)
+class ArrayScalarState:
+    value: np.ndarray
+
+    @classmethod
+    def zero(cls) -> "ArrayScalarState":
+        return cls(np.zeros(1))
+
+
+@dataclass(slots=True)
+class ArrayScalarTranslation:
+    value: np.ndarray
+
+    @classmethod
+    def zero(cls) -> "ArrayScalarTranslation":
+        return cls(np.zeros(1))
+
+    def __call__(self, origin: ArrayScalarState, result: ArrayScalarState) -> None:
+        result.value[...] = origin.value + self.value
+
+    def norm(self) -> float:
+        return float(abs(self.value[0]))
+
+    def __add__(self, other: "ArrayScalarTranslation") -> "ArrayScalarTranslation":
+        return ArrayScalarTranslation(self.value + other.value)
+
+    def __rmul__(self, scalar: float) -> "ArrayScalarTranslation":
+        return ArrayScalarTranslation(scalar * self.value)
+
+
+class ArrayScalarWorkbench:
+    def allocate_state(self) -> ArrayScalarState:
+        return ArrayScalarState.zero()
+
+    def copy_state(self, dst: ArrayScalarState, src: ArrayScalarState) -> None:
+        dst.value[...] = src.value
+
+    def allocate_translation(self) -> ArrayScalarTranslation:
+        return ArrayScalarTranslation.zero()
+
+
 def constant_rhs(
     interval: Interval,
     state: ScalarState,
@@ -53,6 +102,15 @@ def constant_rhs(
 ) -> None:
     del interval, state
     out.value = 1.0
+
+
+def array_constant_rhs(
+    interval: Interval,
+    state: ArrayScalarState,
+    out: ArrayScalarTranslation,
+) -> None:
+    del interval, state
+    out.value[...] = 1.0
 
 
 def make_scheme(scheme_cls):
@@ -70,6 +128,31 @@ def make_scheme(scheme_cls):
         workbench,
         resolvent=resolvent,
     )
+
+
+def make_array_scheme(scheme_cls, *, algebraist: Algebraist | None = None):
+    workbench = ArrayScalarWorkbench()
+    resolvent = ResolventCoupledPicard(
+        array_constant_rhs,
+        workbench,
+        tableau=scheme_cls.tableau,
+        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
+        accelerator=Accelerator.none(),
+    )
+    return scheme_cls(
+        array_constant_rhs,
+        workbench,
+        resolvent=resolvent,
+        algebraist=algebraist,
+    )
+
+
+ALGEBRAIST_FIELDS = [
+    AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
+    AlgebraistField("value", "value", policy=AlgebraistLooped(rank=1)),
+    AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
+]
 
 
 @pytest.mark.parametrize(
@@ -96,6 +179,40 @@ def test_collocation_fixed_default_call_path_is_scheme_owned_generic_call(
     scheme_cls,
 ) -> None:
     scheme = make_scheme(scheme_cls)
+
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is scheme_cls.call_generic
+    assert scheme.redirect_call == scheme.call_pure
+
+
+@pytest.mark.parametrize("field", ALGEBRAIST_FIELDS)
+def test_gauss_legendre4_algebraist_path_is_scheme_owned_generated_call(
+    field: AlgebraistField,
+) -> None:
+    scheme = make_array_scheme(
+        SchemeGaussLegendre4,
+        algebraist=Algebraist(fields=(field,)),
+    )
+
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is SchemeGaussLegendre4.call_algebraist
+    assert scheme.redirect_call == scheme.call_pure
+
+
+@pytest.mark.parametrize(
+    "scheme_cls",
+    [
+        SchemeLobattoIIIC4,
+        SchemeRadauIIA5,
+    ],
+)
+def test_stiffly_accurate_collocation_accepts_no_op_algebraist_path(
+    scheme_cls,
+) -> None:
+    scheme = make_array_scheme(
+        scheme_cls,
+        algebraist=Algebraist(fields=(ALGEBRAIST_FIELDS[0],)),
+    )
 
     assert scheme.call_pure.__self__ is scheme
     assert scheme.call_pure.__func__ is scheme_cls.call_generic
@@ -150,6 +267,35 @@ def test_collocation_fixed_call_performs_one_constant_rhs_step(scheme_cls) -> No
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(0.125)
     assert interval.step == pytest.approx(0.125)
+
+
+@pytest.mark.parametrize("field", ALGEBRAIST_FIELDS)
+def test_gauss_legendre4_algebraist_path_matches_generic_path(
+    field: AlgebraistField,
+) -> None:
+    algebraist = Algebraist(fields=(field,))
+    generic = make_array_scheme(SchemeGaussLegendre4)
+    generated = make_array_scheme(SchemeGaussLegendre4, algebraist=algebraist)
+    generic_interval = Interval(present=0.0, step=0.125, stop=1.0)
+    generated_interval = Interval(present=0.0, step=0.125, stop=1.0)
+    generic_state = ArrayScalarState.zero()
+    generated_state = ArrayScalarState.zero()
+
+    generic_dt = generic(generic_interval, generic_state, Executor())
+    generated_dt = generated(generated_interval, generated_state, Executor())
+
+    assert generated_dt == pytest.approx(generic_dt)
+    assert generated_state.value[0] == pytest.approx(generic_state.value[0])
+    assert generated_interval.step == pytest.approx(generic_interval.step)
+
+
+def test_gauss_legendre4_algebraist_source_is_inspectable() -> None:
+    algebraist = Algebraist(fields=(ALGEBRAIST_FIELDS[0],))
+
+    make_array_scheme(SchemeGaussLegendre4, algebraist=algebraist)
+
+    assert "final_delta_combine" in algebraist.sources
+    assert "known_rhs_combine" not in algebraist.sources
 
 
 @pytest.mark.parametrize(

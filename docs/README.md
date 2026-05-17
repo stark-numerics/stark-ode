@@ -407,6 +407,13 @@ enough, or repeated often enough, to offset accelerator warmup and compilation
 costs. For small one-off solves, constructing the scheme without `algebraist=`
 may still be faster.
 
+For implicit and IMEX schemes, Algebraist support is intentionally narrower:
+it may generate scheme-owned algebra such as known stage shifts, final updates,
+and embedded error combinations. It does not generate nonlinear solver loops,
+convergence checks, resolvent logic, inverter internals, or preconditioners. If
+resolvents gain generated fast paths later, they should receive an Algebraist
+directly instead of inheriting scheme-level generated code.
+
 The entries are:
 
 - `linear_combine[0]`: `scale(out, a, x)`

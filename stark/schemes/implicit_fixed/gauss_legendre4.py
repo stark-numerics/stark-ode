@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from math import sqrt
 
+from stark.algebraist import Algebraist, AlgebraistImplicitCombination
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.machinery.stage_solve.workers import CoupledCollocationResolventStep
@@ -53,6 +54,7 @@ class SchemeGaussLegendre4(SchemeBaseImplicitFixed):
 
     __slots__ = (
         "call_pure",
+        "final_delta_call",
         "redirect_call",
         "stepper",
         "trial",
@@ -66,7 +68,10 @@ class SchemeGaussLegendre4(SchemeBaseImplicitFixed):
         derivative: Derivative,
         workbench: Workbench,
         resolvent: Resolvent,
+        *,
+        algebraist: Algebraist | None = None,
     ) -> None:
+        self.final_delta_call = None
         self.stepper = CoupledCollocationResolventStep(
             "Gauss-Legendre 4",
             self.tableau,
@@ -80,6 +85,9 @@ class SchemeGaussLegendre4(SchemeBaseImplicitFixed):
         self.call_pure = self.call_generic
         self.redirect_call = self.call_pure
 
+        if algebraist is not None:
+            self.bind_algebraist_path(algebraist)
+
     def __call__(
         self,
         interval: IntervalLike,
@@ -87,6 +95,17 @@ class SchemeGaussLegendre4(SchemeBaseImplicitFixed):
         executor: Executor,
     ) -> float:
         return self.redirect_call(interval, state, executor)
+
+    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+        calls = algebraist.bind_implicit_fixed_scheme(
+            final_delta=AlgebraistImplicitCombination(
+                "final_delta",
+                GAUSS_LEGENDRE4_STAGE_INCREMENT_WEIGHTS,
+            ),
+        )
+        self.final_delta_call = calls.require_final_delta_call(type(self).__name__)
+        self.call_pure = self.call_algebraist
+        self.redirect_call = self.call_pure
 
     def call_generic(
         self,
@@ -110,6 +129,36 @@ class SchemeGaussLegendre4(SchemeBaseImplicitFixed):
             GAUSS_LEGENDRE4_STAGE_INCREMENT_WEIGHTS[0],
             stage_block[0],
             GAUSS_LEGENDRE4_STAGE_INCREMENT_WEIGHTS[1],
+            stage_block[1],
+        )
+        workspace.apply_delta(delta, state)
+
+        remaining_after = remaining - dt
+        interval.step = 0.0 if remaining_after <= 0.0 else min(interval.step, remaining_after)
+
+        return dt
+
+    def call_algebraist(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        del executor
+
+        remaining = interval.stop - interval.present
+        if remaining <= 0.0:
+            return 0.0
+
+        workspace = self.stepper.workspace
+        final_delta_call = self.final_delta_call
+        dt = interval.step if interval.step <= remaining else remaining
+
+        stage_block = self.stepper.solve(interval, state, dt)
+
+        delta = final_delta_call(
+            self.trial,
+            stage_block[0],
             stage_block[1],
         )
         workspace.apply_delta(delta, state)

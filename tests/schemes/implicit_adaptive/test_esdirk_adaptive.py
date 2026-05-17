@@ -2,10 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
 import pytest
 
 from stark import Executor, Integrator, Interval, Marcher, Tolerance
 from stark.accelerators import Accelerator
+from stark.algebraist import (
+    Algebraist,
+    AlgebraistBroadcast,
+    AlgebraistField,
+    AlgebraistLooped,
+    AlgebraistSmallFixed,
+)
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
 from stark.resolvents.policy import ResolventPolicy
@@ -47,6 +55,47 @@ class ScalarWorkbench:
         return ScalarTranslation()
 
 
+@dataclass(slots=True)
+class ArrayScalarState:
+    value: np.ndarray
+
+    @classmethod
+    def zero(cls) -> "ArrayScalarState":
+        return cls(np.zeros(1))
+
+
+@dataclass(slots=True)
+class ArrayScalarTranslation:
+    value: np.ndarray
+
+    @classmethod
+    def zero(cls) -> "ArrayScalarTranslation":
+        return cls(np.zeros(1))
+
+    def __call__(self, origin: ArrayScalarState, result: ArrayScalarState) -> None:
+        result.value[...] = origin.value + self.value
+
+    def norm(self) -> float:
+        return float(abs(self.value[0]))
+
+    def __add__(self, other: "ArrayScalarTranslation") -> "ArrayScalarTranslation":
+        return ArrayScalarTranslation(self.value + other.value)
+
+    def __rmul__(self, scalar: float) -> "ArrayScalarTranslation":
+        return ArrayScalarTranslation(scalar * self.value)
+
+
+class ArrayScalarWorkbench:
+    def allocate_state(self) -> ArrayScalarState:
+        return ArrayScalarState.zero()
+
+    def copy_state(self, dst: ArrayScalarState, src: ArrayScalarState) -> None:
+        dst.value[...] = src.value
+
+    def allocate_translation(self) -> ArrayScalarTranslation:
+        return ArrayScalarTranslation.zero()
+
+
 def constant_rhs(
     interval: Interval,
     state: ScalarState,
@@ -54,6 +103,15 @@ def constant_rhs(
 ) -> None:
     del interval, state
     out.value = 1.0
+
+
+def array_constant_rhs(
+    interval: Interval,
+    state: ArrayScalarState,
+    out: ArrayScalarTranslation,
+) -> None:
+    del interval, state
+    out.value[...] = 1.0
 
 
 def make_scheme(scheme_cls):
@@ -70,6 +128,27 @@ def make_scheme(scheme_cls):
         constant_rhs,
         workbench,
         resolvent=resolvent,
+    )
+
+
+def make_array_scalar_kvaerno3(
+    *,
+    algebraist: Algebraist | None = None,
+) -> SchemeKvaerno3:
+    workbench = ArrayScalarWorkbench()
+    resolvent = ResolventPicard(
+        array_constant_rhs,
+        workbench,
+        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        policy=ResolventPolicy(max_iterations=8),
+        accelerator=Accelerator.none(),
+        tableau=SchemeKvaerno3.tableau,
+    )
+    return SchemeKvaerno3(
+        array_constant_rhs,
+        workbench,
+        resolvent=resolvent,
+        algebraist=algebraist,
     )
 
 
@@ -106,6 +185,29 @@ def test_esdirk_adaptive_default_call_path_is_scheme_owned_generic_call(
     assert scheme.call_pure.__func__ is scheme_cls.call_generic
 
     # Adaptive schemes bind executor runtime lazily on first public call.
+    assert scheme.redirect_call.__self__ is scheme
+    assert scheme.redirect_call.__func__ is scheme.call_bind.__func__
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
+        AlgebraistField("value", "value", policy=AlgebraistLooped(rank=1)),
+        AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
+    ],
+)
+def test_kvaerno3_algebraist_path_is_scheme_owned_generated_call(
+    field: AlgebraistField,
+) -> None:
+    scheme = make_array_scalar_kvaerno3(
+        algebraist=Algebraist(fields=(field,))
+    )
+
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is SchemeKvaerno3.call_algebraist
+
+    # Adaptive schemes still route through executor binding first.
     assert scheme.redirect_call.__self__ is scheme
     assert scheme.redirect_call.__func__ is scheme.call_bind.__func__
 
@@ -180,6 +282,46 @@ def test_esdirk_adaptive_call_clips_to_remaining_interval(scheme_cls) -> None:
     assert accepted_dt == pytest.approx(0.2)
     assert state.value == pytest.approx(0.2)
     assert interval.step == pytest.approx(0.0)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
+        AlgebraistField("value", "value", policy=AlgebraistLooped(rank=1)),
+        AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
+    ],
+)
+def test_kvaerno3_algebraist_path_matches_generic_path(
+    field: AlgebraistField,
+) -> None:
+    algebraist = Algebraist(fields=(field,))
+    generic = make_array_scalar_kvaerno3()
+    generated = make_array_scalar_kvaerno3(algebraist=algebraist)
+    generic_interval = Interval(present=0.0, step=0.1, stop=0.3)
+    generated_interval = Interval(present=0.0, step=0.1, stop=0.3)
+    generic_state = ArrayScalarState.zero()
+    generated_state = ArrayScalarState.zero()
+
+    generic_dt = generic(generic_interval, generic_state, tight_executor())
+    generated_dt = generated(generated_interval, generated_state, tight_executor())
+
+    assert generated_dt == pytest.approx(generic_dt)
+    assert generated_state.value[0] == pytest.approx(generic_state.value[0])
+    assert generated_interval.step == pytest.approx(generic_interval.step)
+
+
+def test_kvaerno3_algebraist_source_is_inspectable() -> None:
+    algebraist = Algebraist(fields=(AlgebraistField("value", "value"),))
+
+    make_array_scalar_kvaerno3(algebraist=algebraist)
+
+    assert "known2_combine" in algebraist.sources
+    assert "known3_combine" in algebraist.sources
+    assert "known4_combine" in algebraist.sources
+    assert "high_delta_combine" in algebraist.sources
+    assert "error_delta_combine" in algebraist.sources
+    assert "low_delta_combine" not in algebraist.sources
 
 
 @pytest.mark.parametrize(

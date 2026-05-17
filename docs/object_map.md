@@ -76,6 +76,11 @@ is known.
   paths for repeated tableau combinations. Advanced users can supply one.
   Accelerated Algebraists may have noticeable compilation cost, so they are
   best suited to large states, long integrations, or repeated solves.
+  Implicit and IMEX scheme support is limited to scheme-owned algebra such as
+  known stage shifts, final updates, and embedded error combinations. Algebraist
+  does not generate resolvent iterations, convergence checks, inverter logic, or
+  preconditioner internals; future resolvent fast paths should receive their own
+  explicitly supplied Algebraist.
 
 - **Algebraist field**
   Describes how one translation field maps to one state field and which policy

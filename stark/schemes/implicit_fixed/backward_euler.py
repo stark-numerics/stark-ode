@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.machinery.stage_solve.workers import ShiftedOneStageResolventStep
@@ -44,7 +45,10 @@ class SchemeBackwardEuler(SchemeBaseImplicitFixed):
         derivative: Derivative,
         workbench: Workbench,
         resolvent: Resolvent,
+        *,
+        algebraist: Algebraist | None = None,
     ) -> None:
+        del algebraist
         self.stepper = ShiftedOneStageResolventStep(
             "Backward Euler",
             self.tableau,

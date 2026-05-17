@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from stark.algebraist import Algebraist, AlgebraistImplicitCombination
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.machinery.stage_solve.workers import SequentialDIRKResolventStep
@@ -71,6 +72,10 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
         "delta2",
         "delta3",
         "delta4",
+        "final_delta_call",
+        "known2_call",
+        "known3_call",
+        "known4_call",
         "known2",
         "known3",
         "known4",
@@ -87,7 +92,14 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
         derivative: Derivative,
         workbench: Workbench,
         resolvent: Resolvent,
+        *,
+        algebraist: Algebraist | None = None,
     ) -> None:
+        self.final_delta_call = None
+        self.known2_call = None
+        self.known3_call = None
+        self.known4_call = None
+
         self.stepper = SequentialDIRKResolventStep(
             "Crouzeix DIRK3",
             self.tableau,
@@ -112,6 +124,9 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
         self.call_pure = self.call_generic
         self.redirect_call = self.call_pure
 
+        if algebraist is not None:
+            self.bind_algebraist_path(algebraist)
+
     def __call__(
         self,
         interval: IntervalLike,
@@ -119,6 +134,32 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
         executor: Executor,
     ) -> float:
         return self.redirect_call(interval, state, executor)
+
+    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+        calls = algebraist.bind_implicit_fixed_scheme(
+            known_shifts=(
+                None,
+                AlgebraistImplicitCombination("known2", (_DELTA21,)),
+                AlgebraistImplicitCombination(
+                    "known3",
+                    (_DELTA31, _DELTA32),
+                ),
+                AlgebraistImplicitCombination(
+                    "known4",
+                    (_DELTA41, _DELTA42, _DELTA43),
+                ),
+            ),
+            final_delta=AlgebraistImplicitCombination(
+                "final_delta",
+                _STAGE_INCREMENT_WEIGHTS,
+            ),
+        )
+        self.known2_call = calls.require_known_shift_call(1, type(self).__name__)
+        self.known3_call = calls.require_known_shift_call(2, type(self).__name__)
+        self.known4_call = calls.require_known_shift_call(3, type(self).__name__)
+        self.final_delta_call = calls.require_final_delta_call(type(self).__name__)
+        self.call_pure = self.call_algebraist
+        self.redirect_call = self.call_pure
 
     def call_generic(
         self,
@@ -214,6 +255,92 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
             _STAGE_INCREMENT_WEIGHTS[2],
             delta3,
             _STAGE_INCREMENT_WEIGHTS[3],
+            delta4,
+        )
+
+        workspace.apply_delta(delta_high, state)
+
+        remaining_after = remaining - dt
+        interval.step = 0.0 if remaining_after <= 0.0 else min(interval.step, remaining_after)
+
+        return dt
+
+    def call_algebraist(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        del executor
+
+        remaining = interval.stop - interval.present
+        if remaining <= 0.0:
+            return 0.0
+
+        stepper = self.stepper
+        workspace = stepper.workspace
+        known2_call = self.known2_call
+        known3_call = self.known3_call
+        known4_call = self.known4_call
+        final_delta_call = self.final_delta_call
+
+        dt = interval.step if interval.step <= remaining else remaining
+        gamma_dt = CROUZEIX_DIRK3_GAMMA * dt
+
+        delta1 = stepper.solve(
+            interval,
+            state,
+            dt,
+            block_index=0,
+            stage_shift=0.5 * dt,
+            alpha=gamma_dt,
+            out=self.delta1,
+        )
+
+        known2 = known2_call(self.known2, delta1)
+
+        delta2 = stepper.solve(
+            interval,
+            state,
+            dt,
+            block_index=1,
+            stage_shift=(2.0 / 3.0) * dt,
+            alpha=gamma_dt,
+            known_shift=known2,
+            out=self.delta2,
+        )
+
+        known3 = known3_call(self.known3, delta1, delta2)
+
+        delta3 = stepper.solve(
+            interval,
+            state,
+            dt,
+            block_index=2,
+            stage_shift=0.5 * dt,
+            alpha=gamma_dt,
+            known_shift=known3,
+            out=self.delta3,
+        )
+
+        known4 = known4_call(self.known4, delta1, delta2, delta3)
+
+        delta4 = stepper.solve(
+            interval,
+            state,
+            dt,
+            block_index=3,
+            stage_shift=dt,
+            alpha=gamma_dt,
+            known_shift=known4,
+            out=self.delta4,
+        )
+
+        delta_high = final_delta_call(
+            self.trial,
+            delta1,
+            delta2,
+            delta3,
             delta4,
         )
 

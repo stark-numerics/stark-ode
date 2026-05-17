@@ -74,6 +74,39 @@ class AlgebraistCodegen:
 
         raise TypeError(f"Unknown Algebraist policy {policy!r}.")
 
+    def weighted_combine_assignment(
+        self,
+        field: AlgebraistField,
+        coefficients: Sequence[float],
+        term_count: int,
+    ) -> str:
+        policy = field.policy
+
+        if isinstance(policy, AlgebraistSmallFixed):
+            return self.small_fixed_weighted_combine_assignment(
+                field,
+                policy.shape,
+                coefficients,
+                term_count,
+            )
+
+        if isinstance(policy, AlgebraistLooped):
+            return self.looped_weighted_combine_assignment(
+                field,
+                self.looped_rank(field, policy),
+                coefficients,
+                term_count,
+            )
+
+        if isinstance(policy, AlgebraistBroadcast):
+            return self.broadcast_weighted_combine_assignment(
+                field,
+                coefficients,
+                term_count,
+            )
+
+        raise TypeError(f"Unknown Algebraist policy {policy!r}.")
+
     def tableau_stage_assignment(
         self,
         field: AlgebraistField,
@@ -168,6 +201,19 @@ class AlgebraistCodegen:
         return f" out_{name}[...] = {value}"
 
     @staticmethod
+    def broadcast_weighted_combine_assignment(
+        field: AlgebraistField,
+        coefficients: Sequence[float],
+        term_count: int,
+    ) -> str:
+        name = field.translation_name
+        value = " + ".join(
+            f"({coefficients[index]!r}) * x{index}_{name}"
+            for index in range(term_count)
+        )
+        return f" out_{name}[...] = {value}"
+
+    @staticmethod
     def broadcast_tableau_combine_assignment(
         field: AlgebraistField,
         coefficients: Sequence[float],
@@ -233,6 +279,33 @@ class AlgebraistCodegen:
         location = ", ".join(index_names)
         value = " + ".join(
             f"a{index} * x{index}_{name}[{location}]"
+            for index in range(term_count)
+        )
+        lines.append(f"{indent}out_{name}[{location}] = {value}")
+
+        return "\n".join(lines)
+
+    def looped_weighted_combine_assignment(
+        self,
+        field: AlgebraistField,
+        rank: int,
+        coefficients: Sequence[float],
+        term_count: int,
+    ) -> str:
+        name = field.translation_name
+        index_names = self.index_names(rank)
+        shape_terms = self.shape_terms(rank)
+
+        lines = [self.shape_binding(f"out_{name}", shape_terms)]
+        indent = " "
+
+        for index_name, shape_name in zip(index_names, shape_terms, strict=True):
+            lines.append(f"{indent}for {index_name} in range({shape_name}):")
+            indent += " "
+
+        location = ", ".join(index_names)
+        value = " + ".join(
+            f"({coefficients[index]!r}) * x{index}_{name}[{location}]"
             for index in range(term_count)
         )
         lines.append(f"{indent}out_{name}[{location}] = {value}")
@@ -356,6 +429,25 @@ class AlgebraistCodegen:
         for location in self.fixed_locations(shape):
             value = " + ".join(
                 f"a{index} * x{index}_{name}[{location}]"
+                for index in range(term_count)
+            )
+            lines.append(f" out_{name}[{location}] = {value}")
+
+        return "\n".join(lines)
+
+    def small_fixed_weighted_combine_assignment(
+        self,
+        field: AlgebraistField,
+        shape: tuple[int, ...],
+        coefficients: Sequence[float],
+        term_count: int,
+    ) -> str:
+        name = field.translation_name
+        lines: list[str] = []
+
+        for location in self.fixed_locations(shape):
+            value = " + ".join(
+                f"({coefficients[index]!r}) * x{index}_{name}[{location}]"
                 for index in range(term_count)
             )
             lines.append(f" out_{name}[{location}] = {value}")

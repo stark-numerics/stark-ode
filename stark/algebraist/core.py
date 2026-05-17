@@ -7,6 +7,8 @@ from typing import Literal
 from stark.algebraist.codegen import AlgebraistCodegen
 from stark.algebraist.explicit import AlgebraistExplicitSchemeBinder
 from stark.algebraist.fields import AlgebraistField
+from stark.algebraist.implicit_adaptive import AlgebraistImplicitAdaptiveSchemeBinder
+from stark.algebraist.implicit_fixed import AlgebraistImplicitFixedSchemeBinder
 from stark.algebraist.names import (
     combine_kernel_name,
     combine_wrapper_name,
@@ -141,6 +143,12 @@ class Algebraist:
 
     def bind_explicit_scheme(self, tableau: ButcherTableauLike):
         return AlgebraistExplicitSchemeBinder(self)(tableau)
+
+    def bind_implicit_fixed_scheme(self, **kwargs):
+        return AlgebraistImplicitFixedSchemeBinder(self)(**kwargs)
+
+    def bind_implicit_adaptive_scheme(self, **kwargs):
+        return AlgebraistImplicitAdaptiveSchemeBinder(self)(**kwargs)
 
     def build_kernels(self) -> dict[str, Callable[..., object]]:
         kernels: dict[str, Callable[..., object]] = {}
