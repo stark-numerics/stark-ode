@@ -218,10 +218,6 @@ class SchemeBaseExplicitFixed(SchemeBaseExplicit, SchemeBaseFixed):
     def bind_fixed_call(self, call) -> None:
         self.redirect_call = call
 
-    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
-        return self.redirect_call(interval, state, executor)
-
-
 class SchemeBaseExplicitAdaptive(SchemeBaseExplicit, SchemeBaseAdaptive):
     """Shared setup for explicit adaptive schemes."""
 
