@@ -6,6 +6,11 @@ from stark.algebraist.explicit import (
     AlgebraistExplicitSchemeBinding,
 )
 from stark.algebraist.fields import AlgebraistField
+from stark.algebraist.imex_adaptive import (
+    AlgebraistImExAdaptiveSchemeBinder,
+    AlgebraistImExAdaptiveSchemeBinding,
+    AlgebraistImExCombination,
+)
 from stark.algebraist.implicit_adaptive import (
     AlgebraistImplicitAdaptiveSchemeBinder,
     AlgebraistImplicitAdaptiveSchemeBinding,
@@ -37,6 +42,9 @@ __all__ = [
     "AlgebraistExplicitSchemeBinder",
     "AlgebraistExplicitSchemeBinding",
     "AlgebraistField",
+    "AlgebraistImExAdaptiveSchemeBinder",
+    "AlgebraistImExAdaptiveSchemeBinding",
+    "AlgebraistImExCombination",
     "AlgebraistImplicitAdaptiveSchemeBinder",
     "AlgebraistImplicitAdaptiveSchemeBinding",
     "AlgebraistImplicitCombination",

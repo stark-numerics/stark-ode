@@ -7,6 +7,7 @@ from typing import Literal
 from stark.algebraist.codegen import AlgebraistCodegen
 from stark.algebraist.explicit import AlgebraistExplicitSchemeBinder
 from stark.algebraist.fields import AlgebraistField
+from stark.algebraist.imex_adaptive import AlgebraistImExAdaptiveSchemeBinder
 from stark.algebraist.implicit_adaptive import AlgebraistImplicitAdaptiveSchemeBinder
 from stark.algebraist.implicit_fixed import AlgebraistImplicitFixedSchemeBinder
 from stark.algebraist.names import (
@@ -149,6 +150,9 @@ class Algebraist:
 
     def bind_implicit_adaptive_scheme(self, **kwargs):
         return AlgebraistImplicitAdaptiveSchemeBinder(self)(**kwargs)
+
+    def bind_imex_adaptive_scheme(self, **kwargs):
+        return AlgebraistImExAdaptiveSchemeBinder(self)(**kwargs)
 
     def build_kernels(self) -> dict[str, Callable[..., object]]:
         kernels: dict[str, Callable[..., object]] = {}

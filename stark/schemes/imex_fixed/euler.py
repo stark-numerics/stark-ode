@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from stark.algebraist import Algebraist
 from stark.contracts import ImExDerivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
@@ -71,8 +72,10 @@ class SchemeIMEXEuler(SchemeBaseImExFixed):
         workbench: Workbench,
         resolvent: Resolvent,
         regulator: Regulator | None = None,
+        *,
+        algebraist: Algebraist | None = None,
     ) -> None:
-        del regulator
+        del algebraist, regulator
 
         super().__init__(derivative, workbench)
 
