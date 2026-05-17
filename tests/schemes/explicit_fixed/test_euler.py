@@ -47,10 +47,10 @@ class StubAlgebraist:
         del tableau
 
         def solution_state(
-            result: ScalarState,
             origin: ScalarState,
             dt: float,
             k1: ScalarTranslation,
+            result: ScalarState,
         ) -> None:
             result.value = origin.value + dt * k1.value
 

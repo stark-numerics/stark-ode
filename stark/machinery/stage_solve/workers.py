@@ -43,7 +43,7 @@ class _ImExStageSolver:
         else:
             shift(base_state, self.stage_state)
 
-        block.items[0] = self.scale(block[0], 0.0, block[0])
+        block.items[0] = self.scale(0.0, block[0], block[0])
         if alpha != 0.0:
             self.resolvent.bind(interval, self.stage_state)
             self.resolvent(alpha, None, block)
@@ -192,14 +192,14 @@ class ImExStepper:
                         shift_translations[shift_count] = self.implicit_rates[source_index]
                         shift_count += 1
 
-            shift = self._accumulate_terms(self.shift, shift_count, shift_coefficients, shift_translations) if shift_count else None
+            shift = self._accumulate_terms(shift_count, shift_coefficients, shift_translations, self.shift) if shift_count else None
             alpha = dt * implicit_row[stage_index] if stage_index < len(implicit_row) else 0.0
             current_interval = stage_interval(interval, dt, c_value * dt)
             stage_state = self.stage_solver(current_interval, state, shift, alpha, self.stage_blocks[stage_index])
             implicit(current_interval, stage_state, self.implicit_rates[stage_index])
             explicit(current_interval, stage_state, self.explicit_rates[stage_index])
 
-        high = self._combine_weights(self.trial, dt, self.tableau.explicit.b, self.tableau.implicit.b)
+        high = self._combine_weights(dt, self.tableau.explicit.b, self.tableau.implicit.b, self.trial)
         if self.tableau.embedded_order is None:
             if include_norms:
                 return high, None, high.norm(), None
@@ -208,8 +208,8 @@ class ImExStepper:
         implicit_low = self.tableau.implicit.b_embedded
         assert explicit_low is not None
         assert implicit_low is not None
-        low = self._combine_weights(self.error, dt, explicit_low, implicit_low)
-        error = self.workspace.combine2(self.error, 1.0, high, -1.0, low)
+        low = self._combine_weights(dt, explicit_low, implicit_low, self.error)
+        error = self.workspace.combine2(1.0, high, -1.0, low, self.error)
         if include_norms:
             return high, error, high.norm(), error.norm()
         return high, error, None, None
@@ -238,9 +238,9 @@ class ImExStepper:
                 combination = binding.stage_shifts[stage_index]
                 assert combination is not None
                 shift = stage_shift_call(
-                    self.shift,
                     dt,
                     *self._imex_combination_arguments(combination),
+                    self.shift,
                 )
 
             implicit_row = implicit_a[stage_index]
@@ -253,9 +253,9 @@ class ImExStepper:
         high_delta_call = binding.require_high_delta_call("ImExStepper")
         assert binding.high_delta is not None
         high = high_delta_call(
-            self.trial,
             dt,
             *self._imex_combination_arguments(binding.high_delta),
+            self.trial,
         )
 
         if self.tableau.embedded_order is None:
@@ -266,9 +266,9 @@ class ImExStepper:
         error_delta_call = binding.require_error_delta_call("ImExStepper")
         assert binding.error_delta is not None
         error = error_delta_call(
-            self.error,
             dt,
             *self._imex_combination_arguments(binding.error_delta),
+            self.error,
         )
 
         if include_norms:
@@ -290,7 +290,7 @@ class ImExStepper:
         )
         return tuple(arguments)
 
-    def _combine_weights(self, out: Translation, dt: float, explicit_weights, implicit_weights) -> Translation:
+    def _combine_weights(self, dt: float, explicit_weights, implicit_weights, out: Translation) -> Translation:
         term_count = 0
         weight_coefficients = self.weight_coefficients
         weight_translations = self.weight_translations
@@ -304,33 +304,34 @@ class ImExStepper:
                 weight_coefficients[term_count] = dt * coefficient
                 weight_translations[term_count] = rate
                 term_count += 1
-        return self._accumulate_terms(out, term_count, weight_coefficients, weight_translations)
+        return self._accumulate_terms(term_count, weight_coefficients, weight_translations, out)
 
     def _accumulate_terms(
         self,
-        out: Translation,
         term_count: int,
         coefficients: list[float],
         translations: list[Translation],
+        out: Translation,
     ) -> Translation:
         workspace = self.workspace
         if term_count == 0:
-            return workspace.scale(out, 0.0, out)
+            return workspace.scale(0.0, out, out)
 
         if term_count == 1:
-            return workspace.scale(out, coefficients[0], translations[0])
+            return workspace.scale(coefficients[0], translations[0], out)
 
         if term_count <= 12:
             terms = []
             for index in range(term_count):
                 terms.append(coefficients[index])
                 terms.append(translations[index])
-            return getattr(workspace, f"combine{term_count}")(out, *terms)
+            terms.append(out)
+            return getattr(workspace, f"combine{term_count}")(*terms)
 
-        total = workspace.scale(out, coefficients[0], translations[0])
+        total = workspace.scale(coefficients[0], translations[0], out)
         combine2 = workspace.combine2
         for index in range(1, term_count):
-            total = combine2(out, 1.0, total, coefficients[index], translations[index])
+            total = combine2(1.0, total, coefficients[index], translations[index], out)
         return total
 
 
@@ -365,7 +366,7 @@ class ShiftedOneStageResolventStep:
         rhs: Block | None = None,
     ) -> Translation:
         workspace = self.workspace
-        self.trial_block.items[0] = workspace.scale(self.trial_block[0], 0.0, self.trial_block[0])
+        self.trial_block.items[0] = workspace.scale(0.0, self.trial_block[0], self.trial_block[0])
         self.resolvent.bind(workspace.stage_at(interval, dt, stage_shift), state)
         self.resolvent(alpha, rhs, self.trial_block)
         return self.trial_block[0]
@@ -403,7 +404,7 @@ class CoupledCollocationResolventStep:
         workspace = self.workspace
         self.resolvent.bind(interval, state)
         for index, item in enumerate(self.stage_block):
-            self.stage_block.items[index] = workspace.scale(item, 0.0, item)
+            self.stage_block.items[index] = workspace.scale(0.0, item, item)
         self.resolvent(dt, None, self.stage_block)
         return self.stage_block
 
@@ -456,7 +457,7 @@ class SequentialDIRKResolventStep:
             stage_state = self.stage_state
         block = self.stage_blocks[block_index]
         target = block[0] if out is None else out
-        block.items[0] = workspace.scale(target, 0.0, target)
+        block.items[0] = workspace.scale(0.0, target, target)
         self.resolvent.bind(workspace.stage_at(interval, dt, stage_shift), stage_state)
         self.resolvent(alpha, None, block)
         return block[0]

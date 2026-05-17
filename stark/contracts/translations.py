@@ -182,9 +182,10 @@ class TranslationAudit:
         for index, combine in enumerate(linear_combine, start=1):
             if not callable(combine):
                 continue
-            args: list[Any] = [sample_translation]
+            args: list[Any] = []
             for term in range(index):
                 args.extend([float(term + 1), sample_translation])
+            args.append(sample_translation)
             arity_name = "scale" if index == 1 else f"combine{index}"
             try:
                 combine(*args)

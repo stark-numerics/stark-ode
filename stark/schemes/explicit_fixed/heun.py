@@ -106,16 +106,16 @@ class SchemeHeun(SchemeBaseExplicitFixed):
 
         derivative(interval, state, k1)
 
-        trial = scale(trial_buffer, dt, k1)
+        trial = scale(dt, k1, trial_buffer)
         trial(state, stage)
         derivative(stage_interval(interval, dt, dt), stage, k2)
 
         delta = combine2(
-            trial_buffer,
             dt * HEUN_B[0],
             k1,
             dt * HEUN_B[1],
             k2,
+            trial_buffer,
         )
         apply_delta(delta, state)
 
@@ -145,10 +145,10 @@ class SchemeHeun(SchemeBaseExplicitFixed):
 
         derivative(interval, state, k1)
 
-        combine_stage2(stage, state, dt, k1)
+        combine_stage2(state, dt, k1, stage)
         derivative(stage_interval(interval, dt, dt), stage, k2)
 
-        advance_state(state, state, dt, k1, k2)
+        advance_state(state, dt, k1, k2, state)
         return dt
 
 

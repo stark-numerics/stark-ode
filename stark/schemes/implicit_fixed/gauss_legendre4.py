@@ -125,11 +125,11 @@ class SchemeGaussLegendre4(SchemeBaseImplicitFixed):
         stage_block = self.stepper.solve(interval, state, dt)
 
         delta = workspace.combine2(
-            self.trial,
             GAUSS_LEGENDRE4_STAGE_INCREMENT_WEIGHTS[0],
             stage_block[0],
             GAUSS_LEGENDRE4_STAGE_INCREMENT_WEIGHTS[1],
             stage_block[1],
+            self.trial,
         )
         workspace.apply_delta(delta, state)
 
@@ -157,9 +157,9 @@ class SchemeGaussLegendre4(SchemeBaseImplicitFixed):
         stage_block = self.stepper.solve(interval, state, dt)
 
         delta = final_delta_call(
-            self.trial,
             stage_block[0],
             stage_block[1],
+            self.trial,
         )
         workspace.apply_delta(delta, state)
 

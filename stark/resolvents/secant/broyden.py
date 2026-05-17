@@ -106,16 +106,16 @@ class ResolventBroyden(ResolventBaseSecant):
                 return
 
             self.apply_inverse(correction, residual_buffer, history_correction)
-            scale_block(correction, -1.0, correction)
-            combine2_block(trial, 1.0, block, 1.0, correction)
+            scale_block(-1.0, correction, correction)
+            combine2_block(1.0, block, 1.0, correction, trial)
             self.residual(next_residual, trial)
 
-            combine2_block(residual_delta, 1.0, next_residual, -1.0, residual_buffer)
+            combine2_block(1.0, next_residual, -1.0, residual_buffer, residual_delta)
             denominator = inner_product(residual_delta, residual_delta)
             if denominator > 0.0:
                 self.apply_inverse(inverse_residual_delta, residual_delta, history_correction)
-                combine2_block(scaled_update, 1.0, correction, -1.0, inverse_residual_delta)
-                scale_block(scaled_update, 1.0 / denominator, scaled_update)
+                combine2_block(1.0, correction, -1.0, inverse_residual_delta, scaled_update)
+                scale_block(1.0 / denominator, scaled_update, scaled_update)
                 history.append(scaled_update, residual_delta)
 
             copy_block(block, trial)
@@ -140,7 +140,7 @@ class ResolventBroyden(ResolventBaseSecant):
             return
         coefficients = history.project_right(block)
         history.combine_left(history_correction, coefficients)
-        combine2_block(out, 1.0, out, 1.0, history_correction)
+        combine2_block(1.0, out, 1.0, history_correction, out)
 
 
 __all__ = ["ResolventBroyden"]

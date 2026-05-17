@@ -25,17 +25,17 @@ class DummyTranslation:
         return DummyTranslation(scalar * self.value)
 
     @staticmethod
-    def scale(out: "DummyTranslation", scalar: float, translation: "DummyTranslation") -> "DummyTranslation":
+    def scale(scalar: float, translation: "DummyTranslation", out: "DummyTranslation") -> "DummyTranslation":
         out.value = scalar * translation.value
         return out
 
     @staticmethod
     def combine2(
-        out: "DummyTranslation",
         a0: float,
         x0: "DummyTranslation",
         a1: float,
         x1: "DummyTranslation",
+        out: "DummyTranslation",
     ) -> "DummyTranslation":
         out.value = a0 * x0.value + a1 * x1.value
         return out

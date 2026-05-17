@@ -13,15 +13,15 @@ class RoutingVector(RoutingPolicy):
     def add(self, kernel: Any, result: Any, left: Any, right: Any) -> Any:
         raise NotImplementedError
 
-    def scale(self, kernel: Any, result: Any, scalar: float, value: Any) -> Any:
+    def scale(self, kernel: Any, scalar: float, value: Any, result: Any) -> Any:
         raise NotImplementedError
 
     def combine(
         self,
         kernel: Any,
-        result: Any,
         coefficients: Any,
         values: Any,
+        result: Any,
     ) -> Any:
         raise NotImplementedError
 
@@ -35,11 +35,11 @@ class RoutingVectorReturn(RoutingVector):
         result.value = kernel.add(left.value, right.value)
         return result
 
-    def scale(self, kernel, result, scalar, value):
+    def scale(self, kernel, scalar, value, result):
         result.value = kernel.scale(scalar, value.value)
         return result
 
-    def combine(self, kernel, result, coefficients, values):
+    def combine(self, kernel, coefficients, values, result):
         result.value = kernel.combine(coefficients, [value.value for value in values])
         return result
 
@@ -53,11 +53,11 @@ class RoutingVectorInPlace(RoutingVector):
         kernel.add_into(result.value, left.value, right.value)
         return result
 
-    def scale(self, kernel, result, scalar, value):
+    def scale(self, kernel, scalar, value, result):
         kernel.scale_into(result.value, scalar, value.value)
         return result
 
-    def combine(self, kernel, result, coefficients, values):
+    def combine(self, kernel, coefficients, values, result):
         kernel.combine_into(
             result.value,
             coefficients,
@@ -81,14 +81,14 @@ class RoutingVectorPreferInPlace(RoutingVector):
             result.value = kernel.add(left.value, right.value)
         return result
 
-    def scale(self, kernel, result, scalar, value):
+    def scale(self, kernel, scalar, value, result):
         if hasattr(kernel, "scale_into"):
             kernel.scale_into(result.value, scalar, value.value)
         else:
             result.value = kernel.scale(scalar, value.value)
         return result
 
-    def combine(self, kernel, result, coefficients, values):
+    def combine(self, kernel, coefficients, values, result):
         raw_values = [value.value for value in values]
 
         if hasattr(kernel, "combine_into"):

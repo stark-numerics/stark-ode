@@ -105,7 +105,7 @@ class SchemeImplicitMidpoint(SchemeBaseImplicitFixed):
             alpha=0.5 * dt,
             stage_shift=0.5 * dt,
         )
-        delta = workspace.scale(self.trial, 2.0, midpoint)
+        delta = workspace.scale(2.0, midpoint, self.trial)
         workspace.apply_delta(delta, state)
 
         remaining_after = remaining - dt
@@ -136,7 +136,7 @@ class SchemeImplicitMidpoint(SchemeBaseImplicitFixed):
             alpha=0.5 * dt,
             stage_shift=0.5 * dt,
         )
-        delta = final_delta_call(self.trial, midpoint)
+        delta = final_delta_call(midpoint, self.trial)
         workspace.apply_delta(delta, state)
 
         remaining_after = remaining - dt

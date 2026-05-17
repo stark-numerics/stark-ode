@@ -97,7 +97,7 @@ def test_nested_field_operations_update_nested_payloads():
     algebraist.apply(delta, origin, result)
     np.testing.assert_allclose(result.payload.value, np.array([4.0, 6.0]))
 
-    algebraist.linear_combine[0](result, 2.0, delta)
+    algebraist.linear_combine[0](2.0, delta, result)
     np.testing.assert_allclose(result.payload.value, np.array([6.0, 8.0]))
 
     assert algebraist.norm(delta) == pytest.approx((12.5) ** 0.5)
@@ -111,10 +111,10 @@ def test_generated_linear_combine_matches_expected_array_results():
         for index in range(1, 13)
     ]
 
-    scaled = algebraist.linear_combine[0](out, 2.0, values[0])
+    scaled = algebraist.linear_combine[0](2.0, values[0], out)
     np.testing.assert_allclose(scaled.value, np.array([2.0, 4.0]))
 
-    combined2 = algebraist.linear_combine[1](out, 2.0, values[0], 3.0, values[1])
+    combined2 = algebraist.linear_combine[1](2.0, values[0], 3.0, values[1], out)
     np.testing.assert_allclose(combined2.value, np.array([8.0, 13.0]))
 
     terms = []
@@ -124,7 +124,7 @@ def test_generated_linear_combine_matches_expected_array_results():
         terms.extend([coefficient, value])
         expected += coefficient * value.value
 
-    combined12 = algebraist.linear_combine[11](out, *terms)
+    combined12 = algebraist.linear_combine[11](*terms, out)
 
     assert combined12 is out
     np.testing.assert_allclose(out.value, expected)

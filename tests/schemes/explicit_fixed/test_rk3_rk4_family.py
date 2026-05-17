@@ -50,11 +50,12 @@ class StubAlgebraist:
             weights = tableau.a[stage_index]
 
             def stage_call(
-                stage: ScalarState,
                 state: ScalarState,
                 dt: float,
-                *rates: ScalarTranslation,
+                *args,
             ) -> None:
+                rates = args[:-1]
+                stage = args[-1]
                 stage.value = state.value + dt * sum(
                     weight * rate.value
                     for weight, rate in zip(weights, rates, strict=True)
@@ -63,11 +64,12 @@ class StubAlgebraist:
             return stage_call
 
         def solution_state(
-            result: ScalarState,
             origin: ScalarState,
             dt: float,
-            *rates: ScalarTranslation,
+            *args,
         ) -> None:
+            rates = args[:-1]
+            result = args[-1]
             result.value = origin.value + dt * sum(
                 weight * rate.value
                 for weight, rate in zip(tableau.b, rates, strict=True)

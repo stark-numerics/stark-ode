@@ -175,7 +175,7 @@ class Auditor:
             and callable(linear_combine[0])
             and callable(linear_combine[1]),
             "Translation provides in-place scale and combine2 kernels for strict operator algebra.",
-            "Add translation.linear_combine = [scale, combine2, ...] with in-place kernels before using a linearizer.",
+            "Add translation.linear_combine = [scale, combine2, ...] with output-last in-place kernels before using a linearizer.",
         )
         if not auditor.ok:
             auditor.raise_if_invalid()

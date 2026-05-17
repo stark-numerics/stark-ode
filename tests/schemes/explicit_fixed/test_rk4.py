@@ -46,23 +46,23 @@ class StubAlgebraist:
     def bind_explicit_scheme(self, tableau):
         del tableau
 
-        def stage2(stage: ScalarState, state: ScalarState, dt: float, k1: ScalarTranslation) -> None:
+        def stage2(state: ScalarState, dt: float, k1: ScalarTranslation, stage: ScalarState) -> None:
             stage.value = state.value + 0.5 * dt * k1.value
 
-        def stage3(stage: ScalarState, state: ScalarState, dt: float, k2: ScalarTranslation) -> None:
+        def stage3(state: ScalarState, dt: float, k2: ScalarTranslation, stage: ScalarState) -> None:
             stage.value = state.value + 0.5 * dt * k2.value
 
-        def stage4(stage: ScalarState, state: ScalarState, dt: float, k3: ScalarTranslation) -> None:
+        def stage4(state: ScalarState, dt: float, k3: ScalarTranslation, stage: ScalarState) -> None:
             stage.value = state.value + dt * k3.value
 
         def solution_state(
-            result: ScalarState,
             origin: ScalarState,
             dt: float,
             k1: ScalarTranslation,
             k2: ScalarTranslation,
             k3: ScalarTranslation,
             k4: ScalarTranslation,
+            result: ScalarState,
         ) -> None:
             origin_value = origin.value
             result.value = origin_value + dt * (

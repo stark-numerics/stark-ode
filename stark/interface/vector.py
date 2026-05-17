@@ -76,54 +76,60 @@ class StarkVectorTranslation:
 
     def scale(
         self,
-        out: "StarkVectorTranslation",
         coefficient: float,
         value: "StarkVectorTranslation",
+        out: "StarkVectorTranslation",
     ) -> "StarkVectorTranslation":
-        self.routing.scale(self.carrier.kernel, out, coefficient, value)
+        self.routing.scale(self.carrier.kernel, coefficient, value, out)
         return out
 
-    def combine2(self, out: "StarkVectorTranslation", *terms: object) -> "StarkVectorTranslation":
-        return self.combine(out, *terms)
+    def combine2(self, *terms: object) -> "StarkVectorTranslation":
+        return self.combine(*terms)
 
-    def combine3(self, out: "StarkVectorTranslation", *terms: object) -> "StarkVectorTranslation":
-        return self.combine(out, *terms)
+    def combine3(self, *terms: object) -> "StarkVectorTranslation":
+        return self.combine(*terms)
 
-    def combine4(self, out: "StarkVectorTranslation", *terms: object) -> "StarkVectorTranslation":
-        return self.combine(out, *terms)
+    def combine4(self, *terms: object) -> "StarkVectorTranslation":
+        return self.combine(*terms)
 
-    def combine5(self, out: "StarkVectorTranslation", *terms: object) -> "StarkVectorTranslation":
-        return self.combine(out, *terms)
+    def combine5(self, *terms: object) -> "StarkVectorTranslation":
+        return self.combine(*terms)
 
-    def combine6(self, out: "StarkVectorTranslation", *terms: object) -> "StarkVectorTranslation":
-        return self.combine(out, *terms)
+    def combine6(self, *terms: object) -> "StarkVectorTranslation":
+        return self.combine(*terms)
 
-    def combine7(self, out: "StarkVectorTranslation", *terms: object) -> "StarkVectorTranslation":
-        return self.combine(out, *terms)
+    def combine7(self, *terms: object) -> "StarkVectorTranslation":
+        return self.combine(*terms)
 
-    def combine8(self, out: "StarkVectorTranslation", *terms: object) -> "StarkVectorTranslation":
-        return self.combine(out, *terms)
+    def combine8(self, *terms: object) -> "StarkVectorTranslation":
+        return self.combine(*terms)
 
-    def combine9(self, out: "StarkVectorTranslation", *terms: object) -> "StarkVectorTranslation":
-        return self.combine(out, *terms)
+    def combine9(self, *terms: object) -> "StarkVectorTranslation":
+        return self.combine(*terms)
 
-    def combine10(self, out: "StarkVectorTranslation", *terms: object) -> "StarkVectorTranslation":
-        return self.combine(out, *terms)
+    def combine10(self, *terms: object) -> "StarkVectorTranslation":
+        return self.combine(*terms)
 
-    def combine11(self, out: "StarkVectorTranslation", *terms: object) -> "StarkVectorTranslation":
-        return self.combine(out, *terms)
+    def combine11(self, *terms: object) -> "StarkVectorTranslation":
+        return self.combine(*terms)
 
-    def combine12(self, out: "StarkVectorTranslation", *terms: object) -> "StarkVectorTranslation":
-        return self.combine(out, *terms)
+    def combine12(self, *terms: object) -> "StarkVectorTranslation":
+        return self.combine(*terms)
 
-    def combine(self, out: "StarkVectorTranslation", *terms: object) -> "StarkVectorTranslation":
+    def combine(self, *terms: object) -> "StarkVectorTranslation":
+        if not terms:
+            raise TypeError("Linear combination requires coefficient/translation pairs and an output.")
+        out = terms[-1]
+        terms = terms[:-1]
         if len(terms) % 2 != 0:
             raise TypeError("Linear combination terms must be coefficient/translation pairs.")
+        if not isinstance(out, StarkVectorTranslation):
+            raise TypeError("Linear combination output must be a StarkVectorTranslation.")
 
         coefficients = terms[0::2]
         values = terms[1::2]
 
-        self.routing.combine(self.carrier.kernel, out, coefficients, values)
+        self.routing.combine(self.carrier.kernel, coefficients, values, out)
         return out
 
     def __add__(self, other: "StarkVectorTranslation") -> "StarkVectorTranslation":

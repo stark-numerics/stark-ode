@@ -104,7 +104,7 @@ class BiCGStabCycle:
         assert direction is not None
         assert velocity is not None
         operator(out, applied)
-        workspace.combine2_block(residual, 1.0, rhs, -1.0, applied)
+        workspace.combine2_block(1.0, rhs, -1.0, applied, residual)
         workspace.copy_block(shadow, residual)
         workspace.zero_block(direction)
         workspace.zero_block(velocity)
@@ -156,7 +156,7 @@ class BiCGStabCycle:
                 raise RuntimeError(f"{InverterBiCGStab.descriptor.short_name} broke down with a vanishing rho.")
 
             beta = (rho / rho_previous) * (alpha / omega)
-            workspace.combine3_block(temporary, 1.0, residual, beta, direction, -beta * omega, velocity)
+            workspace.combine3_block(1.0, residual, beta, direction, -beta * omega, velocity, temporary)
             workspace.copy_block(direction, temporary)
 
             apply_preconditioner(direction, preconditioned_direction)
@@ -168,9 +168,9 @@ class BiCGStabCycle:
                 )
             alpha = rho / denominator
 
-            workspace.combine2_block(s_buffer, 1.0, residual, -alpha, velocity)
+            workspace.combine2_block(1.0, residual, -alpha, velocity, s_buffer)
             if tolerance.accepts(workspace.norm(s_buffer), rhs_norm):
-                workspace.combine2_block(temporary, 1.0, out, alpha, preconditioned_direction)
+                workspace.combine2_block(1.0, out, alpha, preconditioned_direction, temporary)
                 workspace.copy_block(out, temporary)
                 return workspace.norm(s_buffer)
 
@@ -183,9 +183,9 @@ class BiCGStabCycle:
             if abs(omega) <= policy.breakdown_tol:
                 raise RuntimeError(f"{InverterBiCGStab.descriptor.short_name} broke down with a vanishing omega.")
 
-            workspace.combine3_block(temporary, 1.0, out, alpha, preconditioned_direction, omega, preconditioned_s)
+            workspace.combine3_block(1.0, out, alpha, preconditioned_direction, omega, preconditioned_s, temporary)
             workspace.copy_block(out, temporary)
-            workspace.combine2_block(residual, 1.0, s_buffer, -omega, t_buffer)
+            workspace.combine2_block(1.0, s_buffer, -omega, t_buffer, residual)
             residual_norm = workspace.norm(residual)
             if tolerance.accepts(residual_norm, rhs_norm):
                 return residual_norm

@@ -274,9 +274,9 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
         while True:
             derivative(interval, state, self.stage1_rate)
             delta1 = scale(
-                self.delta1,
                 dt * SDIRK21_GAMMA,
                 self.stage1_rate,
+                self.delta1,
             )
 
             try:
@@ -292,11 +292,11 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
                 )
 
                 known3 = combine2(
-                    self.known3,
                     _DELTA1_HIGH,
                     delta1,
                     _DELTA2_HIGH,
                     delta2,
+                    self.known3,
                 )
 
                 delta3 = stepper.solve(
@@ -321,23 +321,23 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
                 continue
 
             delta_high = combine3(
-                self.trial,
                 _STAGE_INCREMENT_WEIGHTS_HIGH[0],
                 delta1,
                 _STAGE_INCREMENT_WEIGHTS_HIGH[1],
                 delta2,
                 _STAGE_INCREMENT_WEIGHTS_HIGH[2],
                 delta3,
+                self.trial,
             )
 
             error = combine3(
-                self.error,
                 _STAGE_INCREMENT_WEIGHTS_ERROR[0],
                 delta1,
                 _STAGE_INCREMENT_WEIGHTS_ERROR[1],
                 delta2,
                 _STAGE_INCREMENT_WEIGHTS_ERROR[2],
                 delta3,
+                self.error,
             )
 
             error_ratio = ratio(error.norm(), delta_high.norm())
@@ -409,9 +409,9 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
         while True:
             derivative(interval, state, self.stage1_rate)
             delta1 = known2_call(
-                self.delta1,
                 dt,
                 self.stage1_rate,
+                self.delta1,
             )
 
             try:
@@ -427,9 +427,9 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
                 )
 
                 known3 = known3_call(
-                    self.known3,
                     delta1,
                     delta2,
+                    self.known3,
                 )
 
                 delta3 = stepper.solve(
@@ -454,17 +454,17 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
                 continue
 
             delta_high = high_delta_call(
-                self.trial,
                 delta1,
                 delta2,
                 delta3,
+                self.trial,
             )
 
             error = error_delta_call(
-                self.error,
                 delta1,
                 delta2,
                 delta3,
+                self.error,
             )
 
             error_ratio = ratio(error.norm(), delta_high.norm())

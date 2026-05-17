@@ -49,17 +49,17 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
     @staticmethod
-    def scale(out: "ScalarTranslation", a: float, x: "ScalarTranslation") -> "ScalarTranslation":
+    def scale(a: float, x: "ScalarTranslation", out: "ScalarTranslation") -> "ScalarTranslation":
         out.value = a * x.value
         return out
 
     @staticmethod
     def combine2(
-        out: "ScalarTranslation",
         a0: float,
         x0: "ScalarTranslation",
         a1: float,
         x1: "ScalarTranslation",
+        out: "ScalarTranslation",
     ) -> "ScalarTranslation":
         out.value = a0 * x0.value + a1 * x1.value
         return out

@@ -119,7 +119,7 @@ class SchemeCrankNicolson(SchemeBaseImplicitFixed):
         dt = interval.step if interval.step <= remaining else remaining
 
         derivative(interval, state, k1)
-        known_block.items[0] = workspace.scale(known_block[0], 0.5 * dt, k1)
+        known_block.items[0] = workspace.scale(0.5 * dt, k1, known_block[0])
 
         delta = self.stepper.solve(
             interval,
@@ -157,7 +157,7 @@ class SchemeCrankNicolson(SchemeBaseImplicitFixed):
         dt = interval.step if interval.step <= remaining else remaining
 
         derivative(interval, state, k1)
-        known_block.items[0] = known_rhs_call(known_block[0], dt, k1)
+        known_block.items[0] = known_rhs_call(dt, k1, known_block[0])
 
         delta = self.stepper.solve(
             interval,

@@ -121,34 +121,33 @@ class SchemeRK38(SchemeBaseExplicitFixed):
 
         derivative(interval, state, k1)
 
-        trial = scale(trial_buffer, one_third_dt, k1)
+        trial = scale(one_third_dt, k1, trial_buffer)
         trial(state, stage)
         derivative(stage_interval(interval, dt, one_third_dt), stage, k2)
 
         trial = combine2(
-            trial_buffer,
             dt * RK38_A[2][0],
             k1,
             dt * RK38_A[2][1],
             k2,
+            trial_buffer,
         )
         trial(state, stage)
         derivative(stage_interval(interval, dt, two_thirds_dt), stage, k3)
 
         trial = combine3(
-            trial_buffer,
             dt * RK38_A[3][0],
             k1,
             dt * RK38_A[3][1],
             k2,
             dt * RK38_A[3][2],
             k3,
+            trial_buffer,
         )
         trial(state, stage)
         derivative(stage_interval(interval, dt, dt), stage, k4)
 
         delta = combine4(
-            trial_buffer,
             dt * RK38_B[0],
             k1,
             dt * RK38_B[1],
@@ -157,6 +156,7 @@ class SchemeRK38(SchemeBaseExplicitFixed):
             k3,
             dt * RK38_B[3],
             k4,
+            trial_buffer,
         )
 
         apply_delta(delta, state)
@@ -193,16 +193,16 @@ class SchemeRK38(SchemeBaseExplicitFixed):
 
         derivative(interval, state, k1)
 
-        combine_stage2(stage, state, dt, k1)
+        combine_stage2(state, dt, k1, stage)
         derivative(stage_interval(interval, dt, one_third_dt), stage, k2)
 
-        combine_stage3(stage, state, dt, k1, k2)
+        combine_stage3(state, dt, k1, k2, stage)
         derivative(stage_interval(interval, dt, two_thirds_dt), stage, k3)
 
-        combine_stage4(stage, state, dt, k1, k2, k3)
+        combine_stage4(state, dt, k1, k2, k3, stage)
         derivative(stage_interval(interval, dt, dt), stage, k4)
 
-        advance_state(state, state, dt, k1, k2, k3, k4)
+        advance_state(state, dt, k1, k2, k3, k4, state)
         return dt
 
 

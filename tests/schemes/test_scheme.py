@@ -55,16 +55,16 @@ class DummyTranslation:
 
 @dataclass(slots=True)
 class FastTranslation(DummyTranslation):
-    def scale(out: "FastTranslation", a: float, x: "FastTranslation") -> "FastTranslation":
+    def scale(a: float, x: "FastTranslation", out: "FastTranslation") -> "FastTranslation":
         out.value = a * x.value
         return out
 
     def combine2(
-        out: "FastTranslation",
         a0: float,
         x0: "FastTranslation",
         a1: float,
         x1: "FastTranslation",
+        out: "FastTranslation",
     ) -> "FastTranslation":
         out.value = a0 * x0.value + a1 * x1.value
         return out
@@ -90,16 +90,16 @@ class PairwiseOnlyTranslation:
         del scalar
         raise AssertionError("Synthesized fast combines should not call __rmul__.")
 
-    def scale(out: "PairwiseOnlyTranslation", a: float, x: "PairwiseOnlyTranslation") -> "PairwiseOnlyTranslation":
+    def scale(a: float, x: "PairwiseOnlyTranslation", out: "PairwiseOnlyTranslation") -> "PairwiseOnlyTranslation":
         out.value = a * x.value
         return out
 
     def combine2(
-        out: "PairwiseOnlyTranslation",
         a0: float,
         x0: "PairwiseOnlyTranslation",
         a1: float,
         x1: "PairwiseOnlyTranslation",
+        out: "PairwiseOnlyTranslation",
     ) -> "PairwiseOnlyTranslation":
         out.value = a0 * x0.value + a1 * x1.value
         return out
@@ -113,11 +113,11 @@ class DummyScheme:
         self.derivative = derivative
         self.workspace = SchemeWorkspace(workbench, translation)
 
-    def scale(self, y, a, x):
-        return self.workspace.scale(y, a, x)
+    def scale(self, a, x, y):
+        return self.workspace.scale(a, x, y)
 
-    def combine2(self, y, a0, x0, a1, x1):
-        return self.workspace.combine2(y, a0, x0, a1, x1)
+    def combine2(self, a0, x0, a1, x1, y):
+        return self.workspace.combine2(a0, x0, a1, x1, y)
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
         self.workspace.set_apply_delta_safety(enabled)
@@ -191,8 +191,8 @@ def test_scheme_falls_back_to_arithmetic_linear_combination() -> None:
     scheme = DummyScheme(_dummy_derivative, DummyWorkbench(), x0)
     out = DummyTranslation()
 
-    scaled = scheme.scale(out, 4.0, x0)
-    combined = scheme.combine2(out, 2.0, x0, -1.0, x1)
+    scaled = scheme.scale(4.0, x0, out)
+    combined = scheme.combine2(2.0, x0, -1.0, x1, out)
 
     assert scaled.value == 8.0
     assert combined.value == 1.0
@@ -205,8 +205,8 @@ def test_scheme_uses_translation_linear_combine_when_available() -> None:
     out_scaled = FastTranslation()
     out_combined = FastTranslation()
 
-    scaled = scheme.scale(out_scaled, 4.0, x0)
-    combined = scheme.combine2(out_combined, 2.0, x0, -1.0, x1)
+    scaled = scheme.scale(4.0, x0, out_scaled)
+    combined = scheme.combine2(2.0, x0, -1.0, x1, out_combined)
 
     assert scaled is out_scaled
     assert scaled.value == 8.0
@@ -223,7 +223,7 @@ def test_scheme_synthesizes_missing_fast_combines_from_combine2() -> None:
     for index, translation in enumerate(translations, start=1):
         terms.extend([float(index), translation])
 
-    combined = scheme.workspace.combine12(out, *terms)
+    combined = scheme.workspace.combine12(*terms, out)
 
     assert combined is out
     assert combined.value == 650.0
@@ -262,7 +262,7 @@ def test_scheme_workspace_consumes_algebraist_linear_combine_contract() -> None:
     left = AlgebraistTranslation([1.0, 2.0])
     right = AlgebraistTranslation([3.0, 4.0])
 
-    combined = workspace.combine2(out, 2.0, left, 3.0, right)
+    combined = workspace.combine2(2.0, left, 3.0, right, out)
 
     assert combined is out
     np.testing.assert_allclose(out.value, np.array([11.0, 16.0]))
@@ -273,17 +273,19 @@ class RecordingWorkspace:
         self.combine2_called = False
         self.combine12_called = False
 
-    def scale(self, out, coefficient, translation):
+    def scale(self, coefficient, translation, out):
         out.value = coefficient * translation.value
         return out
 
-    def combine2(self, out, *terms):
-        del out, terms
+    def combine2(self, *terms):
+        del terms
         self.combine2_called = True
         raise AssertionError("IMEX accumulation should dispatch to combine12.")
 
-    def combine12(self, out, *terms):
+    def combine12(self, *terms):
         self.combine12_called = True
+        out = terms[-1]
+        terms = terms[:-1]
         out.value = sum(
             coefficient * translation.value
             for coefficient, translation in zip(terms[0::2], terms[1::2])
@@ -299,7 +301,7 @@ def test_imex_accumulation_dispatches_to_direct_combine12() -> None:
     coefficients = [float(value) for value in range(1, 13)]
     translations = [PairwiseOnlyTranslation(float(value)) for value in range(1, 13)]
 
-    combined = stepper._accumulate_terms(out, 12, coefficients, translations)
+    combined = stepper._accumulate_terms(12, coefficients, translations, out)
 
     assert combined is out
     assert combined.value == 650.0

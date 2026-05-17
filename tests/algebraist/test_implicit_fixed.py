@@ -38,16 +38,16 @@ def test_implicit_fixed_binding_generates_known_final_and_error_calls() -> None:
     k0 = FakeTranslation(np.array([2.0, 4.0]))
     k1 = FakeTranslation(np.array([6.0, 8.0]))
 
-    binding.require_known_shift_call(1, "TestDIRK")(out, k0)
+    binding.require_known_shift_call(1, "TestDIRK")(k0, out)
     np.testing.assert_allclose(out.value, np.array([1.0, 2.0]))
 
-    binding.require_known_shift_call(2, "TestDIRK")(out, k0, k1)
+    binding.require_known_shift_call(2, "TestDIRK")(k0, k1, out)
     np.testing.assert_allclose(out.value, np.array([10.0, 12.0]))
 
-    binding.require_final_delta_call("TestDIRK")(out, k0, k1)
+    binding.require_final_delta_call("TestDIRK")(k0, k1, out)
     np.testing.assert_allclose(out.value, np.array([5.0, 7.0]))
 
-    binding.require_error_delta_call("TestDIRK")(out, k0, k1)
+    binding.require_error_delta_call("TestDIRK")(k0, k1, out)
     np.testing.assert_allclose(out.value, np.array([-1.0, -1.0]))
 
     assert "stage1_known_shift_combine" in algebraist.sources
@@ -71,7 +71,7 @@ def test_implicit_fixed_binding_generates_step_scaled_call() -> None:
     out = FakeTranslation(np.zeros(2))
     k0 = FakeTranslation(np.array([2.0, 4.0]))
 
-    binding.require_known_shift_call(0, "TestCN")(out, 0.25, k0)
+    binding.require_known_shift_call(0, "TestCN")(0.25, k0, out)
 
     np.testing.assert_allclose(out.value, np.array([0.25, 0.5]))
     assert "known_rhs_combine" in algebraist.sources

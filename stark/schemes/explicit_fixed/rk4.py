@@ -126,20 +126,19 @@ class SchemeRK4(SchemeBaseExplicitFixed):
 
         derivative(interval, state, k1)
 
-        trial = scale(trial_buffer, half_dt, k1)
+        trial = scale(half_dt, k1, trial_buffer)
         trial(state, stage)
         derivative(stage_interval(interval, dt, half_dt), stage, k2)
 
-        trial = scale(trial_buffer, half_dt, k2)
+        trial = scale(half_dt, k2, trial_buffer)
         trial(state, stage)
         derivative(stage_interval(interval, dt, half_dt), stage, k3)
 
-        trial = scale(trial_buffer, dt, k3)
+        trial = scale(dt, k3, trial_buffer)
         trial(state, stage)
         derivative(stage_interval(interval, dt, dt), stage, k4)
 
         delta = combine4(
-            trial_buffer,
             dt * RK4_B[0],
             k1,
             dt * RK4_B[1],
@@ -148,6 +147,7 @@ class SchemeRK4(SchemeBaseExplicitFixed):
             k3,
             dt * RK4_B[3],
             k4,
+            trial_buffer,
         )
 
         apply_delta(delta, state)
@@ -183,16 +183,16 @@ class SchemeRK4(SchemeBaseExplicitFixed):
 
         derivative(interval, state, k1)
 
-        combine_stage2(stage, state, dt, k1)
+        combine_stage2(state, dt, k1, stage)
         derivative(stage_interval(interval, dt, half_dt), stage, k2)
 
-        combine_stage3(stage, state, dt, k2)
+        combine_stage3(state, dt, k2, stage)
         derivative(stage_interval(interval, dt, half_dt), stage, k3)
 
-        combine_stage4(stage, state, dt, k3)
+        combine_stage4(state, dt, k3, stage)
         derivative(stage_interval(interval, dt, dt), stage, k4)
 
-        advance_state(state, state, dt, k1, k2, k3, k4)
+        advance_state(state, dt, k1, k2, k3, k4, state)
         return dt
 
 

@@ -38,16 +38,16 @@ def test_implicit_adaptive_binding_generates_stage_high_low_and_error_calls() ->
     k0 = FakeTranslation(np.array([2.0, 4.0]))
     k1 = FakeTranslation(np.array([6.0, 8.0]))
 
-    binding.require_known_shift_call(1, "TestESDIRK")(out, k0)
+    binding.require_known_shift_call(1, "TestESDIRK")(k0, out)
     np.testing.assert_allclose(out.value, np.array([1.0, 2.0]))
 
-    binding.require_high_delta_call("TestESDIRK")(out, k0, k1)
+    binding.require_high_delta_call("TestESDIRK")(k0, k1, out)
     np.testing.assert_allclose(out.value, np.array([5.0, 7.0]))
 
-    binding.require_low_delta_call("TestESDIRK")(out, k0, k1)
+    binding.require_low_delta_call("TestESDIRK")(k0, k1, out)
     np.testing.assert_allclose(out.value, np.array([4.0, 6.0]))
 
-    binding.require_error_delta_call("TestESDIRK")(out, k0, k1)
+    binding.require_error_delta_call("TestESDIRK")(k0, k1, out)
     np.testing.assert_allclose(out.value, np.array([1.0, 1.0]))
 
     assert "stage1_known_shift_combine" in algebraist.sources
@@ -71,7 +71,7 @@ def test_implicit_adaptive_binding_supports_step_scaled_known_shift() -> None:
     out = FakeTranslation(np.zeros(2))
     k0 = FakeTranslation(np.array([2.0, 4.0]))
 
-    binding.require_known_shift_call(0, "TestESDIRK")(out, 0.25, k0)
+    binding.require_known_shift_call(0, "TestESDIRK")(0.25, k0, out)
 
     np.testing.assert_allclose(out.value, np.array([0.25, 0.5]))
     assert "step" in algebraist.sources["stage1_known_shift_combine"]
@@ -100,4 +100,3 @@ def test_implicit_adaptive_empty_combinations_bind_as_no_generated_call() -> Non
         binding.require_low_delta_call("TestESDIRK")
     with pytest.raises(ValueError, match="error-delta"):
         binding.require_error_delta_call("TestESDIRK")
-

@@ -250,34 +250,33 @@ class SchemeDormandPrince(SchemeBaseExplicitAdaptive):
         derivative(interval, state, k1)
 
         while True:
-            trial = scale(trial_buffer, dt * RKDP_A[1][0], k1)
+            trial = scale(dt * RKDP_A[1][0], k1, trial_buffer)
             trial(state, stage)
             derivative(stage_interval(interval, dt, dt / 5.0), stage, k2)
 
             trial = combine2(
-                trial_buffer,
                 dt * RKDP_A[2][0],
                 k1,
                 dt * RKDP_A[2][1],
                 k2,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, 3.0 * dt / 10.0), stage, k3)
 
             trial = combine3(
-                trial_buffer,
                 dt * RKDP_A[3][0],
                 k1,
                 dt * RKDP_A[3][1],
                 k2,
                 dt * RKDP_A[3][2],
                 k3,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, 4.0 * dt / 5.0), stage, k4)
 
             trial = combine4(
-                trial_buffer,
                 dt * RKDP_A[4][0],
                 k1,
                 dt * RKDP_A[4][1],
@@ -286,12 +285,12 @@ class SchemeDormandPrince(SchemeBaseExplicitAdaptive):
                 k3,
                 dt * RKDP_A[4][3],
                 k4,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, 8.0 * dt / 9.0), stage, k5)
 
             trial = combine5(
-                trial_buffer,
                 dt * RKDP_A[5][0],
                 k1,
                 dt * RKDP_A[5][1],
@@ -302,12 +301,12 @@ class SchemeDormandPrince(SchemeBaseExplicitAdaptive):
                 k4,
                 dt * RKDP_A[5][4],
                 k5,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, dt), stage, k6)
 
             delta_high = combine5(
-                trial_buffer,
                 dt * RKDP_B_HIGH_NZ[0],
                 k1,
                 dt * RKDP_B_HIGH_NZ[1],
@@ -318,13 +317,13 @@ class SchemeDormandPrince(SchemeBaseExplicitAdaptive):
                 k5,
                 dt * RKDP_B_HIGH_NZ[4],
                 k6,
+                trial_buffer,
             )
 
             delta_high(state, stage)
             derivative(stage_interval(interval, dt, dt), stage, k7)
 
             error = combine6(
-                error_buffer,
                 dt * RKDP_B_ERR_NZ[0],
                 k1,
                 dt * RKDP_B_ERR_NZ[1],
@@ -337,6 +336,7 @@ class SchemeDormandPrince(SchemeBaseExplicitAdaptive):
                 k6,
                 dt * RKDP_B_ERR_NZ[5],
                 k7,
+                error_buffer,
             )
 
             error_ratio = error.norm() / bound(delta_high.norm())
@@ -422,26 +422,26 @@ class SchemeDormandPrince(SchemeBaseExplicitAdaptive):
         derivative(interval, state, k1)
 
         while True:
-            combine_stage2(stage, state, dt, k1)
+            combine_stage2(state, dt, k1, stage)
             derivative(stage_interval(interval, dt, dt / 5.0), stage, k2)
 
-            combine_stage3(stage, state, dt, k1, k2)
+            combine_stage3(state, dt, k1, k2, stage)
             derivative(stage_interval(interval, dt, 3.0 * dt / 10.0), stage, k3)
 
-            combine_stage4(stage, state, dt, k1, k2, k3)
+            combine_stage4(state, dt, k1, k2, k3, stage)
             derivative(stage_interval(interval, dt, 4.0 * dt / 5.0), stage, k4)
 
-            combine_stage5(stage, state, dt, k1, k2, k3, k4)
+            combine_stage5(state, dt, k1, k2, k3, k4, stage)
             derivative(stage_interval(interval, dt, 8.0 * dt / 9.0), stage, k5)
 
-            combine_stage6(stage, state, dt, k1, k2, k3, k4, k5)
+            combine_stage6(state, dt, k1, k2, k3, k4, k5, stage)
             derivative(stage_interval(interval, dt, dt), stage, k6)
 
-            delta_high = combine_solution(trial_buffer, dt, k1, k3, k4, k5, k6)
+            delta_high = combine_solution(dt, k1, k3, k4, k5, k6, trial_buffer)
             delta_high(state, stage)
             derivative(stage_interval(interval, dt, dt), stage, k7)
 
-            error = combine_error(error_buffer, dt, k1, k3, k4, k5, k6, k7)
+            error = combine_error(dt, k1, k3, k4, k5, k6, k7, error_buffer)
             error_ratio = error.norm() / bound(delta_high.norm())
 
             if error_ratio <= 1.0:

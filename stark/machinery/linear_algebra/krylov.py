@@ -172,7 +172,7 @@ class Arnoldi:
 
     def start(self, residual: Block, beta: float) -> None:
         """Normalize the initial residual to produce the first Krylov basis vector."""
-        self.workspace.scale_block(self.basis[0], 1.0 / beta, residual)
+        self.workspace.scale_block(1.0 / beta, residual, self.basis[0])
 
     def build_column(
         self,
@@ -203,12 +203,12 @@ class Arnoldi:
         operator(search_vector, work)
         for row in range(column + 1):
             hessenberg[row, column] = workspace.inner_product(work, self.basis[row])
-            workspace.combine2_block(temporary, 1.0, work, -hessenberg[row, column], self.basis[row])
+            workspace.combine2_block(1.0, work, -hessenberg[row, column], self.basis[row], temporary)
             workspace.copy_block(work, temporary)
 
         hessenberg[column + 1, column] = workspace.norm(work)
         if hessenberg[column + 1, column] > 0.0:
-            workspace.scale_block(self.basis[column + 1], 1.0 / hessenberg[column + 1, column], work)
+            workspace.scale_block(1.0 / hessenberg[column + 1, column], work, self.basis[column + 1])
 
         rotations.apply_previous(hessenberg, column)
 

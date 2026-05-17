@@ -47,19 +47,20 @@ class ScalarWorkbench:
 class StubAlgebraist:
     def bind_explicit_scheme(self, tableau):
         def stage2(
-            stage: ScalarState,
             state: ScalarState,
             dt: float,
             k1: ScalarTranslation,
+            stage: ScalarState,
         ) -> None:
             stage.value = state.value + dt * tableau.a[1][0] * k1.value
 
         def solution_state(
-            result: ScalarState,
             origin: ScalarState,
             dt: float,
-            *rates: ScalarTranslation,
+            *args,
         ) -> None:
+            rates = args[:-1]
+            result = args[-1]
             if len(rates) == 1:
                 result.value = origin.value + dt * rates[0].value
                 return

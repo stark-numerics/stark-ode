@@ -193,7 +193,7 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
             out=self.delta1,
         )
 
-        known2 = scale(self.known2, _DELTA21, delta1)
+        known2 = scale(_DELTA21, delta1, self.known2)
 
         delta2 = stepper.solve(
             interval,
@@ -207,11 +207,11 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
         )
 
         known3 = combine2(
-            self.known3,
             _DELTA31,
             delta1,
             _DELTA32,
             delta2,
+            self.known3,
         )
 
         delta3 = stepper.solve(
@@ -226,13 +226,13 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
         )
 
         known4 = combine3(
-            self.known4,
             _DELTA41,
             delta1,
             _DELTA42,
             delta2,
             _DELTA43,
             delta3,
+            self.known4,
         )
 
         delta4 = stepper.solve(
@@ -247,7 +247,6 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
         )
 
         delta_high = combine4(
-            self.trial,
             _STAGE_INCREMENT_WEIGHTS[0],
             delta1,
             _STAGE_INCREMENT_WEIGHTS[1],
@@ -256,6 +255,7 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
             delta3,
             _STAGE_INCREMENT_WEIGHTS[3],
             delta4,
+            self.trial,
         )
 
         workspace.apply_delta(delta_high, state)
@@ -297,7 +297,7 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
             out=self.delta1,
         )
 
-        known2 = known2_call(self.known2, delta1)
+        known2 = known2_call(delta1, self.known2)
 
         delta2 = stepper.solve(
             interval,
@@ -310,7 +310,7 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
             out=self.delta2,
         )
 
-        known3 = known3_call(self.known3, delta1, delta2)
+        known3 = known3_call(delta1, delta2, self.known3)
 
         delta3 = stepper.solve(
             interval,
@@ -323,7 +323,7 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
             out=self.delta3,
         )
 
-        known4 = known4_call(self.known4, delta1, delta2, delta3)
+        known4 = known4_call(delta1, delta2, delta3, self.known4)
 
         delta4 = stepper.solve(
             interval,
@@ -337,11 +337,11 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
         )
 
         delta_high = final_delta_call(
-            self.trial,
             delta1,
             delta2,
             delta3,
             delta4,
+            self.trial,
         )
 
         workspace.apply_delta(delta_high, state)

@@ -20,31 +20,30 @@ from stark.contracts import (
 )
 
 
-def fallback_scale(out: Translation, a: float, x: Translation) -> Translation:
+def fallback_scale(a: float, x: Translation, out: Translation) -> Translation:
     del out
     return a * x
 
 
-def fallback_combine2(out: Translation, a0: float, x0: Translation, a1: float, x1: Translation) -> Translation:
+def fallback_combine2(a0: float, x0: Translation, a1: float, x1: Translation, out: Translation) -> Translation:
     del out
     return a0 * x0 + a1 * x1
 
 
 def fallback_combine3(
-    out: Translation,
     a0: float,
     x0: Translation,
     a1: float,
     x1: Translation,
     a2: float,
     x2: Translation,
+    out: Translation,
 ) -> Translation:
     del out
     return a0 * x0 + a1 * x1 + a2 * x2
 
 
 def fallback_combine4(
-    out: Translation,
     a0: float,
     x0: Translation,
     a1: float,
@@ -53,13 +52,13 @@ def fallback_combine4(
     x2: Translation,
     a3: float,
     x3: Translation,
+    out: Translation,
 ) -> Translation:
     del out
     return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3
 
 
 def fallback_combine5(
-    out: Translation,
     a0: float,
     x0: Translation,
     a1: float,
@@ -70,13 +69,13 @@ def fallback_combine5(
     x3: Translation,
     a4: float,
     x4: Translation,
+    out: Translation,
 ) -> Translation:
     del out
     return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4
 
 
 def fallback_combine6(
-    out: Translation,
     a0: float,
     x0: Translation,
     a1: float,
@@ -89,13 +88,13 @@ def fallback_combine6(
     x4: Translation,
     a5: float,
     x5: Translation,
+    out: Translation,
 ) -> Translation:
     del out
     return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4 + a5 * x5
 
 
 def fallback_combine7(
-    out: Translation,
     a0: float,
     x0: Translation,
     a1: float,
@@ -110,12 +109,15 @@ def fallback_combine7(
     x5: Translation,
     a6: float,
     x6: Translation,
+    out: Translation,
 ) -> Translation:
     del out
     return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4 + a5 * x5 + a6 * x6
 
 
-def _fallback_combine_many(out: Translation, *terms: object) -> Translation:
+def _fallback_combine_many(*terms: object) -> Translation:
+    out = terms[-1]
+    terms = terms[:-1]
     del out
     if len(terms) % 2 != 0:
         raise TypeError("Linear combination terms must be coefficient/translation pairs.")
@@ -132,24 +134,24 @@ def _fallback_combine_many(out: Translation, *terms: object) -> Translation:
     return result
 
 
-def fallback_combine8(out: Translation, *terms: object) -> Translation:
-    return _fallback_combine_many(out, *terms)
+def fallback_combine8(*terms: object) -> Translation:
+    return _fallback_combine_many(*terms)
 
 
-def fallback_combine9(out: Translation, *terms: object) -> Translation:
-    return _fallback_combine_many(out, *terms)
+def fallback_combine9(*terms: object) -> Translation:
+    return _fallback_combine_many(*terms)
 
 
-def fallback_combine10(out: Translation, *terms: object) -> Translation:
-    return _fallback_combine_many(out, *terms)
+def fallback_combine10(*terms: object) -> Translation:
+    return _fallback_combine_many(*terms)
 
 
-def fallback_combine11(out: Translation, *terms: object) -> Translation:
-    return _fallback_combine_many(out, *terms)
+def fallback_combine11(*terms: object) -> Translation:
+    return _fallback_combine_many(*terms)
 
 
-def fallback_combine12(out: Translation, *terms: object) -> Translation:
-    return _fallback_combine_many(out, *terms)
+def fallback_combine12(*terms: object) -> Translation:
+    return _fallback_combine_many(*terms)
 
 
 class Combine3Worker:
@@ -159,9 +161,9 @@ class Combine3Worker:
         self.combine2 = combine2
         self.left = allocate_translation()
 
-    def __call__(self, out: Translation, a0: float, x0: Translation, a1: float, x1: Translation, a2: float, x2: Translation) -> Translation:
-        left_value = self.combine2(self.left, a0, x0, a1, x1)
-        return self.combine2(out, 1.0, left_value, a2, x2)
+    def __call__(self, a0: float, x0: Translation, a1: float, x1: Translation, a2: float, x2: Translation, out: Translation) -> Translation:
+        left_value = self.combine2(a0, x0, a1, x1, self.left)
+        return self.combine2(1.0, left_value, a2, x2, out)
 
 
 class Combine4Worker:
@@ -174,7 +176,6 @@ class Combine4Worker:
 
     def __call__(
         self,
-        out: Translation,
         a0: float,
         x0: Translation,
         a1: float,
@@ -183,10 +184,11 @@ class Combine4Worker:
         x2: Translation,
         a3: float,
         x3: Translation,
+        out: Translation,
     ) -> Translation:
-        left_value = self.combine2(self.left, a0, x0, a1, x1)
-        right_value = self.combine2(self.right, a2, x2, a3, x3)
-        return self.combine2(out, 1.0, left_value, 1.0, right_value)
+        left_value = self.combine2(a0, x0, a1, x1, self.left)
+        right_value = self.combine2(a2, x2, a3, x3, self.right)
+        return self.combine2(1.0, left_value, 1.0, right_value, out)
 
 
 class Combine5Worker:
@@ -200,7 +202,6 @@ class Combine5Worker:
 
     def __call__(
         self,
-        out: Translation,
         a0: float,
         x0: Translation,
         a1: float,
@@ -211,10 +212,11 @@ class Combine5Worker:
         x3: Translation,
         a4: float,
         x4: Translation,
+        out: Translation,
     ) -> Translation:
-        left_value = self.combine2(self.left, a0, x0, a1, x1)
-        right_value = self.combine3(self.right, a2, x2, a3, x3, a4, x4)
-        return self.combine2(out, 1.0, left_value, 1.0, right_value)
+        left_value = self.combine2(a0, x0, a1, x1, self.left)
+        right_value = self.combine3(a2, x2, a3, x3, a4, x4, self.right)
+        return self.combine2(1.0, left_value, 1.0, right_value, out)
 
 
 class Combine6Worker:
@@ -228,7 +230,6 @@ class Combine6Worker:
 
     def __call__(
         self,
-        out: Translation,
         a0: float,
         x0: Translation,
         a1: float,
@@ -241,10 +242,11 @@ class Combine6Worker:
         x4: Translation,
         a5: float,
         x5: Translation,
+        out: Translation,
     ) -> Translation:
-        left_value = self.combine3(self.left, a0, x0, a1, x1, a2, x2)
-        right_value = self.combine3(self.right, a3, x3, a4, x4, a5, x5)
-        return self.combine2(out, 1.0, left_value, 1.0, right_value)
+        left_value = self.combine3(a0, x0, a1, x1, a2, x2, self.left)
+        right_value = self.combine3(a3, x3, a4, x4, a5, x5, self.right)
+        return self.combine2(1.0, left_value, 1.0, right_value, out)
 
 
 class Combine7Worker:
@@ -265,7 +267,6 @@ class Combine7Worker:
 
     def __call__(
         self,
-        out: Translation,
         a0: float,
         x0: Translation,
         a1: float,
@@ -280,10 +281,11 @@ class Combine7Worker:
         x5: Translation,
         a6: float,
         x6: Translation,
+        out: Translation,
     ) -> Translation:
-        left_value = self.combine3(self.left, a0, x0, a1, x1, a2, x2)
-        right_value = self.combine4(self.right, a3, x3, a4, x4, a5, x5, a6, x6)
-        return self.combine2(out, 1.0, left_value, 1.0, right_value)
+        left_value = self.combine3(a0, x0, a1, x1, a2, x2, self.left)
+        right_value = self.combine4(a3, x3, a4, x4, a5, x5, a6, x6, self.right)
+        return self.combine2(1.0, left_value, 1.0, right_value, out)
 
 
 class CombineNWorker:
@@ -297,18 +299,20 @@ class CombineNWorker:
         self.left = allocate_translation()
         self.right = allocate_translation()
 
-    def __call__(self, out: Translation, *terms: object) -> Translation:
-        if len(terms) != 2 * self.arity:
+    def __call__(self, *terms: object) -> Translation:
+        if len(terms) != 2 * self.arity + 1:
             raise TypeError(
                 f"combine{self.arity} requires {self.arity} coefficient/translation pairs."
             )
 
-        total = self.combine2(self.left, terms[0], terms[1], terms[2], terms[3])
+        out = terms[-1]
+        terms = terms[:-1]
+        total = self.combine2(terms[0], terms[1], terms[2], terms[3], self.left)
         target = self.right
         for index in range(4, len(terms), 2):
             is_last = index == len(terms) - 2
             target = out if is_last else (self.right if total is self.left else self.left)
-            total = self.combine2(target, 1.0, total, terms[index], terms[index + 1])
+            total = self.combine2(1.0, total, terms[index], terms[index + 1], target)
         return total
 
 

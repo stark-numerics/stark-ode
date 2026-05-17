@@ -96,10 +96,10 @@ def test_vector_return_uses_returning_add_scale_and_combine():
     routing.add(kernel, result, Box(2.0), Box(3.0))
     assert result.value == 5.0
 
-    routing.scale(kernel, result, 4.0, Box(2.0))
+    routing.scale(kernel, 4.0, Box(2.0), result)
     assert result.value == 8.0
 
-    routing.combine(kernel, result, [2.0, 3.0], [Box(10.0), Box(20.0)])
+    routing.combine(kernel, [2.0, 3.0], [Box(10.0), Box(20.0)], result)
     assert result.value == 80.0
 
 
@@ -128,14 +128,14 @@ def test_vector_in_place_uses_in_place_add_scale_and_combine():
     routing.add(kernel, result, Box(np.array([1.0, 2.0])), Box(np.array([3.0, 4.0])))
     np.testing.assert_allclose(result.value, np.array([4.0, 6.0]))
 
-    routing.scale(kernel, result, 2.0, Box(np.array([3.0, 4.0])))
+    routing.scale(kernel, 2.0, Box(np.array([3.0, 4.0])), result)
     np.testing.assert_allclose(result.value, np.array([6.0, 8.0]))
 
     routing.combine(
         kernel,
-        result,
         [2.0, 3.0],
         [Box(np.array([1.0, 2.0])), Box(np.array([3.0, 4.0]))],
+        result,
     )
     np.testing.assert_allclose(result.value, np.array([11.0, 16.0]))
 

@@ -35,7 +35,7 @@ class StageResidualOperator:
 
     def __call__(self, translation, out) -> None:
         self.jacobian(translation, self.jacobian_buffer)
-        self.combine2(out, 1.0, translation, -self.alpha, self.jacobian_buffer)
+        self.combine2(1.0, translation, -self.alpha, self.jacobian_buffer, out)
 
 
 class CoupledStageResidualOperator:
@@ -58,14 +58,14 @@ class CoupledStageResidualOperator:
 
     def __call__(self, block: Block, out: Block) -> None:
         for row_index, row in enumerate(self.matrix):
-            out_item = self.scale(out[row_index], 0.0, out[row_index])
+            out_item = self.scale(0.0, out[row_index], out[row_index])
             for column_index, coefficient in enumerate(row):
                 if row_index == column_index:
-                    out_item = self.combine2(out_item, 1.0, out_item, 1.0, block[column_index])
+                    out_item = self.combine2(1.0, out_item, 1.0, block[column_index], out_item)
                 if coefficient == 0.0:
                     continue
                 self.jacobians[column_index](block[column_index], self.jacobian_buffer)
-                out_item = self.combine2(out_item, 1.0, out_item, -self.step * coefficient, self.jacobian_buffer)
+                out_item = self.combine2(1.0, out_item, -self.step * coefficient, self.jacobian_buffer, out_item)
             out.items[row_index] = out_item
 
 
@@ -131,9 +131,9 @@ class StageResidual:
         self.copy_state(self.base_state, state)
         self.alpha = alpha
         if rhs is None:
-            self.rhs = self.scale(self.rhs, 0.0, self.rhs)
+            self.rhs = self.scale(0.0, self.rhs, self.rhs)
             return
-        self.rhs = self.combine2(self.rhs, 0.0, self.rhs, 1.0, rhs[0])
+        self.rhs = self.combine2(0.0, self.rhs, 1.0, rhs[0], self.rhs)
 
     def __call__(self, block: Block, out: Block) -> None:
         interval = self.interval
@@ -141,7 +141,7 @@ class StageResidual:
         delta = block[0]
         delta(self.base_state, self.trial_state)
         self.derivative(interval, self.trial_state, self.derivative_buffer)
-        out.items[0] = self.combine3(out[0], 1.0, delta, -1.0, self.rhs, -self.alpha, self.derivative_buffer)
+        out.items[0] = self.combine3(1.0, delta, -1.0, self.rhs, -self.alpha, self.derivative_buffer, out[0])
 
     def linearize(self, block: Block, out) -> None:
         self._linearize(block, out)
@@ -239,12 +239,12 @@ class CoupledStageResidual:
             stage_interval.stop = interval.stop
         if rhs is None:
             for index, item in enumerate(self.rhs_block):
-                self.rhs_block.items[index] = self.scale(item, 0.0, item)
+                self.rhs_block.items[index] = self.scale(0.0, item, item)
             return
         if len(rhs) != self.stage_count:
             raise ValueError(f"rhs must have {self.stage_count} items for {self.method_name}.")
         for index, item in enumerate(self.rhs_block):
-            self.rhs_block.items[index] = self.combine2(item, 0.0, item, 1.0, rhs[index])
+            self.rhs_block.items[index] = self.combine2(0.0, item, 1.0, rhs[index], item)
 
     def __call__(self, block: Block, out: Block) -> None:
         if len(block) != self.stage_count or len(out) != self.stage_count:
@@ -257,16 +257,16 @@ class CoupledStageResidual:
             self.derivative(interval, self.stage_states[index], self.derivative_buffers[index])
 
         for row_index, row in enumerate(self.matrix):
-            out_item = self.combine2(out[row_index], 1.0, block[row_index], -1.0, self.rhs_block[row_index])
+            out_item = self.combine2(1.0, block[row_index], -1.0, self.rhs_block[row_index], out[row_index])
             for column_index, coefficient in enumerate(row):
                 if coefficient == 0.0:
                     continue
                 out_item = self.combine2(
-                    out_item,
                     1.0,
                     out_item,
                     -self.step * coefficient,
                     self.derivative_buffers[column_index],
+                    out_item,
                 )
             out.items[row_index] = out_item
 

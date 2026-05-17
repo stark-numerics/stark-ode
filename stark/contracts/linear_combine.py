@@ -8,7 +8,7 @@ from stark.contracts.translations import Translation
 class Scale(Protocol):
     """Set `out = a * x` and return `out`."""
 
-    def __call__(self, out: Translation, a: float, x: Translation) -> Translation:
+    def __call__(self, a: float, x: Translation, out: Translation) -> Translation:
         ...
 
 
@@ -17,11 +17,11 @@ class Combine2(Protocol):
 
     def __call__(
         self,
-        out: Translation,
         a0: float,
         x0: Translation,
         a1: float,
         x1: Translation,
+        out: Translation,
     ) -> Translation:
         ...
 
@@ -31,13 +31,13 @@ class Combine3(Protocol):
 
     def __call__(
         self,
-        out: Translation,
         a0: float,
         x0: Translation,
         a1: float,
         x1: Translation,
         a2: float,
         x2: Translation,
+        out: Translation,
     ) -> Translation:
         ...
 
@@ -47,7 +47,6 @@ class Combine4(Protocol):
 
     def __call__(
         self,
-        out: Translation,
         a0: float,
         x0: Translation,
         a1: float,
@@ -56,6 +55,7 @@ class Combine4(Protocol):
         x2: Translation,
         a3: float,
         x3: Translation,
+        out: Translation,
     ) -> Translation:
         ...
 
@@ -65,7 +65,6 @@ class Combine5(Protocol):
 
     def __call__(
         self,
-        out: Translation,
         a0: float,
         x0: Translation,
         a1: float,
@@ -76,6 +75,7 @@ class Combine5(Protocol):
         x3: Translation,
         a4: float,
         x4: Translation,
+        out: Translation,
     ) -> Translation:
         ...
 
@@ -85,7 +85,6 @@ class Combine6(Protocol):
 
     def __call__(
         self,
-        out: Translation,
         a0: float,
         x0: Translation,
         a1: float,
@@ -98,6 +97,7 @@ class Combine6(Protocol):
         x4: Translation,
         a5: float,
         x5: Translation,
+        out: Translation,
     ) -> Translation:
         ...
 
@@ -107,7 +107,6 @@ class Combine7(Protocol):
 
     def __call__(
         self,
-        out: Translation,
         a0: float,
         x0: Translation,
         a1: float,
@@ -122,6 +121,7 @@ class Combine7(Protocol):
         x5: Translation,
         a6: float,
         x6: Translation,
+        out: Translation,
     ) -> Translation:
         ...
 
@@ -129,35 +129,35 @@ class Combine7(Protocol):
 class Combine8(Protocol):
     """Set `out` to an eight-term linear combination and return `out`."""
 
-    def __call__(self, out: Translation, *terms: object) -> Translation:
+    def __call__(self, *terms: object) -> Translation:
         ...
 
 
 class Combine9(Protocol):
     """Set `out` to a nine-term linear combination and return `out`."""
 
-    def __call__(self, out: Translation, *terms: object) -> Translation:
+    def __call__(self, *terms: object) -> Translation:
         ...
 
 
 class Combine10(Protocol):
     """Set `out` to a ten-term linear combination and return `out`."""
 
-    def __call__(self, out: Translation, *terms: object) -> Translation:
+    def __call__(self, *terms: object) -> Translation:
         ...
 
 
 class Combine11(Protocol):
     """Set `out` to an eleven-term linear combination and return `out`."""
 
-    def __call__(self, out: Translation, *terms: object) -> Translation:
+    def __call__(self, *terms: object) -> Translation:
         ...
 
 
 class Combine12(Protocol):
     """Set `out` to a twelve-term linear combination and return `out`."""
 
-    def __call__(self, out: Translation, *terms: object) -> Translation:
+    def __call__(self, *terms: object) -> Translation:
         ...
 
 

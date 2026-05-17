@@ -148,10 +148,10 @@ def test_algebraist_binds_tableau_combinations_as_specific_calls():
     k0 = FakeTranslation(np.array([2.0, 4.0]))
     k1 = FakeTranslation(np.array([6.0, 8.0]))
 
-    calls.stages[1](out, 3.0, k0)
+    calls.stages[1](3.0, k0, out)
     np.testing.assert_allclose(out.value, np.array([3.0, 6.0]))
 
-    calls.solution(out, 2.0, k0, k1)
+    calls.solution(2.0, k0, k1, out)
     np.testing.assert_allclose(out.value, np.array([10.0, 14.0]))
 
     assert "stage1_combine" in algebraist.sources
@@ -173,11 +173,11 @@ def test_algebraist_binds_explicit_tableau_stages_as_state_calls():
     origin = FakeState(np.array([10.0, 20.0]))
     k0 = FakeTranslation(np.array([2.0, 4.0]))
 
-    calls.stage_state_calls[1](result, origin, 3.0, k0)
+    calls.stage_state_calls[1](origin, 3.0, k0, result)
 
     np.testing.assert_allclose(result.value, np.array([13.0, 26.0]))
 
-    calls.solution_state_call(result, origin, 2.0, k0)
+    calls.solution_state_call(origin, 2.0, k0, result)
     np.testing.assert_allclose(result.value, np.array([14.0, 28.0]))
 
     assert "stage1_state" in algebraist.sources

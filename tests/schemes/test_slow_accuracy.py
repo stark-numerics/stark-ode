@@ -76,37 +76,36 @@ class RiccatiTranslation:
     def __rmul__(self, scalar: float) -> RiccatiTranslation:
         return RiccatiTranslation(scalar * self.dt, scalar * self.dx)
 
-    def scale(out: RiccatiTranslation, a: float, x: RiccatiTranslation) -> RiccatiTranslation:
+    def scale(a: float, x: RiccatiTranslation, out: RiccatiTranslation) -> RiccatiTranslation:
         out.dt = a * x.dt
         out.dx = a * x.dx
         return out
 
     def combine2(
-        out: RiccatiTranslation,
         a0: float,
         x0: RiccatiTranslation,
         a1: float,
         x1: RiccatiTranslation,
+        out: RiccatiTranslation,
     ) -> RiccatiTranslation:
         out.dt = a0 * x0.dt + a1 * x1.dt
         out.dx = a0 * x0.dx + a1 * x1.dx
         return out
 
     def combine3(
-        out: RiccatiTranslation,
         a0: float,
         x0: RiccatiTranslation,
         a1: float,
         x1: RiccatiTranslation,
         a2: float,
         x2: RiccatiTranslation,
+        out: RiccatiTranslation,
     ) -> RiccatiTranslation:
         out.dt = a0 * x0.dt + a1 * x1.dt + a2 * x2.dt
         out.dx = a0 * x0.dx + a1 * x1.dx + a2 * x2.dx
         return out
 
     def combine4(
-        out: RiccatiTranslation,
         a0: float,
         x0: RiccatiTranslation,
         a1: float,
@@ -115,13 +114,13 @@ class RiccatiTranslation:
         x2: RiccatiTranslation,
         a3: float,
         x3: RiccatiTranslation,
+        out: RiccatiTranslation,
     ) -> RiccatiTranslation:
         out.dt = a0 * x0.dt + a1 * x1.dt + a2 * x2.dt + a3 * x3.dt
         out.dx = a0 * x0.dx + a1 * x1.dx + a2 * x2.dx + a3 * x3.dx
         return out
 
     def combine5(
-        out: RiccatiTranslation,
         a0: float,
         x0: RiccatiTranslation,
         a1: float,
@@ -132,13 +131,13 @@ class RiccatiTranslation:
         x3: RiccatiTranslation,
         a4: float,
         x4: RiccatiTranslation,
+        out: RiccatiTranslation,
     ) -> RiccatiTranslation:
         out.dt = a0 * x0.dt + a1 * x1.dt + a2 * x2.dt + a3 * x3.dt + a4 * x4.dt
         out.dx = a0 * x0.dx + a1 * x1.dx + a2 * x2.dx + a3 * x3.dx + a4 * x4.dx
         return out
 
     def combine6(
-        out: RiccatiTranslation,
         a0: float,
         x0: RiccatiTranslation,
         a1: float,
@@ -151,13 +150,13 @@ class RiccatiTranslation:
         x4: RiccatiTranslation,
         a5: float,
         x5: RiccatiTranslation,
+        out: RiccatiTranslation,
     ) -> RiccatiTranslation:
         out.dt = a0 * x0.dt + a1 * x1.dt + a2 * x2.dt + a3 * x3.dt + a4 * x4.dt + a5 * x5.dt
         out.dx = a0 * x0.dx + a1 * x1.dx + a2 * x2.dx + a3 * x3.dx + a4 * x4.dx + a5 * x5.dx
         return out
 
     def combine7(
-        out: RiccatiTranslation,
         a0: float,
         x0: RiccatiTranslation,
         a1: float,
@@ -172,6 +171,7 @@ class RiccatiTranslation:
         x5: RiccatiTranslation,
         a6: float,
         x6: RiccatiTranslation,
+        out: RiccatiTranslation,
     ) -> RiccatiTranslation:
         out.dt = (
             a0 * x0.dt

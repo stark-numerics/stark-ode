@@ -206,38 +206,37 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
             half_dt = 0.5 * dt
             three_quarter_dt = 0.75 * dt
 
-            trial = scale(trial_buffer, half_dt, k1)
+            trial = scale(half_dt, k1, trial_buffer)
             trial(state, stage)
             derivative(stage_interval(interval, dt, half_dt), stage, k2)
 
-            trial = scale(trial_buffer, three_quarter_dt, k2)
+            trial = scale(three_quarter_dt, k2, trial_buffer)
             trial(state, stage)
             derivative(stage_interval(interval, dt, three_quarter_dt), stage, k3)
 
             trial = combine3(
-                trial_buffer,
                 dt * BS23_A_STAGE4[0],
                 k1,
                 dt * BS23_A_STAGE4[1],
                 k2,
                 dt * BS23_A_STAGE4[2],
                 k3,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, dt), stage, k4)
 
             delta_high = combine3(
-                trial_buffer,
                 dt * BS23_B_HIGH[0],
                 k1,
                 dt * BS23_B_HIGH[1],
                 k2,
                 dt * BS23_B_HIGH[2],
                 k3,
+                trial_buffer,
             )
 
             error = combine4(
-                error_buffer,
                 dt * BS23_ERROR_WEIGHTS[0],
                 k1,
                 dt * BS23_ERROR_WEIGHTS[1],
@@ -246,6 +245,7 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
                 k3,
                 dt * BS23_ERROR_WEIGHTS[3],
                 k4,
+                error_buffer,
             )
 
             error_ratio = ratio(error.norm(), delta_high.norm())
@@ -327,17 +327,17 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
             half_dt = 0.5 * dt
             three_quarter_dt = 0.75 * dt
 
-            combine_stage2(stage, state, dt, k1)
+            combine_stage2(state, dt, k1, stage)
             derivative(stage_interval(interval, dt, half_dt), stage, k2)
 
-            combine_stage3(stage, state, dt, k2)
+            combine_stage3(state, dt, k2, stage)
             derivative(stage_interval(interval, dt, three_quarter_dt), stage, k3)
 
-            combine_stage4(stage, state, dt, k1, k2, k3)
+            combine_stage4(state, dt, k1, k2, k3, stage)
             derivative(stage_interval(interval, dt, dt), stage, k4)
 
-            delta_high = combine_solution(trial_buffer, dt, k1, k2, k3)
-            error = combine_error(error_buffer, dt, k1, k2, k3, k4)
+            delta_high = combine_solution(dt, k1, k2, k3, trial_buffer)
+            error = combine_error(dt, k1, k2, k3, k4, error_buffer)
 
             error_ratio = ratio(error.norm(), delta_high.norm())
             if error_ratio <= 1.0:

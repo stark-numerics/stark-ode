@@ -128,8 +128,8 @@ class SecantHistory:
         right_buffer = self.right_buffer
         assert left_buffer is not None
         assert right_buffer is not None
-        self.workspace.combine2_block(left_buffer, 1.0, left_now, -1.0, left_before)
-        self.workspace.combine2_block(right_buffer, 1.0, right_now, -1.0, right_before)
+        self.workspace.combine2_block(1.0, left_now, -1.0, left_before, left_buffer)
+        self.workspace.combine2_block(1.0, right_now, -1.0, right_before, right_buffer)
         self.append(left_buffer, right_buffer)
 
     def project_right(self, block: Block) -> np.ndarray:
@@ -156,7 +156,7 @@ class SecantHistory:
             coefficient = float(coefficients[index])
             if coefficient == 0.0:
                 continue
-            workspace.combine2_block(temporary, 1.0, out, coefficient, self.left[self.slot(index)])
+            workspace.combine2_block(1.0, out, coefficient, self.left[self.slot(index)], temporary)
             workspace.copy_block(out, temporary)
 
     def slot(self, index: int) -> int:

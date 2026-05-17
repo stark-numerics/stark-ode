@@ -98,7 +98,7 @@ class SchemeEuler(SchemeBaseExplicitFixed):
 
         derivative(interval, state, k1)
 
-        delta = scale(delta_buffer, dt * EULER_B[0], k1)
+        delta = scale(dt * EULER_B[0], k1, delta_buffer)
         apply_delta(delta, state)
 
         return dt
@@ -123,7 +123,7 @@ class SchemeEuler(SchemeBaseExplicitFixed):
 
         derivative(interval, state, k1)
 
-        advance_state(state, state, dt, k1)
+        advance_state(state, dt, k1, state)
         return dt
 
 

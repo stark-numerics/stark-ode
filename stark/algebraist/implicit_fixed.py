@@ -160,11 +160,8 @@ class AlgebraistImplicitFixedSchemeBinder:
         kernel_name = f"{name}_kernel"
         kernel, _kernel_source = self.combination_kernel(kernel_name, combination)
 
-        parameters = ["out"]
-        wrapper_arguments = [
-            path_expression("out", field.translation_path)
-            for field in self.algebraist.fields
-        ]
+        parameters: list[str] = []
+        wrapper_arguments: list[str] = []
 
         if combination.step_scale:
             parameters.append("step")
@@ -177,6 +174,12 @@ class AlgebraistImplicitFixedSchemeBinder:
                 path_expression(f"k{local_index}", field.translation_path)
                 for field in self.algebraist.fields
             )
+
+        parameters.append("out")
+        wrapper_arguments.extend(
+            path_expression("out", field.translation_path)
+            for field in self.algebraist.fields
+        )
 
         wrapper_source = (
             f"def {name}({', '.join(parameters)}):\n"
@@ -225,7 +228,7 @@ class AlgebraistImplicitFixedSchemeBinder:
             for field in self.algebraist.fields
         )
         source = (
-            f"def {name}({', '.join(field_arguments + term_arguments)}):\n"
+            f"def {name}({', '.join(term_arguments + field_arguments)}):\n"
             f"{body}\n"
         )
 

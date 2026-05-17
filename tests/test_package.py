@@ -222,17 +222,17 @@ class MinimalTranslation:
         return MinimalTranslation()
 
     @staticmethod
-    def scale(out: "MinimalTranslation", a: float, x: "MinimalTranslation") -> "MinimalTranslation":
+    def scale(a: float, x: "MinimalTranslation", out: "MinimalTranslation") -> "MinimalTranslation":
         del a, x
         return out
 
     @staticmethod
     def combine2(
-        out: "MinimalTranslation",
         a0: float,
         x0: "MinimalTranslation",
         a1: float,
         x1: "MinimalTranslation",
+        out: "MinimalTranslation",
     ) -> "MinimalTranslation":
         del a0, x0, a1, x1
         return out

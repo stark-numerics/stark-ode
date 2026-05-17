@@ -4,10 +4,11 @@ from collections.abc import Sequence
 
 
 def combine_signature(term_count: int, probes: Sequence[object]) -> tuple[object, ...]:
-    arguments: list[object] = list(probes)
+    arguments: list[object] = []
     for _ in range(term_count):
         arguments.append(1.0)
         arguments.extend(probes)
+    arguments.extend(probes)
     return tuple(arguments)
 
 

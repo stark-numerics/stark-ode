@@ -346,9 +346,9 @@ class SchemeKvaerno4(SchemeBaseImplicitAdaptive):
 
         while True:
             delta1 = scale(
-                self.delta1,
                 dt * KVAERNO4_GAMMA,
                 self.stage1_rate,
+                self.delta1,
             )
 
             try:
@@ -364,11 +364,11 @@ class SchemeKvaerno4(SchemeBaseImplicitAdaptive):
                 )
 
                 known3 = combine2(
-                    self.trial,
                     _DELTA31,
                     delta1,
                     _DELTA32,
                     delta2,
+                    self.trial,
                 )
 
                 delta3 = stepper.solve(
@@ -383,13 +383,13 @@ class SchemeKvaerno4(SchemeBaseImplicitAdaptive):
                 )
 
                 known4 = combine3(
-                    self.known4,
                     _DELTA41,
                     delta1,
                     _DELTA42,
                     delta2,
                     _DELTA43,
                     delta3,
+                    self.known4,
                 )
 
                 delta4 = stepper.solve(
@@ -404,7 +404,6 @@ class SchemeKvaerno4(SchemeBaseImplicitAdaptive):
                 )
 
                 known5 = combine4(
-                    self.known5,
                     _DELTA51,
                     delta1,
                     _DELTA52,
@@ -413,6 +412,7 @@ class SchemeKvaerno4(SchemeBaseImplicitAdaptive):
                     delta3,
                     _DELTA54,
                     delta4,
+                    self.known5,
                 )
 
                 delta5 = stepper.solve(
@@ -437,7 +437,6 @@ class SchemeKvaerno4(SchemeBaseImplicitAdaptive):
                 continue
 
             delta_high = combine5(
-                self.trial,
                 _STAGE_INCREMENT_WEIGHTS_HIGH[0],
                 delta1,
                 _STAGE_INCREMENT_WEIGHTS_HIGH[1],
@@ -448,10 +447,10 @@ class SchemeKvaerno4(SchemeBaseImplicitAdaptive):
                 delta4,
                 _STAGE_INCREMENT_WEIGHTS_HIGH[4],
                 delta5,
+                self.trial,
             )
 
             error = combine5(
-                self.error,
                 _STAGE_INCREMENT_WEIGHTS_ERROR[0],
                 delta1,
                 _STAGE_INCREMENT_WEIGHTS_ERROR[1],
@@ -462,6 +461,7 @@ class SchemeKvaerno4(SchemeBaseImplicitAdaptive):
                 delta4,
                 _STAGE_INCREMENT_WEIGHTS_ERROR[4],
                 delta5,
+                self.error,
             )
 
             error_ratio = ratio(error.norm(), delta_high.norm())
@@ -536,9 +536,9 @@ class SchemeKvaerno4(SchemeBaseImplicitAdaptive):
 
         while True:
             delta1 = known2_call(
-                self.delta1,
                 dt,
                 self.stage1_rate,
+                self.delta1,
             )
 
             try:
@@ -554,9 +554,9 @@ class SchemeKvaerno4(SchemeBaseImplicitAdaptive):
                 )
 
                 known3 = known3_call(
-                    self.trial,
                     delta1,
                     delta2,
+                    self.trial,
                 )
 
                 delta3 = stepper.solve(
@@ -571,10 +571,10 @@ class SchemeKvaerno4(SchemeBaseImplicitAdaptive):
                 )
 
                 known4 = known4_call(
-                    self.known4,
                     delta1,
                     delta2,
                     delta3,
+                    self.known4,
                 )
 
                 delta4 = stepper.solve(
@@ -589,11 +589,11 @@ class SchemeKvaerno4(SchemeBaseImplicitAdaptive):
                 )
 
                 known5 = known5_call(
-                    self.known5,
                     delta1,
                     delta2,
                     delta3,
                     delta4,
+                    self.known5,
                 )
 
                 delta5 = stepper.solve(
@@ -618,21 +618,21 @@ class SchemeKvaerno4(SchemeBaseImplicitAdaptive):
                 continue
 
             delta_high = high_delta_call(
-                self.trial,
                 delta1,
                 delta2,
                 delta3,
                 delta4,
                 delta5,
+                self.trial,
             )
 
             error = error_delta_call(
-                self.error,
                 delta1,
                 delta2,
                 delta3,
                 delta4,
                 delta5,
+                self.error,
             )
 
             error_ratio = ratio(error.norm(), delta_high.norm())

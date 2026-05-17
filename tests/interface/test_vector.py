@@ -148,7 +148,7 @@ def test_translation_exposes_linear_combine_through_combine12():
     for index, value in enumerate(values, start=1):
         terms.extend([float(index), value])
 
-    combined = translation.combine12(out, *terms)
+    combined = translation.combine12(*terms, out)
 
     assert combined is out
     assert out.value == [650.0]
@@ -163,7 +163,7 @@ def test_numpy_linear_combine_prefers_in_place_output_storage():
     left = StarkVectorTranslation(np.array([1.0, 2.0]), carrier, routing)
     right = StarkVectorTranslation(np.array([3.0, 4.0]), carrier, routing)
 
-    combined = translation.combine2(out, 2.0, left, 3.0, right)
+    combined = translation.combine2(2.0, left, 3.0, right, out)
 
     assert combined is out
     assert out.value is out_value
@@ -184,7 +184,7 @@ def test_scheme_workspace_consumes_stark_vector_linear_combine():
     for index, value in enumerate(values, start=1):
         terms.extend([float(index), value])
 
-    combined = workspace.combine12(out, *terms)
+    combined = workspace.combine12(*terms, out)
 
     assert combined is out
     assert out.value == [650.0]

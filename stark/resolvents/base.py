@@ -152,7 +152,7 @@ class ResolventBaseFixedPoint(ResolventBase):
             scale = block.norm()
             if self.tolerance.accepts(error, scale):
                 return
-            self.resolvent_workspace.combine2_block(block, 1.0, block, -1.0, residual_buffer)
+            self.resolvent_workspace.combine2_block(1.0, block, -1.0, residual_buffer, block)
 
         self.residual(block, residual_buffer)
         error = residual_buffer.norm()
@@ -372,11 +372,11 @@ class ResolventBaseLinearized(ResolventBase):
 
             operator.reset()
             self.residual.linearize(block, operator)
-            self.resolvent_workspace.combine2_block(rhs_buffer, 0.0, residual_buffer, -1.0, residual_buffer)
+            self.resolvent_workspace.combine2_block(0.0, residual_buffer, -1.0, residual_buffer, rhs_buffer)
             self.resolvent_workspace.zero_block(correction)
             self.inverter.bind(operator)
             self.inverter(rhs_buffer, correction)
-            self.resolvent_workspace.combine2_block(block, 1.0, block, 1.0, correction)
+            self.resolvent_workspace.combine2_block(1.0, block, 1.0, correction, block)
 
         self.residual(block, residual_buffer)
         error = residual_buffer.norm()

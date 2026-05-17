@@ -108,16 +108,16 @@ class SchemeRalston(SchemeBaseExplicitFixed):
 
         derivative(interval, state, k1)
 
-        trial = scale(trial_buffer, stage_dt, k1)
+        trial = scale(stage_dt, k1, trial_buffer)
         trial(state, stage)
         derivative(stage_interval(interval, dt, stage_dt), stage, k2)
 
         delta = combine2(
-            trial_buffer,
             dt * RALSTON_B[0],
             k1,
             dt * RALSTON_B[1],
             k2,
+            trial_buffer,
         )
         apply_delta(delta, state)
 
@@ -148,10 +148,10 @@ class SchemeRalston(SchemeBaseExplicitFixed):
 
         derivative(interval, state, k1)
 
-        combine_stage2(stage, state, dt, k1)
+        combine_stage2(state, dt, k1, stage)
         derivative(stage_interval(interval, dt, stage_dt), stage, k2)
 
-        advance_state(state, state, dt, k1, k2)
+        advance_state(state, dt, k1, k2, state)
         return dt
 
 

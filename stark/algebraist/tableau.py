@@ -156,7 +156,7 @@ class AlgebraistTableauBinder:
     ) -> Callable[..., object]:
         if combination.term_count == 0:
             source = (
-                f"def {name}(out, step):\n"
+                f"def {name}(step, out):\n"
                 " raise ValueError("
                 "'Cannot call an empty Algebraist tableau combination.'"
                 ")\n"
@@ -166,12 +166,8 @@ class AlgebraistTableauBinder:
         kernel_name = f"{name}_kernel"
         kernel, _kernel_source = self.combination_kernel(kernel_name, combination)
 
-        parameters = ["out", "step"]
-        wrapper_arguments = [
-            path_expression("out", field.translation_path)
-            for field in self.algebraist.fields
-        ]
-        wrapper_arguments.append("step")
+        parameters = ["step"]
+        wrapper_arguments = ["step"]
 
         for local_index, term_index in enumerate(combination.term_indices):
             del term_index
@@ -180,6 +176,12 @@ class AlgebraistTableauBinder:
                 path_expression(f"k{local_index}", field.translation_path)
                 for field in self.algebraist.fields
             )
+
+        parameters.append("out")
+        wrapper_arguments.extend(
+            path_expression("out", field.translation_path)
+            for field in self.algebraist.fields
+        )
 
         wrapper_source = (
             f"def {name}({', '.join(parameters)}):\n"
@@ -220,7 +222,7 @@ class AlgebraistTableauBinder:
             for field in self.algebraist.fields
         )
         source = (
-            f"def {name}({', '.join(field_arguments + term_arguments)}):\n"
+            f"def {name}({', '.join(term_arguments + field_arguments)}):\n"
             f"{body}\n"
         )
 

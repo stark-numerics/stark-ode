@@ -78,7 +78,7 @@ class CarrierKernelAlgebraistBound:
         self.combine_into(result, [1.0, 1.0], [left, right])
 
     def scale_into(self, result: Any, scalar: float, value: Any) -> None:
-        self.algebraist.linear_combine[0](result, scalar, value)
+        self.algebraist.linear_combine[0](scalar, value, result)
 
     def combine_into(self, result: Any, coefficients: Any, values: Any) -> None:
         if not values:
@@ -92,11 +92,12 @@ class CarrierKernelAlgebraistBound:
             )
 
         wrapper = self.algebraist.linear_combine[len(values) - 1]
-        arguments: list[Any] = [result]
+        arguments: list[Any] = []
 
         for coefficient, value in zip(coefficients, values, strict=True):
             arguments.extend([coefficient, value])
 
+        arguments.append(result)
         wrapper(*arguments)
 
     def norm(self, value: Any) -> float:

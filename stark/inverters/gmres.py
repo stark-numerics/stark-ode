@@ -97,7 +97,7 @@ class GMRESCycle:
         assert applied is not None
         assert residual is not None
         operator(out, applied)
-        workspace.combine2_block(residual, 1.0, rhs, -1.0, applied)
+        workspace.combine2_block(1.0, rhs, -1.0, applied, residual)
         return workspace.norm(residual)
 
     def run(
@@ -163,10 +163,10 @@ class GMRESCycle:
         coefficients = self.least_squares.solve(width)
 
         for index in range(width):
-            workspace.combine2_block(temporary, 1.0, correction, coefficients[index], self.search_basis[index])
+            workspace.combine2_block(1.0, correction, coefficients[index], self.search_basis[index], temporary)
             workspace.copy_block(correction, temporary)
 
-        workspace.combine2_block(temporary, 1.0, out, 1.0, correction)
+        workspace.combine2_block(1.0, out, 1.0, correction, temporary)
         workspace.copy_block(out, temporary)
 
 

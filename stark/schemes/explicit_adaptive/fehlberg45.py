@@ -226,34 +226,33 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
         derivative(interval, state, k1)
 
         while True:
-            trial = scale(trial_buffer, dt * RKF45_A[1][0], k1)
+            trial = scale(dt * RKF45_A[1][0], k1, trial_buffer)
             trial(state, stage)
             derivative(stage_interval(interval, dt, dt / 4.0), stage, k2)
 
             trial = combine2(
-                trial_buffer,
                 dt * RKF45_A[2][0],
                 k1,
                 dt * RKF45_A[2][1],
                 k2,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, 3.0 * dt / 8.0), stage, k3)
 
             trial = combine3(
-                trial_buffer,
                 dt * RKF45_A[3][0],
                 k1,
                 dt * RKF45_A[3][1],
                 k2,
                 dt * RKF45_A[3][2],
                 k3,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, 12.0 * dt / 13.0), stage, k4)
 
             trial = combine4(
-                trial_buffer,
                 dt * RKF45_A[4][0],
                 k1,
                 dt * RKF45_A[4][1],
@@ -262,12 +261,12 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
                 k3,
                 dt * RKF45_A[4][3],
                 k4,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, dt), stage, k5)
 
             trial = combine5(
-                trial_buffer,
                 dt * RKF45_A[5][0],
                 k1,
                 dt * RKF45_A[5][1],
@@ -278,12 +277,12 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
                 k4,
                 dt * RKF45_A[5][4],
                 k5,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, 0.5 * dt), stage, k6)
 
             delta_high = combine5(
-                trial_buffer,
                 dt * RKF45_B_HIGH_NZ[0],
                 k1,
                 dt * RKF45_B_HIGH_NZ[1],
@@ -294,10 +293,10 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
                 k5,
                 dt * RKF45_B_HIGH_NZ[4],
                 k6,
+                trial_buffer,
             )
 
             error = combine5(
-                error_buffer,
                 dt * RKF45_B_ERR_NZ[0],
                 k1,
                 dt * RKF45_B_ERR_NZ[1],
@@ -308,6 +307,7 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
                 k5,
                 dt * RKF45_B_ERR_NZ[4],
                 k6,
+                error_buffer,
             )
 
             error_ratio = ratio(error.norm(), delta_high.norm())
@@ -392,23 +392,23 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
         derivative(interval, state, k1)
 
         while True:
-            combine_stage2(stage, state, dt, k1)
+            combine_stage2(state, dt, k1, stage)
             derivative(stage_interval(interval, dt, dt / 4.0), stage, k2)
 
-            combine_stage3(stage, state, dt, k1, k2)
+            combine_stage3(state, dt, k1, k2, stage)
             derivative(stage_interval(interval, dt, 3.0 * dt / 8.0), stage, k3)
 
-            combine_stage4(stage, state, dt, k1, k2, k3)
+            combine_stage4(state, dt, k1, k2, k3, stage)
             derivative(stage_interval(interval, dt, 12.0 * dt / 13.0), stage, k4)
 
-            combine_stage5(stage, state, dt, k1, k2, k3, k4)
+            combine_stage5(state, dt, k1, k2, k3, k4, stage)
             derivative(stage_interval(interval, dt, dt), stage, k5)
 
-            combine_stage6(stage, state, dt, k1, k2, k3, k4, k5)
+            combine_stage6(state, dt, k1, k2, k3, k4, k5, stage)
             derivative(stage_interval(interval, dt, 0.5 * dt), stage, k6)
 
-            delta_high = combine_solution(trial_buffer, dt, k1, k3, k4, k5, k6)
-            error = combine_error(error_buffer, dt, k1, k3, k4, k5, k6)
+            delta_high = combine_solution(dt, k1, k3, k4, k5, k6, trial_buffer)
+            error = combine_error(dt, k1, k3, k4, k5, k6, error_buffer)
             error_ratio = ratio(error.norm(), delta_high.norm())
 
             if error_ratio <= 1.0:

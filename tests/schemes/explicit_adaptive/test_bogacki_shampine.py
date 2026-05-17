@@ -48,28 +48,28 @@ class StubAlgebraist:
         del tableau
 
         def stage2(
-            stage: ScalarState,
             state: ScalarState,
             dt: float,
             k1: ScalarTranslation,
+            stage: ScalarState,
         ) -> None:
             stage.value = state.value + 0.5 * dt * k1.value
 
         def stage3(
-            stage: ScalarState,
             state: ScalarState,
             dt: float,
             k2: ScalarTranslation,
+            stage: ScalarState,
         ) -> None:
             stage.value = state.value + 0.75 * dt * k2.value
 
         def stage4(
-            stage: ScalarState,
             state: ScalarState,
             dt: float,
             k1: ScalarTranslation,
             k2: ScalarTranslation,
             k3: ScalarTranslation,
+            stage: ScalarState,
         ) -> None:
             stage.value = state.value + dt * (
                 (2.0 / 9.0) * k1.value
@@ -78,11 +78,11 @@ class StubAlgebraist:
             )
 
         def solution(
-            out: ScalarTranslation,
             dt: float,
             k1: ScalarTranslation,
             k2: ScalarTranslation,
             k3: ScalarTranslation,
+            out: ScalarTranslation,
         ) -> ScalarTranslation:
             out.value = dt * (
                 (2.0 / 9.0) * k1.value
@@ -92,12 +92,12 @@ class StubAlgebraist:
             return out
 
         def error(
-            out: ScalarTranslation,
             dt: float,
             k1: ScalarTranslation,
             k2: ScalarTranslation,
             k3: ScalarTranslation,
             k4: ScalarTranslation,
+            out: ScalarTranslation,
         ) -> ScalarTranslation:
             out.value = dt * (
                 ((2.0 / 9.0) - (7.0 / 24.0)) * k1.value

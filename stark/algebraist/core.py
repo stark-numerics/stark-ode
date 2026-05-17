@@ -210,7 +210,7 @@ class Algebraist:
             for field in self.fields
         )
         source = (
-            f"def {kernel_name}({', '.join(field_arguments + term_arguments)}):\n"
+            f"def {kernel_name}({', '.join(term_arguments + field_arguments)}):\n"
             f"{body}\n"
         )
 
@@ -231,11 +231,8 @@ class Algebraist:
         wrapper_name = combine_wrapper_name(term_count)
         kernel_name = combine_kernel_name(term_count)
 
-        parameters = ["out"]
-        kernel_arguments = [
-            path_expression("out", field.translation_path)
-            for field in self.fields
-        ]
+        parameters: list[str] = []
+        kernel_arguments: list[str] = []
 
         for index in range(term_count):
             parameters.append(f"a{index}")
@@ -246,6 +243,12 @@ class Algebraist:
                 path_expression(f"x{index}", field.translation_path)
                 for field in self.fields
             )
+
+        parameters.append("out")
+        kernel_arguments.extend(
+            path_expression("out", field.translation_path)
+            for field in self.fields
+        )
 
         source = (
             f"def {wrapper_name}({', '.join(parameters)}):\n"

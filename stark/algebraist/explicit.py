@@ -88,7 +88,7 @@ class AlgebraistExplicitSchemeBinder:
     ) -> Callable[..., object]:
         if combination.term_count == 0:
             source = (
-                f"def {name}(result, origin, step):\n"
+                f"def {name}(origin, step, result):\n"
                 " raise ValueError('Cannot call an empty Algebraist explicit stage.')\n"
             )
             return self.algebraist.compile_function(name, source, source_kind="wrapper")
@@ -96,15 +96,11 @@ class AlgebraistExplicitSchemeBinder:
         kernel_name = f"{name}_kernel"
         kernel, _kernel_source = self.stage_kernel(kernel_name, combination)
 
-        parameters = ["result", "origin", "step"]
+        parameters = ["origin", "step"]
         wrapper_arguments = [
-            path_expression("result", field.state_path)
-            for field in self.algebraist.fields
-        ]
-        wrapper_arguments.extend(
             path_expression("origin", field.state_path)
             for field in self.algebraist.fields
-        )
+        ]
         wrapper_arguments.append("step")
 
         for local_index, term_index in enumerate(combination.term_indices):
@@ -114,6 +110,12 @@ class AlgebraistExplicitSchemeBinder:
                 path_expression(f"k{local_index}", field.translation_path)
                 for field in self.algebraist.fields
             )
+
+        parameters.append("result")
+        wrapper_arguments.extend(
+            path_expression("result", field.state_path)
+            for field in self.algebraist.fields
+        )
 
         wrapper_source = (
             f"def {name}({', '.join(parameters)}):\n"
@@ -159,7 +161,7 @@ class AlgebraistExplicitSchemeBinder:
         )
         source = (
             f"def {name}("
-            f"{', '.join(result_arguments + origin_arguments + term_arguments)}"
+            f"{', '.join(origin_arguments + term_arguments + result_arguments)}"
             "):\n"
             f"{body}\n"
         )

@@ -295,7 +295,7 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
 
         # `scale` may return a new translation rather than mutating its first
         # argument, so keep the returned object as the next history value.
-        self.previous_delta = scale(self.previous_delta, 1.0, delta_high)
+        self.previous_delta = scale(1.0, delta_high, self.previous_delta)
         self.previous_step = accepted_dt
         self.has_history = True
 
@@ -346,12 +346,12 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
 
         # `scale` may return a fresh zero translation; keep it in the block so
         # fallback algebra and in-place algebra both behave correctly.
-        trial_block.items[0] = scale(trial_block[0], 0.0, trial_block[0])
+        trial_block.items[0] = scale(0.0, trial_block[0], trial_block[0])
         self.resolvent(dt, None, trial_block)
 
         delta_high = trial_block[0]
-        delta_low = scale(self.low, dt, self.startup_rate)
-        error = combine2(self.error, 1.0, delta_high, -1.0, delta_low)
+        delta_low = scale(dt, self.startup_rate, self.low)
+        error = combine2(1.0, delta_high, -1.0, delta_low, self.error)
         error_ratio = ratio_fn(error.norm(), delta_high.norm())
 
         return delta_high, error_ratio
@@ -378,16 +378,16 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
 
         # `scale` may return a new object, so update both the attribute and the
         # block that the resolvent receives as its right-hand-side shift.
-        self.known_shift = scale(self.known_shift, beta, self.previous_delta)
+        self.known_shift = scale(beta, self.previous_delta, self.known_shift)
         self.known_shift_block.items[0] = self.known_shift
 
         self.resolvent.bind(stage_interval(interval, dt, dt), state)
-        trial_block.items[0] = scale(trial_block[0], 0.0, trial_block[0])
+        trial_block.items[0] = scale(0.0, trial_block[0], trial_block[0])
         self.resolvent(alpha, self.known_shift_block, trial_block)
 
         delta_high = trial_block[0]
-        delta_low = combine2(self.low, alpha0, delta_high, -alpha2, self.previous_delta)
-        error = combine2(self.error, 1.0, delta_high, -1.0, delta_low)
+        delta_low = combine2(alpha0, delta_high, -alpha2, self.previous_delta, self.low)
+        error = combine2(1.0, delta_high, -1.0, delta_low, self.error)
         error_ratio = ratio_fn(error.norm(), delta_high.norm())
 
         return delta_high, error_ratio

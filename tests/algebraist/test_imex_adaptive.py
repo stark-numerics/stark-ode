@@ -55,34 +55,34 @@ def test_imex_adaptive_binding_generates_split_stage_and_delta_calls() -> None:
     implicit_k1 = FakeTranslation(np.array([6.0, 8.0]))
 
     binding.require_stage_shift_call(1, "TestIMEX")(
-        out,
         0.5,
         explicit_k0,
         implicit_k1,
+        out,
     )
     np.testing.assert_allclose(out.value, np.array([-0.25, 0.0]))
 
     binding.require_high_delta_call("TestIMEX")(
-        out,
         0.5,
         explicit_k0,
         implicit_k1,
+        out,
     )
     np.testing.assert_allclose(out.value, np.array([2.5, 3.5]))
 
     binding.require_low_delta_call("TestIMEX")(
-        out,
         0.5,
         explicit_k0,
         implicit_k1,
+        out,
     )
     np.testing.assert_allclose(out.value, np.array([2.0, 3.0]))
 
     binding.require_error_delta_call("TestIMEX")(
-        out,
         0.5,
         explicit_k0,
         implicit_k1,
+        out,
     )
     np.testing.assert_allclose(out.value, np.array([0.5, 0.5]))
 

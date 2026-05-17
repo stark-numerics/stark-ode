@@ -255,34 +255,33 @@ class SchemeTsitouras5(SchemeBaseExplicitAdaptive):
         derivative(interval, state, k1)
 
         while True:
-            trial = scale(trial_buffer, dt * TSIT5_A[1][0], k1)
+            trial = scale(dt * TSIT5_A[1][0], k1, trial_buffer)
             trial(state, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[1]), stage, k2)
 
             trial = combine2(
-                trial_buffer,
                 dt * TSIT5_A[2][0],
                 k1,
                 dt * TSIT5_A[2][1],
                 k2,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[2]), stage, k3)
 
             trial = combine3(
-                trial_buffer,
                 dt * TSIT5_A[3][0],
                 k1,
                 dt * TSIT5_A[3][1],
                 k2,
                 dt * TSIT5_A[3][2],
                 k3,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[3]), stage, k4)
 
             trial = combine4(
-                trial_buffer,
                 dt * TSIT5_A[4][0],
                 k1,
                 dt * TSIT5_A[4][1],
@@ -291,12 +290,12 @@ class SchemeTsitouras5(SchemeBaseExplicitAdaptive):
                 k3,
                 dt * TSIT5_A[4][3],
                 k4,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[4]), stage, k5)
 
             trial = combine5(
-                trial_buffer,
                 dt * TSIT5_A[5][0],
                 k1,
                 dt * TSIT5_A[5][1],
@@ -307,12 +306,12 @@ class SchemeTsitouras5(SchemeBaseExplicitAdaptive):
                 k4,
                 dt * TSIT5_A[5][4],
                 k5,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[5]), stage, k6)
 
             trial = combine6(
-                trial_buffer,
                 dt * TSIT5_A[6][0],
                 k1,
                 dt * TSIT5_A[6][1],
@@ -325,12 +324,12 @@ class SchemeTsitouras5(SchemeBaseExplicitAdaptive):
                 k5,
                 dt * TSIT5_A[6][5],
                 k6,
+                trial_buffer,
             )
             trial(state, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[6]), stage, k7)
 
             delta_high = combine6(
-                trial_buffer,
                 dt * TSIT5_B_HIGH[0],
                 k1,
                 dt * TSIT5_B_HIGH[1],
@@ -343,10 +342,10 @@ class SchemeTsitouras5(SchemeBaseExplicitAdaptive):
                 k5,
                 dt * TSIT5_B_HIGH[5],
                 k6,
+                trial_buffer,
             )
 
             error = combine7(
-                error_buffer,
                 dt * TSIT5_B_ERR[0],
                 k1,
                 dt * TSIT5_B_ERR[1],
@@ -361,6 +360,7 @@ class SchemeTsitouras5(SchemeBaseExplicitAdaptive):
                 k6,
                 dt * TSIT5_B_ERR[6],
                 k7,
+                error_buffer,
             )
 
             error_ratio = error.norm() / bound(delta_high.norm())
@@ -447,26 +447,26 @@ class SchemeTsitouras5(SchemeBaseExplicitAdaptive):
         derivative(interval, state, k1)
 
         while True:
-            combine_stage2(stage, state, dt, k1)
+            combine_stage2(state, dt, k1, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[1]), stage, k2)
 
-            combine_stage3(stage, state, dt, k1, k2)
+            combine_stage3(state, dt, k1, k2, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[2]), stage, k3)
 
-            combine_stage4(stage, state, dt, k1, k2, k3)
+            combine_stage4(state, dt, k1, k2, k3, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[3]), stage, k4)
 
-            combine_stage5(stage, state, dt, k1, k2, k3, k4)
+            combine_stage5(state, dt, k1, k2, k3, k4, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[4]), stage, k5)
 
-            combine_stage6(stage, state, dt, k1, k2, k3, k4, k5)
+            combine_stage6(state, dt, k1, k2, k3, k4, k5, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[5]), stage, k6)
 
-            combine_stage7(stage, state, dt, k1, k2, k3, k4, k5, k6)
+            combine_stage7(state, dt, k1, k2, k3, k4, k5, k6, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[6]), stage, k7)
 
-            delta_high = combine_solution(trial_buffer, dt, k1, k2, k3, k4, k5, k6)
-            error = combine_error(error_buffer, dt, k1, k2, k3, k4, k5, k6, k7)
+            delta_high = combine_solution(dt, k1, k2, k3, k4, k5, k6, trial_buffer)
+            error = combine_error(dt, k1, k2, k3, k4, k5, k6, k7, error_buffer)
             error_ratio = error.norm() / bound(delta_high.norm())
 
             if error_ratio <= 1.0:

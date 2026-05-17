@@ -77,27 +77,27 @@ class ResolventWorkspace:
 
     def zero_block(self, block: Block) -> None:
         for index, item in enumerate(block):
-            block.items[index] = self.scale(item, 0.0, item)
+            block.items[index] = self.scale(0.0, item, item)
 
     def copy_block(self, dst: Block, src: Block) -> None:
         self._check(dst, src)
         for index, (dst_item, src_item) in enumerate(zip(dst, src, strict=True)):
-            dst.items[index] = self.scale(dst_item, 1.0, src_item)
+            dst.items[index] = self.scale(1.0, src_item, dst_item)
 
-    def scale_block(self, out: Block, a: float, block: Block) -> None:
+    def scale_block(self, a: float, block: Block, out: Block) -> None:
         self._check(out, block)
         for index, (out_item, block_item) in enumerate(zip(out, block, strict=True)):
-            out.items[index] = self.scale(out_item, a, block_item)
+            out.items[index] = self.scale(a, block_item, out_item)
 
-    def combine2_block(self, out: Block, a0: float, x0: Block, a1: float, x1: Block) -> None:
+    def combine2_block(self, a0: float, x0: Block, a1: float, x1: Block, out: Block) -> None:
         self._check(out, x0, x1)
         for index, (out_item, x0_item, x1_item) in enumerate(zip(out, x0, x1, strict=True)):
-            out.items[index] = self.combine2(out_item, a0, x0_item, a1, x1_item)
+            out.items[index] = self.combine2(a0, x0_item, a1, x1_item, out_item)
 
-    def combine3_block(self, out: Block, a0: float, x0: Block, a1: float, x1: Block, a2: float, x2: Block) -> None:
+    def combine3_block(self, a0: float, x0: Block, a1: float, x1: Block, a2: float, x2: Block, out: Block) -> None:
         self._check(out, x0, x1, x2)
         for index, (out_item, x0_item, x1_item, x2_item) in enumerate(zip(out, x0, x1, x2, strict=True)):
-            out.items[index] = self.combine3(out_item, a0, x0_item, a1, x1_item, a2, x2_item)
+            out.items[index] = self.combine3(a0, x0_item, a1, x1_item, a2, x2_item, out_item)
 
     def inner_product(self, left: Block, right: Block) -> float:
         return self._inner_product_impl(left, right)

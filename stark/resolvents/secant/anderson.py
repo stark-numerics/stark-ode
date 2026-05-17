@@ -87,14 +87,14 @@ class ResolventAnderson(ResolventBaseSecant):
             if self.tolerance.accepts(error, scale):
                 return
 
-            combine2_block(fixed_point, 1.0, block, -1.0, residual_buffer)
+            combine2_block(1.0, block, -1.0, residual_buffer, fixed_point)
             if have_previous:
                 history.append_difference(fixed_point, previous_fixed_point, residual_buffer, previous_residual)
 
             if len(history) > 0:
                 coefficients = history.solve_right_least_squares(residual_buffer)
                 history.combine_left(correction, coefficients)
-                combine2_block(block, 1.0, fixed_point, -1.0, correction)
+                combine2_block(1.0, fixed_point, -1.0, correction, block)
             else:
                 copy_block(block, fixed_point)
 
