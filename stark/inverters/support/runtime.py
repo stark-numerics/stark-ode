@@ -89,7 +89,7 @@ def with_inverter_binding_methods(cls):
         self.redirect_call = self.call_checked if self.safety.block_sizes else self.call_unchecked
 
     def prepare(self, size: int) -> None:
-        self.cycle.ensure_size(size)
+        self.ensure_size(size)
         self.preconditioner.prepare(size)
 
     def __call__(self, rhs: Block, out: Block) -> None:

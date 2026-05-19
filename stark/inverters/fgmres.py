@@ -28,136 +28,7 @@ from stark.inverters.support import (
     with_inverter_display_methods,
 )
 from stark.machinery.linear_algebra.krylov import Arnoldi, GivensRotations, HessenbergLeastSquares
-from stark.inverters.support.tolerance import InverterTolerance
 from stark.execution.tolerance import Tolerance
-
-
-class FGMRESCycle:
-    """
-    One restarted FGMRES window with cached search and basis blocks.
-
-    Unlike plain GMRES, the vectors used to *generate* the Krylov basis and the
-    vectors used to *assemble the final correction* are not necessarily the
-    same. FGMRES therefore stores a second basis, `search_basis`, containing
-    the preconditioned directions.
-    """
-
-    __slots__ = (
-        "workspace",
-        "restart",
-        "size",
-        "applied",
-        "residual",
-        "correction",
-        "arnoldi",
-        "search_basis",
-        "rotations",
-        "least_squares",
-    )
-
-    def __init__(self, workspace: InverterWorkspace, restart: int, accelerator: AcceleratorLike | None = None) -> None:
-        self.workspace = workspace
-        self.restart = restart
-        self.size = -1
-        self.applied = None
-        self.residual = None
-        self.correction = None
-        self.search_basis = []
-        self.arnoldi = Arnoldi(workspace, restart)
-        self.rotations = GivensRotations(restart, accelerator=accelerator)
-        self.least_squares = HessenbergLeastSquares(restart, accelerator=accelerator)
-
-    def ensure_size(self, size: int) -> None:
-        """Allocate or resize all cached blocks for one FGMRES window."""
-        if self.size == size:
-            return
-        workspace = self.workspace
-        self.size = size
-        self.applied = workspace.allocate_block(size)
-        self.residual = workspace.allocate_block(size)
-        self.correction = workspace.allocate_block(size)
-        self.search_basis = [workspace.allocate_block(size) for _ in range(self.restart)]
-        self.arnoldi.ensure_size(size)
-
-    def initial_residual(self, rhs: Block, out: Block, operator: BlockOperator) -> float:
-        """Compute `r = rhs - A out` in cached storage and return its norm."""
-        workspace = self.workspace
-        applied = self.applied
-        residual = self.residual
-        assert applied is not None
-        assert residual is not None
-        operator(out, applied)
-        workspace.combine2_block(1.0, rhs, -1.0, applied, residual)
-        return workspace.norm(residual)
-
-    def run(
-        self,
-        rhs: Block,
-        out: Block,
-        operator: BlockOperator,
-        tolerance: InverterTolerance,
-        policy: InverterPolicy,
-        rhs_norm: float,
-        remaining_iterations: int,
-        apply_preconditioner,
-    ) -> tuple[int, float]:
-        """
-        Run one restarted FGMRES window and update `out` in place.
-
-        `apply_preconditioner` is written as a worker call so the outer inverter
-        can inject either a real right preconditioner or a simple copy path.
-        """
-        workspace = self.workspace
-        residual = self.residual
-        assert residual is not None
-        beta = workspace.norm(residual)
-        window = min(self.restart, remaining_iterations)
-        self.rotations.reset()
-        self.least_squares.reset(beta, window)
-        self.arnoldi.start(residual, beta)
-
-        last_column = -1
-        for column in range(window):
-            apply_preconditioner(self.arnoldi.basis[column], self.search_basis[column])
-            self.arnoldi.build_column(
-                column,
-                operator,
-                self.search_basis[column],
-                self.least_squares,
-                self.rotations,
-            )
-            residual_estimate = self.rotations.apply_new(
-                self.least_squares.hessenberg,
-                self.least_squares.residual_vector,
-                column,
-            )
-            last_column = column
-            if tolerance.accepts(residual_estimate, rhs_norm):
-                self._apply_correction(out, last_column + 1)
-                return column + 1, self.initial_residual(rhs, out, operator)
-
-        self._apply_correction(out, last_column + 1)
-        return window, self.initial_residual(rhs, out, operator)
-
-    def _apply_correction(self, out: Block, width: int) -> None:
-        """Form the correction from the stored preconditioned search basis."""
-        if width <= 0:
-            return
-
-        workspace = self.workspace
-        correction = self.correction
-        temporary = self.arnoldi.temporary
-        assert correction is not None
-        assert temporary is not None
-        workspace.zero_block(correction)
-        coefficients = self.least_squares.solve(width)
-
-        for index in range(width):
-            workspace.combine2_block(1.0, correction, coefficients[index], self.search_basis[index], temporary)
-            workspace.copy_block(correction, temporary)
-
-        workspace.combine2_block(1.0, out, 1.0, correction, temporary)
-        workspace.copy_block(out, temporary)
 
 
 @with_inverter_display_methods
@@ -181,12 +52,21 @@ class InverterFGMRES:
 
     __slots__ = (
         "accelerator",
-        "cycle",
+        "applied",
+        "arnoldi",
+        "correction",
+        "least_squares",
         "operator",
         "policy",
         "preconditioner",
         "redirect_call",
+        "residual",
+        "restart",
+        "rotations",
         "safety",
+        "search_basis",
+        "size",
+        "temporary",
         "tolerance",
         "workspace",
     )
@@ -203,6 +83,7 @@ class InverterFGMRES:
         safety: Safety | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:
+        # Installs self.workspace; see stark.inverters.support.workspace for its operations.
         initialise_inverter_runtime(
             self,
             workbench,
@@ -214,7 +95,29 @@ class InverterFGMRES:
             accelerator=accelerator,
         )
         validate_restarted_inverter_policy(self.policy)
-        self.cycle = FGMRESCycle(self.workspace, self.policy.restart, accelerator=self.accelerator)
+        self.restart = self.policy.restart
+        self.size = -1
+        self.applied = self.workspace.allocate_block(0)
+        self.residual = self.workspace.allocate_block(0)
+        self.correction = self.workspace.allocate_block(0)
+        self.temporary = self.workspace.allocate_block(0)
+        self.search_basis = []
+        self.arnoldi = Arnoldi(self.workspace, self.restart)
+        self.rotations = GivensRotations(self.restart, accelerator=self.accelerator)
+        self.least_squares = HessenbergLeastSquares(self.restart, accelerator=self.accelerator)
+
+    def ensure_size(self, size: int) -> None:
+        """Allocate or resize the cached blocks for one FGMRES restart window."""
+        if self.size == size:
+            return
+        workspace = self.workspace
+        self.size = size
+        self.applied = workspace.allocate_block(size)
+        self.residual = workspace.allocate_block(size)
+        self.correction = workspace.allocate_block(size)
+        self.temporary = workspace.allocate_block(size)
+        self.search_basis = [workspace.allocate_block(size) for _ in range(self.restart)]
+        self.arnoldi.ensure_size(size)
 
     def solve_prepared(self, rhs: Block, out: Block) -> None:
         operator = self.operator
@@ -224,23 +127,19 @@ class InverterFGMRES:
         tolerance = self.tolerance
         policy = self.policy
         workspace = self.workspace
-        cycle = self.cycle
         rhs_norm = workspace.norm(rhs)
-        residual_norm = cycle.initial_residual(rhs, out, operator)
+        residual_norm = self.initial_residual(rhs, out, operator)
         if tolerance.accepts(residual_norm, rhs_norm):
             return
 
         iterations = 0
         while iterations < policy.max_iterations:
-            used_iterations, residual_norm = cycle.run(
+            used_iterations, residual_norm = self.run_window(
                 rhs,
                 out,
                 operator,
-                tolerance,
-                policy,
                 rhs_norm,
                 policy.max_iterations - iterations,
-                self.preconditioner,
             )
             iterations += used_iterations
             if tolerance.accepts(residual_norm, rhs_norm):
@@ -250,6 +149,80 @@ class InverterFGMRES:
             "FGMRES failed to converge within "
             f"{policy.max_iterations} iterations (residual={residual_norm:g})."
         )
+
+    def initial_residual(self, rhs: Block, out: Block, operator: BlockOperator) -> float:
+        """Compute `r = rhs - A out` in cached storage and return its norm."""
+        workspace = self.workspace
+        operator(out, self.applied)
+        workspace.combine2_block(1.0, rhs, -1.0, self.applied, self.residual)
+        return workspace.norm(self.residual)
+
+    def run_window(
+        self,
+        rhs: Block,
+        out: Block,
+        operator: BlockOperator,
+        rhs_norm: float,
+        remaining_iterations: int,
+    ) -> tuple[int, float]:
+        """
+        Run one restarted FGMRES window and update `out` in place.
+
+        The preconditioner may be stateful or iterative, so the correction is
+        assembled from the stored preconditioned search directions.
+        """
+        tolerance = self.tolerance
+        beta = self.workspace.norm(self.residual)
+        window = min(self.restart, remaining_iterations)
+        self.rotations.reset()
+        self.least_squares.reset(beta, window)
+        self.arnoldi.start(self.residual, beta)
+
+        last_column = -1
+        for column in range(window):
+            self.preconditioner(self.arnoldi.basis[column], self.search_basis[column])
+            self.arnoldi.build_column(
+                column,
+                operator,
+                self.search_basis[column],
+                self.least_squares,
+                self.rotations,
+            )
+            residual_estimate = self.rotations.apply_new(
+                self.least_squares.hessenberg,
+                self.least_squares.residual_vector,
+                column,
+            )
+            last_column = column
+            if tolerance.accepts(residual_estimate, rhs_norm):
+                self.apply_correction(out, last_column + 1)
+                return column + 1, self.initial_residual(rhs, out, operator)
+
+        self.apply_correction(out, last_column + 1)
+        return window, self.initial_residual(rhs, out, operator)
+
+    def apply_correction(self, out: Block, width: int) -> None:
+        """Form the correction from the stored preconditioned search basis."""
+        if width <= 0:
+            return
+
+        workspace = self.workspace
+        workspace.zero_block(self.correction)
+        coefficients = self.least_squares.solve(width)
+
+        for index in range(width):
+            workspace.combine2_block(
+                1.0,
+                self.correction,
+                coefficients[index],
+                self.search_basis[index],
+                self.temporary,
+            )
+            workspace.copy_block(self.correction, self.temporary)
+
+        workspace.combine2_block(1.0, out, 1.0, self.correction, self.temporary)
+        workspace.copy_block(out, self.temporary)
+
 
 __all__ = ["InverterFGMRES"]
 

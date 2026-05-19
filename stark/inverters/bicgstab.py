@@ -28,176 +28,7 @@ from stark.inverters.support import (
     with_inverter_binding_methods,
     with_inverter_display_methods,
 )
-from stark.inverters.support.tolerance import InverterTolerance
 from stark.execution.tolerance import Tolerance
-
-
-class BiCGStabCycle:
-    """
-    Reusable BiCGStab scratch storage for one operator binding.
-
-    The cycle owns the extra residual-like blocks needed by the short-recurrence
-    update:
-
-    - `residual`: the current residual
-    - `shadow`: the fixed BiCG shadow residual
-    - `direction`: the current search direction
-    - `velocity`: `A direction`
-    - `s_buffer`, `t_buffer`: the stabilization buffers
-    """
-
-    __slots__ = (
-        "workspace",
-        "size",
-        "applied",
-        "residual",
-        "shadow",
-        "direction",
-        "velocity",
-        "preconditioned_direction",
-        "preconditioned_s",
-        "s_buffer",
-        "t_buffer",
-        "temporary",
-    )
-
-    def __init__(self, workspace: InverterWorkspace) -> None:
-        self.workspace = workspace
-        self.size = -1
-        self.applied = None
-        self.residual = None
-        self.shadow = None
-        self.direction = None
-        self.velocity = None
-        self.preconditioned_direction = None
-        self.preconditioned_s = None
-        self.s_buffer = None
-        self.t_buffer = None
-        self.temporary = None
-
-    def ensure_size(self, size: int) -> None:
-        """Allocate or resize all cached blocks for a given block length."""
-        if self.size == size:
-            return
-        workspace = self.workspace
-        self.size = size
-        self.applied = workspace.allocate_block(size)
-        self.residual = workspace.allocate_block(size)
-        self.shadow = workspace.allocate_block(size)
-        self.direction = workspace.allocate_block(size)
-        self.velocity = workspace.allocate_block(size)
-        self.preconditioned_direction = workspace.allocate_block(size)
-        self.preconditioned_s = workspace.allocate_block(size)
-        self.s_buffer = workspace.allocate_block(size)
-        self.t_buffer = workspace.allocate_block(size)
-        self.temporary = workspace.allocate_block(size)
-
-    def initial_residual(self, rhs: Block, out: Block, operator: BlockOperator) -> float:
-        """
-        Compute `r = rhs - A out`, initialize the BiCG shadow state, and return
-        the residual norm.
-        """
-        workspace = self.workspace
-        applied = self.applied
-        residual = self.residual
-        shadow = self.shadow
-        direction = self.direction
-        velocity = self.velocity
-        assert applied is not None
-        assert residual is not None
-        assert shadow is not None
-        assert direction is not None
-        assert velocity is not None
-        operator(out, applied)
-        workspace.combine2_block(1.0, rhs, -1.0, applied, residual)
-        workspace.copy_block(shadow, residual)
-        workspace.zero_block(direction)
-        workspace.zero_block(velocity)
-        return workspace.norm(residual)
-
-    def iterate(
-        self,
-        rhs: Block,
-        out: Block,
-        operator: BlockOperator,
-        tolerance: InverterTolerance,
-        policy: InverterPolicy,
-        rhs_norm: float,
-        apply_preconditioner,
-    ) -> float:
-        """
-        Run BiCGStab iterations and update `out` in place.
-
-        The method alternates between a BiCG-style search update and a local
-        stabilization step based on the auxiliary vectors `s` and `t`.
-        """
-        workspace = self.workspace
-        residual = self.residual
-        shadow = self.shadow
-        direction = self.direction
-        velocity = self.velocity
-        preconditioned_direction = self.preconditioned_direction
-        preconditioned_s = self.preconditioned_s
-        s_buffer = self.s_buffer
-        t_buffer = self.t_buffer
-        temporary = self.temporary
-        assert residual is not None
-        assert shadow is not None
-        assert direction is not None
-        assert velocity is not None
-        assert preconditioned_direction is not None
-        assert preconditioned_s is not None
-        assert s_buffer is not None
-        assert t_buffer is not None
-        assert temporary is not None
-
-        rho_previous = 1.0
-        alpha = 1.0
-        omega = 1.0
-
-        for _ in range(policy.max_iterations):
-            rho = workspace.inner_product(shadow, residual)
-            if abs(rho) <= policy.breakdown_tol:
-                raise RuntimeError(f"{InverterBiCGStab.descriptor.short_name} broke down with a vanishing rho.")
-
-            beta = (rho / rho_previous) * (alpha / omega)
-            workspace.combine3_block(1.0, residual, beta, direction, -beta * omega, velocity, temporary)
-            workspace.copy_block(direction, temporary)
-
-            apply_preconditioner(direction, preconditioned_direction)
-            operator(preconditioned_direction, velocity)
-            denominator = workspace.inner_product(shadow, velocity)
-            if abs(denominator) <= policy.breakdown_tol:
-                raise RuntimeError(
-                    f"{InverterBiCGStab.descriptor.short_name} broke down with a singular shadow projection."
-                )
-            alpha = rho / denominator
-
-            workspace.combine2_block(1.0, residual, -alpha, velocity, s_buffer)
-            if tolerance.accepts(workspace.norm(s_buffer), rhs_norm):
-                workspace.combine2_block(1.0, out, alpha, preconditioned_direction, temporary)
-                workspace.copy_block(out, temporary)
-                return workspace.norm(s_buffer)
-
-            apply_preconditioner(s_buffer, preconditioned_s)
-            operator(preconditioned_s, t_buffer)
-            tt = workspace.inner_product(t_buffer, t_buffer)
-            if abs(tt) <= policy.breakdown_tol:
-                raise RuntimeError(f"{InverterBiCGStab.descriptor.short_name} broke down with a vanishing t norm.")
-            omega = workspace.inner_product(t_buffer, s_buffer) / tt
-            if abs(omega) <= policy.breakdown_tol:
-                raise RuntimeError(f"{InverterBiCGStab.descriptor.short_name} broke down with a vanishing omega.")
-
-            workspace.combine3_block(1.0, out, alpha, preconditioned_direction, omega, preconditioned_s, temporary)
-            workspace.copy_block(out, temporary)
-            workspace.combine2_block(1.0, s_buffer, -omega, t_buffer, residual)
-            residual_norm = workspace.norm(residual)
-            if tolerance.accepts(residual_norm, rhs_norm):
-                return residual_norm
-
-            rho_previous = rho
-
-        return workspace.norm(residual)
 
 
 @with_inverter_display_methods
@@ -217,13 +48,23 @@ class InverterBiCGStab:
 
     __slots__ = (
         "accelerator",
-        "cycle",
+        "applied",
+        "direction",
         "operator",
         "policy",
         "preconditioner",
+        "preconditioned_direction",
+        "preconditioned_s",
         "redirect_call",
+        "residual",
+        "s_buffer",
         "safety",
+        "shadow",
+        "size",
+        "t_buffer",
+        "temporary",
         "tolerance",
+        "velocity",
         "workspace",
     )
 
@@ -239,6 +80,7 @@ class InverterBiCGStab:
         safety: Safety | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:
+        # Installs self.workspace; see stark.inverters.support.workspace for its operations.
         initialise_inverter_runtime(
             self,
             workbench,
@@ -250,7 +92,34 @@ class InverterBiCGStab:
             accelerator=accelerator,
         )
         validate_inverter_policy(self.policy)
-        self.cycle = BiCGStabCycle(self.workspace)
+        self.size = -1
+        self.applied = self.workspace.allocate_block(0)
+        self.residual = self.workspace.allocate_block(0)
+        self.shadow = self.workspace.allocate_block(0)
+        self.direction = self.workspace.allocate_block(0)
+        self.velocity = self.workspace.allocate_block(0)
+        self.preconditioned_direction = self.workspace.allocate_block(0)
+        self.preconditioned_s = self.workspace.allocate_block(0)
+        self.s_buffer = self.workspace.allocate_block(0)
+        self.t_buffer = self.workspace.allocate_block(0)
+        self.temporary = self.workspace.allocate_block(0)
+
+    def ensure_size(self, size: int) -> None:
+        """Allocate or resize all cached blocks for one BiCGStab solve."""
+        if self.size == size:
+            return
+        workspace = self.workspace
+        self.size = size
+        self.applied = workspace.allocate_block(size)
+        self.residual = workspace.allocate_block(size)
+        self.shadow = workspace.allocate_block(size)
+        self.direction = workspace.allocate_block(size)
+        self.velocity = workspace.allocate_block(size)
+        self.preconditioned_direction = workspace.allocate_block(size)
+        self.preconditioned_s = workspace.allocate_block(size)
+        self.s_buffer = workspace.allocate_block(size)
+        self.t_buffer = workspace.allocate_block(size)
+        self.temporary = workspace.allocate_block(size)
 
     def solve_prepared(self, rhs: Block, out: Block) -> None:
         operator = self.operator
@@ -260,11 +129,11 @@ class InverterBiCGStab:
         policy = self.policy
         workspace = self.workspace
         rhs_norm = workspace.norm(rhs)
-        residual_norm = self.cycle.initial_residual(rhs, out, operator)
+        residual_norm = self.initial_residual(rhs, out, operator)
         if tolerance.accepts(residual_norm, rhs_norm):
             return
 
-        residual_norm = self.cycle.iterate(rhs, out, operator, tolerance, policy, rhs_norm, self.preconditioner)
+        residual_norm = self.iterate(out, operator, rhs_norm)
         if tolerance.accepts(residual_norm, rhs_norm):
             return
 
@@ -272,6 +141,91 @@ class InverterBiCGStab:
             "BiCGStab failed to converge within "
             f"{policy.max_iterations} iterations (residual={residual_norm:g})."
         )
+
+    def initial_residual(self, rhs: Block, out: Block, operator: BlockOperator) -> float:
+        """
+        Compute `r = rhs - A out`, initialize the BiCG shadow state, and return
+        the residual norm.
+        """
+        workspace = self.workspace
+        operator(out, self.applied)
+        workspace.combine2_block(1.0, rhs, -1.0, self.applied, self.residual)
+        workspace.copy_block(self.shadow, self.residual)
+        workspace.zero_block(self.direction)
+        workspace.zero_block(self.velocity)
+        return workspace.norm(self.residual)
+
+    def iterate(self, out: Block, operator: BlockOperator, rhs_norm: float) -> float:
+        """
+        Run BiCGStab iterations and update `out` in place.
+
+        The method alternates between a BiCG-style search update and a local
+        stabilization step based on the auxiliary vectors `s` and `t`.
+        """
+        tolerance = self.tolerance
+        policy = self.policy
+        workspace = self.workspace
+        rho_previous = 1.0
+        alpha = 1.0
+        omega = 1.0
+
+        for _ in range(policy.max_iterations):
+            rho = workspace.inner_product(self.shadow, self.residual)
+            if abs(rho) <= policy.breakdown_tol:
+                raise RuntimeError("BiCGStab broke down with a vanishing rho.")
+
+            beta = (rho / rho_previous) * (alpha / omega)
+            workspace.combine3_block(
+                1.0,
+                self.residual,
+                beta,
+                self.direction,
+                -beta * omega,
+                self.velocity,
+                self.temporary,
+            )
+            workspace.copy_block(self.direction, self.temporary)
+
+            self.preconditioner(self.direction, self.preconditioned_direction)
+            operator(self.preconditioned_direction, self.velocity)
+            denominator = workspace.inner_product(self.shadow, self.velocity)
+            if abs(denominator) <= policy.breakdown_tol:
+                raise RuntimeError("BiCGStab broke down with a singular shadow projection.")
+            alpha = rho / denominator
+
+            workspace.combine2_block(1.0, self.residual, -alpha, self.velocity, self.s_buffer)
+            if tolerance.accepts(workspace.norm(self.s_buffer), rhs_norm):
+                workspace.combine2_block(1.0, out, alpha, self.preconditioned_direction, self.temporary)
+                workspace.copy_block(out, self.temporary)
+                return workspace.norm(self.s_buffer)
+
+            self.preconditioner(self.s_buffer, self.preconditioned_s)
+            operator(self.preconditioned_s, self.t_buffer)
+            tt = workspace.inner_product(self.t_buffer, self.t_buffer)
+            if abs(tt) <= policy.breakdown_tol:
+                raise RuntimeError("BiCGStab broke down with a vanishing t norm.")
+            omega = workspace.inner_product(self.t_buffer, self.s_buffer) / tt
+            if abs(omega) <= policy.breakdown_tol:
+                raise RuntimeError("BiCGStab broke down with a vanishing omega.")
+
+            workspace.combine3_block(
+                1.0,
+                out,
+                alpha,
+                self.preconditioned_direction,
+                omega,
+                self.preconditioned_s,
+                self.temporary,
+            )
+            workspace.copy_block(out, self.temporary)
+            workspace.combine2_block(1.0, self.s_buffer, -omega, self.t_buffer, self.residual)
+            residual_norm = workspace.norm(self.residual)
+            if tolerance.accepts(residual_norm, rhs_norm):
+                return residual_norm
+
+            rho_previous = rho
+
+        return workspace.norm(self.residual)
 
 
 __all__ = ["InverterBiCGStab"]
