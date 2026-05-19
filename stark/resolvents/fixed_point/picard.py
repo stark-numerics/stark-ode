@@ -14,13 +14,13 @@ from stark.resolvents.failure import ResolventError
 from stark.resolvents.policy import ResolventPolicy
 from stark.resolvents.support import (
     MonitorResolventLike,
+    ResolventStageResidual,
     check_one_stage_block,
     initialise_resolvent_runtime,
     with_resolvent_binding_methods,
     with_resolvent_display_methods,
     with_resolvent_monitoring_methods,
 )
-from stark.resolvents.support.stage_residual import ResolventStageResidual
 from stark.resolvents.support.workspace import ResolventWorkspace
 from stark.resolvents.tolerance import ResolventTolerance
 

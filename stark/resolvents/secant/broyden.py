@@ -14,6 +14,7 @@ from stark.resolvents.failure import ResolventError
 from stark.resolvents.policy import ResolventPolicy
 from stark.resolvents.support import (
     MonitorResolventLike,
+    ResolventStageResidual,
     SecantHistory,
     check_one_stage_block,
     initialise_resolvent_runtime,
@@ -21,7 +22,6 @@ from stark.resolvents.support import (
     with_resolvent_display_methods,
     with_resolvent_monitoring_methods,
 )
-from stark.resolvents.support.stage_residual import ResolventStageResidual
 from stark.resolvents.support.workspace import ResolventWorkspace
 from stark.resolvents.tolerance import ResolventTolerance
 
@@ -192,11 +192,15 @@ class ResolventBroyden:
                 self.record_solve(block_size, iteration_count, error, scale, True)
                 return
 
+            # Apply the current inverse-Jacobian approximation to the residual
+            # to obtain a nonlinear correction.
             self.apply_inverse(residual_buffer, history_correction, correction)
             scale_block(-1.0, correction, correction)
             combine2_block(1.0, block, 1.0, correction, trial)
             self.residual(trial, next_residual)
 
+            # Use the trial residual change to add one inverse-Broyden secant
+            # pair to the rolling history.
             combine2_block(1.0, next_residual, -1.0, residual_buffer, residual_delta)
             denominator = inner_product(residual_delta, residual_delta)
             if denominator > 0.0:

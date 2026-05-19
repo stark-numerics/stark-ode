@@ -14,6 +14,7 @@ from stark.resolvents.failure import ResolventError
 from stark.resolvents.policy import ResolventPolicy
 from stark.resolvents.support import (
     MonitorResolventLike,
+    ResolventStageResidual,
     SecantHistory,
     check_one_stage_block,
     initialise_resolvent_runtime,
@@ -21,7 +22,6 @@ from stark.resolvents.support import (
     with_resolvent_display_methods,
     with_resolvent_monitoring_methods,
 )
-from stark.resolvents.support.stage_residual import ResolventStageResidual
 from stark.resolvents.support.workspace import ResolventWorkspace
 from stark.resolvents.tolerance import ResolventTolerance
 
@@ -179,11 +179,15 @@ class ResolventAnderson:
                 self.record_solve(block_size, iteration_count, error, scale, True)
                 return
 
+            # Build the plain Picard fixed-point candidate first; Anderson only
+            # changes how that candidate is mixed with recent history.
             combine2_block(1.0, block, -1.0, residual_buffer, fixed_point)
             if have_previous:
                 history.append_difference(fixed_point, previous_fixed_point, residual_buffer, previous_residual)
 
             if len(history) > 0:
+                # Solve the small history least-squares problem and subtract
+                # the projected correction from the fixed-point candidate.
                 coefficients = history.solve_right_least_squares(residual_buffer)
                 history.combine_left(correction, coefficients)
                 combine2_block(1.0, fixed_point, -1.0, correction, block)
