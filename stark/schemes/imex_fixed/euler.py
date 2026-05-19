@@ -6,8 +6,14 @@ from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
 from stark.machinery.stage_solve.workers import ImExStepper
 from stark.resolvents.support.guard import ResolventTableauGuard
-from stark.schemes.base import SchemeBaseImExFixed
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    initialise_imex_support,
+    refresh_fixed_step_call,
+    with_fixed_step_monitoring,
+    with_imex_workspace_methods,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau, ImExButcherTableau
 
 
@@ -33,7 +39,10 @@ IMEX_EULER_TABLEAU = ImExButcherTableau(
 )
 
 
-class SchemeIMEXEuler(SchemeBaseImExFixed):
+@with_scheme_display
+@with_fixed_step_monitoring
+@with_imex_workspace_methods
+class SchemeIMEXEuler:
     """First-order IMEX Euler with explicit and implicit derivative splits.
 
     IMEX Euler advances with an explicit contribution from the non-stiff part
@@ -55,6 +64,7 @@ class SchemeIMEXEuler(SchemeBaseImExFixed):
     """
 
     __slots__ = (
+        "_monitor",
         "call_pure",
         "redirect_call",
         "resolvent",
@@ -77,7 +87,8 @@ class SchemeIMEXEuler(SchemeBaseImExFixed):
     ) -> None:
         del algebraist, regulator
 
-        super().__init__(derivative, workbench)
+        self._monitor = None
+        initialise_imex_support(self, derivative, workbench)
 
         self.tableau_guard = ResolventTableauGuard("IMEXEuler", self.tableau)
 
@@ -95,7 +106,7 @@ class SchemeIMEXEuler(SchemeBaseImExFixed):
         )
 
         self.call_pure = self.call_generic
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
     def __call__(
         self,

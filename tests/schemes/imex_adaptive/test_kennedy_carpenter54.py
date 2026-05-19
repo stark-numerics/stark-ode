@@ -89,7 +89,6 @@ def test_kennedy_carpenter54_owns_converted_call_surface() -> None:
     assert "call_generic" in SchemeKennedyCarpenter54.__dict__
     assert "call_algebraist" in SchemeKennedyCarpenter54.__dict__
     assert "call_monitored" in SchemeKennedyCarpenter54.__dict__
-    assert "refresh_call" in SchemeKennedyCarpenter54.__dict__
 
     scheme = make_scheme()
 
@@ -109,7 +108,7 @@ def test_kennedy_carpenter54_accepts_zero_split_step() -> None:
     assert state.value == pytest.approx(2.0)
     assert scheme.redirect_call.__func__ is scheme.call_pure.__func__
 
-    report = scheme.adaptive.report()
+    report = scheme.step_control.report()
     assert report.accepted_dt == pytest.approx(0.1)
     assert report.proposed_dt == pytest.approx(0.1)
     assert report.error_ratio == pytest.approx(0.0)
@@ -127,7 +126,7 @@ def test_kennedy_carpenter54_clips_to_remaining_interval() -> None:
     assert accepted_dt == pytest.approx(0.05)
     assert state.value == pytest.approx(2.0)
 
-    report = scheme.adaptive.report()
+    report = scheme.step_control.report()
     assert report.accepted_dt == pytest.approx(0.05)
     assert report.proposed_dt == pytest.approx(0.05)
 
@@ -140,16 +139,16 @@ def test_kennedy_carpenter54_monitoring_uses_scheme_owned_boundary() -> None:
     executor = Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
     scheme.assign_executor(executor)
-    scheme.assign_monitor(monitor)
+    scheme.assign_monitor(monitor.scheme)
 
     assert scheme.redirect_call.__func__ is scheme.call_monitored.__func__
 
     accepted_dt = scheme(interval, state, executor)
 
     assert accepted_dt == pytest.approx(0.1)
-    assert len(monitor.steps) == 1
+    assert len(monitor.scheme.adaptive_steps) == 1
 
-    record = monitor.steps[0]
+    record = monitor.scheme.adaptive_steps[0]
     assert record.scheme == scheme.short_name
     assert record.t_start == pytest.approx(0.0)
     assert record.t_end == pytest.approx(0.1)

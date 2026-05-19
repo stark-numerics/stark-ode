@@ -118,7 +118,7 @@ def test_resolvent_imports() -> None:
     assert resolvents.ResolventBroyden is not None
     assert resolvents.ResolventCoupledPicard is not None
     assert resolvents.ResolventCoupledNewton is not None
-    assert support.StageResidual is not None
+    assert support.ResolventStageResidual is not None
 
 
 def test_scheme_imports() -> None:
@@ -343,7 +343,7 @@ def test_core_objects_have_readable_representations() -> None:
     assert SchemeRadauIIA5 is not None
     assert SchemeIMEXEuler is not None
     assert str(Integrator()) == "STARK integrator (safe mode)"
-    assert repr(marcher) == "Marcher(scheme='MinimalScheme', executor=Executor(tolerance=Tolerance(atol=1e-08, rtol=1e-06), safety=Safety(progress=True, block_sizes=True, apply_delta=True), regulator=Regulator(safety=0.8, min_factor=0.1, max_factor=5.0, error_exponent=0.2), accelerator=AcceleratorAbsent(strict=False, values={}), values={}))"
+    assert repr(marcher) == "Marcher(scheme='MinimalScheme', executor=Executor(tolerance=Tolerance(atol=1e-08, rtol=1e-06), safety=Safety(progress=True, block_sizes=True, apply_delta=True), regulator=None, accelerator=AcceleratorAbsent(strict=False, values={}), values={}))"
     assert str(marcher) == "Marcher MinimalScheme with atol=1e-08, rtol=1e-06"
     assert "Auditor(status=" in repr(auditor)
     assert "ResolventPicard" in repr(auto_picard)

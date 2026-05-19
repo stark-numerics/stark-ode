@@ -70,6 +70,8 @@ class ImExStepper:
         "shift_translations",
         "weight_coefficients",
         "weight_translations",
+        "explicit_low_weights",
+        "implicit_low_weights",
         "algebraist_binding",
     )
 
@@ -90,6 +92,12 @@ class ImExStepper:
         self.shift_translations = [self.shift] * max_term_count
         self.weight_coefficients = [0.0] * max_term_count
         self.weight_translations = [self.shift] * max_term_count
+        self.explicit_low_weights = tableau.explicit.b_embedded
+        self.implicit_low_weights = tableau.implicit.b_embedded
+        if tableau.embedded_order is not None and (
+            self.explicit_low_weights is None or self.implicit_low_weights is None
+        ):
+            raise ValueError("Embedded IMEX tableaus require explicit and implicit embedded weights.")
         self.algebraist_binding = None
 
     def __repr__(self) -> str:
@@ -164,7 +172,33 @@ class ImExStepper:
         )
         return self.algebraist_binding
 
+    def require_embedded(self, owner: str) -> None:
+        if self.explicit_low_weights is None or self.implicit_low_weights is None:
+            raise ValueError(f"{owner} requires an embedded IMEX tableau.")
+
     def step(self, interval: IntervalLike, state: State, dt: float, *, include_norms: bool = False):
+        self._run_stages(interval, state, dt)
+        high = self._combine_weights(dt, self.tableau.explicit.b, self.tableau.implicit.b, self.trial)
+        explicit_low = self.explicit_low_weights
+        implicit_low = self.implicit_low_weights
+        if explicit_low is None or implicit_low is None:
+            if include_norms:
+                return high, None, high.norm(), None
+            return high, None, None, None
+        low = self._combine_weights(dt, explicit_low, implicit_low, self.error)
+        error = self.workspace.combine2(1.0, high, -1.0, low, self.error)
+        if include_norms:
+            return high, error, high.norm(), error.norm()
+        return high, error, None, None
+
+    def step_adaptive(self, interval: IntervalLike, state: State, dt: float):
+        self._run_stages(interval, state, dt)
+        high = self._combine_weights(dt, self.tableau.explicit.b, self.tableau.implicit.b, self.trial)
+        low = self._combine_weights(dt, self.explicit_low_weights, self.implicit_low_weights, self.error)
+        error = self.workspace.combine2(1.0, high, -1.0, low, self.error)
+        return high, high.norm(), error.norm()
+
+    def _run_stages(self, interval: IntervalLike, state: State, dt: float) -> None:
         stage_interval = self.workspace.stage_interval
         explicit = self.explicit_derivative
         implicit = self.implicit_derivative
@@ -198,21 +232,6 @@ class ImExStepper:
             stage_state = self.stage_solver(current_interval, state, shift, alpha, self.stage_blocks[stage_index])
             implicit(current_interval, stage_state, self.implicit_rates[stage_index])
             explicit(current_interval, stage_state, self.explicit_rates[stage_index])
-
-        high = self._combine_weights(dt, self.tableau.explicit.b, self.tableau.implicit.b, self.trial)
-        if self.tableau.embedded_order is None:
-            if include_norms:
-                return high, None, high.norm(), None
-            return high, None, None, None
-        explicit_low = self.tableau.explicit.b_embedded
-        implicit_low = self.tableau.implicit.b_embedded
-        assert explicit_low is not None
-        assert implicit_low is not None
-        low = self._combine_weights(dt, explicit_low, implicit_low, self.error)
-        error = self.workspace.combine2(1.0, high, -1.0, low, self.error)
-        if include_norms:
-            return high, error, high.norm(), error.norm()
-        return high, error, None, None
 
     def step_algebraist(
         self,
@@ -274,6 +293,21 @@ class ImExStepper:
         if include_norms:
             return high, error, high.norm(), error.norm()
         return high, error, None, None
+
+    def step_adaptive_algebraist(
+        self,
+        interval: IntervalLike,
+        state: State,
+        dt: float,
+    ):
+        high, error, high_norm, error_norm = self.step_algebraist(
+            interval,
+            state,
+            dt,
+            include_norms=True,
+        )
+        del error
+        return high, high_norm, error_norm
 
     def _imex_combination_arguments(
         self,

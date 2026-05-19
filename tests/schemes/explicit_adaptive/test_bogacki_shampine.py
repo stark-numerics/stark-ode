@@ -256,10 +256,10 @@ def test_bogacki_shampine_monitoring_records_existing_adaptive_fields() -> None:
 
     list(Integrator().live_monitored(marcher, interval, state, monitor))
 
-    assert len(monitor.steps) == 2
+    assert len(monitor.scheme.adaptive_steps) == 2
 
-    first = monitor.steps[0]
-    second = monitor.steps[1]
+    first = monitor.scheme.adaptive_steps[0]
+    second = monitor.scheme.adaptive_steps[1]
 
     assert first.scheme == "BS23"
     assert first.t_start == pytest.approx(0.0)

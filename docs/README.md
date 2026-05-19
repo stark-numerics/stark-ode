@@ -12,8 +12,9 @@ public interface guide: [`docs/interface.md`](interface.md).
 For a conceptual map of the object families in STARK, see
 [`docs/object_map.md`](object_map.md).
 
-For a worked narrative example using the explicit core API, start with
-[`examples/three_body_stark.ipynb`](../examples/three_body_stark.ipynb).
+For worked narrative examples using the core API, start with
+[`examples/case_studies/three_body`](../examples/case_studies/three_body) and
+[`examples/case_studies/allen_cahn`](../examples/case_studies/allen_cahn).
 
 For the package's internal design language and coding conventions, see
 [`docs/house_style.md`](house_style.md).
@@ -167,7 +168,7 @@ hook so a custom entry can teach the comparator how to bucket its own profiled
 code into `problem`, `scheme`, `resolvent`, `inverter`, `framework`, or `other`.
 
 For a worked example, see
-[`examples/allen_cahn.ipynb`](../examples/allen_cahn.ipynb).
+[`examples/case_studies/allen_cahn`](../examples/case_studies/allen_cahn).
 
 ## Built-in schemes
 

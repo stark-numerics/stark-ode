@@ -566,12 +566,12 @@ def test_integrator_monitored_collects_adaptive_step_payloads() -> None:
 
     list(Integrator().monitored(marcher, interval, object(), monitor))
 
-    assert len(monitor.steps) == 2
-    assert [round(step.t_start, 12) for step in monitor.steps] == [0.0, 0.1]
-    assert [round(step.t_end, 12) for step in monitor.steps] == [0.1, 0.3]
-    assert all(step.scheme == "RKCK" for step in monitor.steps)
-    assert monitor.steps[0].accepted_dt == 0.1
-    assert monitor.steps[0].rejection_count == 0
+    assert len(monitor.scheme.adaptive_steps) == 2
+    assert [round(step.t_start, 12) for step in monitor.scheme.adaptive_steps] == [0.0, 0.1]
+    assert [round(step.t_end, 12) for step in monitor.scheme.adaptive_steps] == [0.1, 0.3]
+    assert all(step.scheme == "RKCK" for step in monitor.scheme.adaptive_steps)
+    assert monitor.scheme.adaptive_steps[0].accepted_dt == 0.1
+    assert monitor.scheme.adaptive_steps[0].rejection_count == 0
     assert marcher.monitor is None
 
 

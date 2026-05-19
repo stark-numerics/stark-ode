@@ -5,7 +5,7 @@ from stark.contracts import Block, Derivative, IntervalLike, Linearizer, State
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
 
 
-class StageJacobianOperator:
+class ResolventStageJacobianOperator:
     """Mutable Jacobian action configured by a linearizer for one stage solve."""
 
     __slots__ = ("apply", "method_name")
@@ -22,12 +22,12 @@ class StageJacobianOperator:
         raise RuntimeError(f"{self.method_name} Jacobian operator was used before the linearizer configured it.")
 
 
-class StageResidualOperator:
+class ResolventStageResidualOperator:
     """Linearized stage operator `I - alpha J` for one stage residual."""
 
     __slots__ = ("combine2", "jacobian_buffer", "jacobian", "alpha")
 
-    def __init__(self, workspace: SchemeWorkspace, jacobian: StageJacobianOperator) -> None:
+    def __init__(self, workspace: SchemeWorkspace, jacobian: ResolventStageJacobianOperator) -> None:
         self.combine2 = workspace.combine2
         self.jacobian_buffer = workspace.allocate_translation()
         self.jacobian = jacobian
@@ -38,12 +38,17 @@ class StageResidualOperator:
         self.combine2(1.0, translation, -self.alpha, self.jacobian_buffer, out)
 
 
-class CoupledStageResidualOperator:
+class ResolventCoupledStageResidualOperator:
     """Linearized block operator for a fully coupled implicit RK stage system."""
 
     __slots__ = ("scale", "combine2", "jacobian_buffer", "jacobians", "matrix", "step")
 
-    def __init__(self, workspace: SchemeWorkspace, jacobians: list[StageJacobianOperator], matrix: tuple[tuple[float, ...], ...]) -> None:
+    def __init__(
+        self,
+        workspace: SchemeWorkspace,
+        jacobians: list[ResolventStageJacobianOperator],
+        matrix: tuple[tuple[float, ...], ...],
+    ) -> None:
         self.scale = workspace.scale
         self.combine2 = workspace.combine2
         self.jacobian_buffer = workspace.allocate_translation()
@@ -69,7 +74,7 @@ class CoupledStageResidualOperator:
             out.items[row_index] = out_item
 
 
-class StageResidual:
+class ResolventStageResidual:
     """
     Residual worker for shifted implicit stage equations.
 
@@ -122,8 +127,8 @@ class StageResidual:
         self.derivative_buffer = workspace.allocate_translation()
         self.alpha = 0.0
         self.linearizer = BoundLinearizer(linearizer) if linearizer is not None else None
-        self.jacobian_operator = StageJacobianOperator(method_name)
-        self.residual_operator = StageResidualOperator(workspace, self.jacobian_operator)
+        self.jacobian_operator = ResolventStageJacobianOperator(method_name)
+        self.residual_operator = ResolventStageResidualOperator(workspace, self.jacobian_operator)
         self._linearize = self._linearize_configured if linearizer is not None else self._linearize_missing
 
     def configure(self, interval: IntervalLike, state: State, alpha: float, rhs: Block | None = None) -> None:
@@ -161,7 +166,7 @@ class StageResidual:
         out.operators[0] = self.residual_operator
 
 
-class CoupledStageResidual:
+class ResolventCoupledStageResidual:
     """
     Residual worker for fully coupled implicit Runge-Kutta stage systems.
 
@@ -219,8 +224,11 @@ class CoupledStageResidual:
         self.derivative = BoundDerivative(derivative)
         self.derivative_buffers = [workspace.allocate_translation() for _ in range(self.stage_count)]
         self.linearizer = BoundLinearizer(linearizer) if linearizer is not None else None
-        self.jacobian_operators = [StageJacobianOperator(f"{method_name}[stage {index}]") for index in range(self.stage_count)]
-        self.residual_operator = CoupledStageResidualOperator(workspace, self.jacobian_operators, matrix)
+        self.jacobian_operators = [
+            ResolventStageJacobianOperator(f"{method_name}[stage {index}]")
+            for index in range(self.stage_count)
+        ]
+        self.residual_operator = ResolventCoupledStageResidualOperator(workspace, self.jacobian_operators, matrix)
         self.block_operator = self.residual_operator
         self._linearize = self._linearize_configured if linearizer is not None else self._linearize_missing
         self.step = 0.0
@@ -292,11 +300,11 @@ class CoupledStageResidual:
 
 
 __all__ = [
-    "CoupledStageResidual",
-    "CoupledStageResidualOperator",
-    "StageJacobianOperator",
-    "StageResidual",
-    "StageResidualOperator",
+    "ResolventCoupledStageResidual",
+    "ResolventCoupledStageResidualOperator",
+    "ResolventStageJacobianOperator",
+    "ResolventStageResidual",
+    "ResolventStageResidualOperator",
 ]
 
 

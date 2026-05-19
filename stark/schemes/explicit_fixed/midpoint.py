@@ -3,8 +3,15 @@ from __future__ import annotations
 from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.execution.executor import Executor
-from stark.schemes.base import SchemeBaseExplicitFixed
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    with_explicit_workspace_methods,
+    with_fixed_step_monitoring,
+    initialise_explicit_support,
+    refresh_fixed_step_call,
+    unbound_scheme_call,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau
 
 
@@ -18,7 +25,10 @@ MIDPOINT_TABLEAU = ButcherTableau(
 MIDPOINT_B = MIDPOINT_TABLEAU.b
 
 
-class SchemeMidpoint(SchemeBaseExplicitFixed):
+@with_scheme_display
+@with_fixed_step_monitoring
+@with_explicit_workspace_methods
+class SchemeMidpoint:
     """The explicit midpoint two-stage second-order Runge-Kutta method.
 
     This method samples the derivative at the midpoint predicted by an Euler
@@ -29,13 +39,18 @@ class SchemeMidpoint(SchemeBaseExplicitFixed):
     """
 
     __slots__ = (
+        "_monitor",
         "advance_state",
-        "combine_stage2",
-        "k2",
         "call_pure",
+        "combine_stage2",
+        "derivative",
+        "explicit",
+        "k1",
+        "k2",
         "redirect_call",
         "stage",
         "trial",
+        "workspace",
     )
 
     descriptor = SchemeDescriptor("Midpoint", "Explicit Midpoint")
@@ -47,16 +62,19 @@ class SchemeMidpoint(SchemeBaseExplicitFixed):
         workbench: Workbench,
         algebraist: Algebraist | None = None,
     ) -> None:
-        self.advance_state = None
-        self.combine_stage2 = None
-
-        super().__init__(derivative, workbench)
-
+        self.advance_state = unbound_scheme_call
+        self.combine_stage2 = unbound_scheme_call
+        self._monitor = None
         self.call_pure = self.call_generic
         self.redirect_call = self.call_pure
+        initialise_explicit_support(self, derivative, workbench)
+        workspace = self.workspace
+        self.stage = workspace.allocate_state_buffer()
+        self.trial, self.k2 = workspace.allocate_translation_buffers(2)
+        refresh_fixed_step_call(self)
 
         if algebraist is not None:
-            self.bind_algebraist_path(algebraist)
+            self.use_algebraist(algebraist)
 
     def __call__(
         self,
@@ -66,17 +84,12 @@ class SchemeMidpoint(SchemeBaseExplicitFixed):
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def initialise_buffers(self) -> None:
-        workspace = self.workspace
-        self.stage = workspace.allocate_state_buffer()
-        self.trial, self.k2 = workspace.allocate_translation_buffers(2)
-
-    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+    def use_algebraist(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_explicit_scheme(self.tableau)
         self.combine_stage2 = calls.require_stage_state_call(1, type(self).__name__)
         self.advance_state = calls.solution_state_call
         self.call_pure = self.call_algebraist
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
     def call_generic(
         self,

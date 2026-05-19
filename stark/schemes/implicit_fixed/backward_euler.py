@@ -4,8 +4,13 @@ from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.machinery.stage_solve.workers import ShiftedOneStageResolventStep
-from stark.schemes.base import SchemeBaseImplicitFixed
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    refresh_fixed_step_call,
+    with_fixed_step_monitoring,
+    with_implicit_stepper_methods,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau
 
 
@@ -17,7 +22,10 @@ BE_TABLEAU = ButcherTableau(
 )
 
 
-class SchemeBackwardEuler(SchemeBaseImplicitFixed):
+@with_scheme_display
+@with_fixed_step_monitoring
+@with_implicit_stepper_methods
+class SchemeBackwardEuler:
     """The implicit backward Euler method resolved by a stage resolvent.
 
     Backward Euler advances by solving
@@ -32,6 +40,7 @@ class SchemeBackwardEuler(SchemeBaseImplicitFixed):
     """
 
     __slots__ = (
+        "_monitor",
         "call_pure",
         "redirect_call",
         "stepper",
@@ -49,6 +58,7 @@ class SchemeBackwardEuler(SchemeBaseImplicitFixed):
         algebraist: Algebraist | None = None,
     ) -> None:
         del algebraist
+        self._monitor = None
         self.stepper = ShiftedOneStageResolventStep(
             "Backward Euler",
             self.tableau,
@@ -57,7 +67,7 @@ class SchemeBackwardEuler(SchemeBaseImplicitFixed):
             resolvent,
         )
         self.call_pure = self.call_generic
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
     def __call__(
         self,

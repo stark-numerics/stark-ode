@@ -6,8 +6,13 @@ from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.machinery.stage_solve.workers import CoupledCollocationResolventStep
-from stark.schemes.base import SchemeBaseImplicitFixed
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    refresh_fixed_step_call,
+    with_fixed_step_monitoring,
+    with_implicit_stepper_methods,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau
 
 
@@ -43,7 +48,10 @@ RADAU_IIA5_TABLEAU = ButcherTableau(
 )
 
 
-class SchemeRadauIIA5(SchemeBaseImplicitFixed):
+@with_scheme_display
+@with_fixed_step_monitoring
+@with_implicit_stepper_methods
+class SchemeRadauIIA5:
     """The three-stage fifth-order Radau IIA collocation method.
 
     Radau IIA methods are implicit Runge-Kutta collocation methods with the
@@ -58,6 +66,7 @@ class SchemeRadauIIA5(SchemeBaseImplicitFixed):
     """
 
     __slots__ = (
+        "_monitor",
         "call_pure",
         "redirect_call",
         "stepper",
@@ -75,6 +84,7 @@ class SchemeRadauIIA5(SchemeBaseImplicitFixed):
         algebraist: Algebraist | None = None,
     ) -> None:
         del algebraist
+        self._monitor = None
         self.stepper = CoupledCollocationResolventStep(
             "Radau IIA 5",
             self.tableau,
@@ -85,7 +95,7 @@ class SchemeRadauIIA5(SchemeBaseImplicitFixed):
         )
 
         self.call_pure = self.call_generic
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
     def __call__(
         self,

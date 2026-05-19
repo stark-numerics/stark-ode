@@ -7,13 +7,18 @@ from stark.contracts import Block, Derivative, IntervalLike, Resolvent, State, W
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
-from stark.monitor import MonitorStep
 from stark.resolvents.failure import ResolventError
-from stark.schemes.base import SchemeBaseImplicitAdaptive
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    SchemeStepControl,
+    initialise_adaptive_runtime,
+    refresh_adaptive_call,
+    with_adaptive_runtime_methods,
+)
 
 
-class SchemeBDF2(SchemeBaseImplicitAdaptive):
+@with_adaptive_runtime_methods
+class SchemeBDF2:
     """Adaptive second-order backward differentiation formula.
 
     BDF2 is a two-step implicit method. After a first backward-Euler startup
@@ -41,7 +46,11 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
     Further reading: https://en.wikipedia.org/wiki/Backward_differentiation_formula
     """
 
+    # Assigned by initialise_adaptive_runtime from stark.schemes.support.
+    step_control: SchemeStepControl
+
     __slots__ = (
+        "step_control",
         "call_pure",
         "derivative",
         "error",
@@ -51,6 +60,7 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
         "low",
         "previous_delta",
         "previous_step",
+        "redirect_call",
         "resolvent",
         "startup_rate",
         "trial_block",
@@ -90,9 +100,9 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
         self.previous_step = 0.0
         self.has_history = False
 
-        self.initialise_runtime(regulator)
+        initialise_adaptive_runtime(self, regulator)
         self.call_pure = self.call_generic
-        self.refresh_call()
+        refresh_adaptive_call(self)
 
     @staticmethod
     def default_regulator() -> Regulator:
@@ -175,41 +185,6 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def call_bind(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
-        self.assign_executor(executor)
-        return self.redirect_call(interval, state, executor)
-
-    def call_monitored(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
-        accepted_dt = self.call_pure(interval, state, executor)
-        report = self.adaptive.report()
-        monitor = self.adaptive.monitor
-
-        if monitor is not None:
-            monitor(
-                MonitorStep(
-                    scheme=self.short_name,
-                    t_start=report.t_start,
-                    t_end=report.t_end,
-                    proposed_dt=report.proposed_dt,
-                    accepted_dt=report.accepted_dt,
-                    next_dt=report.next_dt,
-                    error_ratio=report.error_ratio,
-                    rejection_count=report.rejection_count,
-                )
-            )
-
-        return accepted_dt
-
     def call_generic(
         self,
         interval: IntervalLike,
@@ -218,18 +193,16 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
     ) -> float:
         del executor
 
-        proposal = self.adaptive.propose_step(interval)
+        proposal = self.step_control.propose_step(interval)
 
         if proposal.remaining <= 0.0:
-            self.adaptive.record_stopped(interval)
+            self.step_control.record_stopped(interval)
             return 0.0
 
         workspace = self.workspace
         apply_delta = workspace.apply_delta
         scale = workspace.scale
-        ratio_fn = self.adaptive.ratio
-
-        assert ratio_fn is not None
+        ratio_fn = self.step_control.ratio
 
         remaining = proposal.remaining
         dt = proposal.dt
@@ -254,7 +227,7 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
                     )
                 except ResolventError:
                     rejection_count += 1
-                    dt = self.adaptive.rejected_step(
+                    dt = self.step_control.rejected_step(
                         dt,
                         1.0,
                         remaining,
@@ -271,7 +244,7 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
                     )
                 except ResolventError:
                     rejection_count += 1
-                    dt = self.adaptive.rejected_step(
+                    dt = self.step_control.rejected_step(
                         dt,
                         1.0,
                         remaining,
@@ -283,7 +256,7 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
                 break
 
             rejection_count += 1
-            dt = self.adaptive.rejected_step(
+            dt = self.step_control.rejected_step(
                 dt,
                 error_ratio,
                 remaining,
@@ -300,7 +273,7 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
         self.has_history = True
 
         remaining_after = remaining - accepted_dt
-        controller_next_dt = self.adaptive.accepted_next_step(
+        controller_next_dt = self.step_control.accepted_next_step(
             accepted_dt,
             error_ratio,
             remaining_after,
@@ -316,7 +289,7 @@ class SchemeBDF2(SchemeBaseImplicitAdaptive):
 
         interval.step = next_dt
 
-        report = self.adaptive.record_accepted(
+        report = self.step_control.record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,

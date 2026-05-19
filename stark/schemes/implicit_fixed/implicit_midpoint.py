@@ -4,8 +4,14 @@ from stark.algebraist import Algebraist, AlgebraistImplicitCombination
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.machinery.stage_solve.workers import ShiftedOneStageResolventStep
-from stark.schemes.base import SchemeBaseImplicitFixed
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    refresh_fixed_step_call,
+    unbound_scheme_call,
+    with_fixed_step_monitoring,
+    with_implicit_stepper_methods,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau
 
 
@@ -19,7 +25,10 @@ IMPLICIT_MIDPOINT_TABLEAU = ButcherTableau(
 )
 
 
-class SchemeImplicitMidpoint(SchemeBaseImplicitFixed):
+@with_scheme_display
+@with_fixed_step_monitoring
+@with_implicit_stepper_methods
+class SchemeImplicitMidpoint:
     """The one-stage implicit midpoint Runge-Kutta method.
 
     Implicit midpoint is the simplest nontrivial collocation method. In STARK's
@@ -33,6 +42,7 @@ class SchemeImplicitMidpoint(SchemeBaseImplicitFixed):
     """
 
     __slots__ = (
+        "_monitor",
         "call_pure",
         "final_delta_call",
         "redirect_call",
@@ -51,7 +61,8 @@ class SchemeImplicitMidpoint(SchemeBaseImplicitFixed):
         *,
         algebraist: Algebraist | None = None,
     ) -> None:
-        self.final_delta_call = None
+        self.final_delta_call = unbound_scheme_call
+        self._monitor = None
         self.stepper = ShiftedOneStageResolventStep(
             "Implicit Midpoint",
             self.tableau,
@@ -62,7 +73,7 @@ class SchemeImplicitMidpoint(SchemeBaseImplicitFixed):
         self.trial = self.stepper.workspace.allocate_translation()
 
         self.call_pure = self.call_generic
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
@@ -81,7 +92,7 @@ class SchemeImplicitMidpoint(SchemeBaseImplicitFixed):
         )
         self.final_delta_call = calls.require_final_delta_call(type(self).__name__)
         self.call_pure = self.call_algebraist
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
     def call_generic(
         self,

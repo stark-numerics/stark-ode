@@ -27,7 +27,7 @@ class Executor:
 
     tolerance: Tolerance = field(default_factory=SchemeTolerance)
     safety: Safety = field(default_factory=Safety)
-    regulator: Regulator = field(default_factory=Regulator)
+    regulator: Regulator | None = None
     accelerator: AcceleratorLike = field(default_factory=AcceleratorAbsent)
     values: dict[str, Any] = field(default_factory=dict, repr=False)
 
@@ -48,7 +48,8 @@ class Executor:
 
     def __str__(self) -> str:
         extras = "" if not self.values else f", extras={tuple(sorted(self.values))!r}"
-        return f"{self.tolerance}, {self.safety}, {self.regulator}, accelerator={self.accelerator}{extras}"
+        regulator = "scheme default" if self.regulator is None else str(self.regulator)
+        return f"{self.tolerance}, {self.safety}, regulator={regulator}, accelerator={self.accelerator}{extras}"
 
     def __getattr__(self, name: str) -> Any:
         try:

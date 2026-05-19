@@ -16,6 +16,21 @@ python -m examples.comparison.fput.report
 python -m examples.comparison.robertson.report
 ```
 
+To run every report as a guard against timeouts and large local regressions:
+
+```powershell
+python -m examples.comparison.check_reports --timeout 180
+```
+
+The guard can also compare against a local machine-specific baseline. The
+`examples/local/` directory is git-ignored, so it is a good place to keep these
+results:
+
+```powershell
+python -m examples.comparison.check_reports --write-baseline examples/local/comparison-baseline.json
+python -m examples.comparison.check_reports --baseline examples/local/comparison-baseline.json
+```
+
 Each report generates a tight SciPy reference solution, runs the methods used
 for that comparison case, then prints:
 

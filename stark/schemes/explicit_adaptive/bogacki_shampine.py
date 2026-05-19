@@ -4,9 +4,17 @@ from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
-from stark.monitor import MonitorStep
-from stark.schemes.base import SchemeBaseExplicitAdaptive
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    SchemeStepControl,
+    initialise_adaptive_runtime,
+    initialise_explicit_support,
+    refresh_adaptive_call,
+    unbound_scheme_call,
+    with_adaptive_runtime_methods,
+    with_explicit_workspace_methods,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau
 
 
@@ -35,7 +43,10 @@ BS23_ERROR_WEIGHTS = tuple(
 )
 
 
-class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
+@with_scheme_display
+@with_adaptive_runtime_methods
+@with_explicit_workspace_methods
+class SchemeBogackiShampine:
     """The adaptive Bogacki-Shampine embedded 3(2) Runge-Kutta pair.
 
     This method advances with a third-order explicit Runge-Kutta formula while
@@ -46,7 +57,11 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
     Further reading: https://en.wikipedia.org/wiki/Bogacki%E2%80%93Shampine_method
     """
 
+    # Assigned by initialise_adaptive_runtime from stark.schemes.support.
+    step_control: SchemeStepControl
+
     __slots__ = (
+        "step_control",
         "bound_apply_delta",
         "bound_stage_interval",
         "call_pure",
@@ -55,12 +70,17 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
         "combine_stage2",
         "combine_stage3",
         "combine_stage4",
+        "derivative",
         "error",
+        "explicit",
+        "k1",
         "k2",
         "k3",
         "k4",
+        "redirect_call",
         "stage",
         "trial",
+        "workspace",
     )
 
     descriptor = SchemeDescriptor("BS23", "Bogacki-Shampine")
@@ -73,10 +93,12 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
         regulator: Regulator | None = None,
         algebraist: Algebraist | None = None,
     ) -> None:
-        super().__init__(derivative, workbench, regulator)
+        initialise_explicit_support(self, derivative, workbench)
+        initialise_adaptive_runtime(self, regulator)
+        self.initialise_buffers()
 
         self.call_pure = self.call_generic
-        self.refresh_call()
+        refresh_adaptive_call(self)
 
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
@@ -93,41 +115,6 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def call_bind(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
-        self.assign_executor(executor)
-        return self.redirect_call(interval, state, executor)
-
-    def call_monitored(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
-        accepted_dt = self.call_pure(interval, state, executor)
-
-        report = self.adaptive.report()
-        monitor = self.adaptive.monitor
-        if monitor is not None:
-            monitor(
-                MonitorStep(
-                    scheme=self.short_name,
-                    t_start=report.t_start,
-                    t_end=report.t_end,
-                    proposed_dt=report.proposed_dt,
-                    accepted_dt=report.accepted_dt,
-                    next_dt=report.next_dt,
-                    error_ratio=report.error_ratio,
-                    rejection_count=report.rejection_count,
-                )
-            )
-
-        return accepted_dt
-
     def initialise_buffers(self) -> None:
         workspace = self.workspace
 
@@ -136,11 +123,11 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
             workspace.allocate_translation_buffers(5)
         )
 
-        self.combine_stage2 = None
-        self.combine_stage3 = None
-        self.combine_stage4 = None
-        self.combine_solution = None
-        self.combine_error = None
+        self.combine_stage2 = unbound_scheme_call
+        self.combine_stage3 = unbound_scheme_call
+        self.combine_stage4 = unbound_scheme_call
+        self.combine_solution = unbound_scheme_call
+        self.combine_error = unbound_scheme_call
 
         self.bound_apply_delta = workspace.apply_delta
         self.bound_stage_interval = workspace.stage_interval
@@ -156,10 +143,10 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
         self.combine_error = error
 
         self.call_pure = self.call_algebraist
-        self.refresh_call()
+        refresh_adaptive_call(self)
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
-        super().set_apply_delta_safety(enabled)
+        self.explicit.set_apply_delta_safety(enabled)
         self.bound_apply_delta = self.workspace.apply_delta
 
     def call_generic(
@@ -170,9 +157,9 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
     ) -> float:
         del executor
 
-        proposal = self.adaptive.propose_step(interval)
+        proposal = self.step_control.propose_step(interval)
         if proposal.remaining <= 0.0:
-            self.adaptive.record_stopped(interval)
+            self.step_control.record_stopped(interval)
             return 0.0
 
         workspace = self.workspace
@@ -182,9 +169,7 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
         combine4 = workspace.combine4
         apply_delta = workspace.apply_delta
         stage_interval = workspace.stage_interval
-        ratio = self.adaptive.ratio
-        assert ratio is not None
-
+        ratio = self.step_control.ratio
         stage = self.stage
         trial_buffer = self.trial
         error_buffer = self.error
@@ -253,7 +238,7 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
                 break
 
             rejection_count += 1
-            dt = self.adaptive.rejected_step(
+            dt = self.step_control.rejected_step(
                 dt,
                 error_ratio,
                 remaining,
@@ -262,7 +247,7 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
 
         accepted_dt = dt
         remaining_after = remaining - accepted_dt
-        next_dt = self.adaptive.accepted_next_step(
+        next_dt = self.step_control.accepted_next_step(
             accepted_dt,
             error_ratio,
             remaining_after,
@@ -271,7 +256,7 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
         interval.step = next_dt
         apply_delta(delta_high, state)
 
-        report = self.adaptive.record_accepted(
+        report = self.step_control.record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,
@@ -289,17 +274,15 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
     ) -> float:
         del executor
 
-        proposal = self.adaptive.propose_step(interval)
+        proposal = self.step_control.propose_step(interval)
         if proposal.remaining <= 0.0:
-            self.adaptive.record_stopped(interval)
+            self.step_control.record_stopped(interval)
             return 0.0
 
         derivative = self.derivative
         apply_delta = self.bound_apply_delta
         stage_interval = self.bound_stage_interval
-        ratio = self.adaptive.ratio
-        assert ratio is not None
-
+        ratio = self.step_control.ratio
         stage = self.stage
         trial_buffer = self.trial
         error_buffer = self.error
@@ -344,7 +327,7 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
                 break
 
             rejection_count += 1
-            dt = self.adaptive.rejected_step(
+            dt = self.step_control.rejected_step(
                 dt,
                 error_ratio,
                 remaining,
@@ -353,7 +336,7 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
 
         accepted_dt = dt
         remaining_after = remaining - accepted_dt
-        next_dt = self.adaptive.accepted_next_step(
+        next_dt = self.step_control.accepted_next_step(
             accepted_dt,
             error_ratio,
             remaining_after,
@@ -362,7 +345,7 @@ class SchemeBogackiShampine(SchemeBaseExplicitAdaptive):
         interval.step = next_dt
         apply_delta(delta_high, state)
 
-        report = self.adaptive.record_accepted(
+        report = self.step_control.record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,

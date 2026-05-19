@@ -74,7 +74,6 @@ Optional extras are available by task:
 ```powershell
 python -m pip install -e ".[accelerators]"
 python -m pip install -e ".[examples]"
-python -m pip install -e ".[notebooks]"
 python -m pip install -e ".[comparison]"
 ```
 
@@ -84,8 +83,6 @@ python -m pip install -e ".[comparison]"
   `AcceleratorNumba` and `AcceleratorJax`.
 - `.[examples]`:
   plotting and accelerator dependencies used by the script-style examples.
-- `.[notebooks]`:
-  Jupyter and plotting dependencies for the public notebooks.
 - `.[comparison]`:
   SciPy, Diffrax, JAX, and accelerator dependencies used by the comparison
   reports.
@@ -282,27 +279,30 @@ For the mathematical view of the contracts, see
 concepts correspond to affine-space, vector-space, norm, and operator
 structures.
 
-## Example
+## Examples
 
-A guided notebook is available at
-[`examples/three_body_stark.ipynb`](examples/three_body_stark.ipynb). It starts
-from a structured three-body model with an Euler stepper, shows why fixed-step
-Euler is fragile for Moore's figure-eight orbit, then adds the small STARK
-adapter layer needed for adaptive integration and checkpointed plotting.
-
-For a fuller method-building example, see
-[`examples/allen_cahn.ipynb`](examples/allen_cahn.ipynb). It walks through a
-structured one-dimensional Allen-Cahn problem, starting with explicit methods,
-then moving through implicit resolvents, Newton linearizers, and finally a
-custom IMEX spectral resolvent. The notebook uses `Comparator` comparisons
-where they help explain which method family improves the problem.
+Small executable examples live under [`examples/getting_started/`](examples/getting_started/)
+and [`examples/features/`](examples/features/). Longer narrative case studies
+live under [`examples/case_studies/`](examples/case_studies/).
 
 From a source checkout:
 
 ```powershell
-python -m pip install -e ".[notebooks]"
-python -m jupyter lab examples/three_body_stark.ipynb
+python -m pip install -e ".[examples]"
+python -m examples.getting_started
+python -m examples.features
+python -m examples.case_studies.three_body
+python -m examples.case_studies.allen_cahn
 ```
+
+The three-body case study starts from a structured three-body model with an
+Euler stepper, shows why fixed-step Euler is fragile for Moore's figure-eight
+orbit, then adds the small STARK adapter layer needed for adaptive integration
+and checkpointed plotting.
+
+The Allen-Cahn case study walks through a structured one-dimensional problem,
+starting with explicit methods, then moving through implicit resolvents, Newton
+linearizers, and finally a custom IMEX spectral resolvent.
 
 ## Comparison Reports
 

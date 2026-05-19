@@ -205,7 +205,7 @@ def test_rk4_exposes_copyable_fixed_explicit_scheme_shape() -> None:
     required_names = {
         "__call__",
         "call_generic",
-        "initialise_buffers",
+        "use_algebraist",
         "snapshot_state",
         "set_apply_delta_safety",
     }
@@ -213,6 +213,7 @@ def test_rk4_exposes_copyable_fixed_explicit_scheme_shape() -> None:
     available_names = set(dir(SchemeRK4))
 
     assert required_names <= available_names
+
 
 def test_rk4_satisfies_public_scheme_contract_without_base_class_assertions() -> None:
     scheme = SchemeRK4(exponential_growth, ScalarWorkbench())

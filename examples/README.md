@@ -25,7 +25,7 @@ python -m examples.features.manual_marcher_setup
 python -m examples.features.custom_scheme_fixed_explicit
 python -m examples.features.structured_state_minimal
 python -m examples.features.compare_two_schemes
-python -m examples.features.monitor_adaptive
+python -m examples.features.monitor_scheme_steps
 ```
 
 ## Case studies

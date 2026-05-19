@@ -126,7 +126,12 @@ def test_algebraist_capability_matches_public_scheme_surface(
 
     if capability.capability == GENERATED:
         assert capability.reason is None
-        assert "bind_algebraist_path" in scheme_cls.__dict__
+        binder_name = (
+            "use_algebraist"
+            if capability.family == "explicit fixed"
+            else "bind_algebraist_path"
+        )
+        assert binder_name in scheme_cls.__dict__
         assert "call_algebraist" in scheme_cls.__dict__
         return
 

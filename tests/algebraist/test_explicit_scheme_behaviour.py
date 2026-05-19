@@ -134,8 +134,8 @@ def test_adaptive_explicit_algebraist_path_matches_generic_semantics() -> None:
         atol=1.0e-14,
     )
 
-    generic_report = generic_scheme.adaptive.report()
-    generated_report = generated_scheme.adaptive.report()
+    generic_report = generic_scheme.step_control.report()
+    generated_report = generated_scheme.step_control.report()
 
     assert generated_report.accepted_dt == pytest.approx(
         generic_report.accepted_dt,

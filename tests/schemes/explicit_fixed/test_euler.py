@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from stark import Executor, Interval
+from stark.monitor import Monitor
 from stark.schemes.explicit_fixed.euler import SchemeEuler
 
 
@@ -136,6 +137,58 @@ def test_euler_algebraist_path_is_selected_inside_scheme() -> None:
     assert scheme.call_pure.__self__ is scheme
     assert scheme.call_pure.__func__ is SchemeEuler.call_algebraist
     assert scheme.redirect_call == scheme.call_pure
+
+
+def test_euler_monitoring_records_fixed_step_without_changing_pure_path() -> None:
+    scheme = SchemeEuler(exponential_growth, ScalarWorkbench())
+    monitor = Monitor()
+    interval = Interval(present=0.0, step=0.125, stop=1.0)
+    state = ScalarState(1.0)
+
+    scheme.assign_monitor(monitor.scheme)
+
+    assert scheme.call_pure.__func__ is SchemeEuler.call_generic
+    assert scheme.redirect_call.__func__ is scheme.call_monitored.__func__
+
+    accepted_dt = scheme(interval, state, Executor())
+
+    assert accepted_dt == pytest.approx(0.125)
+    assert state.value == pytest.approx(1.125)
+    assert monitor.scheme.adaptive_steps == []
+    assert len(monitor.scheme.fixed_steps) == 1
+
+    step = monitor.scheme.fixed_steps[0]
+    assert step.scheme == "Euler"
+    assert step.t_start == pytest.approx(0.0)
+    assert step.t_end == pytest.approx(0.125)
+    assert step.accepted_dt == pytest.approx(0.125)
+
+    scheme.unassign_monitor()
+
+    assert scheme.redirect_call == scheme.call_pure
+
+
+def test_euler_monitoring_records_algebraist_fixed_step() -> None:
+    scheme = SchemeEuler(
+        exponential_growth,
+        ScalarWorkbench(),
+        algebraist=StubAlgebraist(),
+    )
+    monitor = Monitor()
+    interval = Interval(present=0.0, step=0.125, stop=1.0)
+    state = ScalarState(1.0)
+
+    scheme.assign_monitor(monitor.scheme)
+
+    assert scheme.call_pure.__func__ is SchemeEuler.call_algebraist
+    assert scheme.redirect_call.__func__ is scheme.call_monitored.__func__
+
+    accepted_dt = scheme(interval, state, Executor())
+
+    assert accepted_dt == pytest.approx(0.125)
+    assert state.value == pytest.approx(1.125)
+    assert len(monitor.scheme.fixed_steps) == 1
+    assert monitor.scheme.fixed_steps[0].scheme == "Euler"
 
 
 def test_euler_generic_and_algebraist_paths_match_for_one_step() -> None:

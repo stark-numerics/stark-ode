@@ -1,4 +1,4 @@
-# tests/schemes/test_scheme_display.py
+# tests/schemes/test_with_scheme_display.py
 
 from __future__ import annotations
 
@@ -114,7 +114,7 @@ def test_scheme_base_display_output_is_preserved(
     assert format(scheme, "") == rendered_str
 
 
-def test_scheme_display_object_matches_descriptor_behaviour() -> None:
+def test_with_scheme_display_object_matches_descriptor_behaviour() -> None:
     display = SchemeDisplay(SchemeRK4.descriptor, SchemeRK4.tableau)
 
     assert display.short_name == SchemeRK4.descriptor.short_name
@@ -131,7 +131,7 @@ def test_scheme_display_object_matches_descriptor_behaviour() -> None:
     assert "Butcher tableau" in rendered_repr
 
 
-def test_scheme_display_keeps_repr_exactly_equivalent_to_descriptor() -> None:
+def test_with_scheme_display_keeps_repr_exactly_equivalent_to_descriptor() -> None:
     scheme = SchemeRK4(dummy_derivative, DummyWorkbench())
 
     assert repr(scheme) == SchemeRK4.descriptor.repr_for(
@@ -140,7 +140,7 @@ def test_scheme_display_keeps_repr_exactly_equivalent_to_descriptor() -> None:
     )
 
 
-def test_scheme_display_keeps_tableau_exactly_equivalent_to_descriptor() -> None:
+def test_with_scheme_display_keeps_tableau_exactly_equivalent_to_descriptor() -> None:
     assert SchemeRK4.display_tableau() == SchemeRK4.descriptor.display_tableau(
         SchemeRK4.tableau
     )

@@ -3,8 +3,15 @@ from __future__ import annotations
 from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.execution.executor import Executor
-from stark.schemes.base import SchemeBaseExplicitFixed
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    with_explicit_workspace_methods,
+    with_fixed_step_monitoring,
+    initialise_explicit_support,
+    refresh_fixed_step_call,
+    unbound_scheme_call,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau
 
 
@@ -23,7 +30,10 @@ RK4_TABLEAU = ButcherTableau(
 RK4_B = RK4_TABLEAU.b
 
 
-class SchemeRK4(SchemeBaseExplicitFixed):
+@with_scheme_display
+@with_fixed_step_monitoring
+@with_explicit_workspace_methods
+class SchemeRK4:
     """The classical four-stage fourth-order Runge-Kutta method.
 
     RK4 is the best-known fixed-step explicit Runge-Kutta scheme. It is a very
@@ -34,17 +44,22 @@ class SchemeRK4(SchemeBaseExplicitFixed):
     """
 
     __slots__ = (
+        "_monitor",
         "advance_state",
+        "call_pure",
         "combine_stage2",
         "combine_stage3",
         "combine_stage4",
+        "derivative",
+        "explicit",
+        "k1",
         "k2",
         "k3",
         "k4",
-        "call_pure",
         "redirect_call",
         "stage",
         "trial",
+        "workspace",
     )
 
     descriptor = SchemeDescriptor("RK4", "Classical Runge-Kutta")
@@ -56,22 +71,21 @@ class SchemeRK4(SchemeBaseExplicitFixed):
         workbench: Workbench,
         algebraist: Algebraist | None = None,
     ) -> None:
-        self.advance_state = None
-        self.combine_stage2 = None
-        self.combine_stage3 = None
-        self.combine_stage4 = None
+        self.advance_state = unbound_scheme_call
+        self.combine_stage2 = unbound_scheme_call
+        self.combine_stage3 = unbound_scheme_call
+        self.combine_stage4 = unbound_scheme_call
+        self._monitor = None
         self.call_pure = self.call_generic
         self.redirect_call = self.call_pure
-
-        super().__init__(derivative, workbench)
-
-        # RK4 owns its public call routing. The inherited fixed-scheme routing
-        # remains temporarily for unconverted schemes only.
-        self.call_pure = self.call_generic
-        self.redirect_call = self.call_pure
+        initialise_explicit_support(self, derivative, workbench)
+        workspace = self.workspace
+        self.stage = workspace.allocate_state_buffer()
+        self.trial, self.k2, self.k3, self.k4 = workspace.allocate_translation_buffers(4)
+        refresh_fixed_step_call(self)
 
         if algebraist is not None:
-            self.bind_algebraist_path(algebraist)
+            self.use_algebraist(algebraist)
 
     def __call__(
         self,
@@ -81,19 +95,14 @@ class SchemeRK4(SchemeBaseExplicitFixed):
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def initialise_buffers(self) -> None:
-        workspace = self.workspace
-        self.stage = workspace.allocate_state_buffer()
-        self.trial, self.k2, self.k3, self.k4 = workspace.allocate_translation_buffers(4)
-
-    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+    def use_algebraist(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_explicit_scheme(self.tableau)
         self.combine_stage2 = calls.require_stage_state_call(1, type(self).__name__)
         self.combine_stage3 = calls.require_stage_state_call(2, type(self).__name__)
         self.combine_stage4 = calls.require_stage_state_call(3, type(self).__name__)
         self.advance_state = calls.solution_state_call
         self.call_pure = self.call_algebraist
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
     def call_generic(
         self,

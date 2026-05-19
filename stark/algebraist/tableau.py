@@ -9,14 +9,29 @@ from stark.algebraist.paths import path_expression
 
 
 class ButcherTableauLike(Protocol):
-    c: tuple[float, ...]
-    a: tuple[tuple[float, ...], ...]
-    b: tuple[float, ...]
-    order: int
-    b_embedded: tuple[float, ...] | None
-    embedded_order: int | None
-    short_name: str | None
-    full_name: str | None
+    @property
+    def c(self) -> tuple[float, ...]: ...
+
+    @property
+    def a(self) -> tuple[tuple[float, ...], ...]: ...
+
+    @property
+    def b(self) -> tuple[float, ...]: ...
+
+    @property
+    def order(self) -> int: ...
+
+    @property
+    def b_embedded(self) -> tuple[float, ...] | None: ...
+
+    @property
+    def embedded_order(self) -> int | None: ...
+
+    @property
+    def short_name(self) -> str | None: ...
+
+    @property
+    def full_name(self) -> str | None: ...
 
 
 @dataclass(frozen=True, slots=True)

@@ -401,10 +401,10 @@ def test_esdirk_adaptive_monitoring_records_existing_adaptive_fields(
 
     list(Integrator().live_monitored(marcher, interval, state, monitor))
 
-    assert len(monitor.steps) == 2
+    assert len(monitor.scheme.adaptive_steps) == 2
 
-    first = monitor.steps[0]
-    second = monitor.steps[1]
+    first = monitor.scheme.adaptive_steps[0]
+    second = monitor.scheme.adaptive_steps[1]
 
     assert first.scheme == scheme_name
     assert first.t_start == pytest.approx(0.0)

@@ -79,9 +79,9 @@ if __name__ == "__main__":
     # The monitor records one piece of evidence per accepted adaptive step.
     # Here we extract the time, local error ratio, and total rejected proposals.
 
-    times = [step.t_end for step in monitor.steps]
-    error_ratios = [step.error_ratio for step in monitor.steps]
-    rejections = sum(step.rejection_count for step in monitor.steps)
+    times = [step.t_end for step in monitor.scheme.adaptive_steps]
+    error_ratios = [step.error_ratio for step in monitor.scheme.adaptive_steps]
+    rejections = sum(step.rejection_count for step in monitor.scheme.adaptive_steps)
     max_error_ratio = max(error_ratios) if error_ratios else 0.0
 
     if max_error_ratio < 0.5:
@@ -100,7 +100,7 @@ if __name__ == "__main__":
             "rejection count to see how often the controller retried."
         )
 
-    print(f"accepted steps: {len(monitor.steps)}")
+    print(f"accepted steps: {len(monitor.scheme.adaptive_steps)}")
     print(f"rejections:     {rejections}")
     print(f"max error ratio: {max_error_ratio:.4g}")
     print(f"reading:         {max_ratio_reading}")

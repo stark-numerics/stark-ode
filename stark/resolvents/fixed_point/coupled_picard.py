@@ -2,28 +2,87 @@ from __future__ import annotations
 
 """Picard-backed resolvent for fully coupled implicit RK stage systems."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-from stark.contracts import AcceleratorLike, Block, Derivative, Workbench
-from stark.resolvents.base import ResolventBaseFixedPoint
-from stark.resolvents.descriptor import ResolventDescriptor
-from stark.resolvents.policy import ResolventPolicy
-from stark.resolvents.support.stage_residual import CoupledStageResidual
+from stark.auditor import Auditor
+from stark.contracts import AcceleratorLike, Block, Derivative, IntervalLike, State, Workbench
 from stark.execution.safety import Safety
 from stark.execution.tolerance import Tolerance
+from stark.machinery.stage_solve.workspace import SchemeWorkspace
+from stark.resolvents.descriptor import ResolventDescriptor
+from stark.resolvents.failure import ResolventError
+from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support import (
+    MonitorResolventLike,
+    initialise_resolvent_runtime,
+    with_resolvent_binding_methods,
+    with_resolvent_display_methods,
+    with_resolvent_monitoring_methods,
+)
+from stark.resolvents.support.stage_residual import ResolventCoupledStageResidual
+from stark.resolvents.support.workspace import ResolventWorkspace
+from stark.resolvents.tolerance import ResolventTolerance
 
 if TYPE_CHECKING:
     from stark.schemes.tableau import ButcherTableau
 
 
-class ResolventCoupledPicard(ResolventBaseFixedPoint):
-    """Picard-driven resolvent for fully coupled implicit Runge-Kutta stages."""
+@with_resolvent_display_methods
+@with_resolvent_binding_methods
+@with_resolvent_monitoring_methods
+class ResolventCoupledPicard:
+    """
+    Picard-driven resolvent for fully coupled implicit Runge-Kutta stages.
+
+    The unknown is a block of stage increments. Each iteration evaluates the
+    coupled residual induced by the tableau matrix and subtracts that residual
+    from the stage block to form the next fixed-point guess.
+
+    Further reading:
+    https://en.wikipedia.org/wiki/Fixed-point_iteration
+    https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
+    """
 
     __slots__ = (
+        "_monitor",
+        "alpha",
+        "accelerator",
+        "interval",
+        "policy",
+        "redirect_call",
+        "residual",
+        "residual_buffer",
+        "resolvent_workspace",
+        "safety",
+        "scheme_workspace",
+        "size",
         "stage_count",
+        "state",
+        "tableau",
+        "tolerance",
     )
 
     descriptor = ResolventDescriptor("Picard", "Picard Iteration")
+
+    if TYPE_CHECKING:
+        def bind(self, interval: IntervalLike, state: State) -> None: ...
+
+        def bind_accelerator(self, accelerator: AcceleratorLike) -> None: ...
+
+        def assign_monitor(self, monitor: MonitorResolventLike) -> None: ...
+
+        def unassign_monitor(self) -> None: ...
+
+        def call_unbound(self, alpha: float, rhs: Block | None, out: Block) -> None: ...
+
+        def record_solve(
+            self,
+            block_size: int,
+            iteration_count: int,
+            error: float,
+            scale: float,
+            converged: bool,
+        ) -> None: ...
 
     def __init__(
         self,
@@ -35,23 +94,31 @@ class ResolventCoupledPicard(ResolventBaseFixedPoint):
         safety: Safety | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:
+        translation_probe = workbench.allocate_translation()
+        Auditor.require_scheme_inputs(derivative, workbench, translation_probe)
+
         self.stage_count = len(tableau.c)
-        super().initialise_fixed_point(
-            derivative,
+        self.tableau = tableau
+        initialise_resolvent_runtime(self, safety, accelerator)
+
+        self.scheme_workspace = SchemeWorkspace(workbench, translation_probe)
+        self.resolvent_workspace = ResolventWorkspace(
             workbench,
-            residual_factory=lambda workspace: CoupledStageResidual(
-                "ResolventCoupledPicard",
-                derivative,
-                workspace,
-                stage_shifts=tableau.c,
-                matrix=tableau.a,
-            ),
-            tolerance=tolerance,
-            policy=policy,
-            safety=safety,
-            accelerator=accelerator,
-            tableau=tableau,
+            translation_probe,
+            self.safety,
+            accelerator=self.accelerator,
         )
+        self.tolerance = tolerance if tolerance is not None else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
+        self.policy = policy if policy is not None else ResolventPolicy()
+        self.residual = ResolventCoupledStageResidual(
+            "ResolventCoupledPicard",
+            derivative,
+            self.scheme_workspace,
+            stage_shifts=tableau.c,
+            matrix=tableau.a,
+        )
+        self.residual_buffer = None
+        self.size = -1
 
     def check_block_sizes(self, out: Block, rhs: Block | None = None) -> None:
         if len(out) != self.stage_count:
@@ -59,17 +126,56 @@ class ResolventCoupledPicard(ResolventBaseFixedPoint):
         if rhs is not None and len(rhs) != self.stage_count:
             raise ValueError(f"rhs must be a {self.stage_count}-item block for this resolvent.")
 
+    def call_checked(self, alpha: float, rhs: Block | None, out: Block) -> None:
+        self.check_block_sizes(out, rhs)
+        self.call_unchecked(alpha, rhs, out)
+
+    def call_unchecked(self, alpha: float, rhs: Block | None, out: Block) -> None:
+        interval = cast(IntervalLike, self.interval)
+        state = cast(State, self.state)
+
+        self.alpha = alpha
+        self.residual.configure(interval, state, alpha, rhs=rhs)
+        self.resolvent_workspace.zero_block(out)
+        self.resolve(out)
+
+    def prepare(self, size: int) -> None:
+        if self.size == size:
+            return
+        self.size = size
+        self.residual_buffer = self.resolvent_workspace.allocate_block(size)
+
+    def resolve(self, block: Block) -> None:
+        if self.policy.max_iterations < 1:
+            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
+
+        self.prepare(len(block))
+        residual_buffer = cast(Block, self.residual_buffer)
+
+        block_size = len(block)
+        iteration_count = 0
+
+        for _ in range(self.policy.max_iterations):
+            self.residual(block, residual_buffer)
+            error = residual_buffer.norm()
+            scale = block.norm()
+            if self.tolerance.accepts(error, scale):
+                self.record_solve(block_size, iteration_count, error, scale, True)
+                return
+            self.resolvent_workspace.combine2_block(1.0, block, -1.0, residual_buffer, block)
+            iteration_count += 1
+
+        self.residual(block, residual_buffer)
+        error = residual_buffer.norm()
+        scale = block.norm()
+        if self.tolerance.accepts(error, scale):
+            self.record_solve(block_size, iteration_count, error, scale, True)
+            return
+        self.record_solve(block_size, iteration_count, error, scale, False)
+        raise ResolventError(
+            f"{type(self).__name__} failed to resolve the residual within "
+            f"{self.policy.max_iterations} iterations (error={error:g})."
+        )
+
 
 __all__ = ["ResolventCoupledPicard"]
-
-
-
-
-
-
-
-
-
-
-
-

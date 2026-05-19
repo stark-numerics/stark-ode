@@ -6,8 +6,14 @@ from stark.algebraist import Algebraist, AlgebraistImplicitCombination
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.machinery.stage_solve.workers import CoupledCollocationResolventStep
-from stark.schemes.base import SchemeBaseImplicitFixed
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    refresh_fixed_step_call,
+    unbound_scheme_call,
+    with_fixed_step_monitoring,
+    with_implicit_stepper_methods,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau
 
 
@@ -37,7 +43,10 @@ GAUSS_LEGENDRE4_STAGE_INCREMENT_WEIGHTS = (
 )
 
 
-class SchemeGaussLegendre4(SchemeBaseImplicitFixed):
+@with_scheme_display
+@with_fixed_step_monitoring
+@with_implicit_stepper_methods
+class SchemeGaussLegendre4:
     """The two-stage fourth-order Gauss-Legendre collocation method.
 
     Gauss-Legendre collocation methods use interior quadrature nodes and have
@@ -53,6 +62,7 @@ class SchemeGaussLegendre4(SchemeBaseImplicitFixed):
     """
 
     __slots__ = (
+        "_monitor",
         "call_pure",
         "final_delta_call",
         "redirect_call",
@@ -71,7 +81,8 @@ class SchemeGaussLegendre4(SchemeBaseImplicitFixed):
         *,
         algebraist: Algebraist | None = None,
     ) -> None:
-        self.final_delta_call = None
+        self.final_delta_call = unbound_scheme_call
+        self._monitor = None
         self.stepper = CoupledCollocationResolventStep(
             "Gauss-Legendre 4",
             self.tableau,
@@ -83,7 +94,7 @@ class SchemeGaussLegendre4(SchemeBaseImplicitFixed):
         self.trial = self.stepper.workspace.allocate_translation()
 
         self.call_pure = self.call_generic
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
@@ -105,7 +116,7 @@ class SchemeGaussLegendre4(SchemeBaseImplicitFixed):
         )
         self.final_delta_call = calls.require_final_delta_call(type(self).__name__)
         self.call_pure = self.call_algebraist
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
     def call_generic(
         self,

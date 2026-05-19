@@ -4,8 +4,14 @@ from stark.algebraist import Algebraist, AlgebraistImplicitCombination
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.machinery.stage_solve.workers import SequentialDIRKResolventStep
-from stark.schemes.base import SchemeBaseImplicitFixed
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    refresh_fixed_step_call,
+    unbound_scheme_call,
+    with_fixed_step_monitoring,
+    with_implicit_stepper_methods,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau
 
 
@@ -42,7 +48,10 @@ _DELTA43 = 0.5 / CROUZEIX_DIRK3_GAMMA
 _STAGE_INCREMENT_WEIGHTS = (_DELTA41, _DELTA42, _DELTA43, 1.0)
 
 
-class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
+@with_scheme_display
+@with_fixed_step_monitoring
+@with_implicit_stepper_methods
+class SchemeCrouzeixDIRK3:
     """Crouzeix's fixed-step third-order sequential DIRK method.
 
     This is a singly diagonally implicit Runge-Kutta scheme: every implicit
@@ -67,6 +76,7 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
     """
 
     __slots__ = (
+        "_monitor",
         "call_pure",
         "delta1",
         "delta2",
@@ -95,10 +105,11 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
         *,
         algebraist: Algebraist | None = None,
     ) -> None:
-        self.final_delta_call = None
-        self.known2_call = None
-        self.known3_call = None
-        self.known4_call = None
+        self.final_delta_call = unbound_scheme_call
+        self.known2_call = unbound_scheme_call
+        self.known3_call = unbound_scheme_call
+        self.known4_call = unbound_scheme_call
+        self._monitor = None
 
         self.stepper = SequentialDIRKResolventStep(
             "Crouzeix DIRK3",
@@ -122,7 +133,7 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
         ) = workspace.allocate_translation_buffers(8)
 
         self.call_pure = self.call_generic
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
@@ -159,7 +170,7 @@ class SchemeCrouzeixDIRK3(SchemeBaseImplicitFixed):
         self.known4_call = calls.require_known_shift_call(3, type(self).__name__)
         self.final_delta_call = calls.require_final_delta_call(type(self).__name__)
         self.call_pure = self.call_algebraist
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
     def call_generic(
         self,

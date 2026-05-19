@@ -5,8 +5,14 @@ from stark.algebraist import Algebraist, AlgebraistImplicitCombination
 from stark.contracts import Block, Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.machinery.stage_solve.workers import ShiftedOneStageResolventStep
-from stark.schemes.base import SchemeBaseImplicitFixed
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    refresh_fixed_step_call,
+    unbound_scheme_call,
+    with_fixed_step_monitoring,
+    with_implicit_stepper_methods,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau
 
 
@@ -20,7 +26,10 @@ CRANK_NICOLSON_TABLEAU = ButcherTableau(
 )
 
 
-class SchemeCrankNicolson(SchemeBaseImplicitFixed):
+@with_scheme_display
+@with_fixed_step_monitoring
+@with_implicit_stepper_methods
+class SchemeCrankNicolson:
     """The fixed-step Crank-Nicolson / trapezoidal Runge-Kutta method.
 
     This method evaluates one explicit stage at the start of the step, then
@@ -37,6 +46,7 @@ class SchemeCrankNicolson(SchemeBaseImplicitFixed):
     """
 
     __slots__ = (
+        "_monitor",
         "call_pure",
         "derivative",
         "k1",
@@ -57,7 +67,8 @@ class SchemeCrankNicolson(SchemeBaseImplicitFixed):
         *,
         algebraist: Algebraist | None = None,
     ) -> None:
-        self.known_rhs_call = None
+        self.known_rhs_call = unbound_scheme_call
+        self._monitor = None
         self.derivative = BoundDerivative(derivative)
         self.stepper = ShiftedOneStageResolventStep(
             "Crank-Nicolson",
@@ -72,7 +83,7 @@ class SchemeCrankNicolson(SchemeBaseImplicitFixed):
         self.known_block = Block([workspace.allocate_translation()])
 
         self.call_pure = self.call_generic
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
@@ -97,7 +108,7 @@ class SchemeCrankNicolson(SchemeBaseImplicitFixed):
         )
         self.known_rhs_call = calls.require_known_shift_call(0, type(self).__name__)
         self.call_pure = self.call_algebraist
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
     def call_generic(
         self,

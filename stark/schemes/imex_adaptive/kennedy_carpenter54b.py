@@ -5,11 +5,18 @@ from stark.contracts import ImExDerivative, IntervalLike, Resolvent, State, Work
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
 from stark.machinery.stage_solve.workers import ImExStepper
-from stark.monitor import MonitorStep
 from stark.resolvents.failure import ResolventError
 from stark.resolvents.support.guard import ResolventTableauGuard
-from stark.schemes.base import SchemeBaseImExAdaptive
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    SchemeStepControl,
+    initialise_adaptive_runtime,
+    initialise_imex_support,
+    refresh_adaptive_call,
+    with_adaptive_runtime_methods,
+    with_imex_workspace_methods,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau, ImExButcherTableau
 
 
@@ -160,7 +167,10 @@ ARK548L2SAB_TABLEAU = ImExButcherTableau(
 KENNEDY_CARPENTER54B_TABLEAU = ARK548L2SAB_TABLEAU
 
 
-class SchemeKennedyCarpenter54b(SchemeBaseImExAdaptive):
+@with_scheme_display
+@with_adaptive_runtime_methods
+@with_imex_workspace_methods
+class SchemeKennedyCarpenter54b:
     """Adaptive Kennedy-Carpenter ARK5(4)8L[2]SA(b) IMEX method.
 
     This is the later eight-stage fifth-order Kennedy-Carpenter variant used
@@ -176,11 +186,17 @@ class SchemeKennedyCarpenter54b(SchemeBaseImExAdaptive):
     2019; SUNDIALS ARKODE Butcher tables.
     """
 
+    # Assigned by initialise_adaptive_runtime from stark.schemes.support.
+    step_control: SchemeStepControl
+
     __slots__ = (
+        "step_control",
         "call_pure",
+        "redirect_call",
         "resolvent",
         "stepper",
         "tableau_guard",
+        "workspace",
     )
 
     descriptor = SchemeDescriptor("KC54b", "Kennedy-Carpenter 5(4) b")
@@ -195,7 +211,8 @@ class SchemeKennedyCarpenter54b(SchemeBaseImExAdaptive):
         *,
         algebraist: Algebraist | None = None,
     ) -> None:
-        super().__init__(derivative, workbench, regulator)
+        initialise_imex_support(self, derivative, workbench)
+        initialise_adaptive_runtime(self, regulator)
 
         self.tableau_guard = ResolventTableauGuard("KennedyCarpenter54b", self.tableau)
         if resolvent is None:
@@ -210,9 +227,10 @@ class SchemeKennedyCarpenter54b(SchemeBaseImExAdaptive):
             self.resolvent,
             self.tableau,
         )
+        self.stepper.require_embedded(type(self).__name__)
 
         self.call_pure = self.call_generic
-        self.refresh_call()
+        refresh_adaptive_call(self)
 
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
@@ -220,17 +238,6 @@ class SchemeKennedyCarpenter54b(SchemeBaseImExAdaptive):
     @staticmethod
     def default_regulator() -> Regulator:
         return Regulator(error_exponent=0.2)
-
-    def refresh_call(self) -> None:
-        if not self.adaptive.runtime_bound:
-            self.redirect_call = self.call_bind
-            return
-
-        self.redirect_call = (
-            self.call_monitored
-            if self.adaptive.monitor is not None
-            else self.call_pure
-        )
 
     def __call__(
         self,
@@ -243,42 +250,7 @@ class SchemeKennedyCarpenter54b(SchemeBaseImExAdaptive):
     def bind_algebraist_path(self, algebraist: Algebraist) -> None:
         self.stepper.bind_algebraist(algebraist)
         self.call_pure = self.call_algebraist
-        self.refresh_call()
-
-    def call_bind(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
-        self.assign_executor(executor)
-        return self.redirect_call(interval, state, executor)
-
-    def call_monitored(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
-        accepted_dt = self.call_pure(interval, state, executor)
-
-        report = self.adaptive.report()
-        monitor = self.adaptive.monitor
-        if monitor is not None:
-            monitor(
-                MonitorStep(
-                    scheme=self.short_name,
-                    t_start=report.t_start,
-                    t_end=report.t_end,
-                    proposed_dt=report.proposed_dt,
-                    accepted_dt=report.accepted_dt,
-                    next_dt=report.next_dt,
-                    error_ratio=report.error_ratio,
-                    rejection_count=report.rejection_count,
-                )
-            )
-
-        return accepted_dt
+        refresh_adaptive_call(self)
 
     def call_generic(
         self,
@@ -288,65 +260,54 @@ class SchemeKennedyCarpenter54b(SchemeBaseImExAdaptive):
     ) -> float:
         del executor
 
-        proposal = self.adaptive.propose_step(interval)
+        proposal = self.step_control.propose_step(interval)
         if proposal.remaining <= 0.0:
-            self.adaptive.record_stopped(interval)
+            self.step_control.record_stopped(interval)
             return 0.0
 
         stepper = self.stepper
         workspace = self.workspace
         apply_delta = workspace.apply_delta
-        ratio = self.adaptive.ratio
-        assert ratio is not None
-
+        ratio = self.step_control.ratio
         remaining = proposal.remaining
         dt = proposal.dt
         proposed_dt = proposal.proposed_dt
         t_start = proposal.t_start
         rejection_count = 0
+        scheme_name = self.tableau.short_name or type(self).__name__
 
         while True:
             try:
-                (
-                    delta_high,
-                    error,
-                    delta_high_norm,
-                    error_norm,
-                ) = stepper.step(
+                delta_high, delta_high_norm, error_norm = stepper.step_adaptive(
                     interval,
                     state,
                     dt,
-                    include_norms=True,
                 )
             except ResolventError:
                 rejection_count += 1
-                dt = self.adaptive.rejected_step(
+                dt = self.step_control.rejected_step(
                     dt,
                     1.0,
                     remaining,
-                    self.short_name,
+                    scheme_name,
                 )
                 continue
-
-            assert error is not None
-            assert delta_high_norm is not None
-            assert error_norm is not None
 
             error_ratio = ratio(error_norm, delta_high_norm)
             if error_ratio <= 1.0:
                 break
 
             rejection_count += 1
-            dt = self.adaptive.rejected_step(
+            dt = self.step_control.rejected_step(
                 dt,
                 error_ratio,
                 remaining,
-                self.short_name,
+                scheme_name,
             )
 
         accepted_dt = dt
         remaining_after = remaining - accepted_dt
-        next_dt = self.adaptive.accepted_next_step(
+        next_dt = self.step_control.accepted_next_step(
             accepted_dt,
             error_ratio,
             remaining_after,
@@ -355,7 +316,7 @@ class SchemeKennedyCarpenter54b(SchemeBaseImExAdaptive):
         interval.step = next_dt
         apply_delta(delta_high, state)
 
-        report = self.adaptive.record_accepted(
+        report = self.step_control.record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,
@@ -373,65 +334,54 @@ class SchemeKennedyCarpenter54b(SchemeBaseImExAdaptive):
     ) -> float:
         del executor
 
-        proposal = self.adaptive.propose_step(interval)
+        proposal = self.step_control.propose_step(interval)
         if proposal.remaining <= 0.0:
-            self.adaptive.record_stopped(interval)
+            self.step_control.record_stopped(interval)
             return 0.0
 
         stepper = self.stepper
         workspace = self.workspace
         apply_delta = workspace.apply_delta
-        ratio = self.adaptive.ratio
-        assert ratio is not None
-
+        ratio = self.step_control.ratio
         remaining = proposal.remaining
         dt = proposal.dt
         proposed_dt = proposal.proposed_dt
         t_start = proposal.t_start
         rejection_count = 0
+        scheme_name = self.tableau.short_name or type(self).__name__
 
         while True:
             try:
-                (
-                    delta_high,
-                    error,
-                    delta_high_norm,
-                    error_norm,
-                ) = stepper.step_algebraist(
+                delta_high, delta_high_norm, error_norm = stepper.step_adaptive_algebraist(
                     interval,
                     state,
                     dt,
-                    include_norms=True,
                 )
             except ResolventError:
                 rejection_count += 1
-                dt = self.adaptive.rejected_step(
+                dt = self.step_control.rejected_step(
                     dt,
                     1.0,
                     remaining,
-                    self.short_name,
+                    scheme_name,
                 )
                 continue
-
-            assert error is not None
-            assert delta_high_norm is not None
-            assert error_norm is not None
 
             error_ratio = ratio(error_norm, delta_high_norm)
             if error_ratio <= 1.0:
                 break
 
             rejection_count += 1
-            dt = self.adaptive.rejected_step(
+            dt = self.step_control.rejected_step(
                 dt,
                 error_ratio,
                 remaining,
-                self.short_name,
+                scheme_name,
             )
 
         accepted_dt = dt
         remaining_after = remaining - accepted_dt
-        next_dt = self.adaptive.accepted_next_step(
+        next_dt = self.step_control.accepted_next_step(
             accepted_dt,
             error_ratio,
             remaining_after,
@@ -440,7 +390,7 @@ class SchemeKennedyCarpenter54b(SchemeBaseImExAdaptive):
         interval.step = next_dt
         apply_delta(delta_high, state)
 
-        report = self.adaptive.record_accepted(
+        report = self.step_control.record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,

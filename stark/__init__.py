@@ -9,6 +9,7 @@ from stark.execution.tolerance import SchemeTolerance, Tolerance
 from stark.integrate import Integrator
 from stark.interval import Interval
 from stark.marcher import Marcher
+from stark.monitor import Monitor
 
 __all__ = [
     "AuditError",
@@ -18,6 +19,7 @@ __all__ = [
     "Integrator",
     "Interval",
     "Marcher",
+    "Monitor",
     "Regulator",
     "Safety",
     "SchemeTolerance",

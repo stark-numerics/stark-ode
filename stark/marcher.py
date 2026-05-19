@@ -75,7 +75,7 @@ class Marcher:
         if not callable(assign_monitor):
             raise TypeError("Marcher scheme does not support monitoring.")
         self.monitor = monitor
-        assign_monitor(monitor)
+        assign_monitor(monitor.scheme)
 
     def unassign_monitor(self) -> None:
         unassign_monitor = getattr(self.scheme, "unassign_monitor", None)

@@ -4,9 +4,17 @@ from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
-from stark.monitor import MonitorStep
-from stark.schemes.base import SchemeBaseExplicitAdaptive
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    SchemeStepControl,
+    initialise_adaptive_runtime,
+    initialise_explicit_support,
+    refresh_adaptive_call,
+    unbound_scheme_call,
+    with_adaptive_runtime_methods,
+    with_explicit_workspace_methods,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau
 
 
@@ -47,7 +55,10 @@ RKF45_B_ERR_NZ = (
 )
 
 
-class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
+@with_scheme_display
+@with_adaptive_runtime_methods
+@with_explicit_workspace_methods
+class SchemeFehlberg45:
     """The adaptive Runge-Kutta-Fehlberg embedded 5(4) pair.
 
     Fehlberg's method is one of the classic adaptive explicit Runge-Kutta
@@ -58,7 +69,11 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
     https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
     """
 
+    # Assigned by initialise_adaptive_runtime from stark.schemes.support.
+    step_control: SchemeStepControl
+
     __slots__ = (
+        "step_control",
         "bound_apply_delta",
         "bound_stage_interval",
         "call_pure",
@@ -69,14 +84,19 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
         "combine_stage4",
         "combine_stage5",
         "combine_stage6",
+        "derivative",
         "error",
+        "explicit",
+        "k1",
         "k2",
         "k3",
         "k4",
         "k5",
         "k6",
+        "redirect_call",
         "stage",
         "trial",
+        "workspace",
     )
 
     descriptor = SchemeDescriptor("RKF45", "Fehlberg 4(5)")
@@ -89,10 +109,12 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
         regulator: Regulator | None = None,
         algebraist: Algebraist | None = None,
     ) -> None:
-        super().__init__(derivative, workbench, regulator)
+        initialise_explicit_support(self, derivative, workbench)
+        initialise_adaptive_runtime(self, regulator)
+        self.initialise_buffers()
 
         self.call_pure = self.call_generic
-        self.refresh_call()
+        refresh_adaptive_call(self)
 
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
@@ -105,41 +127,6 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def call_bind(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
-        self.assign_executor(executor)
-        return self.redirect_call(interval, state, executor)
-
-    def call_monitored(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
-        accepted_dt = self.call_pure(interval, state, executor)
-        report = self.adaptive.report()
-        monitor = self.adaptive.monitor
-
-        if monitor is not None:
-            monitor(
-                MonitorStep(
-                    scheme=self.short_name,
-                    t_start=report.t_start,
-                    t_end=report.t_end,
-                    proposed_dt=report.proposed_dt,
-                    accepted_dt=report.accepted_dt,
-                    next_dt=report.next_dt,
-                    error_ratio=report.error_ratio,
-                    rejection_count=report.rejection_count,
-                )
-            )
-
-        return accepted_dt
-
     def initialise_buffers(self) -> None:
         workspace = self.workspace
 
@@ -148,13 +135,13 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
             workspace.allocate_translation_buffers(7)
         )
 
-        self.combine_stage2 = None
-        self.combine_stage3 = None
-        self.combine_stage4 = None
-        self.combine_stage5 = None
-        self.combine_stage6 = None
-        self.combine_solution = None
-        self.combine_error = None
+        self.combine_stage2 = unbound_scheme_call
+        self.combine_stage3 = unbound_scheme_call
+        self.combine_stage4 = unbound_scheme_call
+        self.combine_stage5 = unbound_scheme_call
+        self.combine_stage6 = unbound_scheme_call
+        self.combine_solution = unbound_scheme_call
+        self.combine_error = unbound_scheme_call
 
         self.bound_apply_delta = workspace.apply_delta
         self.bound_stage_interval = workspace.stage_interval
@@ -174,10 +161,10 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
         self.combine_error = error
 
         self.call_pure = self.call_algebraist
-        self.refresh_call()
+        refresh_adaptive_call(self)
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
-        super().set_apply_delta_safety(enabled)
+        self.explicit.set_apply_delta_safety(enabled)
         self.bound_apply_delta = self.workspace.apply_delta
 
     def call_generic(
@@ -188,10 +175,10 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
     ) -> float:
         del executor
 
-        proposal = self.adaptive.propose_step(interval)
+        proposal = self.step_control.propose_step(interval)
 
         if proposal.remaining <= 0.0:
-            self.adaptive.record_stopped(interval)
+            self.step_control.record_stopped(interval)
             return 0.0
 
         workspace = self.workspace
@@ -203,9 +190,7 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
         combine5 = workspace.combine5
         apply_delta = workspace.apply_delta
         stage_interval = workspace.stage_interval
-        ratio = self.adaptive.ratio
-
-        assert ratio is not None
+        ratio = self.step_control.ratio
 
         stage = self.stage
         trial_buffer = self.trial
@@ -316,7 +301,7 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
                 break
 
             rejection_count += 1
-            dt = self.adaptive.rejected_step(
+            dt = self.step_control.rejected_step(
                 dt,
                 error_ratio,
                 remaining,
@@ -325,7 +310,7 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
 
         accepted_dt = dt
         remaining_after = remaining - accepted_dt
-        next_dt = self.adaptive.accepted_next_step(
+        next_dt = self.step_control.accepted_next_step(
             accepted_dt,
             error_ratio,
             remaining_after,
@@ -334,7 +319,7 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
         interval.step = next_dt
         apply_delta(delta_high, state)
 
-        report = self.adaptive.record_accepted(
+        report = self.step_control.record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,
@@ -352,18 +337,16 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
     ) -> float:
         del executor
 
-        proposal = self.adaptive.propose_step(interval)
+        proposal = self.step_control.propose_step(interval)
 
         if proposal.remaining <= 0.0:
-            self.adaptive.record_stopped(interval)
+            self.step_control.record_stopped(interval)
             return 0.0
 
         derivative = self.derivative
         apply_delta = self.bound_apply_delta
         stage_interval = self.bound_stage_interval
-        ratio = self.adaptive.ratio
-
-        assert ratio is not None
+        ratio = self.step_control.ratio
 
         stage = self.stage
         trial_buffer = self.trial
@@ -415,7 +398,7 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
                 break
 
             rejection_count += 1
-            dt = self.adaptive.rejected_step(
+            dt = self.step_control.rejected_step(
                 dt,
                 error_ratio,
                 remaining,
@@ -424,7 +407,7 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
 
         accepted_dt = dt
         remaining_after = remaining - accepted_dt
-        next_dt = self.adaptive.accepted_next_step(
+        next_dt = self.step_control.accepted_next_step(
             accepted_dt,
             error_ratio,
             remaining_after,
@@ -433,7 +416,7 @@ class SchemeFehlberg45(SchemeBaseExplicitAdaptive):
         interval.step = next_dt
         apply_delta(delta_high, state)
 
-        report = self.adaptive.record_accepted(
+        report = self.step_control.record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,

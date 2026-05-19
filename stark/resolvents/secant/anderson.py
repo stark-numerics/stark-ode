@@ -2,24 +2,90 @@ from __future__ import annotations
 
 """Anderson-backed resolvent for one-stage shifted implicit solves."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
-from stark.contracts import AcceleratorLike, Block, Derivative, InnerProduct, Workbench
-from stark.resolvents.base import ResolventBaseSecant
+from stark.auditor import Auditor
+from stark.contracts import AcceleratorLike, Block, Derivative, InnerProduct, IntervalLike, State, Workbench
+from stark.execution.safety import Safety
+from stark.execution.tolerance import Tolerance
+from stark.machinery.stage_solve.workspace import SchemeWorkspace
 from stark.resolvents.descriptor import ResolventDescriptor
 from stark.resolvents.failure import ResolventError
 from stark.resolvents.policy import ResolventPolicy
-from stark.resolvents.support.stage_residual import StageResidual
-from stark.execution.safety import Safety
-from stark.execution.tolerance import Tolerance
+from stark.resolvents.support import (
+    MonitorResolventLike,
+    SecantHistory,
+    check_one_stage_block,
+    initialise_resolvent_runtime,
+    with_resolvent_binding_methods,
+    with_resolvent_display_methods,
+    with_resolvent_monitoring_methods,
+)
+from stark.resolvents.support.stage_residual import ResolventStageResidual
+from stark.resolvents.support.workspace import ResolventWorkspace
+from stark.resolvents.tolerance import ResolventTolerance
 
 
-class ResolventAnderson(ResolventBaseSecant):
-    """Anderson-driven resolvent for one-stage shifted implicit equations."""
+@with_resolvent_display_methods
+@with_resolvent_binding_methods
+@with_resolvent_monitoring_methods
+class ResolventAnderson:
+    """
+    Anderson-accelerated resolvent for one-stage shifted implicit equations.
 
-    __slots__ = ("previous_residual", "fixed_point", "previous_fixed_point", "correction")
+    Anderson acceleration starts from the same fixed-point map as Picard, then
+    uses a rolling history of fixed-point and residual differences to project a
+    better next guess.
+
+    Further reading:
+    https://en.wikipedia.org/wiki/Anderson_acceleration
+    """
+
+    __slots__ = (
+        "_monitor",
+        "alpha",
+        "accelerator",
+        "correction",
+        "depth",
+        "fixed_point",
+        "history",
+        "interval",
+        "policy",
+        "previous_fixed_point",
+        "previous_residual",
+        "redirect_call",
+        "residual",
+        "residual_buffer",
+        "resolvent_workspace",
+        "safety",
+        "scheme_workspace",
+        "size",
+        "state",
+        "tableau",
+        "tolerance",
+    )
 
     descriptor = ResolventDescriptor("Anderson", "Anderson Acceleration")
+
+    if TYPE_CHECKING:
+        def bind(self, interval: IntervalLike, state: State) -> None: ...
+
+        def bind_accelerator(self, accelerator: AcceleratorLike) -> None: ...
+
+        def assign_monitor(self, monitor: MonitorResolventLike) -> None: ...
+
+        def unassign_monitor(self) -> None: ...
+
+        def call_unbound(self, alpha: float, rhs: Block | None, out: Block) -> None: ...
+
+        def record_solve(
+            self,
+            block_size: int,
+            iteration_count: int,
+            error: float,
+            scale: float,
+            converged: bool,
+        ) -> None: ...
 
     def __init__(
         self,
@@ -33,18 +99,46 @@ class ResolventAnderson(ResolventBaseSecant):
         accelerator: AcceleratorLike | None = None,
         tableau: Any | None = None,
     ) -> None:
-        super().initialise_secant(
-            derivative,
+        translation_probe = workbench.allocate_translation()
+        Auditor.require_scheme_inputs(derivative, workbench, translation_probe)
+
+        self.tableau = tableau
+        initialise_resolvent_runtime(self, safety, accelerator)
+
+        self.scheme_workspace = SchemeWorkspace(workbench, translation_probe)
+        self.tolerance = tolerance if tolerance is not None else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
+        self.policy = policy if policy is not None else ResolventPolicy()
+        self.depth = depth
+        self.resolvent_workspace = ResolventWorkspace(
             workbench,
-            inner_product,
-            residual_factory=lambda workspace: StageResidual("ResolventAnderson", derivative, workspace),
-            tolerance=tolerance,
-            policy=policy,
-            depth=depth,
-            safety=safety,
-            accelerator=accelerator,
-            tableau=tableau,
+            translation_probe,
+            self.safety,
+            inner_product=inner_product,
+            accelerator=self.accelerator,
         )
+        self.history = SecantHistory(self.resolvent_workspace, depth, accelerator=self.accelerator)
+        self.residual = ResolventStageResidual("ResolventAnderson", derivative, self.scheme_workspace)
+        self.residual_buffer = None
+        self.previous_residual = None
+        self.fixed_point = None
+        self.previous_fixed_point = None
+        self.correction = None
+        self.size = -1
+
+    def call_checked(self, alpha: float, rhs: Block | None, out: Block) -> None:
+        check_one_stage_block("out", out)
+        if rhs is not None:
+            check_one_stage_block("rhs", rhs)
+        self.call_unchecked(alpha, rhs, out)
+
+    def call_unchecked(self, alpha: float, rhs: Block | None, out: Block) -> None:
+        interval = cast(IntervalLike, self.interval)
+        state = cast(State, self.state)
+
+        self.alpha = alpha
+        self.residual.configure(interval, state, alpha, rhs=rhs)
+        self.resolvent_workspace.zero_block(out)
+        self.resolve(out)
 
     def prepare(self, size: int) -> None:
         if self.size == size:
@@ -62,16 +156,11 @@ class ResolventAnderson(ResolventBaseSecant):
             raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
 
         self.prepare(len(block))
-        residual_buffer = self.residual_buffer
-        previous_residual = self.previous_residual
-        fixed_point = self.fixed_point
-        previous_fixed_point = self.previous_fixed_point
-        correction = self.correction
-        assert residual_buffer is not None
-        assert previous_residual is not None
-        assert fixed_point is not None
-        assert previous_fixed_point is not None
-        assert correction is not None
+        residual_buffer = cast(Block, self.residual_buffer)
+        previous_residual = cast(Block, self.previous_residual)
+        fixed_point = cast(Block, self.fixed_point)
+        previous_fixed_point = cast(Block, self.previous_fixed_point)
+        correction = cast(Block, self.correction)
 
         history = self.history
         workspace = history.workspace
@@ -79,12 +168,15 @@ class ResolventAnderson(ResolventBaseSecant):
         copy_block = workspace.copy_block
         history.clear()
         have_previous = False
+        block_size = len(block)
+        iteration_count = 0
 
         for _ in range(self.policy.max_iterations):
-            self.residual(residual_buffer, block)
+            self.residual(block, residual_buffer)
             error = residual_buffer.norm()
             scale = block.norm()
             if self.tolerance.accepts(error, scale):
+                self.record_solve(block_size, iteration_count, error, scale, True)
                 return
 
             combine2_block(1.0, block, -1.0, residual_buffer, fixed_point)
@@ -101,28 +193,19 @@ class ResolventAnderson(ResolventBaseSecant):
             copy_block(previous_fixed_point, fixed_point)
             copy_block(previous_residual, residual_buffer)
             have_previous = True
+            iteration_count += 1
 
-        self.residual(residual_buffer, block)
+        self.residual(block, residual_buffer)
         error = residual_buffer.norm()
         scale = block.norm()
         if self.tolerance.accepts(error, scale):
+            self.record_solve(block_size, iteration_count, error, scale, True)
             return
+        self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
-            f"{self.short_name} failed to resolve the residual within "
+            f"{type(self).__name__} failed to resolve the residual within "
             f"{self.policy.max_iterations} iterations (error={error:g})."
         )
 
 
 __all__ = ["ResolventAnderson"]
-
-
-
-
-
-
-
-
-
-
-
-

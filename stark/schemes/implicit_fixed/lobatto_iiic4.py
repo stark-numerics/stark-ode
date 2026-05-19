@@ -4,8 +4,13 @@ from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.machinery.stage_solve.workers import CoupledCollocationResolventStep
-from stark.schemes.base import SchemeBaseImplicitFixed
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    refresh_fixed_step_call,
+    with_fixed_step_monitoring,
+    with_implicit_stepper_methods,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau
 
 
@@ -23,7 +28,10 @@ LOBATTO_IIIC4_TABLEAU = ButcherTableau(
 )
 
 
-class SchemeLobattoIIIC4(SchemeBaseImplicitFixed):
+@with_scheme_display
+@with_fixed_step_monitoring
+@with_implicit_stepper_methods
+class SchemeLobattoIIIC4:
     """The three-stage fourth-order Lobatto IIIC collocation method.
 
     Lobatto collocation methods include both endpoints as stage nodes. With
@@ -36,6 +44,7 @@ class SchemeLobattoIIIC4(SchemeBaseImplicitFixed):
     """
 
     __slots__ = (
+        "_monitor",
         "call_pure",
         "redirect_call",
         "stepper",
@@ -53,6 +62,7 @@ class SchemeLobattoIIIC4(SchemeBaseImplicitFixed):
         algebraist: Algebraist | None = None,
     ) -> None:
         del algebraist
+        self._monitor = None
         self.stepper = CoupledCollocationResolventStep(
             "Lobatto IIIC 4",
             self.tableau,
@@ -63,7 +73,7 @@ class SchemeLobattoIIIC4(SchemeBaseImplicitFixed):
         )
 
         self.call_pure = self.call_generic
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
     def __call__(
         self,

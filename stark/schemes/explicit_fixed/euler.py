@@ -3,8 +3,15 @@ from __future__ import annotations
 from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.execution.executor import Executor
-from stark.schemes.base import SchemeBaseExplicitFixed
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    with_explicit_workspace_methods,
+    with_fixed_step_monitoring,
+    initialise_explicit_support,
+    refresh_fixed_step_call,
+    unbound_scheme_call,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau
 
 
@@ -18,7 +25,10 @@ EULER_TABLEAU = ButcherTableau(
 EULER_B = EULER_TABLEAU.b
 
 
-class SchemeEuler(SchemeBaseExplicitFixed):
+@with_scheme_display
+@with_fixed_step_monitoring
+@with_explicit_workspace_methods
+class SchemeEuler:
     """Forward Euler, the basic first-order explicit Runge-Kutta method.
 
     This is the simplest one-step method in the library: evaluate the
@@ -30,10 +40,15 @@ class SchemeEuler(SchemeBaseExplicitFixed):
     """
 
     __slots__ = (
+        "_monitor",
         "advance_state",
-        "delta",
         "call_pure",
+        "delta",
+        "derivative",
+        "explicit",
+        "k1",
         "redirect_call",
+        "workspace",
     )
 
     descriptor = SchemeDescriptor("Euler", "Forward Euler")
@@ -45,17 +60,16 @@ class SchemeEuler(SchemeBaseExplicitFixed):
         workbench: Workbench,
         algebraist: Algebraist | None = None,
     ) -> None:
-        self.advance_state = None
+        self.advance_state = unbound_scheme_call
+        self._monitor = None
         self.call_pure = self.call_generic
         self.redirect_call = self.call_pure
-
-        super().__init__(derivative, workbench)
-
-        self.call_pure = self.call_generic
-        self.redirect_call = self.call_pure
+        initialise_explicit_support(self, derivative, workbench)
+        self.delta = self.workspace.allocate_translation()
+        refresh_fixed_step_call(self)
 
         if algebraist is not None:
-            self.bind_algebraist_path(algebraist)
+            self.use_algebraist(algebraist)
 
     def __call__(
         self,
@@ -65,14 +79,11 @@ class SchemeEuler(SchemeBaseExplicitFixed):
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def initialise_buffers(self) -> None:
-        self.delta = self.workspace.allocate_translation()
-
-    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+    def use_algebraist(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_explicit_scheme(self.tableau)
         self.advance_state = calls.solution_state_call
         self.call_pure = self.call_algebraist
-        self.redirect_call = self.call_pure
+        refresh_fixed_step_call(self)
 
     def call_generic(
         self,

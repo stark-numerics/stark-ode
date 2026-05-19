@@ -7,11 +7,18 @@ from stark.algebraist import Algebraist, AlgebraistImplicitCombination
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
-from stark.monitor import MonitorStep
 from stark.resolvents.failure import ResolventError
 from stark.machinery.stage_solve.workers import SequentialDIRKResolventStep
-from stark.schemes.base import SchemeBaseImplicitAdaptive
 from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support import (
+    SchemeStepControl,
+    initialise_adaptive_runtime,
+    refresh_adaptive_call,
+    unbound_scheme_call,
+    with_adaptive_runtime_methods,
+    with_implicit_stepper_methods,
+    with_scheme_display,
+)
 from stark.schemes.tableau import ButcherTableau
 
 
@@ -82,7 +89,10 @@ _STAGE_INCREMENT_WEIGHTS_ERROR = tuple(
 )
 
 
-class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
+@with_scheme_display
+@with_adaptive_runtime_methods
+@with_implicit_stepper_methods
+class SchemeSDIRK21:
     """Adaptive ESDIRK 2(1) with sequential implicit stage solves.
 
     This is a singly diagonally implicit Runge-Kutta pair. The first stage is
@@ -100,7 +110,11 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
     `SequentialDIRKResolventStep`, not as raw tableau entries.
     """
 
+    # Assigned by initialise_adaptive_runtime from stark.schemes.support.
+    step_control: SchemeStepControl
+
     __slots__ = (
+        "step_control",
         "call_pure",
         "delta1",
         "delta2",
@@ -112,6 +126,7 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
         "known2_call",
         "known3_call",
         "known3",
+        "redirect_call",
         "stage1_rate",
         "stepper",
         "trial",
@@ -129,10 +144,10 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
         *,
         algebraist: Algebraist | None = None,
     ) -> None:
-        self.error_delta_call = None
-        self.high_delta_call = None
-        self.known2_call = None
-        self.known3_call = None
+        self.error_delta_call = unbound_scheme_call
+        self.high_delta_call = unbound_scheme_call
+        self.known2_call = unbound_scheme_call
+        self.known3_call = unbound_scheme_call
 
         self.derivative = BoundDerivative(derivative)
         self.stepper = SequentialDIRKResolventStep(
@@ -155,9 +170,9 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
             self.known3,
         ) = workspace.allocate_translation_buffers(6)
 
-        self.initialise_runtime(regulator)
+        initialise_adaptive_runtime(self, regulator)
         self.call_pure = self.call_generic
-        self.refresh_call()
+        refresh_adaptive_call(self)
 
         if algebraist is not None:
             self.bind_algebraist_path(algebraist)
@@ -173,41 +188,6 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
         executor: Executor,
     ) -> float:
         return self.redirect_call(interval, state, executor)
-
-    def call_bind(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
-        self.assign_executor(executor)
-        return self.redirect_call(interval, state, executor)
-
-    def call_monitored(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
-        accepted_dt = self.call_pure(interval, state, executor)
-        report = self.adaptive.report()
-        monitor = self.adaptive.monitor
-
-        if monitor is not None:
-            monitor(
-                MonitorStep(
-                    scheme=self.short_name,
-                    t_start=report.t_start,
-                    t_end=report.t_end,
-                    proposed_dt=report.proposed_dt,
-                    accepted_dt=report.accepted_dt,
-                    next_dt=report.next_dt,
-                    error_ratio=report.error_ratio,
-                    rejection_count=report.rejection_count,
-                )
-            )
-
-        return accepted_dt
 
     def bind_algebraist_path(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_implicit_adaptive_scheme(
@@ -238,7 +218,7 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
         self.high_delta_call = calls.require_high_delta_call(scheme_name)
         self.error_delta_call = calls.require_error_delta_call(scheme_name)
         self.call_pure = self.call_algebraist
-        self.refresh_call()
+        refresh_adaptive_call(self)
 
     def call_generic(
         self,
@@ -248,10 +228,10 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
     ) -> float:
         del executor
 
-        proposal = self.adaptive.propose_step(interval)
+        proposal = self.step_control.propose_step(interval)
 
         if proposal.remaining <= 0.0:
-            self.adaptive.record_stopped(interval)
+            self.step_control.record_stopped(interval)
             return 0.0
 
         stepper = self.stepper
@@ -261,15 +241,14 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
         combine2 = workspace.combine2
         combine3 = workspace.combine3
         apply_delta = workspace.apply_delta
-        ratio = self.adaptive.ratio
-
-        assert ratio is not None
+        ratio = self.step_control.ratio
 
         remaining = proposal.remaining
         dt = proposal.dt
         proposed_dt = proposal.proposed_dt
         t_start = proposal.t_start
         rejection_count = 0
+        scheme_name = self.tableau.short_name or type(self).__name__
 
         while True:
             derivative(interval, state, self.stage1_rate)
@@ -312,11 +291,11 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
 
             except ResolventError:
                 rejection_count += 1
-                dt = self.adaptive.rejected_step(
+                dt = self.step_control.rejected_step(
                     dt,
                     1.0,
                     remaining,
-                    self.short_name,
+                    scheme_name,
                 )
                 continue
 
@@ -346,16 +325,16 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
                 break
 
             rejection_count += 1
-            dt = self.adaptive.rejected_step(
+            dt = self.step_control.rejected_step(
                 dt,
                 error_ratio,
                 remaining,
-                self.short_name,
+                scheme_name,
             )
 
         accepted_dt = dt
         remaining_after = remaining - accepted_dt
-        next_dt = self.adaptive.accepted_next_step(
+        next_dt = self.step_control.accepted_next_step(
             accepted_dt,
             error_ratio,
             remaining_after,
@@ -364,7 +343,7 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
         interval.step = next_dt
         apply_delta(delta_high, state)
 
-        report = self.adaptive.record_accepted(
+        report = self.step_control.record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,
@@ -382,29 +361,28 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
     ) -> float:
         del executor
 
-        proposal = self.adaptive.propose_step(interval)
+        proposal = self.step_control.propose_step(interval)
 
         if proposal.remaining <= 0.0:
-            self.adaptive.record_stopped(interval)
+            self.step_control.record_stopped(interval)
             return 0.0
 
         stepper = self.stepper
         workspace = stepper.workspace
         derivative = self.derivative
         apply_delta = workspace.apply_delta
-        ratio = self.adaptive.ratio
+        ratio = self.step_control.ratio
         known2_call = self.known2_call
         known3_call = self.known3_call
         high_delta_call = self.high_delta_call
         error_delta_call = self.error_delta_call
-
-        assert ratio is not None
 
         remaining = proposal.remaining
         dt = proposal.dt
         proposed_dt = proposal.proposed_dt
         t_start = proposal.t_start
         rejection_count = 0
+        scheme_name = self.tableau.short_name or type(self).__name__
 
         while True:
             derivative(interval, state, self.stage1_rate)
@@ -445,11 +423,11 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
 
             except ResolventError:
                 rejection_count += 1
-                dt = self.adaptive.rejected_step(
+                dt = self.step_control.rejected_step(
                     dt,
                     1.0,
                     remaining,
-                    self.short_name,
+                    scheme_name,
                 )
                 continue
 
@@ -473,16 +451,16 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
                 break
 
             rejection_count += 1
-            dt = self.adaptive.rejected_step(
+            dt = self.step_control.rejected_step(
                 dt,
                 error_ratio,
                 remaining,
-                self.short_name,
+                scheme_name,
             )
 
         accepted_dt = dt
         remaining_after = remaining - accepted_dt
-        next_dt = self.adaptive.accepted_next_step(
+        next_dt = self.step_control.accepted_next_step(
             accepted_dt,
             error_ratio,
             remaining_after,
@@ -491,7 +469,7 @@ class SchemeSDIRK21(SchemeBaseImplicitAdaptive):
         interval.step = next_dt
         apply_delta(delta_high, state)
 
-        report = self.adaptive.record_accepted(
+        report = self.step_control.record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,

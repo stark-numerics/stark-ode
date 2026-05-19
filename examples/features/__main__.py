@@ -8,7 +8,7 @@ EXAMPLES = (
     "custom_scheme_fixed_explicit",
     "structured_state_minimal",
     "compare_two_schemes",
-    "monitor_adaptive",
+    "monitor_scheme_steps",
 )
 
 
@@ -25,4 +25,3 @@ for example in EXAMPLES:
 
 print()
 print("All feature examples completed.")
-

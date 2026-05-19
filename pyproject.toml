@@ -42,14 +42,6 @@ examples = [
     "matplotlib>=3.8",
     "numba>=0.60",
 ]
-notebooks = [
-    "ipykernel>=6",
-    "jax>=0.4",
-    "jupyterlab>=4",
-    "matplotlib>=3.8",
-    "nbformat>=5",
-    "numba>=0.60",
-]
 comparison = [
     "diffrax>=0.6",
     "jax>=0.4",
