@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from stark import Executor, Interval, Marcher
-from stark.comparison import Comparator, ComparatorEntry, ComparatorProblem
+from stark.comparison import Comparator, ComparisonEntry, ComparisonProblem
 from stark.interface import StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp, SchemeDormandPrince
 
@@ -35,7 +35,7 @@ def difference(left: StarkVector, right: StarkVector) -> float:
 
 
 executor = Executor()
-problem = ComparatorProblem(
+problem = ComparisonProblem(
     name="monitored oscillator",
     build_state=build_state,
     build_interval=build_interval,
@@ -46,11 +46,11 @@ problem = ComparatorProblem(
     ),
 )
 entries = [
-    ComparatorEntry(
+    ComparisonEntry(
         "Cash-Karp",
         lambda: Marcher(SchemeCashKarp(template.derivative, template.workbench), executor),
     ),
-    ComparatorEntry(
+    ComparisonEntry(
         "Dormand-Prince",
         lambda: Marcher(SchemeDormandPrince(template.derivative, template.workbench), executor),
     ),

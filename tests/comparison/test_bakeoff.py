@@ -1,7 +1,7 @@
 import pytest
 
 from stark import Executor, Interval, Marcher, Tolerance
-from stark.comparison import Comparator, ComparatorEntry, ComparatorProblem
+from stark.comparison import Comparator, ComparisonEntry, ComparisonProblem
 from stark.schemes import SchemeCashKarp, SchemeEuler
 
 
@@ -88,7 +88,7 @@ def unit_rhs(interval: Interval, state: ScalarState, out: ScalarTranslation) -> 
 
 
 def test_bakeoff_reports_pairwise_differences() -> None:
-    problem = ComparatorProblem(
+    problem = ComparisonProblem(
         name="Dummy",
         build_state=lambda: {"value": 0.0},
         build_interval=lambda: DummyInterval(0.0, 0.25, 1.0),
@@ -96,8 +96,8 @@ def test_bakeoff_reports_pairwise_differences() -> None:
         diagnostics=lambda state: {"value": state["value"]},
     )
     entries = [
-        ComparatorEntry("baseline", lambda: WeightedMarcher(1.0), metadata={"variant": "baseline", "accelerator": "none"}),
-        ComparatorEntry("slow", lambda: WeightedMarcher(0.5), metadata={"variant": "slow", "accelerator": "none"}),
+        ComparisonEntry("baseline", lambda: WeightedMarcher(1.0), metadata={"variant": "baseline", "accelerator": "none"}),
+        ComparisonEntry("slow", lambda: WeightedMarcher(0.5), metadata={"variant": "slow", "accelerator": "none"}),
     ]
 
     report = Comparator(problem, entries, repeats=2)()
@@ -121,15 +121,15 @@ def test_bakeoff_reports_pairwise_differences() -> None:
 
 
 def test_bakeoff_accepts_direct_marchers() -> None:
-    problem = ComparatorProblem(
+    problem = ComparisonProblem(
         name="Dummy",
         build_state=lambda: {"value": 0.0},
         build_interval=lambda: DummyInterval(0.0, 0.25, 1.0),
         difference=lambda left, right: abs(left["value"] - right["value"]),
     )
     entries = [
-        ComparatorEntry("baseline", WeightedMarcher(1.0)),
-        ComparatorEntry("slow", lambda: WeightedMarcher(0.5)),
+        ComparisonEntry("baseline", WeightedMarcher(1.0)),
+        ComparisonEntry("slow", lambda: WeightedMarcher(0.5)),
     ]
 
     report = Comparator(problem, entries, repeats=1)()
@@ -139,7 +139,7 @@ def test_bakeoff_accepts_direct_marchers() -> None:
 
 
 def test_bakeoff_reports_pairwise_trajectory_differences() -> None:
-    problem = ComparatorProblem(
+    problem = ComparisonProblem(
         name="Dummy",
         build_state=lambda: {"value": 0.0},
         build_interval=lambda: DummyInterval(0.0, 0.25, 1.0),
@@ -147,8 +147,8 @@ def test_bakeoff_reports_pairwise_trajectory_differences() -> None:
         checkpoints=2,
     )
     entries = [
-        ComparatorEntry("baseline", lambda: WeightedMarcher(1.0), metadata={"variant": "baseline"}),
-        ComparatorEntry("slow", lambda: WeightedMarcher(0.5), metadata={"variant": "slow"}),
+        ComparisonEntry("baseline", lambda: WeightedMarcher(1.0), metadata={"variant": "baseline"}),
+        ComparisonEntry("slow", lambda: WeightedMarcher(0.5), metadata={"variant": "slow"}),
     ]
 
     report = Comparator(problem, entries, repeats=1)()
@@ -162,15 +162,15 @@ def test_bakeoff_reports_pairwise_trajectory_differences() -> None:
 
 
 def test_bakeoff_skips_diagnostics_table_when_problem_has_none() -> None:
-    problem = ComparatorProblem(
+    problem = ComparisonProblem(
         name="Dummy",
         build_state=lambda: {"value": 0.0},
         build_interval=lambda: DummyInterval(0.0, 0.25, 1.0),
         difference=lambda left, right: abs(left["value"] - right["value"]),
     )
     entries = [
-        ComparatorEntry("baseline", lambda: WeightedMarcher(1.0)),
-        ComparatorEntry("slow", lambda: WeightedMarcher(0.5)),
+        ComparisonEntry("baseline", lambda: WeightedMarcher(1.0)),
+        ComparisonEntry("slow", lambda: WeightedMarcher(0.5)),
     ]
 
     report = Comparator(problem, entries, repeats=1)()
@@ -179,15 +179,15 @@ def test_bakeoff_skips_diagnostics_table_when_problem_has_none() -> None:
 
 
 def test_bakeoff_uses_monitored_observation_without_monitoring_timed_repeats() -> None:
-    problem = ComparatorProblem(
+    problem = ComparisonProblem(
         name="Dummy",
         build_state=lambda: {"value": 0.0},
         build_interval=lambda: DummyInterval(0.0, 0.25, 1.0),
         difference=lambda left, right: abs(left["value"] - right["value"]),
     )
     entries = [
-        ComparatorEntry("baseline", lambda: MonitorableWeightedMarcher(1.0)),
-        ComparatorEntry("slow", lambda: WeightedMarcher(0.5)),
+        ComparisonEntry("baseline", lambda: MonitorableWeightedMarcher(1.0)),
+        ComparisonEntry("slow", lambda: WeightedMarcher(0.5)),
     ]
 
     report = Comparator(problem, entries, repeats=2)()
@@ -207,18 +207,18 @@ def test_bakeoff_uses_monitored_observation_without_monitoring_timed_repeats() -
 def test_bakeoff_monitors_built_in_fixed_and_adaptive_schemes() -> None:
     executor = Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
     workbench = ScalarWorkbench()
-    problem = ComparatorProblem(
+    problem = ComparisonProblem(
         name="Built-in scalar",
         build_state=lambda: ScalarState(),
         build_interval=lambda: Interval(present=0.0, step=0.1, stop=0.2),
         difference=lambda left, right: abs(left.value - right.value),
     )
     entries = [
-        ComparatorEntry(
+        ComparisonEntry(
             "Euler",
             lambda: Marcher(SchemeEuler(unit_rhs, workbench), executor),
         ),
-        ComparatorEntry(
+        ComparisonEntry(
             "Cash-Karp",
             lambda: Marcher(SchemeCashKarp(unit_rhs, workbench), executor),
         ),
@@ -236,7 +236,7 @@ def test_bakeoff_monitors_built_in_fixed_and_adaptive_schemes() -> None:
 
 
 def test_bakeoff_requires_two_entries() -> None:
-    problem = ComparatorProblem(
+    problem = ComparisonProblem(
         name="Dummy",
         build_state=lambda: {"value": 0.0},
         build_interval=lambda: DummyInterval(0.0, 0.25, 1.0),
@@ -244,7 +244,7 @@ def test_bakeoff_requires_two_entries() -> None:
     )
 
     try:
-        Comparator(problem, [ComparatorEntry("only", lambda: WeightedMarcher(1.0))])
+        Comparator(problem, [ComparisonEntry("only", lambda: WeightedMarcher(1.0))])
     except ValueError as exc:
         assert "at least two entries" in str(exc)
     else:  # pragma: no cover - defensive failure branch

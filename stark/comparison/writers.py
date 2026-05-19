@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from stark.comparison.models import (
-    ComparatorReport,
+    ComparisonReport,
     Comparison,
     ComparisonDiagnostics,
     ComparisonHotspot,
@@ -139,13 +139,13 @@ class ComparisonResultWriter:
         return "\n".join(lines)
 
 
-class ComparatorReportWriter:
+class ComparisonReportWriter:
     __slots__ = ("table",)
 
     def __init__(self) -> None:
         self.table = ComparisonTableWriter()
 
-    def __call__(self, report: ComparatorReport) -> str:
+    def __call__(self, report: ComparisonReport) -> str:
         lines = [f"{report.problem_name} comparison", ""]
         if report.description:
             lines.extend([report.description, ""])
@@ -181,7 +181,7 @@ class ComparatorReportWriter:
                 [
                     "",
                     "Configuration Table",
-                    "Rows show entry metadata supplied through ComparatorEntry.metadata.",
+                    "Rows show entry metadata supplied through ComparisonEntry.metadata.",
                     self._render_metadata_matrix(report, metadata_names),
                 ]
             )
@@ -191,7 +191,7 @@ class ComparatorReportWriter:
                 [
                     "",
                     "Diagnostics Table",
-                    "Rows show problem-supplied final-state diagnostics from ComparatorProblem.diagnostics(...).",
+                    "Rows show problem-supplied final-state diagnostics from ComparisonProblem.diagnostics(...).",
                     self._render_diagnostics_matrix(report),
                 ]
             )
@@ -276,14 +276,14 @@ class ComparatorReportWriter:
             lines.extend(["", comparison.note])
         return "\n".join(lines)
 
-    def _render_metadata_matrix(self, report: ComparatorReport, metadata_names: list[str]) -> str:
+    def _render_metadata_matrix(self, report: ComparisonReport, metadata_names: list[str]) -> str:
         headers = ("entry", *metadata_names)
         rows = []
         for result in report.results:
             rows.append((result.name, *[self._format_diagnostic(result.metadata.get(name, "")) for name in metadata_names]))
         return self.table(headers, rows)
 
-    def _render_diagnostics_matrix(self, report: ComparatorReport) -> str:
+    def _render_diagnostics_matrix(self, report: ComparisonReport) -> str:
         names = self._diagnostic_names(report)
         headers = ("entry", "steps", *names)
         rows = []
@@ -386,7 +386,7 @@ class ComparatorReportWriter:
         )
 
     @staticmethod
-    def _diagnostic_names(report: ComparatorReport) -> list[str]:
+    def _diagnostic_names(report: ComparisonReport) -> list[str]:
         names: list[str] = []
         for result in report.results:
             for name in result.diagnostics.names():
@@ -395,7 +395,7 @@ class ComparatorReportWriter:
         return names
 
     @staticmethod
-    def _metadata_names(report: ComparatorReport) -> list[str]:
+    def _metadata_names(report: ComparisonReport) -> list[str]:
         names: list[str] = []
         for result in report.results:
             for name in result.metadata:
@@ -429,7 +429,7 @@ class ComparatorReportWriter:
 
 
 __all__ = [
-    "ComparatorReportWriter",
+    "ComparisonReportWriter",
     "ComparisonDiagnosticsWriter",
     "ComparisonProfileWriter",
     "ComparisonResultWriter",

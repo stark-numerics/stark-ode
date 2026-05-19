@@ -17,7 +17,7 @@ from __future__ import annotations
 #     python -m examples.case_studies.allen_cahn.lesson_02_compare_explicit
 
 from stark import Executor, Marcher
-from stark.comparison import Comparator, ComparatorEntry, ComparatorProblem
+from stark.comparison import Comparator, ComparisonEntry, ComparisonProblem
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp, SchemeDormandPrince
 
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     # and profiling pass. The carrier prepared by `StarkIVP` knows how to treat
     # these NumPy arrays as STARK vectors.
 
-    problem = ComparatorProblem(
+    problem = ComparisonProblem(
         name="Allen-Cahn explicit",
         build_state=lambda: StarkVector(initial_profile(geometry), carrier),
         build_interval=make_interval,
@@ -72,11 +72,11 @@ if __name__ == "__main__":
     # for one sequential comparison run.
 
     entries = [
-        ComparatorEntry(
+        ComparisonEntry(
             "Cash-Karp",
             Marcher(SchemeCashKarp(derivative, workbench), executor),
         ),
-        ComparatorEntry(
+        ComparisonEntry(
             "Dormand-Prince",
             Marcher(SchemeDormandPrince(derivative, workbench), executor),
         ),

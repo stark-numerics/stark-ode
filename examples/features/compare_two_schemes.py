@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from stark import Executor, Interval, Marcher
-from stark.comparison import Comparator, ComparatorEntry, ComparatorProblem
+from stark.comparison import Comparator, ComparisonEntry, ComparisonProblem
 from stark.interface import StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp, SchemeDormandPrince
 
@@ -40,7 +40,7 @@ def diagnostics(state: StarkVector) -> dict[str, float]:
 
 
 executor = Executor()
-problem = ComparatorProblem(
+problem = ComparisonProblem(
     name="harmonic oscillator",
     build_state=build_state,
     build_interval=build_interval,
@@ -48,11 +48,11 @@ problem = ComparatorProblem(
     diagnostics=diagnostics,
 )
 entries = [
-    ComparatorEntry(
+    ComparisonEntry(
         "Cash-Karp",
         Marcher(SchemeCashKarp(template.derivative, template.workbench), executor),
     ),
-    ComparatorEntry(
+    ComparisonEntry(
         "Dormand-Prince",
         Marcher(SchemeDormandPrince(template.derivative, template.workbench), executor),
     ),

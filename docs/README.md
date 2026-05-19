@@ -137,8 +137,8 @@ while the user only observes chosen output times.
 
 It takes:
 
-- one `ComparatorProblem`
-- two or more `ComparatorEntry` objects
+- one `ComparisonProblem`
+- two or more `ComparisonEntry` objects
 
 and reports:
 
@@ -152,7 +152,7 @@ and reports:
 This is meant for A/B testing schemes on one problem, not for replacing the
 problem-specific comparison reports under `examples/comparison/`.
 
-The returned `ComparatorReport` is also structured data, not just a printable
+The returned `ComparisonReport` is also structured data, not just a printable
 report. Advanced users can inspect:
 
 - `report.results_by_name()`
@@ -163,7 +163,7 @@ report. Advanced users can inspect:
 - `report.profiles_by_name()`
 - `report.as_dict()`
 
-`ComparatorEntry` also accepts an optional `profile_category(filename, lineno, function_name)`
+`ComparisonEntry` also accepts an optional `profile_category(filename, lineno, function_name)`
 hook so a custom entry can teach the comparator how to bucket its own profiled
 code into `problem`, `scheme`, `resolvent`, `inverter`, `framework`, or `other`.
 

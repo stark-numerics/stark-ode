@@ -21,7 +21,7 @@ from __future__ import annotations
 #     python -m examples.case_studies.allen_cahn.lesson_06_compare_methods
 
 from stark import Executor, Marcher
-from stark.comparison import Comparator, ComparatorEntry, ComparatorProblem
+from stark.comparison import Comparator, ComparisonEntry, ComparisonProblem
 from stark.contracts import ImExDerivative
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.inverters import InverterBiCGStab, InverterPolicy, InverterTolerance
@@ -117,7 +117,7 @@ if __name__ == "__main__":
         resolvent=spectral_resolvent,
     )
 
-    problem = ComparatorProblem(
+    problem = ComparisonProblem(
         name="Allen-Cahn method comparison",
         build_state=lambda: StarkVector(initial_profile(geometry), carrier),
         build_interval=make_interval,
@@ -126,9 +126,9 @@ if __name__ == "__main__":
     )
 
     entries = [
-        ComparatorEntry("Cash-Karp explicit", Marcher(explicit_scheme, executor)),
-        ComparatorEntry("SDIRK21 Newton", Marcher(implicit_scheme, executor)),
-        ComparatorEntry("KC43-7 IMEX spectral", Marcher(imex_scheme, executor)),
+        ComparisonEntry("Cash-Karp explicit", Marcher(explicit_scheme, executor)),
+        ComparisonEntry("SDIRK21 Newton", Marcher(implicit_scheme, executor)),
+        ComparisonEntry("KC43-7 IMEX spectral", Marcher(imex_scheme, executor)),
     ]
 
     report = Comparator(problem, entries, repeats=3)()

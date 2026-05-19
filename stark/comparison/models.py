@@ -41,7 +41,7 @@ def _accepts_zero_arguments(candidate: Any) -> bool:
 
 
 @dataclass(slots=True)
-class ComparatorProblem:
+class ComparisonProblem:
     name: str
     build_state: StateBuilder
     build_interval: IntervalBuilder
@@ -53,7 +53,7 @@ class ComparatorProblem:
 
 
 @dataclass(slots=True, init=False)
-class ComparatorEntry:
+class ComparisonEntry:
     name: str
     build_marcher: MarcherBuilder = field(repr=False)
     build_integrator: Callable[[], Any] | None = None
@@ -275,7 +275,7 @@ class ComparisonResult:
 
 
 @dataclass(slots=True)
-class ComparatorReport:
+class ComparisonReport:
     problem_name: str
     repeats: int
     description: str | None
@@ -288,9 +288,9 @@ class ComparatorReport:
         return self.render()
 
     def render(self) -> str:
-        from stark.comparison.writers import ComparatorReportWriter
+        from stark.comparison.writers import ComparisonReportWriter
 
-        return ComparatorReportWriter()(self)
+        return ComparisonReportWriter()(self)
 
     def results_by_name(self) -> dict[str, ComparisonResult]:
         return {result.name: result for result in self.results}
@@ -335,9 +335,9 @@ class ComparatorReport:
 
 
 __all__ = [
-    "ComparatorEntry",
-    "ComparatorProblem",
-    "ComparatorReport",
+    "ComparisonEntry",
+    "ComparisonProblem",
+    "ComparisonReport",
     "Comparison",
     "ComparisonBreakdown",
     "ComparisonDiagnostics",

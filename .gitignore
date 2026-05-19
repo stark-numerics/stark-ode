@@ -31,10 +31,11 @@ examples/local/
 Thumbs.db
 .DS_Store
 
-# Local development notes
+# Local development
 TODO.md
 git_cribsheet.md
 naming_style.md
+devtools/
 
 # Benchmarks results
 benchmarks/schemes/results/

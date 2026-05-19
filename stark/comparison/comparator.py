@@ -5,13 +5,13 @@ from math import sqrt
 from typing import Any
 
 from stark.comparison.models import (
-    ComparatorEntry,
-    ComparatorProblem,
-    ComparatorReport,
+    ComparisonEntry,
+    ComparisonProblem,
+    ComparisonReport,
     Comparison,
     ComparisonResult,
 )
-from stark.comparison.runtime import BakedEntry, Comparer
+from stark.comparison.runtime import ComparisonEntryBaked, Comparer
 
 
 class Comparator:
@@ -19,8 +19,8 @@ class Comparator:
 
     def __init__(
         self,
-        problem: ComparatorProblem,
-        entries: Iterable[ComparatorEntry],
+        problem: ComparisonProblem,
+        entries: Iterable[ComparisonEntry],
         repeats: int = 5,
         prewarm_builders: bool = True,
         announce: Any | None = None,
@@ -48,7 +48,7 @@ class Comparator:
     def __str__(self) -> str:
         return f"Comparator {self.problem.name} with {len(self.entries)} entries"
 
-    def __call__(self) -> ComparatorReport:
+    def __call__(self) -> ComparisonReport:
         if self.prewarm_builders:
             self._prewarm_builders()
         baked = [self.comparer(entry) for entry in self.entries]
@@ -64,7 +64,7 @@ class Comparator:
             )
             for entry, row in zip(self.entries, baked, strict=True)
         ]
-        return ComparatorReport(
+        return ComparisonReport(
             problem_name=self.problem.name,
             repeats=self.repeats,
             description=self.problem.description,
@@ -84,10 +84,10 @@ class Comparator:
             if entry.build_integrator is not None:
                 entry.build_integrator()
 
-    def _pairwise_final_differences(self, baked: list[BakedEntry]) -> list[list[float]]:
+    def _pairwise_final_differences(self, baked: list[ComparisonEntryBaked]) -> list[list[float]]:
         return [[self.problem.difference(left.state, right.state) for right in baked] for left in baked]
 
-    def _pairwise_trajectory_differences(self, baked: list[BakedEntry]) -> list[list[float]] | None:
+    def _pairwise_trajectory_differences(self, baked: list[ComparisonEntryBaked]) -> list[list[float]] | None:
         if self.problem.checkpoints is None:
             return None
         difference = (
@@ -97,7 +97,7 @@ class Comparator:
         )
         return [[difference(left.checkpoints, right.checkpoints) for right in baked] for left in baked]
 
-    def _trajectory_comparison(self, results: list[ComparisonResult], baked: list[BakedEntry]) -> Comparison | None:
+    def _trajectory_comparison(self, results: list[ComparisonResult], baked: list[ComparisonEntryBaked]) -> Comparison | None:
         values = self._pairwise_trajectory_differences(baked)
         if values is None:
             return None
@@ -111,10 +111,10 @@ class Comparator:
         if self.problem.checkpoints is None:
             return None
         if self.problem.trajectory_difference is not None:
-            return "Trajectory differences use the problem-supplied ComparatorProblem.trajectory_difference(...)."
+            return "Trajectory differences use the problem-supplied ComparisonProblem.trajectory_difference(...)."
         return (
             "Trajectory differences use the default RMS of checkpoint-wise state differences, "
-            "computed from ComparatorProblem.difference(...)."
+            "computed from ComparisonProblem.difference(...)."
         )
 
     def _default_trajectory_difference(self, left: list[Any], right: list[Any]) -> float:

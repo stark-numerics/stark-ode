@@ -2,9 +2,9 @@
 
 from stark.comparison.comparator import Comparator
 from stark.comparison.models import (
-    ComparatorEntry,
-    ComparatorProblem,
-    ComparatorReport,
+    ComparisonEntry,
+    ComparisonProblem,
+    ComparisonReport,
     Comparison,
     ComparisonBreakdown,
     ComparisonDiagnostics,
@@ -16,9 +16,9 @@ from stark.comparison.models import (
 
 __all__ = [
     "Comparator",
-    "ComparatorEntry",
-    "ComparatorProblem",
-    "ComparatorReport",
+    "ComparisonEntry",
+    "ComparisonProblem",
+    "ComparisonReport",
     "Comparison",
     "ComparisonBreakdown",
     "ComparisonDiagnostics",

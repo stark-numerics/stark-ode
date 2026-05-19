@@ -24,7 +24,7 @@ from __future__ import annotations
 import numpy as np
 
 from stark import Executor, Interval, Marcher
-from stark.comparison import Comparator, ComparatorEntry, ComparatorProblem
+from stark.comparison import Comparator, ComparisonEntry, ComparisonProblem
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.interface.vector import StarkVectorTranslation
 from stark.inverters import InverterBiCGStab, InverterPolicy, InverterTolerance
@@ -194,7 +194,7 @@ if __name__ == "__main__":
     # not automatically mean a faster solve when each step contains nonlinear
     # and linear iterations.
 
-    problem = ComparatorProblem(
+    problem = ComparisonProblem(
         name="Allen-Cahn implicit Newton",
         build_state=lambda: StarkVector(initial_profile(geometry), carrier),
         build_interval=make_interval,
@@ -203,8 +203,8 @@ if __name__ == "__main__":
     )
 
     entries = [
-        ComparatorEntry("SDIRK21 Newton", Marcher(implicit_scheme, executor)),
-        ComparatorEntry("Cash-Karp", Marcher(explicit_scheme, executor)),
+        ComparisonEntry("SDIRK21 Newton", Marcher(implicit_scheme, executor)),
+        ComparisonEntry("Cash-Karp", Marcher(explicit_scheme, executor)),
     ]
 
     # The interesting part of this report is the tradeoff. SDIRK21 may take

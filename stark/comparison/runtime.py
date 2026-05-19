@@ -8,8 +8,8 @@ from time import perf_counter
 from typing import Any
 
 from stark.comparison.models import (
-    ComparatorEntry,
-    ComparatorProblem,
+    ComparisonEntry,
+    ComparisonProblem,
     ComparisonBreakdown,
     ComparisonDiagnostics,
     ComparisonHotspot,
@@ -22,7 +22,7 @@ from stark.monitor import Monitor, MonitorSummary
 
 
 @dataclass(slots=True)
-class BakedRun:
+class ComparisonRunBaked:
     state: Any
     checkpoints: list[Any]
     steps: int
@@ -30,7 +30,7 @@ class BakedRun:
 
 
 @dataclass(slots=True)
-class BakedEntry:
+class ComparisonEntryBaked:
     state: Any
     checkpoints: list[Any]
     steps: int
@@ -69,7 +69,7 @@ class CountingMarcher:
             self.marcher.set_apply_delta_safety(enabled)
 
 
-class ProfileSurvey:
+class ComparisonProfileSurvey:
     __slots__ = ()
 
     def __call__(
@@ -185,13 +185,13 @@ class ProfileSurvey:
 class Comparer:
     __slots__ = ("announce", "problem", "profile_survey", "repeats")
 
-    def __init__(self, problem: ComparatorProblem, repeats: int, announce: Any | None = None) -> None:
+    def __init__(self, problem: ComparisonProblem, repeats: int, announce: Any | None = None) -> None:
         self.problem = problem
         self.repeats = repeats
         self.announce = announce
-        self.profile_survey = ProfileSurvey()
+        self.profile_survey = ComparisonProfileSurvey()
 
-    def __call__(self, entry: ComparatorEntry) -> BakedEntry:
+    def __call__(self, entry: ComparisonEntry) -> ComparisonEntryBaked:
         self._announce(f"Comparing {entry.name}...")
 
         started = perf_counter()
@@ -217,7 +217,7 @@ class Comparer:
         profile = self._profile_once(marcher, integrator, entry.profile_category)
         diagnostics = self.problem.diagnostics(observed_state) if self.problem.diagnostics is not None else None
 
-        return BakedEntry(
+        return ComparisonEntryBaked(
             state=observed_state,
             checkpoints=observed_checkpoints,
             steps=observed_steps,
@@ -257,7 +257,7 @@ class Comparer:
             if callable(unassign_monitor):
                 unassign_monitor()
 
-    def _run_once(self, marcher: CountingMarcher, integrator: Integrator) -> BakedRun:
+    def _run_once(self, marcher: CountingMarcher, integrator: Integrator) -> ComparisonRunBaked:
         state = self.problem.build_state()
         interval = self.problem.build_interval()
         marcher.steps = 0
@@ -267,7 +267,7 @@ class Comparer:
             if self.problem.checkpoints is not None:
                 checkpoints.append(marcher.snapshot_state(state))
         elapsed = perf_counter() - started
-        return BakedRun(state=state, checkpoints=checkpoints, steps=marcher.steps, elapsed=elapsed)
+        return ComparisonRunBaked(state=state, checkpoints=checkpoints, steps=marcher.steps, elapsed=elapsed)
 
     def _profile_once(
         self,
@@ -323,7 +323,7 @@ def _profile_stats(profiler: cProfile.Profile):
         )
 
 
-__all__ = ["BakedEntry", "BakedRun", "Comparer", "CountingMarcher", "ProfileSurvey"]
+__all__ = ["ComparisonEntryBaked", "ComparisonRunBaked", "Comparer", "CountingMarcher", "ComparisonProfileSurvey"]
 
 
 
