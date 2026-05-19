@@ -14,7 +14,7 @@ ErrorBound = Callable[[float], float]
 
 
 @dataclass(frozen=True, slots=True)
-class ReportAdaptiveAdvance:
+class SchemeStepAdaptiveAdvanceReport:
     """Compact accepted-advance report for adaptive schemes."""
 
     accepted_dt: float
@@ -30,7 +30,7 @@ class ReportAdaptiveAdvance:
 
 
 @dataclass(frozen=True, slots=True)
-class ProposedAdaptiveStep:
+class SchemeStepAdaptiveProposal:
     """Initial step proposal data for one adaptive advance attempt."""
 
     remaining: float
@@ -63,7 +63,7 @@ class SchemeStepControl:
     def __init__(self, regulator: Regulator | None = None) -> None:
         self.regulator = regulator if regulator is not None else Regulator()
         self.controller = AdaptiveController(self.regulator)
-        self._report = ReportAdaptiveAdvance(
+        self._report = SchemeStepAdaptiveAdvanceReport(
             accepted_dt=0.0,
             t_start=0.0,
             proposed_dt=0.0,
@@ -126,10 +126,10 @@ class SchemeStepControl:
     def unassign_monitor(self) -> None:
         self._monitor = None
 
-    def propose_step(self, interval: IntervalLike) -> ProposedAdaptiveStep:
+    def propose_step(self, interval: IntervalLike) -> SchemeStepAdaptiveProposal:
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
-            return ProposedAdaptiveStep(
+            return SchemeStepAdaptiveProposal(
                 remaining=remaining,
                 dt=0.0,
                 proposed_dt=0.0,
@@ -137,7 +137,7 @@ class SchemeStepControl:
             )
 
         dt = interval.step if interval.step <= remaining else remaining
-        return ProposedAdaptiveStep(
+        return SchemeStepAdaptiveProposal(
             remaining=remaining,
             dt=dt,
             proposed_dt=dt,
@@ -169,8 +169,8 @@ class SchemeStepControl:
 
         return controller.accepted_next_step(accepted_dt, error_ratio, remaining_after)
 
-    def record_stopped(self, interval: IntervalLike) -> ReportAdaptiveAdvance:
-        self._report = ReportAdaptiveAdvance(
+    def record_stopped(self, interval: IntervalLike) -> SchemeStepAdaptiveAdvanceReport:
+        self._report = SchemeStepAdaptiveAdvanceReport(
             accepted_dt=0.0,
             t_start=interval.present,
             proposed_dt=0.0,
@@ -189,8 +189,8 @@ class SchemeStepControl:
         next_dt: float,
         error_ratio: float,
         rejection_count: int,
-    ) -> ReportAdaptiveAdvance:
-        self._report = ReportAdaptiveAdvance(
+    ) -> SchemeStepAdaptiveAdvanceReport:
+        self._report = SchemeStepAdaptiveAdvanceReport(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,
@@ -200,7 +200,7 @@ class SchemeStepControl:
         )
         return self._report
 
-    def report(self) -> ReportAdaptiveAdvance:
+    def report(self) -> SchemeStepAdaptiveAdvanceReport:
         return self._report
 
 
@@ -309,8 +309,8 @@ def with_adaptive_runtime_methods(cls):
 __all__ = [
     "ErrorBound",
     "ErrorRatio",
-    "ProposedAdaptiveStep",
-    "ReportAdaptiveAdvance",
+    "SchemeStepAdaptiveProposal",
+    "SchemeStepAdaptiveAdvanceReport",
     "SchemeStepControl",
     "default_adaptive_regulator",
     "initialise_adaptive_runtime",

@@ -9,7 +9,7 @@ from stark.execution.adaptive_controller import AdaptiveController
 from stark.execution.regulator import Regulator
 from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.schemes.support.adaptive import (
-    ReportAdaptiveAdvance,
+    SchemeStepAdaptiveAdvanceReport,
     SchemeStepControl,
 )
 
@@ -70,7 +70,7 @@ def test_adaptive_support_owns_regulator_controller_and_report_state() -> None:
     assert support.regulator is regulator
     assert isinstance(support.controller, AdaptiveController)
 
-    assert isinstance(report, ReportAdaptiveAdvance)
+    assert isinstance(report, SchemeStepAdaptiveAdvanceReport)
     assert report.accepted_dt == pytest.approx(0.0)
     assert report.t_start == pytest.approx(0.0)
     assert report.t_end == pytest.approx(0.0)
@@ -207,7 +207,7 @@ def test_adaptive_support_records_accepted_report() -> None:
         rejection_count=2,
     )
 
-    assert isinstance(report, ReportAdaptiveAdvance)
+    assert isinstance(report, SchemeStepAdaptiveAdvanceReport)
     assert report is support.report()
     assert report.accepted_dt == pytest.approx(0.1)
     assert report.t_start == pytest.approx(0.2)

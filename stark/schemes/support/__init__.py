@@ -24,8 +24,8 @@ from stark.schemes.support.monitoring import (
     with_fixed_step_monitoring,
 )
 from stark.schemes.support.adaptive import (
-    ProposedAdaptiveStep,
-    ReportAdaptiveAdvance,
+    SchemeStepAdaptiveProposal,
+    SchemeStepAdaptiveAdvanceReport,
     SchemeStepControl,
     default_adaptive_regulator,
     initialise_adaptive_runtime,
@@ -42,8 +42,8 @@ __all__ = [
     "ButcherTableau",
     "EmbeddedButcherTableau",
     "ImExButcherTableau",
-    "ProposedAdaptiveStep",
-    "ReportAdaptiveAdvance",
+    "SchemeStepAdaptiveProposal",
+    "SchemeStepAdaptiveAdvanceReport",
     "SchemeDescriptor",
     "SchemeDisplay",
     "SchemeStepControl",
