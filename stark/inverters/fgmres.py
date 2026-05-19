@@ -54,6 +54,11 @@ class InverterFGMRES:
         "accelerator",
         "applied",
         "arnoldi",
+        "_bound_call",
+        "_monitor",
+        "_monitor_final_residual",
+        "_monitor_initial_residual",
+        "_monitor_iteration_count",
         "correction",
         "least_squares",
         "operator",
@@ -129,6 +134,9 @@ class InverterFGMRES:
         workspace = self.workspace
         rhs_norm = workspace.norm(rhs)
         residual_norm = self.initial_residual(rhs, out, operator)
+        self._monitor_initial_residual = residual_norm
+        self._monitor_final_residual = residual_norm
+        self._monitor_iteration_count = 0
         if tolerance.accepts(residual_norm, rhs_norm):
             return
 
@@ -142,6 +150,8 @@ class InverterFGMRES:
                 policy.max_iterations - iterations,
             )
             iterations += used_iterations
+            self._monitor_iteration_count = iterations
+            self._monitor_final_residual = residual_norm
             if tolerance.accepts(residual_norm, rhs_norm):
                 return
 

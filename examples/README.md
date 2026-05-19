@@ -26,6 +26,7 @@ python -m examples.features.custom_scheme_fixed_explicit
 python -m examples.features.structured_state_minimal
 python -m examples.features.compare_two_schemes
 python -m examples.features.monitor_scheme_steps
+python -m examples.features.compare_with_monitor_summary
 ```
 
 ## Case studies

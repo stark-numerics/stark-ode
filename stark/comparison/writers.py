@@ -200,6 +200,36 @@ class ComparatorReportWriter:
             lines.extend(["", "Pairwise trajectory differences"])
             lines.append(self._render_matrix(report.trajectory_differences))
 
+        if any(result.monitor_summary is not None and result.monitor_summary.scheme.step_count > 0 for result in report.results):
+            lines.extend(
+                [
+                    "",
+                    "Scheme behaviour",
+                    "Rows summarize the monitored observation pass, not the timed repeats.",
+                    self._render_scheme_monitor_table(report.results),
+                ]
+            )
+
+        if any(result.monitor_summary is not None and result.monitor_summary.resolvent.solve_count > 0 for result in report.results):
+            lines.extend(
+                [
+                    "",
+                    "Resolvent behaviour",
+                    "Rows summarize nonlinear solve evidence from the monitored observation pass.",
+                    self._render_resolvent_monitor_table(report.results),
+                ]
+            )
+
+        if any(result.monitor_summary is not None and result.monitor_summary.inverter.solve_count > 0 for result in report.results):
+            lines.extend(
+                [
+                    "",
+                    "Inverter behaviour",
+                    "Rows summarize linear solve evidence from the monitored observation pass.",
+                    self._render_inverter_monitor_table(report.results),
+                ]
+            )
+
         lines.extend(
             [
                 "",
@@ -279,6 +309,73 @@ class ComparatorReportWriter:
             )
         return self.table(("entry", "profiled", "problem", "method", "resolvent", "inverter", "framework", "other"), rows)
 
+    def _render_scheme_monitor_table(self, results: list[ComparisonResult]) -> str:
+        rows = []
+        for result in results:
+            summary = None if result.monitor_summary is None else result.monitor_summary.scheme
+            if summary is None:
+                rows.append((result.name, "", "", "", "", "", ""))
+                continue
+            rows.append(
+                (
+                    result.name,
+                    str(summary.step_count),
+                    str(summary.fixed_step_count),
+                    str(summary.adaptive_step_count),
+                    self._format_optional_float(summary.accepted_dt_median),
+                    self._format_optional_int(summary.adaptive_rejection_count),
+                    self._format_optional_float(summary.adaptive_error_ratio_max),
+                )
+            )
+        return self.table(
+            ("entry", "steps", "fixed", "adaptive", "median dt", "rejections", "max error ratio"),
+            rows,
+        )
+
+    def _render_resolvent_monitor_table(self, results: list[ComparisonResult]) -> str:
+        rows = []
+        for result in results:
+            summary = None if result.monitor_summary is None else result.monitor_summary.resolvent
+            if summary is None or summary.solve_count == 0:
+                rows.append((result.name, "", "", "", "", ""))
+                continue
+            rows.append(
+                (
+                    result.name,
+                    str(summary.solve_count),
+                    str(summary.failure_count),
+                    self._format_optional_float(summary.iteration_median),
+                    self._format_optional_int(summary.iteration_max),
+                    self._format_optional_float(summary.error_max),
+                )
+            )
+        return self.table(
+            ("entry", "solves", "failures", "median iterations", "max iterations", "max error"),
+            rows,
+        )
+
+    def _render_inverter_monitor_table(self, results: list[ComparisonResult]) -> str:
+        rows = []
+        for result in results:
+            summary = None if result.monitor_summary is None else result.monitor_summary.inverter
+            if summary is None or summary.solve_count == 0:
+                rows.append((result.name, "", "", "", "", ""))
+                continue
+            rows.append(
+                (
+                    result.name,
+                    str(summary.solve_count),
+                    str(summary.failure_count),
+                    self._format_optional_float(summary.iteration_median),
+                    self._format_optional_int(summary.iteration_max),
+                    self._format_optional_float(summary.final_residual_max),
+                )
+            )
+        return self.table(
+            ("entry", "solves", "failures", "median iterations", "max iterations", "max residual"),
+            rows,
+        )
+
     def _render_hotspot_table(self, hotspots: list[ComparisonHotspot]) -> str:
         return self.table(
             ("location", "self", "cumulative", "calls"),
@@ -317,6 +414,18 @@ class ComparatorReportWriter:
         if total <= 0.0:
             return "0.0%"
         return f"{100.0 * value / total:.1f}%"
+
+    @staticmethod
+    def _format_optional_float(value: float | None) -> str:
+        if value is None:
+            return ""
+        return f"{value:.6g}"
+
+    @staticmethod
+    def _format_optional_int(value: int | None) -> str:
+        if value is None:
+            return ""
+        return str(value)
 
 
 __all__ = [

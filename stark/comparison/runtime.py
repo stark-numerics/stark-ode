@@ -18,6 +18,7 @@ from stark.comparison.models import (
     ProfileCategory,
 )
 from stark.integrate import Integrator
+from stark.monitor import Monitor, MonitorSummary
 
 
 @dataclass(slots=True)
@@ -36,6 +37,7 @@ class BakedEntry:
     timing: ComparisonTiming
     diagnostics: ComparisonDiagnostics
     profile: ComparisonProfile
+    monitor_summary: MonitorSummary | None
 
 
 class CountingMarcher:
@@ -197,6 +199,9 @@ class Comparer:
         integrator = entry.build_integrator() if entry.build_integrator is not None else Integrator()
         setup_elapsed = perf_counter() - started
 
+        observed_state, observed_checkpoints, observed_steps, monitor_summary = self._observe_once(marcher, integrator)
+        self._announce(f"Observed {entry.name}: steps={observed_steps}")
+
         warmup = self._run_once(marcher, integrator)
         self._announce(f"Warmup {entry.name}: steps={warmup.steps}, elapsed={warmup.elapsed:.3f}s")
 
@@ -210,12 +215,12 @@ class Comparer:
             )
 
         profile = self._profile_once(marcher, integrator, entry.profile_category)
-        diagnostics = self.problem.diagnostics(warmup.state) if self.problem.diagnostics is not None else None
+        diagnostics = self.problem.diagnostics(observed_state) if self.problem.diagnostics is not None else None
 
         return BakedEntry(
-            state=warmup.state,
-            checkpoints=warmup.checkpoints,
-            steps=warmup.steps,
+            state=observed_state,
+            checkpoints=observed_checkpoints,
+            steps=observed_steps,
             timing=ComparisonTiming(
                 setup=setup_elapsed,
                 warmup=warmup.elapsed,
@@ -224,7 +229,33 @@ class Comparer:
             ),
             diagnostics=ComparisonDiagnostics.coerce(diagnostics),
             profile=profile,
+            monitor_summary=monitor_summary,
         )
+
+    def _observe_once(
+        self,
+        marcher: CountingMarcher,
+        integrator: Integrator,
+    ) -> tuple[Any, list[Any], int, MonitorSummary | None]:
+        monitor = Monitor()
+        assign_monitor = getattr(marcher.marcher, "assign_monitor", None)
+        if not callable(assign_monitor):
+            observed = self._run_once(marcher, integrator)
+            return observed.state, observed.checkpoints, observed.steps, None
+
+        try:
+            assign_monitor(monitor)
+        except TypeError:
+            observed = self._run_once(marcher, integrator)
+            return observed.state, observed.checkpoints, observed.steps, None
+
+        try:
+            observed = self._run_once(marcher, integrator)
+            return observed.state, observed.checkpoints, observed.steps, monitor.summary()
+        finally:
+            unassign_monitor = getattr(marcher.marcher, "unassign_monitor", None)
+            if callable(unassign_monitor):
+                unassign_monitor()
 
     def _run_once(self, marcher: CountingMarcher, integrator: Integrator) -> BakedRun:
         state = self.problem.build_state()

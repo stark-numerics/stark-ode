@@ -1,4 +1,5 @@
 from stark.inverters.support.descriptor import InverterDescriptor
+from stark.inverters.support.monitoring import MonitorInverterLike
 from stark.inverters.support.policy import InverterPolicy
 from stark.inverters.support.preconditioner import Preconditioner
 from stark.inverters.support.runtime import (
@@ -16,6 +17,7 @@ __all__ = [
     "InverterPolicy",
     "InverterTolerance",
     "InverterWorkspace",
+    "MonitorInverterLike",
     "Preconditioner",
     "initialise_inverter_runtime",
     "validate_inverter_policy",

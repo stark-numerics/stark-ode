@@ -49,6 +49,11 @@ class InverterBiCGStab:
     __slots__ = (
         "accelerator",
         "applied",
+        "_bound_call",
+        "_monitor",
+        "_monitor_final_residual",
+        "_monitor_initial_residual",
+        "_monitor_iteration_count",
         "direction",
         "operator",
         "policy",
@@ -130,10 +135,15 @@ class InverterBiCGStab:
         workspace = self.workspace
         rhs_norm = workspace.norm(rhs)
         residual_norm = self.initial_residual(rhs, out, operator)
+        self._monitor_initial_residual = residual_norm
+        self._monitor_final_residual = residual_norm
+        self._monitor_iteration_count = 0
         if tolerance.accepts(residual_norm, rhs_norm):
             return
 
-        residual_norm = self.iterate(out, operator, rhs_norm)
+        iterations, residual_norm = self.iterate(out, operator, rhs_norm)
+        self._monitor_iteration_count = iterations
+        self._monitor_final_residual = residual_norm
         if tolerance.accepts(residual_norm, rhs_norm):
             return
 
@@ -155,7 +165,7 @@ class InverterBiCGStab:
         workspace.zero_block(self.velocity)
         return workspace.norm(self.residual)
 
-    def iterate(self, out: Block, operator: BlockOperator, rhs_norm: float) -> float:
+    def iterate(self, out: Block, operator: BlockOperator, rhs_norm: float) -> tuple[int, float]:
         """
         Run BiCGStab iterations and update `out` in place.
 
@@ -169,7 +179,8 @@ class InverterBiCGStab:
         alpha = 1.0
         omega = 1.0
 
-        for _ in range(policy.max_iterations):
+        for iteration in range(1, policy.max_iterations + 1):
+            self._monitor_iteration_count = iteration
             rho = workspace.inner_product(self.shadow, self.residual)
             if abs(rho) <= policy.breakdown_tol:
                 raise RuntimeError("BiCGStab broke down with a vanishing rho.")
@@ -197,7 +208,9 @@ class InverterBiCGStab:
             if tolerance.accepts(workspace.norm(self.s_buffer), rhs_norm):
                 workspace.combine2_block(1.0, out, alpha, self.preconditioned_direction, self.temporary)
                 workspace.copy_block(out, self.temporary)
-                return workspace.norm(self.s_buffer)
+                residual_norm = workspace.norm(self.s_buffer)
+                self._monitor_final_residual = residual_norm
+                return iteration, residual_norm
 
             self.preconditioner(self.s_buffer, self.preconditioned_s)
             operator(self.preconditioned_s, self.t_buffer)
@@ -220,12 +233,13 @@ class InverterBiCGStab:
             workspace.copy_block(out, self.temporary)
             workspace.combine2_block(1.0, self.s_buffer, -omega, self.t_buffer, self.residual)
             residual_norm = workspace.norm(self.residual)
+            self._monitor_final_residual = residual_norm
             if tolerance.accepts(residual_norm, rhs_norm):
-                return residual_norm
+                return iteration, residual_norm
 
             rho_previous = rho
 
-        return workspace.norm(self.residual)
+        return policy.max_iterations, workspace.norm(self.residual)
 
 
 __all__ = ["InverterBiCGStab"]

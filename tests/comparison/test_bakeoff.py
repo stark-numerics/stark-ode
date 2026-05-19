@@ -1,4 +1,8 @@
+import pytest
+
+from stark import Executor, Interval, Marcher, Tolerance
 from stark.comparison import Comparator, ComparatorEntry, ComparatorProblem
+from stark.schemes import SchemeCashKarp, SchemeEuler
 
 
 class DummyInterval:
@@ -24,6 +28,63 @@ class WeightedMarcher:
 
     def snapshot_state(self, state: dict[str, float]) -> dict[str, float]:
         return dict(state)
+
+
+class MonitorableWeightedMarcher(WeightedMarcher):
+    def __init__(self, weight: float) -> None:
+        super().__init__(weight)
+        self.monitor = None
+
+    def __call__(self, interval: DummyInterval, state: dict[str, float]) -> None:
+        t_start = interval.present
+        super().__call__(interval, state)
+        if self.monitor is not None:
+            self.monitor.scheme.record_fixed_step("Weighted", t_start, interval.step)
+            self.monitor.inverter.record_solve("Direct", True, None, None, None, None)
+
+    def assign_monitor(self, monitor) -> None:
+        self.monitor = monitor
+
+    def unassign_monitor(self) -> None:
+        self.monitor = None
+
+
+class ScalarState:
+    def __init__(self, value: float = 0.0) -> None:
+        self.value = value
+
+
+class ScalarTranslation:
+    def __init__(self, value: float = 0.0) -> None:
+        self.value = value
+
+    def __call__(self, origin: ScalarState, result: ScalarState) -> None:
+        result.value = origin.value + self.value
+
+    def norm(self) -> float:
+        return abs(self.value)
+
+    def __add__(self, other: "ScalarTranslation") -> "ScalarTranslation":
+        return ScalarTranslation(self.value + other.value)
+
+    def __rmul__(self, scalar: float) -> "ScalarTranslation":
+        return ScalarTranslation(scalar * self.value)
+
+
+class ScalarWorkbench:
+    def allocate_state(self) -> ScalarState:
+        return ScalarState()
+
+    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
+        dst.value = src.value
+
+    def allocate_translation(self) -> ScalarTranslation:
+        return ScalarTranslation()
+
+
+def unit_rhs(interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
+    del interval, state
+    out.value = 1.0
 
 
 def test_bakeoff_reports_pairwise_differences() -> None:
@@ -115,6 +176,63 @@ def test_bakeoff_skips_diagnostics_table_when_problem_has_none() -> None:
     report = Comparator(problem, entries, repeats=1)()
 
     assert "Diagnostics Table" not in report.render()
+
+
+def test_bakeoff_uses_monitored_observation_without_monitoring_timed_repeats() -> None:
+    problem = ComparatorProblem(
+        name="Dummy",
+        build_state=lambda: {"value": 0.0},
+        build_interval=lambda: DummyInterval(0.0, 0.25, 1.0),
+        difference=lambda left, right: abs(left["value"] - right["value"]),
+    )
+    entries = [
+        ComparatorEntry("baseline", lambda: MonitorableWeightedMarcher(1.0)),
+        ComparatorEntry("slow", lambda: WeightedMarcher(0.5)),
+    ]
+
+    report = Comparator(problem, entries, repeats=2)()
+
+    summaries = report.monitor_summaries_by_name()
+    assert "baseline" in summaries
+    assert "slow" not in summaries
+    assert summaries["baseline"].scheme.step_count == 4
+    assert summaries["baseline"].inverter.solve_count == 4
+    assert report.results_by_name()["baseline"].as_dict()["monitor_summary"] is not None
+    rendered = report.render()
+    assert "Scheme behaviour" in rendered
+    assert "Inverter behaviour" in rendered
+    assert "monitored observation pass, not the timed repeats" in rendered
+
+
+def test_bakeoff_monitors_built_in_fixed_and_adaptive_schemes() -> None:
+    executor = Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    workbench = ScalarWorkbench()
+    problem = ComparatorProblem(
+        name="Built-in scalar",
+        build_state=lambda: ScalarState(),
+        build_interval=lambda: Interval(present=0.0, step=0.1, stop=0.2),
+        difference=lambda left, right: abs(left.value - right.value),
+    )
+    entries = [
+        ComparatorEntry(
+            "Euler",
+            lambda: Marcher(SchemeEuler(unit_rhs, workbench), executor),
+        ),
+        ComparatorEntry(
+            "Cash-Karp",
+            lambda: Marcher(SchemeCashKarp(unit_rhs, workbench), executor),
+        ),
+    ]
+
+    report = Comparator(problem, entries, repeats=1)()
+    summaries = report.monitor_summaries_by_name()
+
+    assert summaries["Euler"].scheme.fixed_step_count == 2
+    assert summaries["Euler"].scheme.adaptive_step_count == 0
+    assert summaries["Cash-Karp"].scheme.fixed_step_count == 0
+    assert summaries["Cash-Karp"].scheme.adaptive_step_count >= 1
+    assert report.final_difference_map()["Euler"]["Cash-Karp"] == pytest.approx(0.0)
+    assert "Scheme behaviour" in report.render()
 
 
 def test_bakeoff_requires_two_entries() -> None:

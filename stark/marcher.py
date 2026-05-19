@@ -8,6 +8,46 @@ from stark.execution.safety import Safety
 from stark.monitor import Monitor
 
 
+_MONITOR_DESCENDANT_ATTRIBUTES = ("stepper", "stage_solver", "resolvent", "inverter")
+
+
+def _assign_descendant_monitors(worker: object, monitor: Monitor, visited: set[int]) -> None:
+    worker_id = id(worker)
+    if worker_id in visited:
+        return
+    visited.add(worker_id)
+
+    for name in _MONITOR_DESCENDANT_ATTRIBUTES:
+        child = getattr(worker, name, None)
+        if child is None:
+            continue
+        if name == "resolvent":
+            assign_monitor = getattr(child, "assign_monitor", None)
+            if callable(assign_monitor):
+                assign_monitor(monitor.resolvent)
+        elif name == "inverter":
+            assign_monitor = getattr(child, "assign_monitor", None)
+            if callable(assign_monitor):
+                assign_monitor(monitor.inverter)
+        _assign_descendant_monitors(child, monitor, visited)
+
+
+def _unassign_descendant_monitors(worker: object, visited: set[int]) -> None:
+    worker_id = id(worker)
+    if worker_id in visited:
+        return
+    visited.add(worker_id)
+
+    for name in _MONITOR_DESCENDANT_ATTRIBUTES:
+        child = getattr(worker, name, None)
+        if child is None:
+            continue
+        unassign_monitor = getattr(child, "unassign_monitor", None)
+        if callable(unassign_monitor):
+            unassign_monitor()
+        _unassign_descendant_monitors(child, visited)
+
+
 class Marcher:
     __slots__ = ("scheme", "executor", "monitor")
 
@@ -76,11 +116,13 @@ class Marcher:
             raise TypeError("Marcher scheme does not support monitoring.")
         self.monitor = monitor
         assign_monitor(monitor.scheme)
+        _assign_descendant_monitors(self.scheme, monitor, set())
 
     def unassign_monitor(self) -> None:
         unassign_monitor = getattr(self.scheme, "unassign_monitor", None)
         if callable(unassign_monitor):
             unassign_monitor()
+        _unassign_descendant_monitors(self.scheme, set())
         self.monitor = None
 
 

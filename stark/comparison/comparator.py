@@ -60,6 +60,7 @@ class Comparator:
                 diagnostics=row.diagnostics,
                 profile=row.profile,
                 metadata={} if entry.metadata is None else dict(entry.metadata),
+                monitor_summary=row.monitor_summary,
             )
             for entry, row in zip(self.entries, baked, strict=True)
         ]

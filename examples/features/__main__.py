@@ -9,6 +9,7 @@ EXAMPLES = (
     "structured_state_minimal",
     "compare_two_schemes",
     "monitor_scheme_steps",
+    "compare_with_monitor_summary",
 )
 
 

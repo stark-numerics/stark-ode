@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
+
+from stark.monitor import MonitorSummary
 
 
 Checkpoints = int | Iterable[float]
@@ -253,6 +255,7 @@ class ComparisonResult:
     diagnostics: ComparisonDiagnostics
     profile: ComparisonProfile
     metadata: dict[str, Any]
+    monitor_summary: MonitorSummary | None = None
 
     def __str__(self) -> str:
         from stark.comparison.writers import ComparisonResultWriter
@@ -267,6 +270,7 @@ class ComparisonResult:
             "diagnostics": self.diagnostics.as_dict(),
             "profile": self.profile.as_dict(),
             "metadata": dict(self.metadata),
+            "monitor_summary": None if self.monitor_summary is None else asdict(self.monitor_summary),
         }
 
 
@@ -302,6 +306,13 @@ class ComparatorReport:
 
     def metadata_by_name(self) -> dict[str, dict[str, Any]]:
         return {result.name: dict(result.metadata) for result in self.results}
+
+    def monitor_summaries_by_name(self) -> dict[str, MonitorSummary]:
+        return {
+            result.name: result.monitor_summary
+            for result in self.results
+            if result.monitor_summary is not None
+        }
 
     def final_difference_map(self) -> dict[str, dict[str, float]]:
         return self.final_differences.as_dict()

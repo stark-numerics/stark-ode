@@ -4,9 +4,11 @@ import pytest
 
 from stark.monitor import (
     Monitor,
+    MonitorInverter,
     MonitorResolvent,
     MonitorScheme,
     MonitorSummary,
+    MonitorSummaryInverter,
     MonitorSummaryResolvent,
     MonitorSummaryScheme,
 )
@@ -51,12 +53,14 @@ def test_monitor_clear_clears_scheme_records() -> None:
     monitor.scheme.record_fixed_step("Euler", 0.0, 0.1)
     monitor.scheme.record_adaptive_step("RKCK", 0.1, 0.2, 0.2, 0.0, 0.0, 0)
     monitor.resolvent.record_solve("Picard", 0.1, 1, 3, 1.0e-9, 1.0, True)
+    monitor.inverter.record_solve("GMRES", True, 2, 1.0, 1.0e-9, None)
 
     monitor.clear()
 
     assert monitor.scheme.fixed_steps == []
     assert monitor.scheme.adaptive_steps == []
     assert monitor.resolvent.solves == []
+    assert monitor.inverter.solves == []
 
 
 def test_monitor_default_and_scheme_constructor_are_explicit() -> None:
@@ -64,17 +68,23 @@ def test_monitor_default_and_scheme_constructor_are_explicit() -> None:
     constructed = Monitor.with_scheme()
     existing_scheme = MonitorScheme()
     existing_resolvent = MonitorResolvent()
+    existing_inverter = MonitorInverter()
     manual = Monitor.with_scheme(existing_scheme)
     manual_with_resolvent = Monitor.with_scheme(existing_scheme, existing_resolvent)
+    manual_with_all = Monitor.with_scheme(existing_scheme, existing_resolvent, existing_inverter)
 
     assert isinstance(default.scheme, MonitorScheme)
     assert isinstance(default.resolvent, MonitorResolvent)
+    assert isinstance(default.inverter, MonitorInverter)
     assert isinstance(constructed.scheme, MonitorScheme)
     assert isinstance(constructed.resolvent, MonitorResolvent)
+    assert isinstance(constructed.inverter, MonitorInverter)
     assert constructed.scheme is not default.scheme
     assert constructed.resolvent is not default.resolvent
+    assert constructed.inverter is not default.inverter
     assert manual.scheme is existing_scheme
     assert manual_with_resolvent.resolvent is existing_resolvent
+    assert manual_with_all.inverter is existing_inverter
 
 
 def test_monitor_resolvent_records_solves() -> None:
@@ -143,6 +153,7 @@ def test_empty_monitor_summary_uses_none_for_unavailable_ranges() -> None:
 
     assert isinstance(summary, MonitorSummary)
     assert isinstance(summary.resolvent, MonitorSummaryResolvent)
+    assert isinstance(summary.inverter, MonitorSummaryInverter)
     assert summary.scheme.step_count == 0
     assert summary.scheme.fixed_step_count == 0
     assert summary.scheme.adaptive_step_count == 0
@@ -162,6 +173,17 @@ def test_empty_monitor_summary_uses_none_for_unavailable_ranges() -> None:
     assert summary.resolvent.error_min is None
     assert summary.resolvent.error_median is None
     assert summary.resolvent.error_max is None
+    assert summary.inverter.solve_count == 0
+    assert summary.inverter.failure_count == 0
+    assert summary.inverter.iteration_min is None
+    assert summary.inverter.iteration_median is None
+    assert summary.inverter.iteration_max is None
+    assert summary.inverter.initial_residual_min is None
+    assert summary.inverter.initial_residual_median is None
+    assert summary.inverter.initial_residual_max is None
+    assert summary.inverter.final_residual_min is None
+    assert summary.inverter.final_residual_median is None
+    assert summary.inverter.final_residual_max is None
 
 
 def test_monitor_resolvent_summary_reports_iteration_and_error_ranges() -> None:

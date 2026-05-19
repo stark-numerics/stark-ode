@@ -5,6 +5,7 @@ from stark.block.operator import BlockOperator
 from stark.contracts import AcceleratorLike, Block, InnerProduct, PreconditionerLike, Workbench
 from stark.execution.safety import Safety
 from stark.execution.tolerance import Tolerance
+from stark.inverters.support.monitoring import MonitorInverterLike
 from stark.inverters.support.policy import InverterPolicy
 from stark.inverters.support.preconditioner import Preconditioner
 from stark.inverters.support.tolerance import InverterTolerance
@@ -35,6 +36,11 @@ def initialise_inverter_runtime(
         accelerator=inverter.accelerator,
     )
     inverter.preconditioner = Preconditioner(inverter.workspace, preconditioner)
+    inverter._monitor = None
+    inverter._bound_call = inverter.call_unbound
+    inverter._monitor_iteration_count = None
+    inverter._monitor_initial_residual = None
+    inverter._monitor_final_residual = None
     inverter.redirect_call = inverter.call_unbound
 
 
@@ -83,10 +89,25 @@ def with_inverter_display_methods(cls):
 def with_inverter_binding_methods(cls):
     """Install standard bound/unbound inverter call routing methods."""
 
+    def refresh_call(self) -> None:
+        if self.operator is None:
+            self.redirect_call = self.call_unbound
+            return
+        self.redirect_call = self.call_monitored if self._monitor is not None else self._bound_call
+
     def bind(self, operator: BlockOperator) -> None:
         self.operator = operator
         self.preconditioner.bind(operator)
-        self.redirect_call = self.call_checked if self.safety.block_sizes else self.call_unchecked
+        self._bound_call = self.call_checked if self.safety.block_sizes else self.call_unchecked
+        self.refresh_call()
+
+    def assign_monitor(self, monitor: MonitorInverterLike) -> None:
+        self._monitor = monitor
+        self.refresh_call()
+
+    def unassign_monitor(self) -> None:
+        self._monitor = None
+        self.refresh_call()
 
     def prepare(self, size: int) -> None:
         self.ensure_size(size)
@@ -108,12 +129,43 @@ def with_inverter_binding_methods(cls):
         self.prepare(len(out))
         self.solve_prepared(rhs, out)
 
+    def call_monitored(self, rhs: Block, out: Block) -> None:
+        monitor = self._monitor
+        try:
+            self._bound_call(rhs, out)
+        except Exception as error:
+            if monitor is not None:
+                failure_reason = str(error) or type(error).__name__
+                monitor.record_solve(
+                    self.short_name,
+                    False,
+                    self._monitor_iteration_count,
+                    self._monitor_initial_residual,
+                    self._monitor_final_residual,
+                    failure_reason,
+                )
+            raise
+
+        if monitor is not None:
+            monitor.record_solve(
+                self.short_name,
+                True,
+                self._monitor_iteration_count,
+                self._monitor_initial_residual,
+                self._monitor_final_residual,
+                None,
+            )
+
+    cls.refresh_call = refresh_call
     cls.bind = bind
+    cls.assign_monitor = assign_monitor
+    cls.unassign_monitor = unassign_monitor
     cls.prepare = prepare
     cls.__call__ = __call__
     cls.call_unbound = call_unbound
     cls.call_checked = call_checked
     cls.call_unchecked = call_unchecked
+    cls.call_monitored = call_monitored
     return cls
 
 
