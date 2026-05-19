@@ -8,8 +8,8 @@ from stark.accelerators import Accelerator
 from stark.block.operator import BlockOperator
 from stark.contracts import Block
 from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
-from stark.inverters.policy import InverterPolicy
-from stark.inverters.tolerance import InverterTolerance
+from stark.inverters.support.policy import InverterPolicy
+from stark.inverters.support.tolerance import InverterTolerance
 
 
 @dataclass(slots=True)

@@ -5,9 +5,9 @@ from stark.contracts import ImExDerivative, IntervalLike, Resolvent, State, Work
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
 from stark.machinery.stage_solve.workers import ImExStepper
-from stark.resolvents.failure import ResolventError
+from stark.resolvents.support.failure import ResolventError
 from stark.resolvents.support.guard import ResolventTableauGuard
-from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     SchemeStepControl,
     initialise_adaptive_runtime,
@@ -17,7 +17,7 @@ from stark.schemes.support import (
     with_imex_workspace_methods,
     with_scheme_display,
 )
-from stark.schemes.tableau import ButcherTableau, ImExButcherTableau
+from stark.schemes.support.tableau import ButcherTableau, ImExButcherTableau
 
 
 ARK436L2SA_EXPLICIT = ButcherTableau(

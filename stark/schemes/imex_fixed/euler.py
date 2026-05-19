@@ -6,7 +6,7 @@ from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
 from stark.machinery.stage_solve.workers import ImExStepper
 from stark.resolvents.support.guard import ResolventTableauGuard
-from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     initialise_imex_support,
     refresh_fixed_step_call,
@@ -14,7 +14,7 @@ from stark.schemes.support import (
     with_imex_workspace_methods,
     with_scheme_display,
 )
-from stark.schemes.tableau import ButcherTableau, ImExButcherTableau
+from stark.schemes.support.tableau import ButcherTableau, ImExButcherTableau
 
 
 IMEX_EULER_EXPLICIT = ButcherTableau(

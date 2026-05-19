@@ -8,7 +8,7 @@ import pytest
 from stark import Executor, Interval, Tolerance
 from stark.accelerators import Accelerator
 from stark.resolvents import ResolventCoupledPicard, ResolventPicard
-from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.schemes.explicit_fixed.euler import SchemeEuler
 from stark.schemes.explicit_fixed.heun import SchemeHeun

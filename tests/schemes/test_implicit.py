@@ -10,16 +10,16 @@ from stark.accelerators import Accelerator
 from stark.contracts import AccelerationRequest, AccelerationRole
 from stark.interval import Interval
 from stark.inverters import InverterGMRES
-from stark.inverters.policy import InverterPolicy
-from stark.inverters.tolerance import InverterTolerance
+from stark.inverters.support.policy import InverterPolicy
+from stark.inverters.support.tolerance import InverterTolerance
 from stark.resolvents import (
     ResolventCoupledNewton,
     ResolventCoupledPicard,
     ResolventNewton,
     ResolventPicard,
 )
-from stark.resolvents.policy import ResolventPolicy
-from stark.resolvents.tolerance import ResolventTolerance
+from stark.resolvents.support.policy import ResolventPolicy
+from stark.resolvents.support.tolerance import ResolventTolerance
 from stark.schemes import SchemeBDF2, SchemeKvaerno3, SchemeKvaerno4, SchemeSDIRK21
 from stark.schemes.implicit_fixed import (
     SchemeBackwardEuler,

@@ -14,7 +14,7 @@ from stark import Executor, Integrator, Interval, Marcher, Safety, Tolerance
 from stark.accelerators import Accelerator
 from stark.algebraist import Algebraist, AlgebraistBroadcast, AlgebraistField, AlgebraistLooped
 from stark.resolvents import ResolventPicard
-from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.imex_adaptive import SchemeKennedyCarpenter32
 
 

@@ -16,7 +16,7 @@ from stark.algebraist import (
 )
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
-from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.imex_adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
 
 

@@ -15,7 +15,7 @@ from stark.algebraist import (
     AlgebraistSmallFixed,
 )
 from stark.resolvents import ResolventCoupledPicard
-from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.implicit_fixed.gauss_legendre4 import SchemeGaussLegendre4
 from stark.schemes.implicit_fixed.lobatto_iiic4 import SchemeLobattoIIIC4
 from stark.schemes.implicit_fixed.radau_iia5 import SchemeRadauIIA5

@@ -16,7 +16,7 @@ from stark.algebraist import (
 )
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
-from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.implicit_adaptive.kvaerno3 import SchemeKvaerno3
 from stark.schemes.implicit_adaptive.kvaerno4 import SchemeKvaerno4
 from stark.schemes.implicit_adaptive.sdirk21 import SchemeSDIRK21

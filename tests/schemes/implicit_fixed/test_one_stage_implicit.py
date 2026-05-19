@@ -15,7 +15,7 @@ from stark.algebraist import (
     AlgebraistSmallFixed,
 )
 from stark.resolvents import ResolventPicard
-from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.implicit_fixed.backward_euler import SchemeBackwardEuler
 from stark.schemes.implicit_fixed.crank_nicolson import SchemeCrankNicolson
 from stark.schemes.implicit_fixed.implicit_midpoint import SchemeImplicitMidpoint

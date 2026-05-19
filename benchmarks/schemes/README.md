@@ -34,7 +34,7 @@ Command-line options
 
 --save-baseline NAME
     Save the current timing run as a named JSON baseline under
-    benchmarks/results/.
+    benchmarks/schemes/results/.
 
 --compare-baseline NAME
     Compare the current timing run against a previously saved baseline.
@@ -62,11 +62,9 @@ python -m benchmarks.schemes.bench_scheme_refactor --compare-baseline pre-suppor
 ### You can combine run-count options with baseline options:
 
 python -m benchmarks.schemes.bench_scheme_refactor --warmup 3 --repeat 10 --compare-baseline pre-support-audit
-Baseline files
-
 ### Baseline files are written to:
 
-benchmarks/results/
+benchmarks/schemes/results/
 
 These files are intended for local comparison. Commit only intentionally curated
 reference baselines.

@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.auditor import Auditor
 from stark.contracts import ImExDerivative, State, Workbench
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
-from stark.schemes.display import display_imex_resolvent_problem
+from stark.schemes.support.display import display_imex_resolvent_problem
 
 
 def initialise_imex_support(

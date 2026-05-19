@@ -7,8 +7,8 @@ from stark.contracts import Block, Derivative, IntervalLike, Resolvent, State, W
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
-from stark.resolvents.failure import ResolventError
-from stark.schemes.descriptor import SchemeDescriptor
+from stark.resolvents.support.failure import ResolventError
+from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     SchemeStepControl,
     initialise_adaptive_runtime,

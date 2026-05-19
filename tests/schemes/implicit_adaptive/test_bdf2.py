@@ -9,7 +9,7 @@ from stark.accelerators import Accelerator
 from stark.algebraist import Algebraist, AlgebraistField
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
-from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.implicit_adaptive.bdf2 import SchemeBDF2
 
 

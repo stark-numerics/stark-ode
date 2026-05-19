@@ -10,9 +10,9 @@ from stark.contracts import AcceleratorLike, Block, Derivative, IntervalLike, In
 from stark.execution.safety import Safety
 from stark.execution.tolerance import Tolerance
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
-from stark.resolvents.descriptor import ResolventDescriptor
-from stark.resolvents.failure import ResolventError
-from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support.descriptor import ResolventDescriptor
+from stark.resolvents.support.failure import ResolventError
+from stark.resolvents.support.policy import ResolventPolicy
 from stark.resolvents.support import (
     MonitorResolventLike,
     ResolventCoupledStageResidual,
@@ -22,8 +22,8 @@ from stark.resolvents.support import (
     with_resolvent_monitoring_methods,
 )
 from stark.resolvents.support.workspace import ResolventWorkspace
-from stark.resolvents.tolerance import ResolventTolerance
-from stark.schemes.tableau import ButcherTableau
+from stark.resolvents.support.tolerance import ResolventTolerance
+from stark.schemes.support.tableau import ButcherTableau
 
 
 @with_resolvent_display_methods

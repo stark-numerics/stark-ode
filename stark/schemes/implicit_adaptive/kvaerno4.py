@@ -6,8 +6,8 @@ from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbenc
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
 from stark.machinery.stage_solve.workers import SequentialDIRKResolventStep
-from stark.resolvents.failure import ResolventError
-from stark.schemes.descriptor import SchemeDescriptor
+from stark.resolvents.support.failure import ResolventError
+from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     SchemeStepControl,
     initialise_adaptive_runtime,
@@ -17,7 +17,7 @@ from stark.schemes.support import (
     with_implicit_stepper_methods,
     with_scheme_display,
 )
-from stark.schemes.tableau import ButcherTableau
+from stark.schemes.support.tableau import ButcherTableau
 
 
 KVAERNO4_GAMMA = 0.5728160625

@@ -6,14 +6,14 @@ from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.machinery.stage_solve.workers import CoupledCollocationResolventStep
-from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     refresh_fixed_step_call,
     with_fixed_step_monitoring,
     with_implicit_stepper_methods,
     with_scheme_display,
 )
-from stark.schemes.tableau import ButcherTableau
+from stark.schemes.support.tableau import ButcherTableau
 
 
 RADAU_IIA5_SQRT6 = sqrt(6.0)

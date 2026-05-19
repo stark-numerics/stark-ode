@@ -1,8 +1,13 @@
 """Support objects for built-in scheme implementations."""
 
 from stark.schemes.support.calls import unbound_scheme_call
-from stark.schemes.support.display import SchemeDisplay
-from stark.schemes.support.display import with_scheme_display
+from stark.schemes.support.descriptor import SchemeDescriptor
+from stark.schemes.support.display import (
+    SchemeDisplay,
+    display_imex_resolvent_problem,
+    display_implicit_resolvent_problem,
+    with_scheme_display,
+)
 from stark.schemes.support.explicit import (
     SchemeSupportExplicit,
     with_explicit_workspace_methods,
@@ -27,15 +32,26 @@ from stark.schemes.support.adaptive import (
     refresh_adaptive_call,
     with_adaptive_runtime_methods,
 )
+from stark.schemes.support.tableau import (
+    ButcherTableau,
+    EmbeddedButcherTableau,
+    ImExButcherTableau,
+)
 
 __all__ = [
+    "ButcherTableau",
+    "EmbeddedButcherTableau",
+    "ImExButcherTableau",
     "ProposedAdaptiveStep",
     "ReportAdaptiveAdvance",
+    "SchemeDescriptor",
     "SchemeDisplay",
     "SchemeStepControl",
     "SchemeSupportExplicit",
     "MonitorSchemeLike",
     "default_adaptive_regulator",
+    "display_imex_resolvent_problem",
+    "display_implicit_resolvent_problem",
     "initialise_adaptive_runtime",
     "refresh_adaptive_call",
     "refresh_fixed_step_call",

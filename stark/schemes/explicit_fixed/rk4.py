@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.execution.executor import Executor
-from stark.schemes.descriptor import SchemeDescriptor
+from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     with_explicit_workspace_methods,
     with_fixed_step_monitoring,
@@ -12,7 +12,7 @@ from stark.schemes.support import (
     unbound_scheme_call,
     with_scheme_display,
 )
-from stark.schemes.tableau import ButcherTableau
+from stark.schemes.support.tableau import ButcherTableau
 
 
 RK4_TABLEAU = ButcherTableau(

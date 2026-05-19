@@ -14,7 +14,7 @@ from stark import Executor, Integrator, Interval, Marcher, Tolerance
 from stark.accelerators import Accelerator
 from stark.algebraist import Algebraist, AlgebraistBroadcast, AlgebraistField, AlgebraistLooped
 from stark.resolvents import ResolventCoupledPicard, ResolventPicard
-from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.implicit_fixed.backward_euler import SchemeBackwardEuler
 from stark.schemes.implicit_fixed.crank_nicolson import SchemeCrankNicolson
 from stark.schemes.implicit_fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3

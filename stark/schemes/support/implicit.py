@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.contracts import State
-from stark.schemes.display import display_implicit_resolvent_problem
+from stark.schemes.support.display import display_implicit_resolvent_problem
 
 
 def with_implicit_stepper_methods(cls):

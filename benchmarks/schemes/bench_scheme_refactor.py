@@ -14,7 +14,7 @@ from typing import Callable
 from stark import Executor, Integrator, Interval, Marcher, Tolerance
 from stark.accelerators import Accelerator
 from stark.resolvents import ResolventPicard
-from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.schemes.explicit_fixed.rk4 import SchemeRK4
 from stark.schemes.imex_adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32

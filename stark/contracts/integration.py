@@ -8,7 +8,7 @@ from stark.contracts.intervals import IntervalLike
 from stark.contracts.translations import State
 if TYPE_CHECKING:
     from stark.execution.executor import Executor
-    from stark.schemes.descriptor import SchemeDescriptor
+    from stark.schemes.support.descriptor import SchemeDescriptor
 
 
 class SchemeLike(Protocol):

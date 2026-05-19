@@ -38,3 +38,5 @@ naming_style.md
 
 # Benchmarks results
 benchmarks/schemes/results/
+benchmarks/inverters/results/
+benchmarks/resolvents/results/

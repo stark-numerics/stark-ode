@@ -7,7 +7,7 @@ import pytest
 from stark import Executor, Interval, Tolerance
 from stark.accelerators import AcceleratorAbsent
 from stark.resolvents import ResolventPicard
-from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.implicit_fixed.backward_euler import SchemeBackwardEuler
 
 

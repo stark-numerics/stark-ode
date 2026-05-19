@@ -20,10 +20,15 @@ contrast inside the STARK inverter library.
 from stark.contracts import AcceleratorLike, Block, InnerProduct, PreconditionerLike, Workbench
 from stark.block.operator import BlockOperator
 from stark.execution.safety import Safety
-from stark.inverters.base import InverterBase
-from stark.inverters.descriptor import InverterDescriptor
-from stark.inverters.policy import InverterPolicy
-from stark.inverters.tolerance import InverterTolerance
+from stark.inverters.support.descriptor import InverterDescriptor
+from stark.inverters.support.policy import InverterPolicy
+from stark.inverters.support import (
+    initialise_inverter_runtime,
+    validate_inverter_policy,
+    with_inverter_binding_methods,
+    with_inverter_display_methods,
+)
+from stark.inverters.support.tolerance import InverterTolerance
 from stark.execution.tolerance import Tolerance
 
 
@@ -195,7 +200,9 @@ class BiCGStabCycle:
         return workspace.norm(residual)
 
 
-class InverterBiCGStab(InverterBase):
+@with_inverter_display_methods
+@with_inverter_binding_methods
+class InverterBiCGStab:
     """
     Operator-based BiCGStab on STARK blocks.
 
@@ -208,7 +215,17 @@ class InverterBiCGStab(InverterBase):
         van der Vorst (1992), SIAM J. Sci. Stat. Comput. 13(2).
     """
 
-    __slots__ = ()
+    __slots__ = (
+        "accelerator",
+        "cycle",
+        "operator",
+        "policy",
+        "preconditioner",
+        "redirect_call",
+        "safety",
+        "tolerance",
+        "workspace",
+    )
 
     descriptor = InverterDescriptor("BiCGStab", "BiConjugate Gradient Stabilized")
 
@@ -222,7 +239,8 @@ class InverterBiCGStab(InverterBase):
         safety: Safety | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:
-        self.initialise_inverter(
+        initialise_inverter_runtime(
+            self,
             workbench,
             inner_product,
             tolerance=tolerance,
@@ -231,13 +249,13 @@ class InverterBiCGStab(InverterBase):
             safety=safety,
             accelerator=accelerator,
         )
-
-    def make_cycle(self) -> BiCGStabCycle:
-        return BiCGStabCycle(self.workspace)
+        validate_inverter_policy(self.policy)
+        self.cycle = BiCGStabCycle(self.workspace)
 
     def solve_prepared(self, rhs: Block, out: Block) -> None:
         operator = self.operator
-        assert operator is not None
+        if operator is None:
+            raise RuntimeError("BiCGStab inverter must be bound to an operator before use.")
         tolerance = self.tolerance
         policy = self.policy
         workspace = self.workspace
@@ -251,7 +269,7 @@ class InverterBiCGStab(InverterBase):
             return
 
         raise RuntimeError(
-            f"{self.short_name} failed to converge within "
+            "BiCGStab failed to converge within "
             f"{policy.max_iterations} iterations (residual={residual_norm:g})."
         )
 

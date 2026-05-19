@@ -1,7 +1,7 @@
 """Built-in Runge-Kutta schemes and their shared metadata."""
 
-from stark.schemes.descriptor import SchemeDescriptor
-from stark.schemes.tableau import ButcherTableau, EmbeddedButcherTableau, ImExButcherTableau
+from stark.schemes.support.descriptor import SchemeDescriptor
+from stark.schemes.support.tableau import ButcherTableau, EmbeddedButcherTableau, ImExButcherTableau
 from stark.schemes.explicit_adaptive import (
     BS23_TABLEAU,
     RKCK_TABLEAU,

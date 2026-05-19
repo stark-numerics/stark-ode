@@ -216,8 +216,7 @@ For example:
 from stark import Executor, Marcher, Tolerance
 from stark.accelerators import AcceleratorAbsent
 from stark.inverters import InverterBiCGStab
-from stark.inverters.policy import InverterPolicy
-from stark.inverters.tolerance import InverterTolerance
+from stark.inverters import InverterPolicy, InverterTolerance
 from stark.resolvents import ResolventNewton
 from stark.resolvents.policy import ResolventPolicy
 from stark.resolvents.tolerance import ResolventTolerance

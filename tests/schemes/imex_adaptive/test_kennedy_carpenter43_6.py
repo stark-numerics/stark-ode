@@ -8,7 +8,7 @@ from stark import Executor, Interval, Tolerance
 from stark.accelerators import Accelerator
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
-from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.imex_adaptive.kennedy_carpenter43_6 import (
     SchemeKennedyCarpenter43_6,
 )

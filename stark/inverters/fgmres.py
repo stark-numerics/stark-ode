@@ -19,11 +19,16 @@ a slightly more general but somewhat more expensive GMRES-like scheme.
 from stark.contracts import AcceleratorLike, Block, InnerProduct, PreconditionerLike, Workbench
 from stark.block.operator import BlockOperator
 from stark.execution.safety import Safety
-from stark.inverters.base import InverterBaseRestartedKrylov
-from stark.inverters.descriptor import InverterDescriptor
-from stark.inverters.policy import InverterPolicy
+from stark.inverters.support.descriptor import InverterDescriptor
+from stark.inverters.support.policy import InverterPolicy
+from stark.inverters.support import (
+    initialise_inverter_runtime,
+    validate_restarted_inverter_policy,
+    with_inverter_binding_methods,
+    with_inverter_display_methods,
+)
 from stark.machinery.linear_algebra.krylov import Arnoldi, GivensRotations, HessenbergLeastSquares
-from stark.inverters.tolerance import InverterTolerance
+from stark.inverters.support.tolerance import InverterTolerance
 from stark.execution.tolerance import Tolerance
 
 
@@ -155,7 +160,9 @@ class FGMRESCycle:
         workspace.copy_block(out, temporary)
 
 
-class InverterFGMRES(InverterBaseRestartedKrylov):
+@with_inverter_display_methods
+@with_inverter_binding_methods
+class InverterFGMRES:
     """
     Restarted flexible GMRES with an optional right preconditioner.
 
@@ -172,7 +179,17 @@ class InverterFGMRES(InverterBaseRestartedKrylov):
         Saad (1993), SIAM J. Sci. Comput. 14(2).
     """
 
-    __slots__ = ()
+    __slots__ = (
+        "accelerator",
+        "cycle",
+        "operator",
+        "policy",
+        "preconditioner",
+        "redirect_call",
+        "safety",
+        "tolerance",
+        "workspace",
+    )
 
     descriptor = InverterDescriptor("FGMRES", "Flexible Restarted GMRES")
 
@@ -186,7 +203,8 @@ class InverterFGMRES(InverterBaseRestartedKrylov):
         safety: Safety | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:
-        self.initialise_inverter(
+        initialise_inverter_runtime(
+            self,
             workbench,
             inner_product,
             tolerance=tolerance,
@@ -195,9 +213,43 @@ class InverterFGMRES(InverterBaseRestartedKrylov):
             safety=safety,
             accelerator=accelerator,
         )
+        validate_restarted_inverter_policy(self.policy)
+        self.cycle = FGMRESCycle(self.workspace, self.policy.restart, accelerator=self.accelerator)
 
-    def make_cycle(self) -> FGMRESCycle:
-        return FGMRESCycle(self.workspace, self.policy.restart, accelerator=self.accelerator)
+    def solve_prepared(self, rhs: Block, out: Block) -> None:
+        operator = self.operator
+        if operator is None:
+            raise RuntimeError("FGMRES inverter must be bound to an operator before use.")
+
+        tolerance = self.tolerance
+        policy = self.policy
+        workspace = self.workspace
+        cycle = self.cycle
+        rhs_norm = workspace.norm(rhs)
+        residual_norm = cycle.initial_residual(rhs, out, operator)
+        if tolerance.accepts(residual_norm, rhs_norm):
+            return
+
+        iterations = 0
+        while iterations < policy.max_iterations:
+            used_iterations, residual_norm = cycle.run(
+                rhs,
+                out,
+                operator,
+                tolerance,
+                policy,
+                rhs_norm,
+                policy.max_iterations - iterations,
+                self.preconditioner,
+            )
+            iterations += used_iterations
+            if tolerance.accepts(residual_norm, rhs_norm):
+                return
+
+        raise RuntimeError(
+            "FGMRES failed to converge within "
+            f"{policy.max_iterations} iterations (residual={residual_norm:g})."
+        )
 
 __all__ = ["InverterFGMRES"]
 

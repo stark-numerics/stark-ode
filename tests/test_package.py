@@ -16,9 +16,9 @@ from stark.comparison.models import (
 )
 from stark.contracts import Block, Resolvent
 from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
-from stark.inverters.descriptor import InverterDescriptor
-from stark.inverters.policy import InverterPolicy
-from stark.inverters.tolerance import InverterTolerance
+from stark.inverters.support.descriptor import InverterDescriptor
+from stark.inverters.support.policy import InverterPolicy
+from stark.inverters.support.tolerance import InverterTolerance
 from stark.resolvents import (
     ResolventAnderson,
     ResolventBroyden,
@@ -27,9 +27,9 @@ from stark.resolvents import (
     ResolventNewton,
     ResolventPicard,
 )
-from stark.resolvents.descriptor import ResolventDescriptor
-from stark.resolvents.policy import ResolventPolicy
-from stark.resolvents.tolerance import ResolventTolerance
+from stark.resolvents.support.descriptor import ResolventDescriptor
+from stark.resolvents.support.policy import ResolventPolicy
+from stark.resolvents.support.tolerance import ResolventTolerance
 from stark.schemes import (
     ARK324L2SA_TABLEAU,
     ARK436L2SA_TABLEAU,
@@ -58,7 +58,7 @@ from stark.schemes import (
     SchemeLobattoIIIC4,
     SchemeRadauIIA5,
 )
-from stark.schemes.tableau import ButcherTableau, ImExButcherTableau
+from stark.schemes.support.tableau import ButcherTableau, ImExButcherTableau
 
 
 def test_package_imports() -> None:
@@ -106,11 +106,11 @@ def test_regulator_module_imports() -> None:
     assert importlib.import_module("stark.execution.executor") is not None
     assert importlib.import_module("stark.execution.tolerance") is not None
     assert importlib.import_module("stark.execution.safety") is not None
-    assert importlib.import_module("stark.schemes.tableau") is not None
+    assert importlib.import_module("stark.schemes.support.tableau") is not None
     assert importlib.import_module("stark.machinery.stage_solve.workspace") is not None
     assert importlib.import_module("stark.machinery.stage_solve.workers") is not None
     assert importlib.import_module("stark.machinery.translation_algebra.linear_combine") is not None
-    assert importlib.import_module("stark.schemes.display") is not None
+    assert importlib.import_module("stark.schemes.support.display") is not None
 
 
 def test_integrate_module_imports() -> None:

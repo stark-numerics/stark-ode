@@ -15,7 +15,7 @@ from stark.algebraist import (
     AlgebraistSmallFixed,
 )
 from stark.resolvents import ResolventPicard
-from stark.resolvents.policy import ResolventPolicy
+from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.implicit_fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
 
 
