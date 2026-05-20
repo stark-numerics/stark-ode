@@ -131,7 +131,7 @@ solving a nonlinear or linear problem.
   Checks that supplied objects satisfy the contracts needed by a run. Users can
   call it before long or expensive integrations.
 
-- **Comparator**
+- **ComparisonRunner**
   Runs several solver setups on the same problem and reports timing,
   diagnostics, and profiling summaries. It is mainly for examples,
   comparisons, and development investigations.

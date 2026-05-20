@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.accelerators.binding import BoundDerivative
+from stark.accelerators.binding import DerivativeAccelerated
 from stark.algebraist import Algebraist
 from stark.auditor import Auditor
 from stark.contracts import Block, Derivative, IntervalLike, Resolvent, State, Workbench
@@ -85,7 +85,7 @@ class SchemeBDF2:
         if resolvent is None:
             raise TypeError("BDF2 requires an explicit resolvent.")
 
-        self.derivative = BoundDerivative(derivative)
+        self.derivative = DerivativeAccelerated(derivative)
         self.workspace = SchemeWorkspace(workbench, translation_probe)
         self.startup_rate = translation_probe
         self.resolvent = resolvent

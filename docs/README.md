@@ -55,7 +55,7 @@ The main pieces are:
 - `Scheme`: a one-step integration method.
 - `Marcher`: couples a scheme to tolerances and performs one accepted step.
 - `Integrator`: runs repeated `Marcher` calls over an interval.
-- `Comparator`: compares two or more marcher setups on the same problem.
+- `ComparisonRunner`: compares two or more marcher setups on the same problem.
 - `Auditor`: checks that the objects satisfy the STARK contracts before a long
   run.
 
@@ -131,9 +131,9 @@ default is `AcceleratorAbsent()`, so acceleration remains opt-in.
 Checkpoints are useful for plots and animations: the solver may adapt internally
 while the user only observes chosen output times.
 
-## Comparator
+## ComparisonRunner
 
-`Comparator` is a small comparison tool for development work on custom schemes.
+`ComparisonRunner` is a small comparison tool for development work on custom schemes.
 
 It takes:
 
@@ -164,7 +164,7 @@ report. Advanced users can inspect:
 - `report.as_dict()`
 
 `ComparisonEntry` also accepts an optional `profile_category(filename, lineno, function_name)`
-hook so a custom entry can teach the comparator how to bucket its own profiled
+hook so a custom entry can teach the ComparisonRunner how to bucket its own profiled
 code into `problem`, `scheme`, `resolvent`, `inverter`, `framework`, or `other`.
 
 For a worked example, see

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Executor, Interval
-from stark.accelerators.binding import BoundDerivative
+from stark.accelerators.binding import DerivativeAccelerated
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
 from stark.schemes.explicit_fixed.rk4 import SchemeRK4
 from stark.schemes.support.explicit import SchemeSupportExplicit
@@ -82,7 +82,7 @@ def test_explicit_support_constructs_bound_derivative_and_workspace() -> None:
         ScalarWorkbench(),
     )
 
-    assert isinstance(support.derivative, BoundDerivative)
+    assert isinstance(support.derivative, DerivativeAccelerated)
     assert support.derivative.raw is exponential_growth
     assert isinstance(support.workspace, SchemeWorkspace)
     assert isinstance(support.first_translation, ScalarTranslation)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.accelerators.binding import BoundDerivative
+from stark.accelerators.binding import DerivativeAccelerated
 from stark.algebraist import Algebraist, AlgebraistImplicitCombination
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
@@ -205,7 +205,7 @@ class SchemeKvaerno4:
         self.known4_call = unbound_scheme_call
         self.known5_call = unbound_scheme_call
 
-        self.derivative = BoundDerivative(derivative)
+        self.derivative = DerivativeAccelerated(derivative)
         self.stepper = SequentialDIRKResolventStep(
             "Kvaerno4",
             self.tableau,

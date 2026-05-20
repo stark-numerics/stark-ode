@@ -11,11 +11,11 @@ from stark.comparison.models import (
     Comparison,
     ComparisonResult,
 )
-from stark.comparison.runtime import ComparisonEntryBaked, Comparer
+from stark.comparison.runtime import ComparisonEntryEvaluation, ComparisonEntryRunner
 
 
-class Comparator:
-    __slots__ = ("announce", "entries", "prewarm_builders", "problem", "repeats", "comparer")
+class ComparisonRunner:
+    __slots__ = ("announce", "entries", "prewarm_builders", "problem", "repeats", "ComparisonEntryRunner")
 
     def __init__(
         self,
@@ -28,17 +28,17 @@ class Comparator:
         self.problem = problem
         self.entries = list(entries)
         if len(self.entries) < 2:
-            raise ValueError("Comparator needs at least two entries.")
+            raise ValueError("ComparisonRunner needs at least two entries.")
         if repeats < 1:
-            raise ValueError("Comparator repeats must be at least 1.")
+            raise ValueError("ComparisonRunner repeats must be at least 1.")
         self.repeats = repeats
         self.prewarm_builders = prewarm_builders
         self.announce = announce
-        self.comparer = Comparer(problem, repeats, announce)
+        self.ComparisonEntryRunner = ComparisonEntryRunner(problem, repeats, announce)
 
     def __repr__(self) -> str:
         return (
-            "Comparator("
+            "ComparisonRunner("
             f"problem={self.problem.name!r}, "
             f"entries={len(self.entries)!r}, "
             f"repeats={self.repeats!r}, "
@@ -46,12 +46,12 @@ class Comparator:
         )
 
     def __str__(self) -> str:
-        return f"Comparator {self.problem.name} with {len(self.entries)} entries"
+        return f"ComparisonRunner {self.problem.name} with {len(self.entries)} entries"
 
     def __call__(self) -> ComparisonReport:
         if self.prewarm_builders:
             self._prewarm_builders()
-        baked = [self.comparer(entry) for entry in self.entries]
+        baked = [self.ComparisonEntryRunner(entry) for entry in self.entries]
         results = [
             ComparisonResult(
                 name=entry.name,
@@ -84,10 +84,10 @@ class Comparator:
             if entry.build_integrator is not None:
                 entry.build_integrator()
 
-    def _pairwise_final_differences(self, baked: list[ComparisonEntryBaked]) -> list[list[float]]:
+    def _pairwise_final_differences(self, baked: list[ComparisonEntryEvaluation]) -> list[list[float]]:
         return [[self.problem.difference(left.state, right.state) for right in baked] for left in baked]
 
-    def _pairwise_trajectory_differences(self, baked: list[ComparisonEntryBaked]) -> list[list[float]] | None:
+    def _pairwise_trajectory_differences(self, baked: list[ComparisonEntryEvaluation]) -> list[list[float]] | None:
         if self.problem.checkpoints is None:
             return None
         difference = (
@@ -97,7 +97,7 @@ class Comparator:
         )
         return [[difference(left.checkpoints, right.checkpoints) for right in baked] for left in baked]
 
-    def _trajectory_comparison(self, results: list[ComparisonResult], baked: list[ComparisonEntryBaked]) -> Comparison | None:
+    def _trajectory_comparison(self, results: list[ComparisonResult], baked: list[ComparisonEntryEvaluation]) -> Comparison | None:
         values = self._pairwise_trajectory_differences(baked)
         if values is None:
             return None
@@ -119,7 +119,7 @@ class Comparator:
 
     def _default_trajectory_difference(self, left: list[Any], right: list[Any]) -> float:
         if len(left) != len(right):
-            raise ValueError("Comparator trajectory checkpoints must line up entry-to-entry.")
+            raise ValueError("ComparisonRunner trajectory checkpoints must line up entry-to-entry.")
         if not left:
             return 0.0
         total = 0.0
@@ -133,6 +133,6 @@ class Comparator:
             self.announce(message)
 
 
-__all__ = ["Comparator"]
+__all__ = ["ComparisonRunner"]
 
 

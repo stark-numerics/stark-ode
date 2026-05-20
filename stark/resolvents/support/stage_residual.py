@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.accelerators.binding import BoundDerivative, BoundLinearizer
+from stark.accelerators.binding import DerivativeAccelerated, LinearizerAccelerated
 from stark.contracts import Block, Derivative, IntervalLike, Linearizer, State
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
 
@@ -123,10 +123,10 @@ class ResolventStageResidual:
         self.interval: IntervalLike | None = None
         self.trial_state = workspace.allocate_state_buffer()
         self.rhs = workspace.allocate_translation()
-        self.derivative = BoundDerivative(derivative)
+        self.derivative = DerivativeAccelerated(derivative)
         self.derivative_buffer = workspace.allocate_translation()
         self.alpha = 0.0
-        self.linearizer = BoundLinearizer(linearizer) if linearizer is not None else None
+        self.linearizer = LinearizerAccelerated(linearizer) if linearizer is not None else None
         self.jacobian_operator = ResolventStageJacobianOperator(method_name)
         self.residual_operator = ResolventStageResidualOperator(workspace, self.jacobian_operator)
         self._linearize = self._linearize_configured if linearizer is not None else self._linearize_missing
@@ -221,9 +221,9 @@ class ResolventCoupledStageResidual:
         self.stage_states = [workspace.allocate_state_buffer() for _ in range(self.stage_count)]
         self.stage_intervals: list[IntervalLike | None] = [None for _ in range(self.stage_count)]
         self.rhs_block = Block([workspace.allocate_translation() for _ in range(self.stage_count)])
-        self.derivative = BoundDerivative(derivative)
+        self.derivative = DerivativeAccelerated(derivative)
         self.derivative_buffers = [workspace.allocate_translation() for _ in range(self.stage_count)]
-        self.linearizer = BoundLinearizer(linearizer) if linearizer is not None else None
+        self.linearizer = LinearizerAccelerated(linearizer) if linearizer is not None else None
         self.jacobian_operators = [
             ResolventStageJacobianOperator(f"{method_name}[stage {index}]")
             for index in range(self.stage_count)

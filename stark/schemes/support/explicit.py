@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark.accelerators.binding import BoundDerivative
+from stark.accelerators.binding import DerivativeAccelerated
 from stark.auditor import Auditor
 from stark.contracts import Derivative, State, Translation, Workbench
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
@@ -19,7 +19,7 @@ class SchemeSupportExplicit:
     Concrete schemes should still own their actual step algorithm.
     """
 
-    derivative: BoundDerivative
+    derivative: DerivativeAccelerated
     workspace: SchemeWorkspace
     first_translation: Translation
 
@@ -33,7 +33,7 @@ class SchemeSupportExplicit:
         Auditor.require_scheme_inputs(derivative, workbench, first_translation)
 
         return cls(
-            derivative=BoundDerivative(derivative),
+            derivative=DerivativeAccelerated(derivative),
             workspace=SchemeWorkspace(workbench, first_translation),
             first_translation=first_translation,
         )

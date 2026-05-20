@@ -336,7 +336,7 @@ def initial_state(parameters: FitzHughNagumoParameters) -> tuple[np.ndarray, Fit
     return x, FitzHughNagumoState(u.astype(np.float64), v.astype(np.float64))
 
 
-class CountingMarcher:
+class ComparisonMarcherCounting:
     __slots__ = ("marcher", "steps")
 
     def __init__(self, marcher: Marcher) -> None:
@@ -448,7 +448,7 @@ def _build_anderson_solver(label, scheme_type, parameters: FitzHughNagumoParamet
         resolvent=resolvent,
         regulator=_scheme_regulator(scheme_type),
     )
-    marcher = CountingMarcher(
+    marcher = ComparisonMarcherCounting(
         Marcher(
             scheme,
             Executor(
@@ -476,7 +476,7 @@ def _build_imex_spectral_solver(label, scheme_type, parameters: FitzHughNagumoPa
         resolvent=resolvent,
         regulator=_scheme_regulator(scheme_type),
     )
-    marcher = CountingMarcher(
+    marcher = ComparisonMarcherCounting(
         Marcher(
             scheme,
             Executor(
@@ -578,7 +578,7 @@ def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParamet
         accelerator=ACCELERATOR,
     )
     integrate = Integrator(executor=executor)
-    marcher = CountingMarcher(Marcher(scheme, executor))
+    marcher = ComparisonMarcherCounting(Marcher(scheme, executor))
     _x, state = initial_state(parameters)
     interval = Interval(parameters.t_start, parameters.initial_step, parameters.t_stop)
 

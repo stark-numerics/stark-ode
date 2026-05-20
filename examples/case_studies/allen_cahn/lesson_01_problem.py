@@ -131,7 +131,7 @@ def profile_diagnostics(profile: np.ndarray) -> dict[str, float]:
 
 
 def state_difference(left: StarkVector, right: StarkVector) -> float:
-    # Comparator examples work with final STARK states, so the difference
+    # ComparisonRunner examples work with final STARK states, so the difference
     # function receives `StarkVector` objects and looks at their raw values.
     diff = left.value - right.value
     return float((diff @ diff / diff.size) ** 0.5)

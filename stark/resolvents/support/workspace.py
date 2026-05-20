@@ -7,7 +7,7 @@ from typing import Callable
 from stark.accelerators import AcceleratorAbsent
 from stark.contracts import AcceleratorLike, Block, InnerProduct, Translation, Workbench
 from stark.execution.safety import Safety
-from stark.machinery.translation_algebra.linear_combine import Combiner, resolve_linear_combine
+from stark.machinery.translation_algebra.linear_combine import CombineResolver, resolve_linear_combine
 
 
 @dataclass(slots=True, init=False)
@@ -50,10 +50,10 @@ class ResolventWorkspace:
 
     def bind_accelerator(self, accelerator: AcceleratorLike) -> None:
         self.accelerator = accelerator
-        combiner = accelerator.resolve_support(Combiner(self.linear_combine, self.allocate_translation), label="resolvent_combiner")
-        self.scale = combiner.scale
-        self.combine2 = combiner.combine2
-        self.combine3 = combiner.combine3
+        combine_resolver = accelerator.resolve_support(CombineResolver(self.linear_combine, self.allocate_translation), label="resolvent_combiner")
+        self.scale = combine_resolver.scale
+        self.combine2 = combine_resolver.combine2
+        self.combine3 = combine_resolver.combine3
 
     def __repr__(self) -> str:
         allocate_translation_name = getattr(

@@ -5,7 +5,7 @@ import importlib
 from stark import Auditor, Executor, ImExDerivative, Integrator, Interval, Marcher, Regulator, Safety, SchemeTolerance, Tolerance
 from stark.accelerators import Accelerator, AcceleratorAbsent
 from stark.block.operator import BlockOperator
-from stark.comparison import Comparator, ComparisonEntry, ComparisonProblem
+from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.contracts import Block, Resolvent
 from stark.inverters.support.descriptor import InverterDescriptor
 from stark.inverters.support.policy import InverterPolicy
@@ -61,7 +61,7 @@ def test_package_imports() -> None:
 
 
 def test_comparator_module_imports() -> None:
-    """The comparator module should exist and import cleanly."""
+    """The ComparisonRunner module should exist and import cleanly."""
     assert importlib.import_module("stark.comparison") is not None
 
 
@@ -223,7 +223,7 @@ class MinimalInverter:
 def test_core_objects_have_readable_representations() -> None:
     bakeoff_problem = ComparisonProblem("Dummy", lambda: object(), lambda: object(), lambda left, right: 0.0)
     bakeoff_entry = ComparisonEntry("Dummy", lambda: object())
-    bakeoff = Comparator(
+    bakeoff = ComparisonRunner(
         bakeoff_problem,
         [bakeoff_entry, ComparisonEntry("Other", lambda: object())],
         repeats=1,
@@ -294,7 +294,7 @@ def test_core_objects_have_readable_representations() -> None:
     assert repr(interval) == "Interval(present=0.0, step=0.1, stop=1.0)"
     assert repr(bakeoff_problem).startswith("ComparisonProblem(")
     assert repr(bakeoff_entry).startswith("ComparisonEntry(")
-    assert "Comparator(" in repr(bakeoff)
+    assert "ComparisonRunner(" in repr(bakeoff)
     assert str(interval) == "[0, 1] step=0.1"
     assert repr(block) == "Block(size=0)"
     assert str(block) == "block[0]"

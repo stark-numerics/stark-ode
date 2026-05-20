@@ -1,7 +1,7 @@
 import pytest
 
 from stark import Executor, Interval, Marcher, Tolerance
-from stark.comparison import Comparator, ComparisonEntry, ComparisonProblem
+from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.schemes import SchemeCashKarp, SchemeEuler
 
 
@@ -100,7 +100,7 @@ def test_bakeoff_reports_pairwise_differences() -> None:
         ComparisonEntry("slow", lambda: WeightedMarcher(0.5), metadata={"variant": "slow", "accelerator": "none"}),
     ]
 
-    report = Comparator(problem, entries, repeats=2)()
+    report = ComparisonRunner(problem, entries, repeats=2)()
 
     assert len(report.results) == 2
     assert report.results[0].steps == 4
@@ -132,7 +132,7 @@ def test_bakeoff_accepts_direct_marchers() -> None:
         ComparisonEntry("slow", lambda: WeightedMarcher(0.5)),
     ]
 
-    report = Comparator(problem, entries, repeats=1)()
+    report = ComparisonRunner(problem, entries, repeats=1)()
 
     assert report.final_difference_map()["baseline"]["baseline"] == 0.0
     assert report.final_difference_map()["baseline"]["slow"] > 0.0
@@ -151,7 +151,7 @@ def test_bakeoff_reports_pairwise_trajectory_differences() -> None:
         ComparisonEntry("slow", lambda: WeightedMarcher(0.5), metadata={"variant": "slow"}),
     ]
 
-    report = Comparator(problem, entries, repeats=1)()
+    report = ComparisonRunner(problem, entries, repeats=1)()
 
     assert report.trajectory_differences is not None
     assert report.trajectory_difference_map() is not None
@@ -173,7 +173,7 @@ def test_bakeoff_skips_diagnostics_table_when_problem_has_none() -> None:
         ComparisonEntry("slow", lambda: WeightedMarcher(0.5)),
     ]
 
-    report = Comparator(problem, entries, repeats=1)()
+    report = ComparisonRunner(problem, entries, repeats=1)()
 
     assert "Diagnostics Table" not in report.render()
 
@@ -190,7 +190,7 @@ def test_bakeoff_uses_monitored_observation_without_monitoring_timed_repeats() -
         ComparisonEntry("slow", lambda: WeightedMarcher(0.5)),
     ]
 
-    report = Comparator(problem, entries, repeats=2)()
+    report = ComparisonRunner(problem, entries, repeats=2)()
 
     summaries = report.monitor_summaries_by_name()
     assert "baseline" in summaries
@@ -224,7 +224,7 @@ def test_bakeoff_monitors_built_in_fixed_and_adaptive_schemes() -> None:
         ),
     ]
 
-    report = Comparator(problem, entries, repeats=1)()
+    report = ComparisonRunner(problem, entries, repeats=1)()
     summaries = report.monitor_summaries_by_name()
 
     assert summaries["Euler"].scheme.fixed_step_count == 2
@@ -244,7 +244,7 @@ def test_bakeoff_requires_two_entries() -> None:
     )
 
     try:
-        Comparator(problem, [ComparisonEntry("only", lambda: WeightedMarcher(1.0))])
+        ComparisonRunner(problem, [ComparisonEntry("only", lambda: WeightedMarcher(1.0))])
     except ValueError as exc:
         assert "at least two entries" in str(exc)
     else:  # pragma: no cover - defensive failure branch

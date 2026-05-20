@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.accelerators.binding import BoundDerivative
+from stark.accelerators.binding import DerivativeAccelerated
 from stark.algebraist import Algebraist, AlgebraistImplicitCombination
 from stark.contracts import Block, Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
@@ -69,7 +69,7 @@ class SchemeCrankNicolson:
     ) -> None:
         self.known_rhs_call = unbound_scheme_call
         self._monitor = None
-        self.derivative = BoundDerivative(derivative)
+        self.derivative = DerivativeAccelerated(derivative)
         self.stepper = ShiftedOneStageResolventStep(
             "Crank-Nicolson",
             self.tableau,

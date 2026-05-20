@@ -22,7 +22,7 @@ from stark.monitor import Monitor, MonitorSummary
 
 
 @dataclass(slots=True)
-class ComparisonRunBaked:
+class ComparisonRunRecord:
     state: Any
     checkpoints: list[Any]
     steps: int
@@ -30,7 +30,7 @@ class ComparisonRunBaked:
 
 
 @dataclass(slots=True)
-class ComparisonEntryBaked:
+class ComparisonEntryEvaluation:
     state: Any
     checkpoints: list[Any]
     steps: int
@@ -40,7 +40,7 @@ class ComparisonEntryBaked:
     monitor_summary: MonitorSummary | None
 
 
-class CountingMarcher:
+class ComparisonMarcherCounting:
     __slots__ = ("marcher", "steps")
 
     def __init__(self, marcher: Any) -> None:
@@ -55,7 +55,7 @@ class CountingMarcher:
         snapshot_state = getattr(self.marcher, "snapshot_state", None)
         if not callable(snapshot_state):
             raise TypeError(
-                "Comparator checkpoint comparison requires marcher.snapshot_state(state). "
+                "ComparisonRunner checkpoint comparison requires marcher.snapshot_state(state). "
                 "Use Marcher(...) or add snapshot_state(state) to the custom marcher."
             )
         return snapshot_state(state)
@@ -182,7 +182,7 @@ class ComparisonProfileSurvey:
         return f"{Path(filename).name}:{lineno} {function_name}"
 
 
-class Comparer:
+class ComparisonEntryRunner:
     __slots__ = ("announce", "problem", "profile_survey", "repeats")
 
     def __init__(self, problem: ComparisonProblem, repeats: int, announce: Any | None = None) -> None:
@@ -191,11 +191,11 @@ class Comparer:
         self.announce = announce
         self.profile_survey = ComparisonProfileSurvey()
 
-    def __call__(self, entry: ComparisonEntry) -> ComparisonEntryBaked:
+    def __call__(self, entry: ComparisonEntry) -> ComparisonEntryEvaluation:
         self._announce(f"Comparing {entry.name}...")
 
         started = perf_counter()
-        marcher = CountingMarcher(entry.make_marcher())
+        marcher = ComparisonMarcherCounting(entry.make_marcher())
         integrator = entry.build_integrator() if entry.build_integrator is not None else Integrator()
         setup_elapsed = perf_counter() - started
 
@@ -217,7 +217,7 @@ class Comparer:
         profile = self._profile_once(marcher, integrator, entry.profile_category)
         diagnostics = self.problem.diagnostics(observed_state) if self.problem.diagnostics is not None else None
 
-        return ComparisonEntryBaked(
+        return ComparisonEntryEvaluation(
             state=observed_state,
             checkpoints=observed_checkpoints,
             steps=observed_steps,
@@ -234,7 +234,7 @@ class Comparer:
 
     def _observe_once(
         self,
-        marcher: CountingMarcher,
+        marcher: ComparisonMarcherCounting,
         integrator: Integrator,
     ) -> tuple[Any, list[Any], int, MonitorSummary | None]:
         monitor = Monitor()
@@ -257,7 +257,7 @@ class Comparer:
             if callable(unassign_monitor):
                 unassign_monitor()
 
-    def _run_once(self, marcher: CountingMarcher, integrator: Integrator) -> ComparisonRunBaked:
+    def _run_once(self, marcher: ComparisonMarcherCounting, integrator: Integrator) -> ComparisonRunRecord:
         state = self.problem.build_state()
         interval = self.problem.build_interval()
         marcher.steps = 0
@@ -267,11 +267,11 @@ class Comparer:
             if self.problem.checkpoints is not None:
                 checkpoints.append(marcher.snapshot_state(state))
         elapsed = perf_counter() - started
-        return ComparisonRunBaked(state=state, checkpoints=checkpoints, steps=marcher.steps, elapsed=elapsed)
+        return ComparisonRunRecord(state=state, checkpoints=checkpoints, steps=marcher.steps, elapsed=elapsed)
 
     def _profile_once(
         self,
-        marcher: CountingMarcher,
+        marcher: ComparisonMarcherCounting,
         integrator: Integrator,
         profile_category: ProfileCategory | None,
     ) -> ComparisonProfile:
@@ -323,7 +323,7 @@ def _profile_stats(profiler: cProfile.Profile):
         )
 
 
-__all__ = ["ComparisonEntryBaked", "ComparisonRunBaked", "Comparer", "CountingMarcher", "ComparisonProfileSurvey"]
+__all__ = ["ComparisonEntryEvaluation", "ComparisonRunRecord", "ComparisonEntryRunner", "ComparisonMarcherCounting", "ComparisonProfileSurvey"]
 
 
 

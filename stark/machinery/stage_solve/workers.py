@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.accelerators.binding import BoundDerivative
+from stark.accelerators.binding import DerivativeAccelerated
 from stark.algebraist import (
     Algebraist,
     AlgebraistImExAdaptiveSchemeBinding,
@@ -77,8 +77,8 @@ class ImExStepper:
 
     def __init__(self, derivative: ImExDerivative, workspace: SchemeWorkspace, resolvent: Resolvent, tableau) -> None:
         self.tableau = tableau
-        self.explicit_derivative = BoundDerivative(derivative.explicit)
-        self.implicit_derivative = BoundDerivative(derivative.implicit)
+        self.explicit_derivative = DerivativeAccelerated(derivative.explicit)
+        self.implicit_derivative = DerivativeAccelerated(derivative.implicit)
         self.workspace = workspace
         self.stage_solver = _ImExStageSolver(workspace, resolvent)
         stage_count = len(tableau.c)

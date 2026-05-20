@@ -24,7 +24,7 @@ from __future__ import annotations
 import numpy as np
 
 from stark import Executor, Interval, Marcher
-from stark.comparison import Comparator, ComparisonEntry, ComparisonProblem
+from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.interface.vector import StarkVectorTranslation
 from stark.inverters import InverterBiCGStab, InverterPolicy, InverterTolerance
@@ -212,7 +212,7 @@ if __name__ == "__main__":
     # and each Newton iteration contains linear inverter work. The profile
     # breakdown makes that cost visible.
 
-    report = Comparator(problem, entries, repeats=3)()
+    report = ComparisonRunner(problem, entries, repeats=3)()
     print(report)
     print()
     print("What to notice:")

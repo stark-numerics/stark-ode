@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from stark import Executor, Interval, Marcher
-from stark.comparison import Comparator, ComparisonEntry, ComparisonProblem
+from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.interface import StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp, SchemeDormandPrince
 
@@ -58,5 +58,5 @@ entries = [
     ),
 ]
 
-print(Comparator(problem, entries, repeats=1)())
+print(ComparisonRunner(problem, entries, repeats=1)())
 

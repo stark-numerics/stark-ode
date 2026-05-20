@@ -154,7 +154,7 @@ def fallback_combine12(*terms: object) -> Translation:
     return _fallback_combine_many(*terms)
 
 
-class Combine3Worker:
+class CombineSynthesizer3:
     __slots__ = ("combine2", "left")
 
     def __init__(self, combine2: Combine2, allocate_translation: Callable[[], Translation]) -> None:
@@ -166,7 +166,7 @@ class Combine3Worker:
         return self.combine2(1.0, left_value, a2, x2, out)
 
 
-class Combine4Worker:
+class CombineSynthesizer4:
     __slots__ = ("combine2", "left", "right")
 
     def __init__(self, combine2: Combine2, allocate_translation: Callable[[], Translation]) -> None:
@@ -191,7 +191,7 @@ class Combine4Worker:
         return self.combine2(1.0, left_value, 1.0, right_value, out)
 
 
-class Combine5Worker:
+class CombineSynthesizer5:
     __slots__ = ("combine2", "combine3", "left", "right")
 
     def __init__(self, combine2: Combine2, combine3: Combine3, allocate_translation: Callable[[], Translation]) -> None:
@@ -219,7 +219,7 @@ class Combine5Worker:
         return self.combine2(1.0, left_value, 1.0, right_value, out)
 
 
-class Combine6Worker:
+class CombineSynthesizer6:
     __slots__ = ("combine2", "combine3", "left", "right")
 
     def __init__(self, combine2: Combine2, combine3: Combine3, allocate_translation: Callable[[], Translation]) -> None:
@@ -249,7 +249,7 @@ class Combine6Worker:
         return self.combine2(1.0, left_value, 1.0, right_value, out)
 
 
-class Combine7Worker:
+class CombineSynthesizer7:
     __slots__ = ("combine2", "combine3", "combine4", "left", "right")
 
     def __init__(
@@ -288,12 +288,12 @@ class Combine7Worker:
         return self.combine2(1.0, left_value, 1.0, right_value, out)
 
 
-class CombineNWorker:
+class CombineSynthesizerN:
     __slots__ = ("arity", "combine2", "left", "right")
 
     def __init__(self, arity: int, combine2: Combine2, allocate_translation: Callable[[], Translation]) -> None:
         if arity < 3:
-            raise ValueError("CombineNWorker requires arity >= 3.")
+            raise ValueError("CombineSynthesizerN requires arity >= 3.")
         self.arity = arity
         self.combine2 = combine2
         self.left = allocate_translation()
@@ -316,13 +316,13 @@ class CombineNWorker:
         return total
 
 
-class Combiner:
+class CombineResolver:
     """
     Resolve a translation's available linear-combination kernels into one worker.
 
     The generic `Translation` contract only guarantees scalar multiplication and
     addition, so the pure fallbacks remain allocation-heavy. When a translation
-    supplies even a small fast-path family, however, the combiner can compose
+    supplies even a small fast-path family, however, the CombineResolver can compose
     higher-arity kernels once during setup and hand branch-free callables to the
     hot scheme, resolvent, and inverter paths.
     """
@@ -359,20 +359,20 @@ class Combiner:
             self.combine12 = fallback_combine12
             return
 
-        self.combine3 = linear_combine[2] if len(linear_combine) >= 3 else Combine3Worker(self.combine2, allocate_translation)
-        self.combine4 = linear_combine[3] if len(linear_combine) >= 4 else Combine4Worker(self.combine2, allocate_translation)
-        self.combine5 = linear_combine[4] if len(linear_combine) >= 5 else Combine5Worker(self.combine2, self.combine3, allocate_translation)
-        self.combine6 = linear_combine[5] if len(linear_combine) >= 6 else Combine6Worker(self.combine2, self.combine3, allocate_translation)
+        self.combine3 = linear_combine[2] if len(linear_combine) >= 3 else CombineSynthesizer3(self.combine2, allocate_translation)
+        self.combine4 = linear_combine[3] if len(linear_combine) >= 4 else CombineSynthesizer4(self.combine2, allocate_translation)
+        self.combine5 = linear_combine[4] if len(linear_combine) >= 5 else CombineSynthesizer5(self.combine2, self.combine3, allocate_translation)
+        self.combine6 = linear_combine[5] if len(linear_combine) >= 6 else CombineSynthesizer6(self.combine2, self.combine3, allocate_translation)
         self.combine7 = (
             linear_combine[6]
             if len(linear_combine) >= 7
-            else Combine7Worker(self.combine2, self.combine3, self.combine4, allocate_translation)
+            else CombineSynthesizer7(self.combine2, self.combine3, self.combine4, allocate_translation)
         )
-        self.combine8 = linear_combine[7] if len(linear_combine) >= 8 else CombineNWorker(8, self.combine2, allocate_translation)
-        self.combine9 = linear_combine[8] if len(linear_combine) >= 9 else CombineNWorker(9, self.combine2, allocate_translation)
-        self.combine10 = linear_combine[9] if len(linear_combine) >= 10 else CombineNWorker(10, self.combine2, allocate_translation)
-        self.combine11 = linear_combine[10] if len(linear_combine) >= 11 else CombineNWorker(11, self.combine2, allocate_translation)
-        self.combine12 = linear_combine[11] if len(linear_combine) >= 12 else CombineNWorker(12, self.combine2, allocate_translation)
+        self.combine8 = linear_combine[7] if len(linear_combine) >= 8 else CombineSynthesizerN(8, self.combine2, allocate_translation)
+        self.combine9 = linear_combine[8] if len(linear_combine) >= 9 else CombineSynthesizerN(9, self.combine2, allocate_translation)
+        self.combine10 = linear_combine[9] if len(linear_combine) >= 10 else CombineSynthesizerN(10, self.combine2, allocate_translation)
+        self.combine11 = linear_combine[10] if len(linear_combine) >= 11 else CombineSynthesizerN(11, self.combine2, allocate_translation)
+        self.combine12 = linear_combine[11] if len(linear_combine) >= 12 else CombineSynthesizerN(12, self.combine2, allocate_translation)
 
     def as_tuple(
         self,
@@ -423,7 +423,7 @@ def resolve_linear_combine(translation: Translation) -> LinearCombine:
 
 
 __all__ = [
-    "Combiner",
+    "CombineResolver",
     "LinearCombine",
     "fallback_combine10",
     "fallback_combine11",

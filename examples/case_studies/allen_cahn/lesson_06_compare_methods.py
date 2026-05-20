@@ -21,7 +21,7 @@ from __future__ import annotations
 #     python -m examples.case_studies.allen_cahn.lesson_06_compare_methods
 
 from stark import Executor, Marcher
-from stark.comparison import Comparator, ComparisonEntry, ComparisonProblem
+from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.contracts import ImExDerivative
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.inverters import InverterBiCGStab, InverterPolicy, InverterTolerance
@@ -131,7 +131,7 @@ if __name__ == "__main__":
         ComparisonEntry("KC43-7 IMEX spectral", Marcher(imex_scheme, executor)),
     ]
 
-    report = Comparator(problem, entries, repeats=3)()
+    report = ComparisonRunner(problem, entries, repeats=3)()
     print(report)
     print()
     print("What to notice:")

@@ -7,7 +7,7 @@ from stark.contracts.acceleration import AcceleratorLike
 
 
 @dataclass(slots=True)
-class BoundDerivative:
+class DerivativeAccelerated:
     """Bind a raw derivative to an accelerator outside the hot path."""
 
     raw: Any
@@ -24,7 +24,7 @@ class BoundDerivative:
 
 
 @dataclass(slots=True)
-class BoundLinearizer:
+class LinearizerAccelerated:
     """Bind a raw linearizer to an accelerator outside the hot path."""
 
     raw: Any
@@ -96,4 +96,4 @@ def _iter_slot_names(cls: type[Any]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(names))
 
 
-__all__ = ["BoundDerivative", "BoundLinearizer", "bind_worker_tree"]
+__all__ = ["DerivativeAccelerated", "LinearizerAccelerated", "bind_worker_tree"]

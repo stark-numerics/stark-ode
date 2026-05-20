@@ -17,7 +17,7 @@ from __future__ import annotations
 #     python -m examples.case_studies.allen_cahn.lesson_02_compare_explicit
 
 from stark import Executor, Marcher
-from stark.comparison import Comparator, ComparisonEntry, ComparisonProblem
+from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp, SchemeDormandPrince
 
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     derivative = template.derivative
     workbench = template.workbench
 
-    # Comparator needs fresh states and intervals for each warmup, timed repeat,
+    # ComparisonRunner needs fresh states and intervals for each warmup, timed repeat,
     # and profiling pass. The carrier prepared by `StarkIVP` knows how to treat
     # these NumPy arrays as STARK vectors.
 
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     # sections are secondary at this stage; they become more interesting once
     # implicit and IMEX methods enter the comparison.
 
-    report = Comparator(problem, entries, repeats=3)()
+    report = ComparisonRunner(problem, entries, repeats=3)()
     print(report)
     print()
     print("What to notice:")

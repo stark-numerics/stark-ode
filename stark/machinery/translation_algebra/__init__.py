@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from stark.machinery.translation_algebra.linear_combine import (
-    Combiner,
+    CombineResolver,
     LinearCombine,
     fallback_combine10,
     fallback_combine11,
@@ -21,7 +21,7 @@ from stark.machinery.translation_algebra.linear_combine import (
 )
 
 __all__ = [
-    "Combiner",
+    "CombineResolver",
     "LinearCombine",
     "fallback_combine10",
     "fallback_combine11",

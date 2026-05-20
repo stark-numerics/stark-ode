@@ -1,31 +1,27 @@
-"""Structured comparison tooling for STARK experiments."""
-
-from stark.comparison.comparator import Comparator
+from stark.comparison.runner import ComparisonRunner
 from stark.comparison.models import (
-    ComparisonEntry,
-    ComparisonProblem,
-    ComparisonReport,
     Comparison,
     ComparisonBreakdown,
     ComparisonDiagnostics,
+    ComparisonEntry,
     ComparisonHotspot,
+    ComparisonProblem,
     ComparisonProfile,
+    ComparisonReport,
     ComparisonResult,
     ComparisonTiming,
 )
 
 __all__ = [
-    "Comparator",
-    "ComparisonEntry",
-    "ComparisonProblem",
-    "ComparisonReport",
+    "ComparisonRunner",
     "Comparison",
     "ComparisonBreakdown",
     "ComparisonDiagnostics",
+    "ComparisonEntry",
     "ComparisonHotspot",
+    "ComparisonProblem",
     "ComparisonProfile",
+    "ComparisonReport",
     "ComparisonResult",
     "ComparisonTiming",
 ]
-
-

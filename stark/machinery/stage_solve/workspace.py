@@ -5,7 +5,7 @@ from typing import Callable
 
 from stark.contracts.intervals import IntervalLike
 from stark.contracts import Translation, Workbench
-from stark.machinery.translation_algebra.linear_combine import Combiner, resolve_linear_combine
+from stark.machinery.translation_algebra.linear_combine import CombineResolver, resolve_linear_combine
 
 
 class _StageInterval:
@@ -62,19 +62,19 @@ class SchemeWorkspace:
         self.state_buffer = workbench.allocate_state()
         self.stage_interval = _StageInterval()
         self.apply_delta = self.apply_delta_safe
-        combiner = Combiner(resolve_linear_combine(translation), workbench.allocate_translation)
-        self.scale = combiner.scale
-        self.combine2 = combiner.combine2
-        self.combine3 = combiner.combine3
-        self.combine4 = combiner.combine4
-        self.combine5 = combiner.combine5
-        self.combine6 = combiner.combine6
-        self.combine7 = combiner.combine7
-        self.combine8 = combiner.combine8
-        self.combine9 = combiner.combine9
-        self.combine10 = combiner.combine10
-        self.combine11 = combiner.combine11
-        self.combine12 = combiner.combine12
+        combine_resolver = CombineResolver(resolve_linear_combine(translation), workbench.allocate_translation)
+        self.scale = combine_resolver.scale
+        self.combine2 = combine_resolver.combine2
+        self.combine3 = combine_resolver.combine3
+        self.combine4 = combine_resolver.combine4
+        self.combine5 = combine_resolver.combine5
+        self.combine6 = combine_resolver.combine6
+        self.combine7 = combine_resolver.combine7
+        self.combine8 = combine_resolver.combine8
+        self.combine9 = combine_resolver.combine9
+        self.combine10 = combine_resolver.combine10
+        self.combine11 = combine_resolver.combine11
+        self.combine12 = combine_resolver.combine12
 
     def __repr__(self) -> str:
         allocate_state_name = getattr(self.allocate_state, "__qualname__", type(self.allocate_state).__name__)
