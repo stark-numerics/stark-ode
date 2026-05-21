@@ -1,5 +1,6 @@
 """Native Python carrier parts."""
 
+from stark.carriers.native.carrier import CarrierNative
 from stark.carriers.native.allocation import CarrierAllocationNative
 from stark.carriers.native.arithmetic import CarrierArithmeticNative
 from stark.carriers.native.norm import (

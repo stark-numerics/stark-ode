@@ -3,13 +3,14 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stark.carriers import DeprecatedCarrierNative, DeprecatedCarrierNumpy
-from stark.conventions import ConventionInPlace, ConventionReturn
+from stark.carriers import CarrierNative, CarrierNumpy
 from stark.interface import StarkDerivative, StarkVector
 from stark.interface.vector import StarkVectorTranslation
 from stark.interface.derivative import (
-    BoundInPlaceStarkDerivative,
-    BoundReturnStarkDerivative,
+    DerivativeRuntimeReturn,
+    DerivativeRuntimeInPlace,
+    DerivativeConventionReturn,
+    DerivativeConventionInPlace
 )
 
 
@@ -22,10 +23,10 @@ def test_explicit_stark_derivative_construction():
     def rhs(t, y):
         return y
 
-    derivative = StarkDerivative(rhs, ConventionReturn())
+    derivative = StarkDerivative(rhs, DerivativeConventionReturn())
 
     assert derivative.function is rhs
-    assert isinstance(derivative.convention, ConventionReturn)
+    assert isinstance(derivative.convention, DerivativeConventionReturn)
 
 
 def test_stark_derivative_returning_decorator():
@@ -34,7 +35,7 @@ def test_stark_derivative_returning_decorator():
         return y
 
     assert isinstance(rhs, StarkDerivative)
-    assert isinstance(rhs.convention, ConventionReturn)
+    assert isinstance(rhs.convention, DerivativeConventionReturn)
 
 
 def test_stark_derivative_in_place_decorator():
@@ -43,7 +44,7 @@ def test_stark_derivative_in_place_decorator():
         dy[0] = y[0]
 
     assert isinstance(rhs, StarkDerivative)
-    assert isinstance(rhs.convention, ConventionInPlace)
+    assert isinstance(rhs.convention, DerivativeConventionInPlace)
 
 
 def test_stark_derivative_from_callable_uses_return_convention():
@@ -53,11 +54,11 @@ def test_stark_derivative_from_callable_uses_return_convention():
     derivative = StarkDerivative.from_callable(rhs)
 
     assert derivative.function is rhs
-    assert isinstance(derivative.convention, ConventionReturn)
+    assert isinstance(derivative.convention, DerivativeConventionReturn)
 
 
 def test_native_return_derivative_updates_out_value():
-    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
+    carrier = CarrierNative([1.0, 2.0])
 
     @StarkDerivative.returning
     def rhs(t, y):
@@ -76,7 +77,7 @@ def test_native_return_derivative_updates_out_value():
 
 
 def test_numpy_return_derivative_updates_out_value():
-    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = CarrierNumpy(np.array([1.0, 2.0]))
 
     @StarkDerivative.returning
     def rhs(t, y):
@@ -94,7 +95,7 @@ def test_numpy_return_derivative_updates_out_value():
 
 
 def test_numpy_in_place_derivative_updates_out_value():
-    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = CarrierNumpy(np.array([1.0, 2.0]))
 
     @StarkDerivative.in_place
     def rhs(t, y, dy):
@@ -114,7 +115,7 @@ def test_numpy_in_place_derivative_updates_out_value():
 
 
 def test_wrong_numpy_shape_raises():
-    carrier = DeprecatedCarrierNumpy(strict_shape=True).bind(np.array([1.0, 2.0]))
+    carrier = CarrierNumpy(np.array([1.0, 2.0]))
 
     @StarkDerivative.returning
     def rhs(t, y):
@@ -131,7 +132,7 @@ def test_wrong_numpy_shape_raises():
 
 
 def test_bound_return_derivative_has_core_compatible_call_shape():
-    carrier = DeprecatedCarrierNative().bind(1.0)
+    carrier = CarrierNative(1.0)
 
     def rhs(t, y):
         return -y
@@ -149,7 +150,7 @@ def test_bound_return_derivative_has_core_compatible_call_shape():
 
 
 def test_returning_derivative_binds_to_specialized_return_bound_derivative():
-    carrier = DeprecatedCarrierNative().bind(1.0)
+    carrier = CarrierNative(1.0)
 
     def rhs(t, y):
         return -y
@@ -157,11 +158,11 @@ def test_returning_derivative_binds_to_specialized_return_bound_derivative():
     derivative = StarkDerivative.returning(rhs)
     bound = derivative.bind(carrier)
 
-    assert isinstance(bound, BoundReturnStarkDerivative)
+    assert isinstance(bound, DerivativeRuntimeReturn)
 
 
 def test_in_place_derivative_binds_to_specialized_in_place_bound_derivative():
-    carrier = DeprecatedCarrierNative().bind([1.0])
+    carrier = CarrierNative([1.0])
 
     def rhs(t, y, dy):
         dy[0] = -y[0]
@@ -169,4 +170,4 @@ def test_in_place_derivative_binds_to_specialized_in_place_bound_derivative():
     derivative = StarkDerivative.in_place(rhs)
     bound = derivative.bind(carrier)
 
-    assert isinstance(bound, BoundInPlaceStarkDerivative)
+    assert isinstance(bound, DerivativeRuntimeInPlace)

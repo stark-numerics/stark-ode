@@ -19,7 +19,7 @@ objects from it, and then assembles the marcher explicitly.
 from __future__ import annotations
 
 from stark import Executor, Integrator, Interval, Marcher
-from stark.carriers import DeprecatedCarrierNative
+from stark.carriers import CarrierNative
 from stark.interface.vector import StarkVector, StarkVectorTranslation
 from stark.schemes.explicit_fixed.rk4 import SchemeRK4
 
@@ -36,7 +36,7 @@ def growth(
 
 
 def main() -> None:
-    carrier = DeprecatedCarrierNative().bind([1.0])
+    carrier = CarrierNative([1.0])
     state = StarkVector([1.0], carrier)
 
     # The initial state is the anchor for matching solver objects.

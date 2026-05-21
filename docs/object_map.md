@@ -91,16 +91,6 @@ is known.
   looped compiled kernels, or small fixed unrolled shapes. Advanced users
   choose policies when performance or representation details matter.
 
-- **DeprecatedCarrier**
-  Backend-specific array behavior used by the interface layer. NumPy, CuPy,
-  and JAX carriers know how to allocate, copy, combine, and measure their
-  arrays. Most users rely on automatic carrier selection.
-
-- **Routing**
-  Describes value semantics for interface vectors: whether operations can
-  update in place or should return new values. Most users rely on defaults,
-  while advanced interface users can choose routing explicitly.
-
 - **Accelerator**
   A configured compiler/backend worker such as no acceleration, Numba, or JAX.
   Users may provide one through an executor or Algebraist when they want

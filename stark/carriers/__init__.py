@@ -22,11 +22,15 @@ __all__ += [
     "CarrierValidation",
 ]
 
-# New native carrier parts
-
 from stark.carriers.native import (
+    CarrierNative,
     CarrierAllocationNative,
     CarrierArithmeticNative,
+    CarrierNative,
+    CarrierNativeValue,
+    CarrierNormNativeMax,
+    CarrierNormNativeRMS,
+    CarrierNormNativeScalarAbs,
     CarrierStorageNative,
     CarrierValidationNative,
 )
@@ -34,6 +38,11 @@ from stark.carriers.native import (
 __all__ += [
     "CarrierAllocationNative",
     "CarrierArithmeticNative",
+    "CarrierNative",
+    "CarrierNativeValue",
+    "CarrierNormNativeMax",
+    "CarrierNormNativeRMS",
+    "CarrierNormNativeScalarAbs",
     "CarrierStorageNative",
     "CarrierValidationNative",
 ]
@@ -41,8 +50,12 @@ __all__ += [
 # New NumPy carrier parts
 
 from stark.carriers.numpy import (
+    CarrierNumpy,
     CarrierAllocationNumpy,
     CarrierArithmeticNumpy,
+    CarrierNormNumpyMax,
+    CarrierNormNumpyRMS,
+    CarrierNumpyValue,
     CarrierStorageNumpy,
     CarrierValidationNumpy,
 )
@@ -50,23 +63,35 @@ from stark.carriers.numpy import (
 __all__ += [
     "CarrierAllocationNumpy",
     "CarrierArithmeticNumpy",
+    "CarrierNormNumpyMax",
+    "CarrierNormNumpyRMS",
+    "CarrierNumpy",
+    "CarrierNumpyValue",
     "CarrierStorageNumpy",
     "CarrierValidationNumpy",
 ]
 
-# New optional Cupy carrier parts
-
 try:
-    from stark.carriers.cupy.allocation import CarrierAllocationCupy
-    from stark.carriers.cupy.arithmetic import CarrierArithmeticCupy
-    from stark.carriers.cupy.storage import CarrierStorageCupy
-    from stark.carriers.cupy.validation import CarrierValidationCupy
+    from stark.carriers.cupy import (
+        CarrierAllocationCupy,
+        CarrierArithmeticCupy,
+        CarrierCupy,
+        CarrierCupyValue,
+        CarrierNormCupyMax,
+        CarrierNormCupyRMS,
+        CarrierStorageCupy,
+        CarrierValidationCupy,
+    )
 except ImportError:
     pass
 else:
     __all__ += [
         "CarrierAllocationCupy",
         "CarrierArithmeticCupy",
+        "CarrierCupy",
+        "CarrierCupyValue",
+        "CarrierNormCupyMax",
+        "CarrierNormCupyRMS",
         "CarrierStorageCupy",
         "CarrierValidationCupy",
     ]
@@ -74,116 +99,26 @@ else:
 # New optional JAX carrier parts
 
 try:
-    from stark.carriers.jax.allocation import CarrierAllocationJax
-    from stark.carriers.jax.arithmetic import CarrierArithmeticJax
-    from stark.carriers.jax.storage import CarrierStorageJax
-    from stark.carriers.jax.validation import CarrierValidationJax
+   from stark.carriers.jax import (
+        CarrierAllocationJax,
+        CarrierArithmeticJax,
+        CarrierJax,
+        CarrierJaxValue,
+        CarrierNormJaxMax,
+        CarrierNormJaxRMS,
+        CarrierStorageJax,
+        CarrierValidationJax,
+    )
 except ImportError:
     pass
 else:
     __all__ += [
         "CarrierAllocationJax",
         "CarrierArithmeticJax",
+        "CarrierJax",
+        "CarrierJaxValue",
+        "CarrierNormJaxMax",
+        "CarrierNormJaxRMS",
         "CarrierStorageJax",
         "CarrierValidationJax",
-    ]
-
-# Deprecated bind-based carrier model
-
-from stark.carriers.deprecated.core import (
-    DeprecatedCarrier,
-    DeprecatedCarrierBound,
-    DeprecatedCarrierError,
-    DeprecatedCarrierNative,
-    DeprecatedCarrierNativeBound,
-    DeprecatedCarrierNumpy,
-    DeprecatedCarrierNumpyBound,
-)
-from stark.carriers.deprecated.kernels import (
-    DeprecatedCarrierKernel,
-    DeprecatedCarrierKernelBound,
-    DeprecatedCarrierKernelNative,
-    DeprecatedCarrierKernelNativeBound,
-    DeprecatedCarrierKernelNumpy,
-    DeprecatedCarrierKernelNumpyBound,
-)
-from stark.carriers.deprecated.library import DeprecatedCarrierLibrary
-from stark.carriers.deprecated.norms import (
-    DeprecatedCarrierNorm,
-    DeprecatedCarrierNormNativeRMS,
-    DeprecatedCarrierNormNumpyMax,
-    DeprecatedCarrierNormNumpyRMS,
-)
-from stark.carriers.deprecated.algebraist import (
-    DeprecatedCarrierKernelAlgebraist,
-    DeprecatedCarrierKernelAlgebraistBound,
-)
-
-__all__ += [
-    "DeprecatedCarrier",
-    "DeprecatedCarrierBound",
-    "DeprecatedCarrierError",
-    "DeprecatedCarrierLibrary",
-    "DeprecatedCarrierNative",
-    "DeprecatedCarrierNativeBound",
-    "DeprecatedCarrierNumpy",
-    "DeprecatedCarrierNumpyBound",
-    "DeprecatedCarrierKernel",
-    "DeprecatedCarrierKernelBound",
-    "DeprecatedCarrierKernelNative",
-    "DeprecatedCarrierKernelNativeBound",
-    "DeprecatedCarrierKernelNumpy",
-    "DeprecatedCarrierKernelNumpyBound",
-    "DeprecatedCarrierNorm",
-    "DeprecatedCarrierNormNativeRMS",
-    "DeprecatedCarrierNormNumpyMax",
-    "DeprecatedCarrierNormNumpyRMS",
-    "DeprecatedCarrierKernelAlgebraist",
-    "DeprecatedCarrierKernelAlgebraistBound",
-]
-
-# Deprecated optional Cupy model
-
-try:
-    from stark.carriers.deprecated.cupy import (
-        DeprecatedCarrierCuPy,
-        DeprecatedCarrierCuPyBound,
-        DeprecatedCarrierKernelCuPy,
-        DeprecatedCarrierKernelCuPyBound,
-        DeprecatedCarrierNormCuPyMax,
-        DeprecatedCarrierNormCuPyRMS,
-    )
-except ImportError:
-    pass
-else:
-    __all__ += [
-        "DeprecatedCarrierCuPy",
-        "DeprecatedCarrierCuPyBound",
-        "DeprecatedCarrierKernelCuPy",
-        "DeprecatedCarrierKernelCuPyBound",
-        "DeprecatedCarrierNormCuPyMax",
-        "DeprecatedCarrierNormCuPyRMS",
-    ]
-
-# Deprecated optional JAX model
-
-try:
-    from stark.carriers.deprecated.jax import (
-        DeprecatedCarrierJax,
-        DeprecatedCarrierJaxBound,
-        DeprecatedCarrierKernelJax,
-        DeprecatedCarrierKernelJaxBound,
-        DeprecatedCarrierNormJaxMax,
-        DeprecatedCarrierNormJaxRMS,
-    )
-except ImportError:
-    pass
-else:
-    __all__ += [
-        "DeprecatedCarrierJax",
-        "DeprecatedCarrierJaxBound",
-        "DeprecatedCarrierKernelJax",
-        "DeprecatedCarrierKernelJaxBound",
-        "DeprecatedCarrierNormJaxMax",
-        "DeprecatedCarrierNormJaxRMS",
     ]

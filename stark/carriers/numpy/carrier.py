@@ -12,5 +12,5 @@ class CarrierNumpy:
         self.storage = storage
         self.validation = CarrierValidationNumpy(storage)
         self.allocation = CarrierAllocationNumpy(storage)
-        self.arithmetic = CarrierArithmeticNumpy()
+        self.arithmetic = CarrierArithmeticNumpy(storage)
         self.norm = CarrierNormNumpyRMS()

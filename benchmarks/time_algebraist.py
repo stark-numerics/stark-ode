@@ -4,7 +4,7 @@ import numpy as np
 
 from stark.accelerators import Accelerator
 from stark.algebraist import Algebraist, AlgebraistField, AlgebraistLooped
-from stark.carriers import DeprecatedCarrierNumpy
+from stark.carriers import CarrierNumpy
 from stark.interface.vector import StarkVectorTranslation
 
 from benchmarks.common import FPUT_SIZES
@@ -46,7 +46,7 @@ def accelerated_context(size: int) -> Algebraist:
 
 
 def vector_terms(size: int, arity: int) -> tuple[StarkVectorTranslation, ...]:
-    carrier = DeprecatedCarrierNumpy().bind(np.zeros(2 * size, dtype=np.float64))
+    carrier = CarrierNumpy(np.zeros(2 * size, dtype=np.float64))
     grid = np.linspace(0.0, 1.0, 2 * size, dtype=np.float64)
     return tuple(
         StarkVectorTranslation(
@@ -92,7 +92,6 @@ class TimeAlgebraistCombine:
         self.vector_out = StarkVectorTranslation(
             np.zeros(2 * chain_size, dtype=np.float64),
             self.vector_values[0].carrier,
-            self.vector_values[0].routing,
         )
         self.vector_combine = self.vector_out.linear_combine[arity - 1]
 

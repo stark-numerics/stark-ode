@@ -15,7 +15,7 @@ translation wrapper internally.
 from __future__ import annotations
 
 from stark import Executor, Integrator, Interval, Marcher
-from stark.carriers import DeprecatedCarrierNative
+from stark.carriers import CarrierNative
 from stark.interface.vector import (
     StarkVector,
     StarkVectorTranslation,
@@ -43,7 +43,7 @@ class ForwardEuler:
     """
 
     def __init__(self) -> None:
-        carrier = DeprecatedCarrierNative().bind([1.0])
+        carrier = CarrierNative([1.0])
         self.workbench = StarkVectorWorkbench(carrier)
         self.delta = self.workbench.allocate_translation()
         self.apply_delta_safely = True

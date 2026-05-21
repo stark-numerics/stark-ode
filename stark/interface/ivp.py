@@ -1,66 +1,68 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable, Protocol
 
 from stark import Executor, Integrator, Marcher
-from stark.carriers import DeprecatedCarrierError, DeprecatedCarrierLibrary
+from stark.carriers import CarrierNative, CarrierNumpy
+from stark.contracts import Carrier
 from stark.interface.derivative import StarkDerivative
-from stark.interface.vector import StarkVector, StarkVectorWorkbench
-from stark.routing import Routing, RoutingVector
+from stark.interface.vector import StarkVector, StarkVectorTranslation, StarkVectorWorkbench
 from stark.schemes import SchemeCashKarp
+
+
+class IntervalLike(Protocol):
+    present: Any
+    step: Any
+    stop: Any
+
+    def copy(self) -> "IntervalLike": ...
+    def increment(self) -> None: ...
+
+
+DerivativeRuntime = Callable[[IntervalLike, StarkVector, StarkVectorTranslation], None]
+SchemeFactory = Callable[[DerivativeRuntime, StarkVectorWorkbench], Any]
 
 
 @dataclass(slots=True)
 class StarkIVPBuild:
     workbench: StarkVectorWorkbench
-    derivative: Any
+    derivative: DerivativeRuntime
     scheme: Any
     executor: Executor
     marcher: Marcher
     integrator: Integrator
     initial: StarkVector
-    interval: Any
+    interval: IntervalLike
 
 
 @dataclass
 class StarkIVP:
-    derivative: Any
+    derivative: Callable[..., Any] | StarkDerivative
     initial: Any
-    interval: Any
-    carrier: Any = None
-    carrier_library: DeprecatedCarrierLibrary | None = None
-    routing: Routing | None = None
-    scheme: Any = None
-    executor: Any = None
+    interval: IntervalLike
+    carrier: Carrier[Any, Any] | None = None
+    scheme: SchemeFactory | Any | None = None
+    executor: Executor | None = None
 
     prepared_initial: StarkVector = field(init=False)
-    prepared_carrier: Any = field(init=False)
-    vector_routing: RoutingVector = field(init=False)
-    prepared_derivative: Any = field(init=False)
+    prepared_carrier: Carrier[Any, Any] = field(init=False)
+    prepared_derivative: DerivativeRuntime = field(init=False)
 
     def __post_init__(self) -> None:
         self.interval = self.validate_interval(self.interval)
-
-        if self.carrier is None and self.carrier_library is None:
-            self.carrier_library = DeprecatedCarrierLibrary.default()
-
         self.prepared_initial = self.prepare_initial(self.initial)
         self.prepared_derivative = self.prepare_derivative(self.derivative)
 
-    def validate_interval(self, interval: Any) -> Any:
+    def validate_interval(self, interval: IntervalLike) -> IntervalLike:
         if isinstance(interval, (tuple, list)):
             raise TypeError(
-                "StarkIVP requires an explicit interval-like object. Tuple/list "
-                "intervals are not accepted."
+                "StarkIVP requires an explicit interval-like object. "
+                "Tuple/list intervals are not accepted."
             )
 
         required = ("present", "step", "stop")
-
-        missing = [
-            name
-            for name in required
-            if not hasattr(interval, name)
-        ]
-
+        missing = [name for name in required if not hasattr(interval, name)]
         if missing:
             names = ", ".join(missing)
             raise TypeError(
@@ -70,11 +72,8 @@ class StarkIVP:
 
         methods = ("copy", "increment")
         missing_methods = [
-            name
-            for name in methods
-            if not callable(getattr(interval, name, None))
+            name for name in methods if not callable(getattr(interval, name, None))
         ]
-
         if missing_methods:
             names = ", ".join(missing_methods)
             raise TypeError(
@@ -84,52 +83,45 @@ class StarkIVP:
 
         for name in required:
             if getattr(interval, name) is None:
-                raise ValueError(
-                    f"StarkIVP interval attribute {name!r} must not be None."
-                )
+                raise ValueError(f"StarkIVP interval attribute {name!r} must not be None.")
 
         return interval
 
-    def resolve_vector_routing(self, carrier: Any) -> RoutingVector:
-        if self.routing is None:
-            return carrier.recommend_vector_routing()
+    def default_carrier_for(self, initial: Any) -> Carrier[Any, Any]:
+        if self.is_numpy_array(initial):
+            return CarrierNumpy(initial)
 
-        if not isinstance(self.routing, Routing):
-            raise TypeError(
-                "StarkIVP routing must be a Routing object. "
-                "Pass Routing(vector=...) to override vector routing."
-            )
+        return CarrierNative(initial)
 
-        return self.routing.policy(RoutingVector)
+    @staticmethod
+    def is_numpy_array(value: Any) -> bool:
+        try:
+            import numpy as np
+        except ImportError:
+            return False
+
+        return isinstance(value, np.ndarray)
 
     def prepare_initial(self, initial: Any) -> StarkVector:
         if isinstance(initial, StarkVector):
             if self.carrier is not None:
-                raise DeprecatedCarrierError(
-                    "Cannot provide an explicit carrier when initial is already a "
-                    "StarkVector."
+                raise TypeError(
+                    "Cannot provide an explicit carrier when initial is already a StarkVector."
                 )
 
             self.prepared_carrier = initial.carrier
-            self.vector_routing = self.resolve_vector_routing(initial.carrier.carrier)
             return initial
 
-        carrier = self.carrier
+        carrier = self.carrier if self.carrier is not None else self.default_carrier_for(initial)
+        value = carrier.validation.validate_state(initial)
 
-        if carrier is None:
-            carrier_library = self.carrier_library or DeprecatedCarrierLibrary.default()
-            self.carrier_library = carrier_library
-            carrier = carrier_library.carrier_for(initial)
+        self.prepared_carrier = carrier
+        return StarkVector(value, carrier)
 
-        value = carrier.coerce_state(initial)
-        bound_carrier = carrier.bind(value)
-
-        self.prepared_carrier = bound_carrier
-        self.vector_routing = self.resolve_vector_routing(carrier)
-
-        return StarkVector(value, bound_carrier)
-
-    def prepare_derivative(self, derivative: Any) -> Any:
+    def prepare_derivative(
+        self,
+        derivative: Callable[..., Any] | StarkDerivative,
+    ) -> DerivativeRuntime:
         if isinstance(derivative, StarkDerivative):
             stark_derivative = derivative
         else:
@@ -138,11 +130,7 @@ class StarkIVP:
         return stark_derivative.bind(self.prepared_carrier)
 
     def build(self) -> StarkIVPBuild:
-        workbench = StarkVectorWorkbench(
-            self.prepared_carrier,
-            self.vector_routing,
-        )
-
+        workbench = StarkVectorWorkbench(self.prepared_carrier)
         derivative = self.prepared_derivative
 
         if self.scheme is None:
@@ -169,7 +157,6 @@ class StarkIVP:
 
     def integrate(self) -> Any:
         build = self.build()
-
         return build.integrator(
             build.marcher,
             build.interval,
