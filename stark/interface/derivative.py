@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from stark.carriers.core import CarrierBound
+from stark.carriers.deprecated.core import DeprecatedCarrierBound
 from stark.conventions import Convention, ConventionInPlace, ConventionReturn
 
 
@@ -10,7 +10,7 @@ class StarkDerivative:
     function: Callable[..., Any]
     convention: Convention = field(default_factory=ConventionReturn)
 
-    def bind(self, carrier: CarrierBound) -> Any:
+    def bind(self, carrier: DeprecatedCarrierBound) -> Any:
         if isinstance(self.convention, ConventionReturn):
             return BoundReturnStarkDerivative(self.function, carrier)
 
@@ -39,7 +39,7 @@ class StarkDerivative:
 @dataclass(slots=True)
 class BoundReturnStarkDerivative:
     function: Callable[..., Any]
-    carrier: CarrierBound
+    carrier: DeprecatedCarrierBound
 
     def __call__(self, interval: Any, state: Any, out: Any) -> None:
         out.value = self.carrier.coerce_translation(
@@ -50,7 +50,7 @@ class BoundReturnStarkDerivative:
 @dataclass(slots=True)
 class BoundInPlaceStarkDerivative:
     function: Callable[..., Any]
-    carrier: CarrierBound
+    carrier: DeprecatedCarrierBound
 
     def __call__(self, interval: Any, state: Any, out: Any) -> None:
         self.function(interval.present, state.value, out.value)
@@ -61,7 +61,7 @@ class BoundInPlaceStarkDerivative:
 class BoundStarkDerivative:
     function: Callable[..., Any]
     convention: Convention
-    carrier: CarrierBound
+    carrier: DeprecatedCarrierBound
 
     def __call__(self, interval: Any, state: Any, out: Any) -> None:
         out.value = self.convention(

@@ -7,7 +7,7 @@ from typing import Any, Protocol, Sequence, TypeVar
 Value = TypeVar("Value")
 
 
-class CarrierKernel(Protocol):
+class DeprecatedCarrierKernel(Protocol):
     """Policy for building arithmetic workers for carried values."""
 
     def bind(
@@ -16,11 +16,11 @@ class CarrierKernel(Protocol):
         carrier: Any | None = None,
         template: Any | None = None,
         norm: Any,
-    ) -> CarrierKernelBound:
+    ) -> DeprecatedCarrierKernelBound:
         """Return a kernel specialised to a carrier/template/norm."""
 
 
-class CarrierKernelBound(Protocol[Value]):
+class DeprecatedCarrierKernelBound(Protocol[Value]):
     """Arithmetic worker bound to a concrete carrier/template/norm."""
 
     def translate(self, origin: Value, delta: Value) -> Value:
@@ -44,7 +44,7 @@ class CarrierKernelBound(Protocol[Value]):
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierKernelNative:
+class DeprecatedCarrierKernelNative:
     """Arithmetic kernel policy for native scalars, lists, and tuples."""
 
     def bind(
@@ -53,12 +53,12 @@ class CarrierKernelNative:
         carrier: Any | None = None,
         template: Any | None = None,
         norm: Any,
-    ) -> CarrierKernelNativeBound:
-        return CarrierKernelNativeBound(norm_policy=norm)
+    ) -> DeprecatedCarrierKernelNativeBound:
+        return DeprecatedCarrierKernelNativeBound(norm_policy=norm)
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierKernelNativeBound:
+class DeprecatedCarrierKernelNativeBound:
     """Returning arithmetic worker for native scalars, lists, and tuples."""
 
     norm_policy: Any
@@ -119,7 +119,7 @@ class CarrierKernelNativeBound:
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierKernelNumpy:
+class DeprecatedCarrierKernelNumpy:
     """Arithmetic kernel policy for NumPy arrays."""
 
     def bind(
@@ -128,12 +128,12 @@ class CarrierKernelNumpy:
         carrier: Any | None = None,
         template: Any | None = None,
         norm: Any,
-    ) -> CarrierKernelNumpyBound:
-        return CarrierKernelNumpyBound(norm_policy=norm)
+    ) -> DeprecatedCarrierKernelNumpyBound:
+        return DeprecatedCarrierKernelNumpyBound(norm_policy=norm)
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierKernelNumpyBound:
+class DeprecatedCarrierKernelNumpyBound:
     """Arithmetic worker for NumPy arrays.
 
     Returning methods are the base API. In-place methods are optional

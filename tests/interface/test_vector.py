@@ -1,6 +1,6 @@
 import numpy as np
 
-from stark.carriers import CarrierNative, CarrierNumpy
+from stark.carriers import DeprecatedCarrierNative, DeprecatedCarrierNumpy
 from stark.interface import StarkVector
 from stark.interface.vector import StarkVectorTranslation, StarkVectorWorkbench
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
@@ -8,7 +8,7 @@ from stark.routing import RoutingVectorPreferInPlace, RoutingVectorReturn
 
 
 def test_stark_vector_stores_native_value_and_carrier():
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
     value = [1.0, 2.0]
 
     vector = StarkVector(value, carrier)
@@ -19,7 +19,7 @@ def test_stark_vector_stores_native_value_and_carrier():
 
 def test_stark_vector_stores_numpy_value_and_carrier():
     value = np.array([1.0, 2.0])
-    carrier = CarrierNumpy().bind(value)
+    carrier = DeprecatedCarrierNumpy().bind(value)
 
     vector = StarkVector(value, carrier)
 
@@ -28,7 +28,7 @@ def test_stark_vector_stores_numpy_value_and_carrier():
 
 
 def test_native_translation_applies_to_state():
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
 
     origin = StarkVector([1.0, 2.0], carrier)
     result = StarkVector([0.0, 0.0], carrier)
@@ -41,14 +41,14 @@ def test_native_translation_applies_to_state():
 
 
 def test_native_translation_norm_works():
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
     translation = StarkVectorTranslation([3.0, 4.0], carrier)
 
     assert translation.norm() == (12.5 ** 0.5)
 
 
 def test_native_translation_addition_works():
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
 
     left = StarkVectorTranslation([1.0, 2.0], carrier)
     right = StarkVectorTranslation([3.0, 4.0], carrier)
@@ -60,7 +60,7 @@ def test_native_translation_addition_works():
 
 
 def test_native_translation_scalar_multiplication_works():
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
     translation = StarkVectorTranslation([3.0, 4.0], carrier)
 
     result = 2.0 * translation
@@ -70,7 +70,7 @@ def test_native_translation_scalar_multiplication_works():
 
 
 def test_numpy_translation_applies_to_state_using_return_routing():
-    carrier = CarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
 
     origin = StarkVector(np.array([1.0, 2.0]), carrier)
     original_result_value = np.zeros(2)
@@ -88,7 +88,7 @@ def test_numpy_translation_applies_to_state_using_return_routing():
 
 
 def test_numpy_translation_applies_to_state_using_prefer_in_place_routing():
-    carrier = CarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
 
     origin = StarkVector(np.array([1.0, 2.0]), carrier)
     original_result_value = np.zeros(2)
@@ -105,14 +105,14 @@ def test_numpy_translation_applies_to_state_using_prefer_in_place_routing():
     np.testing.assert_allclose(result.value, np.array([4.0, 6.0]))
 
 def test_numpy_translation_norm_works():
-    carrier = CarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
     translation = StarkVectorTranslation(np.array([3.0, 4.0]), carrier)
 
     assert translation.norm() == (12.5 ** 0.5)
 
 
 def test_numpy_translation_addition_works():
-    carrier = CarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
 
     left = StarkVectorTranslation(np.array([1.0, 2.0]), carrier)
     right = StarkVectorTranslation(np.array([3.0, 4.0]), carrier)
@@ -124,7 +124,7 @@ def test_numpy_translation_addition_works():
 
 
 def test_numpy_translation_scalar_multiplication_works():
-    carrier = CarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
     translation = StarkVectorTranslation(np.array([3.0, 4.0]), carrier)
 
     result = 2.0 * translation
@@ -134,7 +134,7 @@ def test_numpy_translation_scalar_multiplication_works():
 
 
 def test_translation_exposes_linear_combine_through_combine12():
-    carrier = CarrierNative().bind([0.0])
+    carrier = DeprecatedCarrierNative().bind([0.0])
     translation = StarkVectorTranslation([0.0], carrier)
 
     assert len(translation.linear_combine) == 12
@@ -155,7 +155,7 @@ def test_translation_exposes_linear_combine_through_combine12():
 
 
 def test_numpy_linear_combine_prefers_in_place_output_storage():
-    carrier = CarrierNumpy().bind(np.array([0.0, 0.0]))
+    carrier = DeprecatedCarrierNumpy().bind(np.array([0.0, 0.0]))
     routing = RoutingVectorPreferInPlace()
     translation = StarkVectorTranslation(np.array([0.0, 0.0]), carrier, routing)
     out_value = np.zeros(2)
@@ -171,7 +171,7 @@ def test_numpy_linear_combine_prefers_in_place_output_storage():
 
 
 def test_scheme_workspace_consumes_stark_vector_linear_combine():
-    carrier = CarrierNative().bind([0.0])
+    carrier = DeprecatedCarrierNative().bind([0.0])
     workbench = StarkVectorWorkbench(carrier)
     probe = workbench.allocate_translation()
     workspace = SchemeWorkspace(workbench, probe)
@@ -191,7 +191,7 @@ def test_scheme_workspace_consumes_stark_vector_linear_combine():
 
 
 def test_workbench_allocates_native_state():
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
     workbench = StarkVectorWorkbench(carrier)
 
     state = workbench.allocate_state()
@@ -202,7 +202,7 @@ def test_workbench_allocates_native_state():
 
 
 def test_workbench_copies_native_state():
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
     workbench = StarkVectorWorkbench(carrier)
 
     source = StarkVector([3.0, 4.0], carrier)
@@ -215,7 +215,7 @@ def test_workbench_copies_native_state():
 
 
 def test_workbench_allocates_native_translation():
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
     workbench = StarkVectorWorkbench(carrier)
 
     translation = workbench.allocate_translation()
@@ -227,7 +227,7 @@ def test_workbench_allocates_native_translation():
 
 def test_workbench_allocates_numpy_state():
     template = np.array([1.0, 2.0])
-    carrier = CarrierNumpy().bind(template)
+    carrier = DeprecatedCarrierNumpy().bind(template)
     workbench = StarkVectorWorkbench(carrier)
 
     state = workbench.allocate_state()
@@ -238,7 +238,7 @@ def test_workbench_allocates_numpy_state():
 
 
 def test_workbench_copies_numpy_state():
-    carrier = CarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
     workbench = StarkVectorWorkbench(carrier)
 
     source = StarkVector(np.array([3.0, 4.0]), carrier)
@@ -252,7 +252,7 @@ def test_workbench_copies_numpy_state():
 
 
 def test_workbench_allocates_numpy_translation():
-    carrier = CarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
     workbench = StarkVectorWorkbench(carrier)
 
     translation = workbench.allocate_translation()
@@ -263,7 +263,7 @@ def test_workbench_allocates_numpy_translation():
 
 
 def test_workbench_uses_routing_when_constructing_translations():
-    carrier = CarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
     routing = RoutingVectorPreferInPlace()
     workbench = StarkVectorWorkbench(carrier, routing)
 
@@ -272,7 +272,7 @@ def test_workbench_uses_routing_when_constructing_translations():
     assert translation.routing is routing
 
 def test_stark_vector_creates_translation_with_same_carrier():
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
     vector = StarkVector([1.0, 2.0], carrier)
 
     translation = vector.translation([3.0, 4.0])
@@ -283,7 +283,7 @@ def test_stark_vector_creates_translation_with_same_carrier():
 
 
 def test_stark_vector_creates_zero_translation_with_same_carrier():
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
     vector = StarkVector([1.0, 2.0], carrier)
 
     translation = vector.zero_translation()
@@ -294,7 +294,7 @@ def test_stark_vector_creates_zero_translation_with_same_carrier():
 
 
 def test_stark_vector_creates_workbench_with_same_carrier():
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
     vector = StarkVector([1.0, 2.0], carrier)
 
     workbench = vector.workbench()
@@ -304,7 +304,7 @@ def test_stark_vector_creates_workbench_with_same_carrier():
 
 
 def test_stark_vector_factories_accept_routing():
-    carrier = CarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
     routing = RoutingVectorPreferInPlace()
     vector = StarkVector(np.array([1.0, 2.0]), carrier)
 

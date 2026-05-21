@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stark.carriers import CarrierNative, CarrierNumpy
+from stark.carriers import DeprecatedCarrierNative, DeprecatedCarrierNumpy
 from stark.conventions import ConventionInPlace, ConventionReturn
 from stark.interface import StarkDerivative, StarkVector
 from stark.interface.vector import StarkVectorTranslation
@@ -57,7 +57,7 @@ def test_stark_derivative_from_callable_uses_return_convention():
 
 
 def test_native_return_derivative_updates_out_value():
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
 
     @StarkDerivative.returning
     def rhs(t, y):
@@ -76,7 +76,7 @@ def test_native_return_derivative_updates_out_value():
 
 
 def test_numpy_return_derivative_updates_out_value():
-    carrier = CarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
 
     @StarkDerivative.returning
     def rhs(t, y):
@@ -94,7 +94,7 @@ def test_numpy_return_derivative_updates_out_value():
 
 
 def test_numpy_in_place_derivative_updates_out_value():
-    carrier = CarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
 
     @StarkDerivative.in_place
     def rhs(t, y, dy):
@@ -114,7 +114,7 @@ def test_numpy_in_place_derivative_updates_out_value():
 
 
 def test_wrong_numpy_shape_raises():
-    carrier = CarrierNumpy(strict_shape=True).bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy(strict_shape=True).bind(np.array([1.0, 2.0]))
 
     @StarkDerivative.returning
     def rhs(t, y):
@@ -131,7 +131,7 @@ def test_wrong_numpy_shape_raises():
 
 
 def test_bound_return_derivative_has_core_compatible_call_shape():
-    carrier = CarrierNative().bind(1.0)
+    carrier = DeprecatedCarrierNative().bind(1.0)
 
     def rhs(t, y):
         return -y
@@ -149,7 +149,7 @@ def test_bound_return_derivative_has_core_compatible_call_shape():
 
 
 def test_returning_derivative_binds_to_specialized_return_bound_derivative():
-    carrier = CarrierNative().bind(1.0)
+    carrier = DeprecatedCarrierNative().bind(1.0)
 
     def rhs(t, y):
         return -y
@@ -161,7 +161,7 @@ def test_returning_derivative_binds_to_specialized_return_bound_derivative():
 
 
 def test_in_place_derivative_binds_to_specialized_in_place_bound_derivative():
-    carrier = CarrierNative().bind([1.0])
+    carrier = DeprecatedCarrierNative().bind([1.0])
 
     def rhs(t, y, dy):
         dy[0] = -y[0]

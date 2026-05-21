@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from stark import Executor, Integrator, Marcher
-from stark.carriers import CarrierError, CarrierLibrary
+from stark.carriers import DeprecatedCarrierError, DeprecatedCarrierLibrary
 from stark.interface.derivative import StarkDerivative
 from stark.interface.vector import StarkVector, StarkVectorWorkbench
 from stark.routing import Routing, RoutingVector
@@ -27,7 +27,7 @@ class StarkIVP:
     initial: Any
     interval: Any
     carrier: Any = None
-    carrier_library: CarrierLibrary | None = None
+    carrier_library: DeprecatedCarrierLibrary | None = None
     routing: Routing | None = None
     scheme: Any = None
     executor: Any = None
@@ -41,7 +41,7 @@ class StarkIVP:
         self.interval = self.validate_interval(self.interval)
 
         if self.carrier is None and self.carrier_library is None:
-            self.carrier_library = CarrierLibrary.default()
+            self.carrier_library = DeprecatedCarrierLibrary.default()
 
         self.prepared_initial = self.prepare_initial(self.initial)
         self.prepared_derivative = self.prepare_derivative(self.derivative)
@@ -105,7 +105,7 @@ class StarkIVP:
     def prepare_initial(self, initial: Any) -> StarkVector:
         if isinstance(initial, StarkVector):
             if self.carrier is not None:
-                raise CarrierError(
+                raise DeprecatedCarrierError(
                     "Cannot provide an explicit carrier when initial is already a "
                     "StarkVector."
                 )
@@ -117,7 +117,7 @@ class StarkIVP:
         carrier = self.carrier
 
         if carrier is None:
-            carrier_library = self.carrier_library or CarrierLibrary.default()
+            carrier_library = self.carrier_library or DeprecatedCarrierLibrary.default()
             self.carrier_library = carrier_library
             carrier = carrier_library.carrier_for(initial)
 

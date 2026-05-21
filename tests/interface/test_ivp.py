@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from stark import Executor, Integrator, Interval, Marcher
-from stark.carriers import CarrierError, CarrierLibrary, CarrierNative
+from stark.carriers import DeprecatedCarrierError, DeprecatedCarrierLibrary, DeprecatedCarrierNative
 from stark.interface import StarkDerivative, StarkVector
 from stark.interface.derivative import BoundReturnStarkDerivative
 from stark.interface.ivp import StarkIVP, StarkIVPBuild
@@ -45,11 +45,11 @@ def test_can_construct_stark_ivp_with_derivative_initial_and_interval():
     assert ivp.derivative is rhs
     assert ivp.initial == 1.0
     assert ivp.interval is interval
-    assert isinstance(ivp.carrier_library, CarrierLibrary)
+    assert isinstance(ivp.carrier_library, DeprecatedCarrierLibrary)
 
 
 def test_can_construct_with_explicit_carrier():
-    carrier = CarrierNative()
+    carrier = DeprecatedCarrierNative()
     interval = DummyInterval(present=0.0, step=0.1, stop=1.0)
 
     ivp = StarkIVP(
@@ -64,7 +64,7 @@ def test_can_construct_with_explicit_carrier():
 
 
 def test_can_construct_with_explicit_carrier_library():
-    carrier_library = CarrierLibrary((CarrierNative(),))
+    carrier_library = DeprecatedCarrierLibrary((DeprecatedCarrierNative(),))
     interval = DummyInterval(present=0.0, step=0.1, stop=1.0)
 
     ivp = StarkIVP(
@@ -163,7 +163,7 @@ def test_raw_numpy_initial_becomes_stark_vector():
 
 
 def test_explicit_carrier_is_respected_during_initial_preparation():
-    carrier = CarrierNative()
+    carrier = DeprecatedCarrierNative()
     interval = DummyInterval(present=0.0, step=0.1, stop=1.0)
 
     ivp = StarkIVP(
@@ -179,8 +179,8 @@ def test_explicit_carrier_is_respected_during_initial_preparation():
 
 
 def test_carrier_library_is_used_when_carrier_missing():
-    native = CarrierNative()
-    carrier_library = CarrierLibrary((native,))
+    native = DeprecatedCarrierNative()
+    carrier_library = DeprecatedCarrierLibrary((native,))
     interval = DummyInterval(present=0.0, step=0.1, stop=1.0)
 
     ivp = StarkIVP(
@@ -221,8 +221,8 @@ def test_bare_vector_routing_is_rejected():
 
 
 def test_explicit_carrier_library_is_respected():
-    native = CarrierNative()
-    carrier_library = CarrierLibrary((native,))
+    native = DeprecatedCarrierNative()
+    carrier_library = DeprecatedCarrierLibrary((native,))
     interval = DummyInterval(present=0.0, step=0.1, stop=1.0)
 
     ivp = StarkIVP(

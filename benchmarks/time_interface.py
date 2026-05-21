@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark import Executor, Integrator, Interval, Marcher, Safety, Tolerance
-from stark.carriers import CarrierNumpy
+from stark.carriers import DeprecatedCarrierNumpy
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.interface.derivative import StarkDerivative as InterfaceDerivative
 from stark.interface.vector import StarkVectorWorkbench
@@ -67,7 +67,7 @@ class VectorCoreFPUTCase:
     __slots__ = ("carrier", "initial_value", "integrator", "interval", "marcher")
 
     def __init__(self, problem: FPUTParameters, initial: object, derivative: object) -> None:
-        carrier = CarrierNumpy().bind(initial)
+        carrier = DeprecatedCarrierNumpy().bind(initial)
         workbench = StarkVectorWorkbench(carrier)
         bound_derivative = InterfaceDerivative.in_place(derivative).bind(carrier)
         run_executor = executor()

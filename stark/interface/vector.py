@@ -3,14 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from stark.carriers.core import CarrierBound
+from stark.carriers.deprecated.core import DeprecatedCarrierBound
 from stark.routing import RoutingVector, RoutingVectorReturn
 
 
 @dataclass
 class StarkVector:
     value: Any
-    carrier: CarrierBound
+    carrier: DeprecatedCarrierBound
 
     def translation(
         self,
@@ -47,7 +47,7 @@ class StarkVector:
 @dataclass
 class StarkVectorTranslation:
     value: Any
-    carrier: CarrierBound
+    carrier: DeprecatedCarrierBound
     routing: RoutingVector = field(default_factory=RoutingVectorReturn)
 
     def __call__(self, origin: StarkVector, result: StarkVector) -> StarkVector:
@@ -146,7 +146,7 @@ class StarkVectorTranslation:
 
 @dataclass
 class StarkVectorWorkbench:
-    carrier: CarrierBound
+    carrier: DeprecatedCarrierBound
     routing: RoutingVector = field(default_factory=RoutingVectorReturn)
 
     def allocate_state(self) -> StarkVector:

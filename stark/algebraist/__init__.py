@@ -36,6 +36,16 @@ from stark.algebraist.tableau import (
     ButcherTableauLike,
 )
 
+from stark.algebraist.combine import (
+    AlgebraistCombineResolver,
+    AlgebraistCombineSynthesizer3,
+    AlgebraistCombineSynthesizer4,
+    AlgebraistCombineSynthesizer5,
+    AlgebraistCombineSynthesizer6,
+    AlgebraistCombineSynthesizer7,
+    AlgebraistCombineSynthesizerN,
+)
+
 __all__ = [
     "Algebraist",
     "AlgebraistBroadcast",
@@ -61,4 +71,11 @@ __all__ = [
     "ButcherTableauLike",
     "apply_signature",
     "combine_signature",
+    "AlgebraistCombineResolver",
+    "AlgebraistCombineSynthesizer3",
+    "AlgebraistCombineSynthesizer4",
+    "AlgebraistCombineSynthesizer5",
+    "AlgebraistCombineSynthesizer6",
+    "AlgebraistCombineSynthesizer7",
+    "AlgebraistCombineSynthesizerN",
 ]

@@ -5,7 +5,7 @@ from typing import Callable
 
 from stark.contracts.intervals import IntervalLike
 from stark.contracts import Translation, Workbench
-from stark.machinery.translation_algebra.linear_combine import CombineResolver, resolve_linear_combine
+from stark.algebraist.combine import AlgebraistCombineResolver
 
 
 class _StageInterval:
@@ -62,7 +62,10 @@ class SchemeWorkspace:
         self.state_buffer = workbench.allocate_state()
         self.stage_interval = _StageInterval()
         self.apply_delta = self.apply_delta_safe
-        combine_resolver = CombineResolver(resolve_linear_combine(translation), workbench.allocate_translation)
+        combine_resolver = AlgebraistCombineResolver.from_translation(
+            translation,
+            workbench.allocate_translation,
+            )
         self.scale = combine_resolver.scale
         self.combine2 = combine_resolver.combine2
         self.combine3 = combine_resolver.combine3

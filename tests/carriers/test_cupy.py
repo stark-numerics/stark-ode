@@ -2,13 +2,13 @@ import pytest
 
 cp = pytest.importorskip("cupy")
 
-from stark.carriers.cupy import (  # noqa: E402
-    CarrierCuPy,
-    CarrierKernelCuPy,
-    CarrierNormCuPyMax,
-    CarrierNormCuPyRMS,
+from stark.carriers.deprecated.cupy import (  # noqa: E402
+    DeprecatedCarrierCuPy,
+    DeprecatedCarrierKernelCuPy,
+    DeprecatedCarrierNormCuPyMax,
+    DeprecatedCarrierNormCuPyRMS,
 )
-from stark.carriers.library import CarrierLibrary  # noqa: E402
+from stark.carriers.deprecated.library import DeprecatedCarrierLibrary  # noqa: E402
 from stark.interface import StarkDerivative, StarkVector  # noqa: E402
 from stark.interface.vector import StarkVectorTranslation  # noqa: E402
 from stark.routing import RoutingVectorPreferInPlace  # noqa: E402
@@ -24,7 +24,7 @@ def require_working_cupy():
 def test_cupy_rms_norm():
     require_working_cupy()
 
-    norm = CarrierNormCuPyRMS().bind(
+    norm = DeprecatedCarrierNormCuPyRMS().bind(
         template=cp.array([1.0, 2.0]),
         carrier=None,
     )
@@ -35,7 +35,7 @@ def test_cupy_rms_norm():
 def test_cupy_max_norm():
     require_working_cupy()
 
-    norm = CarrierNormCuPyMax().bind(
+    norm = DeprecatedCarrierNormCuPyMax().bind(
         template=cp.array([1.0, 2.0]),
         carrier=None,
     )
@@ -46,7 +46,7 @@ def test_cupy_max_norm():
 def test_cupy_empty_array_norm():
     require_working_cupy()
 
-    norm = CarrierNormCuPyRMS().bind(
+    norm = DeprecatedCarrierNormCuPyRMS().bind(
         template=cp.array([]),
         carrier=None,
     )
@@ -57,7 +57,7 @@ def test_cupy_empty_array_norm():
 def test_cupy_complex_norm():
     require_working_cupy()
 
-    norm = CarrierNormCuPyRMS().bind(
+    norm = DeprecatedCarrierNormCuPyRMS().bind(
         template=cp.array([1.0 + 0.0j]),
         carrier=None,
     )
@@ -70,11 +70,11 @@ def test_cupy_complex_norm():
 def test_cupy_kernel_translate_add_scale_combine():
     require_working_cupy()
 
-    norm = CarrierNormCuPyRMS().bind(
+    norm = DeprecatedCarrierNormCuPyRMS().bind(
         template=cp.array([1.0, 2.0]),
         carrier=None,
     )
-    kernel = CarrierKernelCuPy().bind(
+    kernel = DeprecatedCarrierKernelCuPy().bind(
         template=cp.array([1.0, 2.0]),
         carrier=None,
         norm=norm,
@@ -104,11 +104,11 @@ def test_cupy_kernel_translate_add_scale_combine():
 def test_cupy_kernel_in_place_methods():
     require_working_cupy()
 
-    norm = CarrierNormCuPyRMS().bind(
+    norm = DeprecatedCarrierNormCuPyRMS().bind(
         template=cp.array([1.0, 2.0]),
         carrier=None,
     )
-    kernel = CarrierKernelCuPy().bind(
+    kernel = DeprecatedCarrierKernelCuPy().bind(
         template=cp.array([1.0, 2.0]),
         carrier=None,
         norm=norm,
@@ -136,11 +136,11 @@ def test_cupy_kernel_in_place_methods():
 def test_cupy_kernel_empty_combine_raises():
     require_working_cupy()
 
-    norm = CarrierNormCuPyRMS().bind(
+    norm = DeprecatedCarrierNormCuPyRMS().bind(
         template=cp.array([1.0, 2.0]),
         carrier=None,
     )
-    kernel = CarrierKernelCuPy().bind(
+    kernel = DeprecatedCarrierKernelCuPy().bind(
         template=cp.array([1.0, 2.0]),
         carrier=None,
         norm=norm,
@@ -153,14 +153,14 @@ def test_cupy_kernel_empty_combine_raises():
 def test_carrier_cupy_accepts_cupy_array():
     require_working_cupy()
 
-    assert CarrierCuPy().accepts(cp.array([1.0, 2.0]))
+    assert DeprecatedCarrierCuPy().accepts(cp.array([1.0, 2.0]))
 
 
 def test_carrier_cupy_binds_template():
     require_working_cupy()
 
     template = cp.array([1.0, 2.0])
-    carrier = CarrierCuPy().bind(template)
+    carrier = DeprecatedCarrierCuPy().bind(template)
 
     assert carrier.template.shape == template.shape
     assert carrier.template.dtype == template.dtype
@@ -169,7 +169,7 @@ def test_carrier_cupy_binds_template():
 def test_carrier_cupy_validates_shape():
     require_working_cupy()
 
-    carrier = CarrierCuPy(strict_shape=True).bind(cp.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierCuPy(strict_shape=True).bind(cp.array([1.0, 2.0]))
 
     with pytest.raises(ValueError):
         carrier.validate_state(cp.array([1.0, 2.0, 3.0]))
@@ -178,7 +178,7 @@ def test_carrier_cupy_validates_shape():
 def test_carrier_cupy_validates_dtype_when_strict_dtype_is_true():
     require_working_cupy()
 
-    carrier = CarrierCuPy(strict_dtype=True).bind(cp.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierCuPy(strict_dtype=True).bind(cp.array([1.0, 2.0]))
 
     with pytest.raises(TypeError):
         carrier.validate_state(cp.array([1, 2], dtype=cp.int64))
@@ -187,7 +187,7 @@ def test_carrier_cupy_validates_dtype_when_strict_dtype_is_true():
 def test_carrier_cupy_recommends_prefer_in_place_routing():
     require_working_cupy()
 
-    routing = CarrierCuPy().recommend_vector_routing()
+    routing = DeprecatedCarrierCuPy().recommend_vector_routing()
 
     assert isinstance(routing, RoutingVectorPreferInPlace)
 
@@ -195,15 +195,15 @@ def test_carrier_cupy_recommends_prefer_in_place_routing():
 def test_carrier_library_default_selects_cupy_for_cupy_array():
     require_working_cupy()
 
-    carrier = CarrierLibrary.default().carrier_for(cp.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierLibrary.default().carrier_for(cp.array([1.0, 2.0]))
 
-    assert isinstance(carrier, CarrierCuPy)
+    assert isinstance(carrier, DeprecatedCarrierCuPy)
 
 
 def test_stark_vector_translation_works_with_cupy():
     require_working_cupy()
 
-    carrier = CarrierCuPy().bind(cp.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierCuPy().bind(cp.array([1.0, 2.0]))
 
     origin = StarkVector(cp.array([1.0, 2.0]), carrier)
     result = StarkVector(cp.zeros(2), carrier)
@@ -221,7 +221,7 @@ def test_stark_vector_translation_works_with_cupy():
 def test_stark_derivative_return_convention_works_with_cupy():
     require_working_cupy()
 
-    carrier = CarrierCuPy().bind(cp.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierCuPy().bind(cp.array([1.0, 2.0]))
 
     @StarkDerivative.returning
     def rhs(t, y):

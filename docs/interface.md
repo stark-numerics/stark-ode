@@ -94,7 +94,7 @@ for interval, state in ivp.integrate():
 
 ## Explicit carrier
 
-Most users do not need to provide a carrier. `StarkIVP` chooses one from the initial value through `CarrierLibrary.default()`.
+Most users do not need to provide a carrier. `StarkIVP` chooses one from the initial value through `DeprecatedCarrierLibrary.default()`.
 
 Pass a carrier explicitly when you need carrier-specific options.
 
@@ -102,7 +102,7 @@ Pass a carrier explicitly when you need carrier-specific options.
 import numpy as np
 
 from stark import Interval
-from stark.carriers import CarrierNumpy
+from stark.carriers import DeprecatedCarrierNumpy
 from stark.interface import StarkIVP
 
 
@@ -114,7 +114,7 @@ ivp = StarkIVP(
     derivative=exponential_decay,
     initial=np.array([2.0, 4.0, 8.0]),
     interval=Interval(present=0.0, step=0.1, stop=10.0),
-    carrier=CarrierNumpy(strict_shape=True),
+    carrier=DeprecatedCarrierNumpy(strict_shape=True),
 )
 
 for interval, state in ivp.integrate():
@@ -181,7 +181,7 @@ ivp = StarkIVP(
 
 ### NumPy arrays
 
-NumPy arrays are supported through `CarrierNumpy`.
+NumPy arrays are supported through `DeprecatedCarrierNumpy`.
 
 NumPy arrays can be one-dimensional or multidimensional. For example, both a
 packed state with shape `(2 * n,)` and a more natural state with shape `(2, n)`
@@ -296,7 +296,7 @@ Routing controls local vector call paths:
 - in-place
 - prefer in-place with return fallback
 
-Carrier-backed interface translations use routing for translation application
+DeprecatedCarrier-backed interface translations use routing for translation application
 and for linear-combination kernels exposed to the core scheme workspace. The
 generic interface path provides named combinations through `combine12`, covering
 the built-in explicit, implicit, and IMEX schemes without falling back to staged
@@ -321,11 +321,11 @@ ivp = StarkIVP(
 )
 ```
 
-## CarrierLibrary
+## DeprecatedCarrierLibrary
 
-`CarrierLibrary` selects a carrier for raw initial values.
+`DeprecatedCarrierLibrary` selects a carrier for raw initial values.
 
-`CarrierLibrary.default()` includes available built-in carriers:
+`DeprecatedCarrierLibrary.default()` includes available built-in carriers:
 
 - native Python carrier
 - NumPy carrier

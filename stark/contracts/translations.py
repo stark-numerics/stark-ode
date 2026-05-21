@@ -3,13 +3,36 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import sqrt
 from numbers import Real
-from typing import Any, Protocol, Self
+from typing import Any, Protocol, Self, TypeVar
 
 from stark.contracts.audit_support import AuditRecorder
 
 
 State = Any
 
+StateType = TypeVar("StateType", bound=State)
+StateTypeCovariant = TypeVar("StateTypeCovariant", bound=State, covariant=True)
+StateTypeContravariant = TypeVar("StateTypeContravariant", bound=State, contravariant=True)
+
+# Use invariant types when a protocol both accepts and returns the type.
+# Example: validate_state(value: StateType) -> StateType.
+TranslationType = TypeVar("TranslationType", bound="Translation")
+
+# Use covariant types when a protocol only returns the type.
+# Example: zero_translation() -> TranslationTypeCovariant.
+TranslationTypeCovariant = TypeVar(
+    "TranslationTypeCovariant",
+    bound="Translation",
+    covariant=True,
+)
+
+# Use contravariant types when a protocol only accepts the type.
+# Example: norm(value: TranslationTypeContravariant) -> float.
+TranslationTypeContravariant = TypeVar(
+    "TranslationTypeContravariant",
+    bound="Translation",
+    contravariant=True,
+)
 
 class Translation(Protocol):
     """
@@ -201,7 +224,13 @@ __all__ = [
     "InnerProduct",
     "Operator",
     "State",
+    "StateType",
+    "StateTypeCovariant",
+    "StateTypeContravariant",
     "Translation",
+    "TranslationType",
+    "TranslationTypeCovariant",
+    "TranslationTypeContravariant",
 ]
 
 

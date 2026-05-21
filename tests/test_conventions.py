@@ -1,13 +1,13 @@
 import numpy as np
 import pytest
 
-from stark.carriers import CarrierNative, CarrierNumpy
+from stark.carriers import DeprecatedCarrierNative, DeprecatedCarrierNumpy
 from stark.conventions import ConventionReturn, ConventionInPlace
 
 
 def test_return_convention_calls_function_with_t_and_y():
     convention = ConventionReturn()
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
 
     calls = []
 
@@ -23,7 +23,7 @@ def test_return_convention_calls_function_with_t_and_y():
 
 def test_return_convention_coerces_native_output():
     convention = ConventionReturn()
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
 
     def rhs(t, y):
         return [1, 2]
@@ -35,7 +35,7 @@ def test_return_convention_coerces_native_output():
 
 def test_return_convention_coerces_numpy_output():
     convention = ConventionReturn()
-    carrier = CarrierNumpy().bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy().bind(np.array([1.0, 2.0]))
 
     def rhs(t, y):
         return [3.0, 4.0]
@@ -47,7 +47,7 @@ def test_return_convention_coerces_numpy_output():
 
 def test_return_convention_rejects_wrong_numpy_shape():
     convention = ConventionReturn()
-    carrier = CarrierNumpy(strict_shape=True).bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy(strict_shape=True).bind(np.array([1.0, 2.0]))
 
     def rhs(t, y):
         return np.array([1.0, 2.0, 3.0])
@@ -58,7 +58,7 @@ def test_return_convention_rejects_wrong_numpy_shape():
 
 def test_in_place_convention_calls_function_with_t_y_dy():
     convention = ConventionInPlace()
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
 
     calls = []
 
@@ -77,7 +77,7 @@ def test_in_place_convention_calls_function_with_t_y_dy():
 
 def test_in_place_convention_validates_native_output():
     convention = ConventionInPlace()
-    carrier = CarrierNative().bind([1.0, 2.0])
+    carrier = DeprecatedCarrierNative().bind([1.0, 2.0])
 
     def rhs(t, y, dy):
         dy.append(3.0)
@@ -88,7 +88,7 @@ def test_in_place_convention_validates_native_output():
 
 def test_in_place_convention_validates_numpy_output():
     convention = ConventionInPlace()
-    carrier = CarrierNumpy(strict_shape=True).bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy(strict_shape=True).bind(np.array([1.0, 2.0]))
 
     def rhs(t, y, dy):
         dy[:] = np.array([3.0, 4.0])
@@ -103,7 +103,7 @@ def test_in_place_convention_validates_numpy_output():
 
 def test_in_place_convention_rejects_wrong_numpy_shape():
     convention = ConventionInPlace()
-    carrier = CarrierNumpy(strict_shape=True).bind(np.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierNumpy(strict_shape=True).bind(np.array([1.0, 2.0]))
 
     def rhs(t, y, dy):
         pass

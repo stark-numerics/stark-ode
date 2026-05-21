@@ -3,17 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol, TypeVar
 
-from .kernels import CarrierKernelNative, CarrierKernelNumpy
-from .norms import CarrierNormNativeRMS, CarrierNormNumpyRMS
+from .kernels import DeprecatedCarrierKernelNative, DeprecatedCarrierKernelNumpy
+from .norms import DeprecatedCarrierNormNativeRMS, DeprecatedCarrierNormNumpyRMS
 from stark.routing import RoutingVector, RoutingVectorPreferInPlace, RoutingVectorReturn
 
 StateValue = TypeVar("StateValue")
 TranslationValue = TypeVar("TranslationValue")
 
-class CarrierError(ValueError):
+class DeprecatedCarrierError(ValueError):
     """Raised when carrier configuration or binding is invalid."""
 
-class Carrier(Protocol[StateValue, TranslationValue]):
+class DeprecatedCarrier(Protocol[StateValue, TranslationValue]):
     """Storage policy for values carried through STARK."""
 
     def accepts(self, value: object) -> bool:
@@ -27,15 +27,15 @@ class Carrier(Protocol[StateValue, TranslationValue]):
     ) -> StateValue:
         ...
 
-    def bind(self, template: StateValue) -> CarrierBound[StateValue, TranslationValue]:
+    def bind(self, template: StateValue) -> DeprecatedCarrierBound[StateValue, TranslationValue]:
         ...
 
     def recommend_vector_routing(self) -> RoutingVector:
         ...
 
 
-class CarrierBound(Protocol[StateValue, TranslationValue]):
-    """Carrier bound to a concrete template value."""
+class DeprecatedCarrierBound(Protocol[StateValue, TranslationValue]):
+    """DeprecatedCarrier bound to a concrete template value."""
 
     template: StateValue
     kernel: object
@@ -63,11 +63,11 @@ class CarrierBound(Protocol[StateValue, TranslationValue]):
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierNative:
-    """Carrier for Python scalars, lists, and tuples."""
+class DeprecatedCarrierNative:
+    """DeprecatedCarrier for Python scalars, lists, and tuples."""
 
-    norm: object = CarrierNormNativeRMS()
-    kernel: object = CarrierKernelNative()
+    norm: object = DeprecatedCarrierNormNativeRMS()
+    kernel: object = DeprecatedCarrierKernelNative()
 
     def accepts(self, value: object) -> bool:
         if isinstance(value, (int, float)):
@@ -93,9 +93,9 @@ class CarrierNative:
         if isinstance(value, tuple):
             return tuple(float(item) for item in value)
 
-        raise TypeError(f"CarrierNative cannot represent {type(value).__name__}")
+        raise TypeError(f"DeprecatedCarrierNative cannot represent {type(value).__name__}")
 
-    def bind(self, template) -> CarrierNativeBound:
+    def bind(self, template) -> DeprecatedCarrierNativeBound:
         template = self.coerce_state(template)
 
         bound_norm = self.norm.bind(
@@ -109,7 +109,7 @@ class CarrierNative:
             norm=bound_norm,
         )
 
-        return CarrierNativeBound(
+        return DeprecatedCarrierNativeBound(
             carrier=self,
             template=template,
             kernel=bound_kernel,
@@ -120,10 +120,10 @@ class CarrierNative:
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierNativeBound:
+class DeprecatedCarrierNativeBound:
     """Native carrier bound to a scalar/list/tuple template."""
 
-    carrier: CarrierNative
+    carrier: DeprecatedCarrierNative
     template: object
     kernel: object
 
@@ -187,16 +187,16 @@ class CarrierNativeBound:
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierNumpy:
-    """Carrier for NumPy arrays."""
+class DeprecatedCarrierNumpy:
+    """DeprecatedCarrier for NumPy arrays."""
 
     dtype: Any | None = None
     copy_inputs: bool = True
     copy_outputs: bool = False
     strict_shape: bool = True
     strict_dtype: bool = False
-    norm: object = CarrierNormNumpyRMS()
-    kernel: object = CarrierKernelNumpy()
+    norm: object = DeprecatedCarrierNormNumpyRMS()
+    kernel: object = DeprecatedCarrierKernelNumpy()
 
     def _np(self):
         import numpy as np
@@ -225,7 +225,7 @@ class CarrierNumpy:
             copy=self.copy_inputs,
         )
 
-    def bind(self, template) -> CarrierNumpyBound:
+    def bind(self, template) -> DeprecatedCarrierNumpyBound:
         template = self.coerce_state(template)
 
         bound_norm = self.norm.bind(
@@ -239,7 +239,7 @@ class CarrierNumpy:
             norm=bound_norm,
         )
 
-        return CarrierNumpyBound(
+        return DeprecatedCarrierNumpyBound(
             carrier=self,
             template=template,
             kernel=bound_kernel,
@@ -250,10 +250,10 @@ class CarrierNumpy:
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierNumpyBound:
+class DeprecatedCarrierNumpyBound:
     """NumPy carrier bound to an ndarray template."""
 
-    carrier: CarrierNumpy
+    carrier: DeprecatedCarrierNumpy
     template: object
     kernel: object
 

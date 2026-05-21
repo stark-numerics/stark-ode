@@ -91,7 +91,7 @@ is known.
   looped compiled kernels, or small fixed unrolled shapes. Advanced users
   choose policies when performance or representation details matter.
 
-- **Carrier**
+- **DeprecatedCarrier**
   Backend-specific array behavior used by the interface layer. NumPy, CuPy,
   and JAX carriers know how to allocate, copy, combine, and measure their
   arrays. Most users rely on automatic carrier selection.

@@ -3,20 +3,20 @@ import pytest
 jax = pytest.importorskip("jax")
 jnp = pytest.importorskip("jax.numpy")
 
-from stark.carriers.jax import (  # noqa: E402
-    CarrierJax,
-    CarrierKernelJax,
-    CarrierNormJaxMax,
-    CarrierNormJaxRMS,
+from stark.carriers.deprecated.jax import (  # noqa: E402
+    DeprecatedCarrierJax,
+    DeprecatedCarrierKernelJax,
+    DeprecatedCarrierNormJaxMax,
+    DeprecatedCarrierNormJaxRMS,
 )
-from stark.carriers.library import CarrierLibrary  # noqa: E402
+from stark.carriers.deprecated.library import DeprecatedCarrierLibrary  # noqa: E402
 from stark.interface import StarkDerivative, StarkVector  # noqa: E402
 from stark.interface.vector import StarkVectorTranslation  # noqa: E402
 from stark.routing import RoutingVectorReturn  # noqa: E402
 
 
 def test_jax_rms_norm():
-    norm = CarrierNormJaxRMS().bind(
+    norm = DeprecatedCarrierNormJaxRMS().bind(
         template=jnp.array([1.0, 2.0]),
         carrier=None,
     )
@@ -25,7 +25,7 @@ def test_jax_rms_norm():
 
 
 def test_jax_max_norm():
-    norm = CarrierNormJaxMax().bind(
+    norm = DeprecatedCarrierNormJaxMax().bind(
         template=jnp.array([1.0, 2.0]),
         carrier=None,
     )
@@ -34,7 +34,7 @@ def test_jax_max_norm():
 
 
 def test_jax_empty_array_norm():
-    norm = CarrierNormJaxRMS().bind(
+    norm = DeprecatedCarrierNormJaxRMS().bind(
         template=jnp.array([]),
         carrier=None,
     )
@@ -43,7 +43,7 @@ def test_jax_empty_array_norm():
 
 
 def test_jax_complex_norm():
-    norm = CarrierNormJaxRMS().bind(
+    norm = DeprecatedCarrierNormJaxRMS().bind(
         template=jnp.array([1.0 + 0.0j]),
         carrier=None,
     )
@@ -54,11 +54,11 @@ def test_jax_complex_norm():
 
 
 def test_jax_kernel_translate_add_scale_combine():
-    norm = CarrierNormJaxRMS().bind(
+    norm = DeprecatedCarrierNormJaxRMS().bind(
         template=jnp.array([1.0, 2.0]),
         carrier=None,
     )
-    kernel = CarrierKernelJax().bind(
+    kernel = DeprecatedCarrierKernelJax().bind(
         template=jnp.array([1.0, 2.0]),
         carrier=None,
         norm=norm,
@@ -86,11 +86,11 @@ def test_jax_kernel_translate_add_scale_combine():
 
 
 def test_jax_kernel_norm_delegates_to_jax_norm():
-    norm = CarrierNormJaxRMS().bind(
+    norm = DeprecatedCarrierNormJaxRMS().bind(
         template=jnp.array([1.0, 2.0]),
         carrier=None,
     )
-    kernel = CarrierKernelJax().bind(
+    kernel = DeprecatedCarrierKernelJax().bind(
         template=jnp.array([1.0, 2.0]),
         carrier=None,
         norm=norm,
@@ -100,11 +100,11 @@ def test_jax_kernel_norm_delegates_to_jax_norm():
 
 
 def test_jax_kernel_empty_combine_raises():
-    norm = CarrierNormJaxRMS().bind(
+    norm = DeprecatedCarrierNormJaxRMS().bind(
         template=jnp.array([1.0, 2.0]),
         carrier=None,
     )
-    kernel = CarrierKernelJax().bind(
+    kernel = DeprecatedCarrierKernelJax().bind(
         template=jnp.array([1.0, 2.0]),
         carrier=None,
         norm=norm,
@@ -115,7 +115,7 @@ def test_jax_kernel_empty_combine_raises():
 
 
 def test_jax_kernel_has_no_in_place_methods():
-    kernel = CarrierKernelJax().bind(
+    kernel = DeprecatedCarrierKernelJax().bind(
         template=jnp.array([1.0, 2.0]),
         carrier=None,
         norm=lambda value: 0.0,
@@ -128,45 +128,45 @@ def test_jax_kernel_has_no_in_place_methods():
 
 
 def test_carrier_jax_accepts_jax_array():
-    assert CarrierJax().accepts(jnp.array([1.0, 2.0]))
+    assert DeprecatedCarrierJax().accepts(jnp.array([1.0, 2.0]))
 
 
 def test_carrier_jax_binds_template():
     template = jnp.array([1.0, 2.0])
-    carrier = CarrierJax().bind(template)
+    carrier = DeprecatedCarrierJax().bind(template)
 
     assert carrier.template.shape == template.shape
     assert carrier.template.dtype == template.dtype
 
 
 def test_carrier_jax_validates_shape():
-    carrier = CarrierJax(strict_shape=True).bind(jnp.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierJax(strict_shape=True).bind(jnp.array([1.0, 2.0]))
 
     with pytest.raises(ValueError):
         carrier.validate_state(jnp.array([1.0, 2.0, 3.0]))
 
 
 def test_carrier_jax_validates_dtype_when_strict_dtype_is_true():
-    carrier = CarrierJax(strict_dtype=True).bind(jnp.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierJax(strict_dtype=True).bind(jnp.array([1.0, 2.0]))
 
     with pytest.raises(TypeError):
         carrier.validate_state(jnp.array([1, 2], dtype=jnp.int32))
 
 
 def test_carrier_jax_recommends_return_routing():
-    routing = CarrierJax().recommend_vector_routing()
+    routing = DeprecatedCarrierJax().recommend_vector_routing()
 
     assert isinstance(routing, RoutingVectorReturn)
 
 
 def test_carrier_library_default_selects_jax_for_jax_array():
-    carrier = CarrierLibrary.default().carrier_for(jnp.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierLibrary.default().carrier_for(jnp.array([1.0, 2.0]))
 
-    assert isinstance(carrier, CarrierJax)
+    assert isinstance(carrier, DeprecatedCarrierJax)
 
 
 def test_stark_vector_translation_works_with_jax_return_routing():
-    carrier = CarrierJax().bind(jnp.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierJax().bind(jnp.array([1.0, 2.0]))
 
     origin = StarkVector(jnp.array([1.0, 2.0]), carrier)
     original_result_value = jnp.zeros(2)
@@ -184,7 +184,7 @@ def test_stark_vector_translation_works_with_jax_return_routing():
 
 
 def test_stark_derivative_return_convention_works_with_jax():
-    carrier = CarrierJax().bind(jnp.array([1.0, 2.0]))
+    carrier = DeprecatedCarrierJax().bind(jnp.array([1.0, 2.0]))
 
     @StarkDerivative.returning
     def rhs(t, y):

@@ -1,0 +1,29 @@
+from dataclasses import dataclass
+from typing import Protocol, cast
+
+import jax.numpy as jnp  # type: ignore[import-not-found]
+
+from stark.carriers.jax.storage import CarrierJaxValue
+
+
+class JaxNumpyModule(Protocol):
+    def abs(self, value: CarrierJaxValue) -> CarrierJaxValue: ...
+    def max(self, value: CarrierJaxValue) -> CarrierJaxValue: ...
+    def mean(self, value: CarrierJaxValue) -> CarrierJaxValue: ...
+    def sqrt(self, value: CarrierJaxValue) -> CarrierJaxValue: ...
+
+
+jax_numpy = cast(JaxNumpyModule, jnp)
+
+
+@dataclass(frozen=True)
+class CarrierNormJaxRMS:
+    def __call__(self, value: CarrierJaxValue) -> float:
+        absolute = jax_numpy.abs(value)
+        return float(jax_numpy.sqrt(jax_numpy.mean(absolute ** 2)))
+
+
+@dataclass(frozen=True)
+class CarrierNormJaxMax:
+    def __call__(self, value: CarrierJaxValue) -> float:
+        return float(jax_numpy.max(jax_numpy.abs(value)))

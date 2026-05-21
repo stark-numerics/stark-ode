@@ -3,66 +3,67 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-import cupy as cp
+import jax
+import jax.numpy as jnp
 
-from stark.routing import RoutingVector, RoutingVectorPreferInPlace
+from stark.routing import RoutingVector, RoutingVectorReturn
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierNormCuPyRMS:
-    """Root-mean-square norm policy for CuPy arrays."""
+class DeprecatedCarrierNormJaxRMS:
+    """Root-mean-square norm policy for JAX arrays."""
 
     def bind(
         self,
         *,
         template: Any,
         carrier: Any | None = None,
-    ) -> "CarrierNormCuPyRMSBound":
+    ) -> "CarrierNormJaxRMSBound":
         del template, carrier
-        return CarrierNormCuPyRMSBound()
+        return CarrierNormJaxRMSBound()
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierNormCuPyRMSBound:
-    """Root-mean-square norm for CuPy arrays."""
+class CarrierNormJaxRMSBound:
+    """Root-mean-square norm for JAX arrays."""
 
     def __call__(self, value: Any) -> float:
         if value.size == 0:
             return 0.0
 
-        rms = cp.sqrt(cp.mean(cp.abs(value) ** 2))
-        return float(rms.get())
+        rms = jnp.sqrt(jnp.mean(jnp.abs(value) ** 2))
+        return float(rms)
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierNormCuPyMax:
-    """Maximum absolute-entry norm policy for CuPy arrays."""
+class DeprecatedCarrierNormJaxMax:
+    """Maximum absolute-entry norm policy for JAX arrays."""
 
     def bind(
         self,
         *,
         template: Any,
         carrier: Any | None = None,
-    ) -> "CarrierNormCuPyMaxBound":
+    ) -> "CarrierNormJaxMaxBound":
         del template, carrier
-        return CarrierNormCuPyMaxBound()
+        return CarrierNormJaxMaxBound()
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierNormCuPyMaxBound:
-    """Maximum absolute-entry norm for CuPy arrays."""
+class CarrierNormJaxMaxBound:
+    """Maximum absolute-entry norm for JAX arrays."""
 
     def __call__(self, value: Any) -> float:
         if value.size == 0:
             return 0.0
 
-        maximum = cp.max(cp.abs(value))
-        return float(maximum.get())
+        maximum = jnp.max(jnp.abs(value))
+        return float(maximum)
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierKernelCuPy:
-    """Arithmetic kernel policy for CuPy arrays."""
+class DeprecatedCarrierKernelJax:
+    """Arithmetic kernel policy for JAX arrays."""
 
     def bind(
         self,
@@ -70,14 +71,14 @@ class CarrierKernelCuPy:
         carrier: Any | None = None,
         template: Any | None = None,
         norm: Any,
-    ) -> "CarrierKernelCuPyBound":
+    ) -> "DeprecatedCarrierKernelJaxBound":
         del carrier, template
-        return CarrierKernelCuPyBound(norm_policy=norm)
+        return DeprecatedCarrierKernelJaxBound(norm_policy=norm)
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierKernelCuPyBound:
-    """Arithmetic worker for CuPy arrays."""
+class DeprecatedCarrierKernelJaxBound:
+    """Arithmetic worker for JAX arrays."""
 
     norm_policy: Any
 
@@ -104,44 +105,31 @@ class CarrierKernelCuPyBound:
     def norm(self, value: Any) -> float:
         return self.norm_policy(value)
 
-    def translate_into(self, result: Any, origin: Any, delta: Any) -> None:
-        result[...] = origin + delta
-
-    def add_into(self, result: Any, left: Any, right: Any) -> None:
-        result[...] = left + right
-
-    def scale_into(self, result: Any, scalar: float, value: Any) -> None:
-        result[...] = scalar * value
-
-    def combine_into(self, result: Any, coefficients: Any, values: Any) -> None:
-        if not values:
-            raise ValueError("Cannot combine empty values.")
-
-        result[...] = coefficients[0] * values[0]
-
-        for coefficient, value in zip(coefficients[1:], values[1:]):
-            result[...] = result + coefficient * value
-
 
 @dataclass(frozen=True, slots=True)
-class CarrierCuPy:
-    """Carrier for CuPy arrays."""
+class DeprecatedCarrierJax:
+    """DeprecatedCarrier for JAX arrays.
+
+    JAX arrays use return/replacement routing. `copy_inputs` and `copy_outputs`
+    are retained for carrier API symmetry, but JAX coercion is based on
+    `jax.numpy.asarray` and does not promise a physical copy.
+    """
 
     dtype: Any = None
     copy_inputs: bool = True
     copy_outputs: bool = True
     strict_shape: bool = True
     strict_dtype: bool = False
-    norm: Any = field(default_factory=CarrierNormCuPyRMS)
-    kernel: Any = field(default_factory=CarrierKernelCuPy)
+    norm: Any = field(default_factory=DeprecatedCarrierNormJaxRMS)
+    kernel: Any = field(default_factory=DeprecatedCarrierKernelJax)
 
     def accepts(self, value: Any) -> bool:
-        return isinstance(value, cp.ndarray)
+        return isinstance(value, jax.Array)
 
     def coerce_state(self, value: Any, template: Any = None) -> Any:
-        return cp.array(value, dtype=self.dtype, copy=self.copy_inputs)
+        return jnp.asarray(value, dtype=self.dtype)
 
-    def bind(self, template: Any) -> "CarrierCuPyBound":
+    def bind(self, template: Any) -> "DeprecatedCarrierJaxBound":
         template = self.coerce_state(template)
 
         bound_norm = self.norm.bind(
@@ -155,70 +143,64 @@ class CarrierCuPy:
             norm=bound_norm,
         )
 
-        return CarrierCuPyBound(
+        return DeprecatedCarrierJaxBound(
             carrier=self,
             template=template,
             kernel=kernel,
         )
 
     def recommend_vector_routing(self) -> RoutingVector:
-        return RoutingVectorPreferInPlace()
+        return RoutingVectorReturn()
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierCuPyBound:
-    """CuPy carrier bound to an ndarray template."""
+class DeprecatedCarrierJaxBound:
+    """JAX carrier bound to an array template."""
 
-    carrier: CarrierCuPy
+    carrier: DeprecatedCarrierJax
     template: Any
-    kernel: CarrierKernelCuPyBound
+    kernel: DeprecatedCarrierKernelJaxBound
 
     def zero_state(self) -> Any:
-        return cp.zeros_like(self.template)
+        return jnp.zeros_like(self.template)
 
     def zero_translation(self) -> Any:
-        return cp.zeros_like(self.template)
+        return jnp.zeros_like(self.template)
 
     def copy_state(self, value: Any) -> Any:
-        if self.carrier.copy_outputs:
-            return cp.array(value, copy=True)
-
-        return value
+        return jnp.asarray(value)
 
     def copy_translation(self, value: Any) -> Any:
-        if self.carrier.copy_outputs:
-            return cp.array(value, copy=True)
-
-        return value
+        return jnp.asarray(value)
 
     def coerce_translation(self, value: Any) -> Any:
-        value = cp.asarray(value)
+        value = jnp.asarray(value)
 
         self.validate_translation(value)
 
         return value
 
     def validate_state(self, value: Any) -> None:
-        if not isinstance(value, cp.ndarray):
-            raise TypeError("CarrierCuPy state must be a cupy.ndarray.")
+        if not isinstance(value, jax.Array):
+            raise TypeError("DeprecatedCarrierJax state must be a jax.Array.")
 
         self._validate_array(value)
 
     def validate_translation(self, value: Any) -> None:
-        if not isinstance(value, cp.ndarray):
-            raise TypeError("CarrierCuPy translation must be a cupy.ndarray.")
+        if not isinstance(value, jax.Array):
+            raise TypeError("DeprecatedCarrierJax translation must be a jax.Array.")
 
         self._validate_array(value)
 
     def _validate_array(self, value: Any) -> None:
         if self.carrier.strict_shape and value.shape != self.template.shape:
             raise ValueError(
-                f"CuPy value has shape {value.shape}, expected "
+                f"JAX value has shape {value.shape}, expected "
                 f"{self.template.shape}."
             )
 
         if self.carrier.strict_dtype and value.dtype != self.template.dtype:
             raise TypeError(
-                f"CuPy value has dtype {value.dtype}, expected "
+                f"JAX value has dtype {value.dtype}, expected "
                 f"{self.template.dtype}."
             )

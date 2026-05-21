@@ -7,7 +7,7 @@ from typing import Any, Callable, Protocol, TypeVar
 Value = TypeVar("Value")
 
 
-class CarrierNorm(Protocol[Value]):
+class DeprecatedCarrierNorm(Protocol[Value]):
     """Policy for measuring carried translation values."""
 
     def bind(
@@ -46,7 +46,7 @@ class CarrierNormNativeSequenceRMS:
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierNormNativeRMS:
+class DeprecatedCarrierNormNativeRMS:
     """Root-mean-square norm policy for native scalar/list/tuple values."""
 
     def bind(
@@ -88,7 +88,7 @@ class CarrierNormNumpyRMSComplex:
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierNormNumpyRMS:
+class DeprecatedCarrierNormNumpyRMS:
     """Root-mean-square norm policy for NumPy arrays."""
 
     def bind(
@@ -122,7 +122,7 @@ class CarrierNormNumpyMaxBound:
 
 
 @dataclass(frozen=True, slots=True)
-class CarrierNormNumpyMax:
+class DeprecatedCarrierNormNumpyMax:
     """Maximum absolute-entry norm policy for NumPy arrays."""
 
     def bind(

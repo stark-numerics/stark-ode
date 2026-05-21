@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from stark.carriers import CarrierNative, CarrierNumpy
+from stark.carriers import DeprecatedCarrierNative, DeprecatedCarrierNumpy
 from stark.routing import (
     Routing,
     RoutingVector,
@@ -178,19 +178,19 @@ def test_vector_prefer_in_place_falls_back_to_returning_when_absent():
 
 
 def test_native_carrier_recommends_return_vector_routing():
-    routing = CarrierNative().recommend_vector_routing()
+    routing = DeprecatedCarrierNative().recommend_vector_routing()
 
     assert isinstance(routing, RoutingVectorReturn)
 
 
 def test_numpy_carrier_recommends_prefer_in_place_vector_routing():
-    routing = CarrierNumpy().recommend_vector_routing()
+    routing = DeprecatedCarrierNumpy().recommend_vector_routing()
 
     assert isinstance(routing, RoutingVectorPreferInPlace)
 
 
 def test_carrier_recommendation_can_build_routing():
-    vector_routing = CarrierNumpy().recommend_vector_routing()
+    vector_routing = DeprecatedCarrierNumpy().recommend_vector_routing()
 
     routing = Routing(vector=vector_routing)
 

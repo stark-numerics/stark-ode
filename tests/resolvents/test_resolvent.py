@@ -86,7 +86,7 @@ def test_regulator_module_imports() -> None:
     assert importlib.import_module("stark.schemes.support.tableau") is not None
     assert importlib.import_module("stark.machinery.stage_solve.workspace") is not None
     assert importlib.import_module("stark.machinery.stage_solve.workers") is not None
-    assert importlib.import_module("stark.machinery.translation_algebra.linear_combine") is not None
+    assert importlib.import_module("stark.algebraist.combine") is not None
     assert importlib.import_module("stark.schemes.support.display") is not None
 
 

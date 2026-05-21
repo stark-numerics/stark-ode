@@ -1,6 +1,6 @@
 from typing import Any, Protocol
 
-from stark.carriers.core import CarrierBound
+from stark.carriers.deprecated.core import DeprecatedCarrierBound
 
 
 class Convention(Protocol):
@@ -10,7 +10,7 @@ class Convention(Protocol):
         t: Any,
         y: Any,
         dy: Any,
-        carrier: CarrierBound,
+        carrier: DeprecatedCarrierBound,
     ) -> Any:
         ...
 
@@ -22,7 +22,7 @@ class ConventionReturn:
         t: Any,
         y: Any,
         dy: Any,
-        carrier: CarrierBound,
+        carrier: DeprecatedCarrierBound,
     ) -> Any:
         value = function(t, y)
         return carrier.coerce_translation(value)
@@ -35,7 +35,7 @@ class ConventionInPlace:
         t: Any,
         y: Any,
         dy: Any,
-        carrier: CarrierBound,
+        carrier: DeprecatedCarrierBound,
     ) -> Any:
         function(t, y, dy)
         carrier.validate_translation(dy)

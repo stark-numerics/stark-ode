@@ -7,7 +7,7 @@ from typing import Callable
 from stark.accelerators import AcceleratorAbsent
 from stark.contracts import AcceleratorLike, Block, InnerProduct, Translation, Workbench
 from stark.execution.safety import Safety
-from stark.machinery.translation_algebra.linear_combine import CombineResolver, resolve_linear_combine
+from stark.algebraist.combine import AlgebraistCombineResolver
 
 
 @dataclass(slots=True, init=False)
@@ -17,7 +17,7 @@ class ResolventWorkspace:
     accelerator: AcceleratorLike
     allocate_translation: Callable[[], Translation]
     inner_product_translation: InnerProduct | None
-    linear_combine: tuple[Callable[..., object], ...]
+    translation: Translation
     scale: Callable[..., Translation]
     combine2: Callable[..., Translation]
     combine3: Callable[..., Translation]
@@ -37,7 +37,7 @@ class ResolventWorkspace:
         self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
         self.allocate_translation = workbench.allocate_translation
         self.inner_product_translation = inner_product
-        self.linear_combine = resolve_linear_combine(translation)
+        self.translation = translation
         self.safety = safety if safety is not None else Safety()
         self._check = self._check_size if self.safety.block_sizes else self._skip_check
         self._inner_product_impl = (
@@ -50,7 +50,13 @@ class ResolventWorkspace:
 
     def bind_accelerator(self, accelerator: AcceleratorLike) -> None:
         self.accelerator = accelerator
-        combine_resolver = accelerator.resolve_support(CombineResolver(self.linear_combine, self.allocate_translation), label="resolvent_combiner")
+        combine_resolver = accelerator.resolve_support(
+            AlgebraistCombineResolver.from_translation(
+                self.translation,
+                self.allocate_translation,
+            ),
+            label="resolvent_combiner",
+        )
         self.scale = combine_resolver.scale
         self.combine2 = combine_resolver.combine2
         self.combine3 = combine_resolver.combine3

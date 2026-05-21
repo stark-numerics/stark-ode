@@ -7,7 +7,7 @@ from typing import Any
 from stark.algebraist import Algebraist, AlgebraistField
 
 
-class CarrierKernelAlgebraist:
+class DeprecatedCarrierKernelAlgebraist:
     def __init__(
         self,
         *,
@@ -19,7 +19,7 @@ class CarrierKernelAlgebraist:
         if algebraist is None:
             if fields is None:
                 raise ValueError(
-                    "CarrierKernelAlgebraist requires either algebraist or fields."
+                    "DeprecatedCarrierKernelAlgebraist requires either algebraist or fields."
                 )
 
             algebraist = Algebraist(
@@ -35,39 +35,39 @@ class CarrierKernelAlgebraist:
         template: Any,
         carrier: Any,
         norm_policy: Any,
-    ) -> "CarrierKernelAlgebraistBound":
-        return CarrierKernelAlgebraistBound(
+    ) -> "DeprecatedCarrierKernelAlgebraistBound":
+        return DeprecatedCarrierKernelAlgebraistBound(
             algebraist=self.algebraist,
             norm_policy=norm_policy,
         )
 
 
 @dataclass(slots=True)
-class CarrierKernelAlgebraistBound:
+class DeprecatedCarrierKernelAlgebraistBound:
     algebraist: Algebraist
     norm_policy: Any
 
     def translate(self, origin: Any, delta: Any) -> Any:
         raise NotImplementedError(
-            "CarrierKernelAlgebraist does not provide returning translate(). "
+            "DeprecatedCarrierKernelAlgebraist does not provide returning translate(). "
             "Use in-place routing."
         )
 
     def add(self, left: Any, right: Any) -> Any:
         raise NotImplementedError(
-            "CarrierKernelAlgebraist does not provide returning add(). "
+            "DeprecatedCarrierKernelAlgebraist does not provide returning add(). "
             "Use in-place routing."
         )
 
     def scale(self, scalar: float, value: Any) -> Any:
         raise NotImplementedError(
-            "CarrierKernelAlgebraist does not provide returning scale(). "
+            "DeprecatedCarrierKernelAlgebraist does not provide returning scale(). "
             "Use in-place routing."
         )
 
     def combine(self, coefficients: Any, values: Any) -> Any:
         raise NotImplementedError(
-            "CarrierKernelAlgebraist does not provide returning combine(). "
+            "DeprecatedCarrierKernelAlgebraist does not provide returning combine(). "
             "Use in-place routing."
         )
 
@@ -86,7 +86,7 @@ class CarrierKernelAlgebraistBound:
 
         if len(values) > len(self.algebraist.linear_combine):
             raise ValueError(
-                "CarrierKernelAlgebraist cannot combine "
+                "DeprecatedCarrierKernelAlgebraist cannot combine "
                 f"{len(values)} values; fused_up_to is "
                 f"{len(self.algebraist.linear_combine)}."
             )
@@ -108,6 +108,6 @@ class CarrierKernelAlgebraistBound:
 
 
 __all__ = [
-    "CarrierKernelAlgebraist",
-    "CarrierKernelAlgebraistBound",
+    "DeprecatedCarrierKernelAlgebraist",
+    "DeprecatedCarrierKernelAlgebraistBound",
 ]
