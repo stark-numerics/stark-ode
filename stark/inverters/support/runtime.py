@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from stark.accelerators import AcceleratorAbsent
 from stark.block.operator import BlockOperator
-from stark.contracts import AcceleratorLike, Block, InnerProduct, PreconditionerLike, Workbench
+from stark.contracts import AcceleratorLike, Block, InnerProduct, InverterPreconditionerLike, Workbench
 from stark.execution.safety import Safety
 from stark.execution.tolerance import Tolerance
 from stark.inverters.support.monitoring import MonitorInverterLike
 from stark.inverters.support.policy import InverterPolicy
-from stark.inverters.support.preconditioner import Preconditioner
+from stark.inverters.support.preconditioner import InverterPreconditioner
 from stark.inverters.support.tolerance import InverterTolerance
 from stark.inverters.support.workspace import InverterWorkspace
 
@@ -18,7 +18,7 @@ def initialise_inverter_runtime(
     inner_product: InnerProduct,
     tolerance: Tolerance | None = None,
     policy: InverterPolicy | None = None,
-    preconditioner: PreconditionerLike | None = None,
+    preconditioner: InverterPreconditionerLike | None = None,
     safety: Safety | None = None,
     accelerator: AcceleratorLike | None = None,
 ) -> None:
@@ -35,7 +35,7 @@ def initialise_inverter_runtime(
         inverter.safety,
         accelerator=inverter.accelerator,
     )
-    inverter.preconditioner = Preconditioner(inverter.workspace, preconditioner)
+    inverter.preconditioner = InverterPreconditioner(inverter.workspace, preconditioner)
     inverter._monitor = None
     inverter._bound_call = inverter.call_unbound
     inverter._monitor_iteration_count = None

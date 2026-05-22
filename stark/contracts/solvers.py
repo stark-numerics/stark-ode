@@ -82,7 +82,7 @@ class InverterLike(Protocol):
         ...
 
 
-class PreconditionerLike(Protocol):
+class InverterPreconditionerLike(Protocol):
     """
     Bind a linear operator and apply an approximate inverse-like action.
 
@@ -144,12 +144,12 @@ class SolverAudit:
     def preconditioner(recorder: AuditRecorder, preconditioner: Any) -> None:
         recorder.check(
             callable(getattr(preconditioner, "bind", None)),
-            "Preconditioner provides bind(operator).",
+            "InverterPreconditioner provides bind(operator).",
             "Add bind(operator) so the preconditioner can inspect the operator.",
         )
         recorder.check(
             callable(preconditioner),
-            "Preconditioner provides __call__(rhs, out).",
+            "InverterPreconditioner provides __call__(rhs, out).",
             "Add __call__(rhs, out) to apply the preconditioning action.",
         )
 
@@ -158,7 +158,7 @@ __all__ = [
     "InverterLike",
     "SolverAudit",
     "LinearResidual",
-    "PreconditionerLike",
+    "InverterPreconditionerLike",
     "Residual",
     "Resolvent",
 ]

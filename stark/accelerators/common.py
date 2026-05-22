@@ -7,12 +7,12 @@ from typing import Any, ClassVar
 from stark.contracts.acceleration import (
     AccelerationRequest,
     AccelerationRole,
-    CompiledCallable,
+    AcceleratorTarget,
 )
 
 
 @dataclass(slots=True)
-class BuiltinAccelerator:
+class AcceleratorBase:
     """Shared machinery for STARK's built-in accelerator workers."""
 
     strict: bool = False
@@ -26,7 +26,7 @@ class BuiltinAccelerator:
     def __str__(self) -> str:
         return self.name
 
-    def with_updates(self, **updates: Any) -> "BuiltinAccelerator":
+    def with_updates(self, **updates: Any) -> "AcceleratorBase":
         values = dict(self.values)
         strict = self.strict
         if "strict" in updates:
@@ -34,16 +34,16 @@ class BuiltinAccelerator:
         values.update(updates)
         return replace(self, strict=strict, values=values)
 
-    def decorate(self, function: CompiledCallable | None = None, /, **kwargs: Any) -> Callable[..., Any]:
+    def decorate(self, function: AcceleratorTarget | None = None, /, **kwargs: Any) -> Callable[..., Any]:
         raise NotImplementedError
 
-    def compile_examples(self, function: CompiledCallable, *signatures: Any) -> CompiledCallable:
+    def compile_examples(self, function: AcceleratorTarget, *signatures: Any) -> AcceleratorTarget:
         compiled = self._compile_examples(function, *signatures)
         if self.strict and compiled is function and self.name != "none":
             raise RuntimeError(f"{self.name} backend could not compile the requested callable.")
         return compiled
 
-    def _compile_examples(self, function: CompiledCallable, *signatures: Any) -> CompiledCallable:
+    def _compile_examples(self, function: AcceleratorTarget, *signatures: Any) -> AcceleratorTarget:
         del signatures
         return function
 
@@ -65,4 +65,4 @@ class BuiltinAccelerator:
         return self.resolve(worker, AccelerationRequest(AccelerationRole.SUPPORT, label=label, values=values))
 
 
-__all__ = ["BuiltinAccelerator"]
+__all__ = ["AcceleratorBase"]

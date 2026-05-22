@@ -4,12 +4,12 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from stark.accelerators.common import BuiltinAccelerator
-from stark.contracts.acceleration import CompiledCallable
+from stark.accelerators.common import AcceleratorBase
+from stark.contracts.acceleration import AcceleratorTarget
 
 
 @dataclass(slots=True)
-class AcceleratorNumba(BuiltinAccelerator):
+class AcceleratorNumba(AcceleratorBase):
     """Numba-backed accelerator for imperative numerical kernels."""
 
     cache: bool = True
@@ -29,17 +29,17 @@ class AcceleratorNumba(BuiltinAccelerator):
         self._njit = njit
         self._typeof = typeof
 
-    def decorate(self, function: CompiledCallable | None = None, /, **kwargs: Any) -> Callable[..., Any]:
+    def decorate(self, function: AcceleratorTarget | None = None, /, **kwargs: Any) -> Callable[..., Any]:
         options = {"cache": self.cache, **kwargs}
 
-        def decorate_function(target: CompiledCallable) -> CompiledCallable:
+        def decorate_function(target: AcceleratorTarget) -> AcceleratorTarget:
             return self._njit(**options)(target)
 
         if function is None:
             return decorate_function
         return decorate_function(function)
 
-    def _compile_examples(self, function: CompiledCallable, *signatures: Any) -> CompiledCallable:
+    def _compile_examples(self, function: AcceleratorTarget, *signatures: Any) -> AcceleratorTarget:
         if not signatures or not callable(function) or not hasattr(function, "compile"):
             return function
 

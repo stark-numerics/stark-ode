@@ -21,7 +21,7 @@ small linear algebra that lives inside one GMRES restart window is handled by
 the Krylov support workers in `stark.machinery.linear_algebra.krylov`.
 """
 
-from stark.contracts import AcceleratorLike, Block, InnerProduct, PreconditionerLike, Workbench
+from stark.contracts import AcceleratorLike, Block, InnerProduct, InverterPreconditionerLike, Workbench
 from stark.block.operator import BlockOperator
 from stark.execution.safety import Safety
 from stark.inverters.support.descriptor import InverterDescriptor
@@ -97,7 +97,7 @@ class InverterGMRES:
         inner_product: InnerProduct,
         tolerance: Tolerance | None = None,
         policy: InverterPolicy | None = None,
-        preconditioner: PreconditionerLike | None = None,
+        preconditioner: InverterPreconditionerLike | None = None,
         safety: Safety | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:

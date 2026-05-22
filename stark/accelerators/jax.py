@@ -4,12 +4,12 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from stark.accelerators.common import BuiltinAccelerator
-from stark.contracts.acceleration import CompiledCallable
+from stark.accelerators.common import AcceleratorBase
+from stark.contracts.acceleration import AcceleratorTarget
 
 
 @dataclass(slots=True)
-class AcceleratorJax(BuiltinAccelerator):
+class AcceleratorJax(AcceleratorBase):
     """JAX-backed accelerator for pure array functions."""
 
     _jax: Any = field(init=False, repr=False, default=None)
@@ -25,17 +25,17 @@ class AcceleratorJax(BuiltinAccelerator):
         self.values = {} if values is None else dict(values)
         self._jax = jax
 
-    def decorate(self, function: CompiledCallable | None = None, /, **kwargs: Any) -> Callable[..., Any]:
+    def decorate(self, function: AcceleratorTarget | None = None, /, **kwargs: Any) -> Callable[..., Any]:
         options = dict(kwargs)
 
-        def decorate_function(target: CompiledCallable) -> CompiledCallable:
+        def decorate_function(target: AcceleratorTarget) -> AcceleratorTarget:
             return self._jax.jit(target, **options)
 
         if function is None:
             return decorate_function
         return decorate_function(function)
 
-    def _compile_examples(self, function: CompiledCallable, *signatures: Any) -> CompiledCallable:
+    def _compile_examples(self, function: AcceleratorTarget, *signatures: Any) -> AcceleratorTarget:
         if not signatures or not callable(function):
             return function
 

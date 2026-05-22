@@ -39,7 +39,7 @@ from stark.contracts.problems import (
 from stark.contracts.solvers import (
     InverterLike,
     LinearResidual,
-    PreconditionerLike,
+    InverterPreconditionerLike,
     Residual,
     Resolvent,
 )
@@ -91,7 +91,7 @@ __all__ = [
     "IntervalLike",
     "LinearResidual",
     "LinearCombine",
-    "PreconditionerLike",
+    "InverterPreconditionerLike",
     "Linearizer",
     "MarcherLike",
     "Operator",

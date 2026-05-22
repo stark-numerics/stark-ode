@@ -17,7 +17,7 @@ its convergence can be less predictable. That tradeoff makes it a useful
 contrast inside the STARK inverter library.
 """
 
-from stark.contracts import AcceleratorLike, Block, InnerProduct, PreconditionerLike, Workbench
+from stark.contracts import AcceleratorLike, Block, InnerProduct, InverterPreconditionerLike, Workbench
 from stark.block.operator import BlockOperator
 from stark.execution.safety import Safety
 from stark.inverters.support.descriptor import InverterDescriptor
@@ -81,7 +81,7 @@ class InverterBiCGStab:
         inner_product: InnerProduct,
         tolerance: Tolerance | None = None,
         policy: InverterPolicy | None = None,
-        preconditioner: PreconditionerLike | None = None,
+        preconditioner: InverterPreconditionerLike | None = None,
         safety: Safety | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:

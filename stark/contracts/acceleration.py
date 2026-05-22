@@ -8,7 +8,7 @@ from typing import Any, Protocol, TypeVar
 from stark.contracts.audit_support import AuditRecorder
 
 
-CompiledCallable = TypeVar("CompiledCallable", bound=Callable[..., Any])
+AcceleratorTarget = TypeVar("AcceleratorTarget", bound=Callable[..., Any])
 
 
 class AccelerationRole(str, Enum):
@@ -40,10 +40,10 @@ class AccelerationBackend(Protocol):
 
     name: str
 
-    def decorate(self, function: CompiledCallable | None = None, /, **kwargs: Any) -> Callable[..., Any]:
+    def decorate(self, function: AcceleratorTarget | None = None, /, **kwargs: Any) -> Callable[..., Any]:
         ...
 
-    def compile_examples(self, function: CompiledCallable, *signatures: Any) -> CompiledCallable:
+    def compile_examples(self, function: AcceleratorTarget, *signatures: Any) -> AcceleratorTarget:
         ...
 
 
@@ -53,10 +53,10 @@ class AcceleratorLike(Protocol):
     name: str
     strict: bool
 
-    def decorate(self, function: CompiledCallable | None = None, /, **kwargs: Any) -> Callable[..., Any]:
+    def decorate(self, function: AcceleratorTarget | None = None, /, **kwargs: Any) -> Callable[..., Any]:
         ...
 
-    def compile_examples(self, function: CompiledCallable, *signatures: Any) -> CompiledCallable:
+    def compile_examples(self, function: AcceleratorTarget, *signatures: Any) -> AcceleratorTarget:
         ...
 
     def resolve(self, target: Any, request: AccelerationRequest) -> Any:
@@ -173,6 +173,6 @@ __all__ = [
     "AccelerationRole",
     "AcceleratorAudit",
     "AcceleratorLike",
-    "CompiledCallable",
+    "AcceleratorTarget",
     "SupportsAcceleration",
 ]
