@@ -1,28 +1,50 @@
-from dataclasses import dataclass
-from collections.abc import Sequence
-from numbers import Number
-from typing import TypeAlias
+from __future__ import annotations
 
-CarrierNativeValue: TypeAlias = Number | Sequence[Number]
+from array import array
+from dataclasses import dataclass, field
+from numbers import Number
+from typing import Any, TypeAlias
+
+from stark.carriers.native.array import CarrierNativeArrayValue, CarrierStorageNativeArray
+from stark.carriers.native.list import CarrierNativeListValue, CarrierStorageNativeList
+from stark.carriers.native.scalar import CarrierNativeScalarValue, CarrierStorageNativeScalar
+from stark.carriers.native.tuple import CarrierNativeTupleValue, CarrierStorageNativeTuple
+
+CarrierNativeValue: TypeAlias = (
+    CarrierNativeScalarValue
+    | CarrierNativeListValue
+    | CarrierNativeTupleValue
+    | CarrierNativeArrayValue
+)
+
 
 @dataclass(frozen=True)
 class CarrierStorageNative:
+    """Compatibility facade for code that imports the old native storage class."""
+
     template: CarrierNativeValue
+    concrete: Any = field(init=False)
+
+    def __post_init__(self) -> None:
+        if isinstance(self.template, Number):
+            concrete = CarrierStorageNativeScalar(self.template)
+        elif isinstance(self.template, list):
+            concrete = CarrierStorageNativeList.from_template(self.template)
+        elif isinstance(self.template, tuple):
+            concrete = CarrierStorageNativeTuple.from_template(self.template)
+        elif isinstance(self.template, array):
+            concrete = CarrierStorageNativeArray.from_template(self.template)
+        else:
+            raise TypeError(
+                "Native carrier template must be numeric, list, tuple, or floating array.array."
+            )
+        object.__setattr__(self, "concrete", concrete)
 
     def is_state(self, value: CarrierNativeValue) -> bool:
         return self.matches_template(value)
 
     def is_translation(self, value: CarrierNativeValue) -> bool:
         return self.matches_template(value)
-    
-    def matches_template(self, value: CarrierNativeValue) -> bool:
-        if isinstance(self.template, Number):
-            return isinstance(value, Number)
 
-        if isinstance(self.template, list):
-            return isinstance(value, list) and len(value) == len(self.template)
-
-        if isinstance(self.template, tuple):
-            return isinstance(value, tuple) and len(value) == len(self.template)
-
-        return False
+    def matches_template(self, value: object) -> bool:
+        return self.concrete.matches_template(value)

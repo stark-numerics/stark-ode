@@ -1,337 +1,88 @@
+from __future__ import annotations
+
+from array import array
+from dataclasses import dataclass
 from numbers import Number
 from typing import Literal
 
+from stark.carriers.native.array import CarrierArithmeticNativeArray
+from stark.carriers.native.list import CarrierArithmeticNativeList
+from stark.carriers.native.scalar import CarrierArithmeticNativeScalar
 from stark.carriers.native.storage import CarrierNativeValue
+from stark.carriers.native.tuple import CarrierArithmeticNativeTuple
 
 
+@dataclass(frozen=True)
 class CarrierArithmeticNative:
+    """Compatibility dynamic native arithmetic.
+
+    CarrierNative itself does not use this class. It binds one of the concrete
+    scalar/list/tuple/array arithmetic implementations during construction so
+    tight loops avoid scalar-vs-container branches.
+    """
+
+    scalar: CarrierArithmeticNativeScalar = CarrierArithmeticNativeScalar()
+    list_: CarrierArithmeticNativeList = CarrierArithmeticNativeList()
+    tuple_: CarrierArithmeticNativeTuple = CarrierArithmeticNativeTuple()
+    array_: CarrierArithmeticNativeArray = CarrierArithmeticNativeArray()
+
     @property
     def preference(self) -> Literal["return"]:
         return "return"
 
-    def translate(
-        self,
-        state: CarrierNativeValue,
-        step: float,
-        derivative: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
-        if isinstance(state, Number):
-            return state + step * derivative
-
-        return type(state)(
-            item + step * delta
-            for item, delta in zip(state, derivative)
-        )
-
-    def add(
-        self,
-        left: CarrierNativeValue,
-        right: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
-        if isinstance(left, Number):
-            return left + right
-
-        return type(left)(
-            left_item + right_item
-            for left_item, right_item in zip(left, right)
-        )
-
-    def scale(
-        self,
-        factor: float,
-        value: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
+    def _select(self, value: CarrierNativeValue):
         if isinstance(value, Number):
-            return factor * value
+            return self.scalar
+        if isinstance(value, list):
+            return self.list_
+        if isinstance(value, tuple):
+            return self.tuple_
+        if isinstance(value, array):
+            return self.array_
+        raise TypeError("Native arithmetic value must be numeric, list, tuple, or array.array.")
 
-        return type(value)(factor * item for item in value)
+    def _call(self, name: str, reference: CarrierNativeValue, *args):
+        implementation = self._select(reference)
+        return getattr(implementation, name)(*args)
 
-    def combine2(
-        self,
-        a0: float,
-        x0: CarrierNativeValue,
-        a1: float,
-        x1: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
-        if isinstance(x0, Number):
-            return a0 * x0 + a1 * x1
+    def translate(self, state, step, derivative, result):
+        return self._call("translate", state, state, step, derivative, result)
 
-        return type(x0)(
-            a0 * x0[index] + a1 * x1[index]
-            for index in range(len(x0))
-        )
+    def add(self, left, right, result):
+        return self._call("add", left, left, right, result)
 
-    def combine3(
-        self,
-        a0: float,
-        x0: CarrierNativeValue,
-        a1: float,
-        x1: CarrierNativeValue,
-        a2: float,
-        x2: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
-        if isinstance(x0, Number):
-            return a0 * x0 + a1 * x1 + a2 * x2
+    def scale(self, factor, value, result):
+        return self._call("scale", value, factor, value, result)
 
-        return type(x0)(
-            a0 * x0[index] + a1 * x1[index] + a2 * x2[index]
-            for index in range(len(x0))
-        )
+    def combine2(self, a0, x0, a1, x1, result):
+        return self._call("combine2", x0, a0, x0, a1, x1, result)
 
-    def combine4(
-        self,
-        a0: float,
-        x0: CarrierNativeValue,
-        a1: float,
-        x1: CarrierNativeValue,
-        a2: float,
-        x2: CarrierNativeValue,
-        a3: float,
-        x3: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
-        if isinstance(x0, Number):
-            return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3
+    def combine3(self, a0, x0, a1, x1, a2, x2, result):
+        return self._call("combine3", x0, a0, x0, a1, x1, a2, x2, result)
 
-        return type(x0)(
-            a0 * x0[index] + a1 * x1[index] + a2 * x2[index] + a3 * x3[index]
-            for index in range(len(x0))
-        )
+    def combine4(self, a0, x0, a1, x1, a2, x2, a3, x3, result):
+        return self._call("combine4", x0, a0, x0, a1, x1, a2, x2, a3, x3, result)
 
-    def combine5(
-        self,
-        a0: float,
-        x0: CarrierNativeValue,
-        a1: float,
-        x1: CarrierNativeValue,
-        a2: float,
-        x2: CarrierNativeValue,
-        a3: float,
-        x3: CarrierNativeValue,
-        a4: float,
-        x4: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
-        if isinstance(x0, Number):
-            return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4
+    def combine5(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, result):
+        return self._call("combine5", x0, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, result)
 
-        return type(x0)(
-            a0 * x0[index] + a1 * x1[index] + a2 * x2[index] + a3 * x3[index] + a4 * x4[index]
-            for index in range(len(x0))
-        )
+    def combine6(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, result):
+        return self._call("combine6", x0, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, result)
 
-    def combine6(
-        self,
-        a0: float,
-        x0: CarrierNativeValue,
-        a1: float,
-        x1: CarrierNativeValue,
-        a2: float,
-        x2: CarrierNativeValue,
-        a3: float,
-        x3: CarrierNativeValue,
-        a4: float,
-        x4: CarrierNativeValue,
-        a5: float,
-        x5: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
-        if isinstance(x0, Number):
-            return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4 + a5 * x5
+    def combine7(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, result):
+        return self._call("combine7", x0, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, result)
 
-        return type(x0)(
-            a0 * x0[index] + a1 * x1[index] + a2 * x2[index] + a3 * x3[index] + a4 * x4[index] + a5 * x5[index]
-            for index in range(len(x0))
-        )
+    def combine8(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, result):
+        return self._call("combine8", x0, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, result)
 
-    def combine7(
-        self,
-        a0: float,
-        x0: CarrierNativeValue,
-        a1: float,
-        x1: CarrierNativeValue,
-        a2: float,
-        x2: CarrierNativeValue,
-        a3: float,
-        x3: CarrierNativeValue,
-        a4: float,
-        x4: CarrierNativeValue,
-        a5: float,
-        x5: CarrierNativeValue,
-        a6: float,
-        x6: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
-        if isinstance(x0, Number):
-            return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4 + a5 * x5 + a6 * x6
+    def combine9(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, result):
+        return self._call("combine9", x0, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, result)
 
-        return type(x0)(
-            a0 * x0[index] + a1 * x1[index] + a2 * x2[index] + a3 * x3[index] + a4 * x4[index] + a5 * x5[index] + a6 * x6[index]
-            for index in range(len(x0))
-        )
+    def combine10(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, a9, x9, result):
+        return self._call("combine10", x0, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, a9, x9, result)
 
-    def combine8(
-        self,
-        a0: float,
-        x0: CarrierNativeValue,
-        a1: float,
-        x1: CarrierNativeValue,
-        a2: float,
-        x2: CarrierNativeValue,
-        a3: float,
-        x3: CarrierNativeValue,
-        a4: float,
-        x4: CarrierNativeValue,
-        a5: float,
-        x5: CarrierNativeValue,
-        a6: float,
-        x6: CarrierNativeValue,
-        a7: float,
-        x7: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
-        if isinstance(x0, Number):
-            return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4 + a5 * x5 + a6 * x6 + a7 * x7
+    def combine11(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, a9, x9, a10, x10, result):
+        return self._call("combine11", x0, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, a9, x9, a10, x10, result)
 
-        return type(x0)(
-            a0 * x0[index] + a1 * x1[index] + a2 * x2[index] + a3 * x3[index] + a4 * x4[index] + a5 * x5[index] + a6 * x6[index] + a7 * x7[index]
-            for index in range(len(x0))
-        )
-
-    def combine9(
-        self,
-        a0: float,
-        x0: CarrierNativeValue,
-        a1: float,
-        x1: CarrierNativeValue,
-        a2: float,
-        x2: CarrierNativeValue,
-        a3: float,
-        x3: CarrierNativeValue,
-        a4: float,
-        x4: CarrierNativeValue,
-        a5: float,
-        x5: CarrierNativeValue,
-        a6: float,
-        x6: CarrierNativeValue,
-        a7: float,
-        x7: CarrierNativeValue,
-        a8: float,
-        x8: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
-        if isinstance(x0, Number):
-            return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4 + a5 * x5 + a6 * x6 + a7 * x7 + a8 * x8
-
-        return type(x0)(
-            a0 * x0[index] + a1 * x1[index] + a2 * x2[index] + a3 * x3[index] + a4 * x4[index] + a5 * x5[index] + a6 * x6[index] + a7 * x7[index] + a8 * x8[index]
-            for index in range(len(x0))
-        )
-
-    def combine10(
-        self,
-        a0: float,
-        x0: CarrierNativeValue,
-        a1: float,
-        x1: CarrierNativeValue,
-        a2: float,
-        x2: CarrierNativeValue,
-        a3: float,
-        x3: CarrierNativeValue,
-        a4: float,
-        x4: CarrierNativeValue,
-        a5: float,
-        x5: CarrierNativeValue,
-        a6: float,
-        x6: CarrierNativeValue,
-        a7: float,
-        x7: CarrierNativeValue,
-        a8: float,
-        x8: CarrierNativeValue,
-        a9: float,
-        x9: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
-        if isinstance(x0, Number):
-            return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4 + a5 * x5 + a6 * x6 + a7 * x7 + a8 * x8 + a9 * x9
-
-        return type(x0)(
-            a0 * x0[index] + a1 * x1[index] + a2 * x2[index] + a3 * x3[index] + a4 * x4[index] + a5 * x5[index] + a6 * x6[index] + a7 * x7[index] + a8 * x8[index] + a9 * x9[index]
-            for index in range(len(x0))
-        )
-
-    def combine11(
-        self,
-        a0: float,
-        x0: CarrierNativeValue,
-        a1: float,
-        x1: CarrierNativeValue,
-        a2: float,
-        x2: CarrierNativeValue,
-        a3: float,
-        x3: CarrierNativeValue,
-        a4: float,
-        x4: CarrierNativeValue,
-        a5: float,
-        x5: CarrierNativeValue,
-        a6: float,
-        x6: CarrierNativeValue,
-        a7: float,
-        x7: CarrierNativeValue,
-        a8: float,
-        x8: CarrierNativeValue,
-        a9: float,
-        x9: CarrierNativeValue,
-        a10: float,
-        x10: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
-        if isinstance(x0, Number):
-            return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4 + a5 * x5 + a6 * x6 + a7 * x7 + a8 * x8 + a9 * x9 + a10 * x10
-
-        return type(x0)(
-            a0 * x0[index] + a1 * x1[index] + a2 * x2[index] + a3 * x3[index] + a4 * x4[index] + a5 * x5[index] + a6 * x6[index] + a7 * x7[index] + a8 * x8[index] + a9 * x9[index] + a10 * x10[index]
-            for index in range(len(x0))
-        )
-
-    def combine12(
-        self,
-        a0: float,
-        x0: CarrierNativeValue,
-        a1: float,
-        x1: CarrierNativeValue,
-        a2: float,
-        x2: CarrierNativeValue,
-        a3: float,
-        x3: CarrierNativeValue,
-        a4: float,
-        x4: CarrierNativeValue,
-        a5: float,
-        x5: CarrierNativeValue,
-        a6: float,
-        x6: CarrierNativeValue,
-        a7: float,
-        x7: CarrierNativeValue,
-        a8: float,
-        x8: CarrierNativeValue,
-        a9: float,
-        x9: CarrierNativeValue,
-        a10: float,
-        x10: CarrierNativeValue,
-        a11: float,
-        x11: CarrierNativeValue,
-        result: CarrierNativeValue,
-    ) -> CarrierNativeValue:
-        if isinstance(x0, Number):
-            return a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4 + a5 * x5 + a6 * x6 + a7 * x7 + a8 * x8 + a9 * x9 + a10 * x10 + a11 * x11
-
-        return type(x0)(
-            a0 * x0[index] + a1 * x1[index] + a2 * x2[index] + a3 * x3[index] + a4 * x4[index] + a5 * x5[index] + a6 * x6[index] + a7 * x7[index] + a8 * x8[index] + a9 * x9[index] + a10 * x10[index] + a11 * x11[index]
-            for index in range(len(x0))
-        )
-
+    def combine12(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, a9, x9, a10, x10, a11, x11, result):
+        return self._call("combine12", x0, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, a9, x9, a10, x10, a11, x11, result)

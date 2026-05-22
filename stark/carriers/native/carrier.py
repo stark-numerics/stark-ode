@@ -1,16 +1,40 @@
-from stark.carriers.native.allocation import CarrierAllocationNative
-from stark.carriers.native.arithmetic import CarrierArithmeticNative
-from stark.carriers.native.norm import CarrierNormNativeRMS
-from stark.carriers.native.storage import CarrierNativeValue, CarrierStorageNative
-from stark.carriers.native.validation import CarrierValidationNative
+from __future__ import annotations
+
+from array import array
+from numbers import Number
+from typing import Any
+
+from stark.carriers.native.array import CarrierNativeArray
+from stark.carriers.native.list import CarrierNativeList
+from stark.carriers.native.scalar import CarrierNativeScalar
+from stark.carriers.native.storage import CarrierNativeValue
+from stark.carriers.native.tuple import CarrierNativeTuple
 
 
 class CarrierNative:
-    def __init__(self, template: CarrierNativeValue) -> None:
-        storage = CarrierStorageNative(template)
+    """Facade that binds a concrete native carrier once from the template type."""
 
-        self.storage = storage
-        self.validation = CarrierValidationNative(storage)
-        self.allocation = CarrierAllocationNative(storage)
-        self.arithmetic = CarrierArithmeticNative()
-        self.norm = CarrierNormNativeRMS()
+    concrete: Any
+
+    def __init__(self, template: CarrierNativeValue) -> None:
+        concrete = self._select(template)
+        self.concrete = concrete
+        self.storage = concrete.storage
+        self.validation = concrete.validation
+        self.allocation = concrete.allocation
+        self.arithmetic = concrete.arithmetic
+        self.norm = concrete.norm
+
+    @staticmethod
+    def _select(template: CarrierNativeValue) -> Any:
+        if isinstance(template, Number):
+            return CarrierNativeScalar(template)
+        if isinstance(template, list):
+            return CarrierNativeList(template)
+        if isinstance(template, tuple):
+            return CarrierNativeTuple(template)
+        if isinstance(template, array):
+            return CarrierNativeArray(template)
+        raise TypeError(
+            "Native carrier template must be numeric, list, tuple, or floating array.array."
+        )
