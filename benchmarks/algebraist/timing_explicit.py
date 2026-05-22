@@ -12,7 +12,7 @@ import numpy as np
 
 from stark import Executor, Integrator, Interval, Marcher, Safety, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist import Algebraist, AlgebraistBroadcast, AlgebraistField, AlgebraistLooped
+from stark.algebraist.classic import Algebraist, AlgebraistBroadcast, AlgebraistField, AlgebraistLooped
 from stark.schemes.explicit_adaptive import SchemeCashKarp, SchemeDormandPrince
 from stark.schemes.explicit_fixed import SchemeEuler, SchemeRK4
 

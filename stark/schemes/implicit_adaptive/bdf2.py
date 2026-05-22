@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.accelerators.binding import DerivativeAccelerated
-from stark.algebraist import Algebraist
+from stark.algebraist.classic import Algebraist
 from stark.auditor import Auditor
 from stark.contracts import Block, Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor

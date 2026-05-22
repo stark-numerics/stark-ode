@@ -7,7 +7,7 @@ import numpy as np
 
 from stark import Executor, ImExDerivative, Integrator, Interval, Marcher, Safety, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist import Algebraist, AlgebraistField, AlgebraistLooped
+from stark.algebraist.classic import Algebraist, AlgebraistField, AlgebraistLooped
 from stark.execution.regulator import Regulator
 from stark.inverters import InverterPolicy, InverterTolerance
 from stark.resolvents import ResolventAnderson, ResolventNewton, ResolventPolicy, ResolventTolerance

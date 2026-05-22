@@ -4,21 +4,21 @@ from collections.abc import Callable, Sequence
 from types import MappingProxyType
 from typing import Literal
 
-from stark.algebraist.codegen import AlgebraistCodegen
-from stark.algebraist.explicit import AlgebraistExplicitSchemeBinder
-from stark.algebraist.fields import AlgebraistField
-from stark.algebraist.imex_adaptive import AlgebraistImExAdaptiveSchemeBinder
-from stark.algebraist.implicit_adaptive import AlgebraistImplicitAdaptiveSchemeBinder
-from stark.algebraist.implicit_fixed import AlgebraistImplicitFixedSchemeBinder
-from stark.algebraist.names import (
+from stark.algebraist.classic.codegen import AlgebraistCodegen
+from stark.algebraist.classic.explicit import AlgebraistExplicitSchemeBinder
+from stark.algebraist.classic.fields import AlgebraistField
+from stark.algebraist.classic.imex_adaptive import AlgebraistImExAdaptiveSchemeBinder
+from stark.algebraist.classic.implicit_adaptive import AlgebraistImplicitAdaptiveSchemeBinder
+from stark.algebraist.classic.implicit_fixed import AlgebraistImplicitFixedSchemeBinder
+from stark.algebraist.classic.names import (
     combine_kernel_name,
     combine_wrapper_name,
     linear_combine_names,
 )
-from stark.algebraist.paths import path_expression
-from stark.algebraist.signatures import apply_signature, combine_signature
-from stark.algebraist.source import AlgebraistSource
-from stark.algebraist.tableau import AlgebraistTableauBinder, ButcherTableauLike
+from stark.algebraist.classic.paths import path_expression
+from stark.algebraist.classic.signatures import apply_signature, combine_signature
+from stark.algebraist.classic.source import AlgebraistSource
+from stark.algebraist.classic.tableau import AlgebraistTableauBinder, ButcherTableauLike
 from stark.contracts.acceleration import AcceleratorLike
 
 

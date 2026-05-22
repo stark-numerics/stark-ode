@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from stark.algebraist.implicit_fixed import (
+from stark.algebraist.classic.implicit_fixed import (
     AlgebraistImplicitCombination,
     AlgebraistImplicitFixedSchemeBinder,
 )

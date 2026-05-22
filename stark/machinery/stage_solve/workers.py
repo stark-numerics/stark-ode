@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.accelerators.binding import DerivativeAccelerated
-from stark.algebraist import (
+from stark.algebraist.classic import (
     Algebraist,
     AlgebraistImExAdaptiveSchemeBinding,
     AlgebraistImExCombination,

@@ -157,7 +157,7 @@ performance history.
 
 ## Interpreting Results
 
-Before optimizing `stark.algebraist.codegen`, record an ASV baseline from the
+Before optimizing `stark.algebraist.classic.codegen`, record an ASV baseline from the
 current implementation. Future optimization work should be judged against that
 baseline.
 

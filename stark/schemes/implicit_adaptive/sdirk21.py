@@ -3,7 +3,7 @@ from __future__ import annotations
 from math import sqrt
 
 from stark.accelerators.binding import DerivativeAccelerated
-from stark.algebraist import Algebraist, AlgebraistImplicitCombination
+from stark.algebraist.classic import Algebraist, AlgebraistImplicitCombination
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator

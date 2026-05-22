@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stark.algebraist import Algebraist, AlgebraistField, AlgebraistTableauPlanner
+from stark.algebraist.classic import Algebraist, AlgebraistField, AlgebraistTableauPlanner
 from stark.schemes.explicit_adaptive.cash_karp import RKCK_TABLEAU
 from stark.schemes.explicit_fixed.euler import EULER_TABLEAU
 from stark.schemes.explicit_fixed.rk4 import RK4_TABLEAU

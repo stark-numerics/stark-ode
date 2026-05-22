@@ -7,7 +7,7 @@ import pytest
 
 from stark import Executor, Integrator, Interval, Marcher, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist import (
+from stark.algebraist.classic import (
     Algebraist,
     AlgebraistBroadcast,
     AlgebraistField,

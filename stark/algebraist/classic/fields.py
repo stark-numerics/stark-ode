@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from stark.algebraist.paths import AlgebraistPath, normalize_path
-from stark.algebraist.policies import AlgebraistBroadcast, AlgebraistPolicy
+from stark.algebraist.classic.paths import AlgebraistPath, normalize_path
+from stark.algebraist.classic.policies import AlgebraistBroadcast, AlgebraistPolicy
 
 
 @dataclass(frozen=True, slots=True)

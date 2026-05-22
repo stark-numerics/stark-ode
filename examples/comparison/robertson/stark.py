@@ -7,7 +7,7 @@ import numpy as np
 
 from stark import Executor, Integrator, Interval, Marcher, Safety, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist import Algebraist, AlgebraistField, AlgebraistSmallFixed
+from stark.algebraist.classic import Algebraist, AlgebraistField, AlgebraistSmallFixed
 from stark.schemes import SchemeKvaerno4
 
 

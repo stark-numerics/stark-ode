@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from stark.accelerators import Accelerator
-from stark.algebraist import Algebraist, AlgebraistField, AlgebraistLooped
+from stark.algebraist.classic import Algebraist, AlgebraistField, AlgebraistLooped
 from stark.carriers import CarrierNumpy
 from stark.interface.vector import StarkVectorTranslation
 

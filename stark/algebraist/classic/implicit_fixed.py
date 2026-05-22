@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field as dataclass_field
 
-from stark.algebraist.codegen import AlgebraistCodegen
-from stark.algebraist.paths import path_expression
+from stark.algebraist.classic.codegen import AlgebraistCodegen
+from stark.algebraist.classic.paths import path_expression
 
 
 @dataclass(frozen=True, slots=True)

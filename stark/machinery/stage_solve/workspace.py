@@ -5,7 +5,7 @@ from typing import Callable
 
 from stark.contracts.intervals import IntervalLike
 from stark.contracts import Translation, Workbench
-from stark.algebraist.combine import AlgebraistCombineResolver
+from stark.algebraist.classic.combine import AlgebraistCombineResolver
 
 
 class _StageInterval:

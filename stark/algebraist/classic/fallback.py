@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from collections.abc import Callable
 
-from stark.algebraist.combine import AlgebraistCombineResolver
+from stark.algebraist.classic.combine import AlgebraistCombineResolver
 
 
 

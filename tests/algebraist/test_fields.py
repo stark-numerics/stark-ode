@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stark.algebraist import (
+from stark.algebraist.classic import (
     Algebraist,
     AlgebraistBroadcast,
     AlgebraistField,

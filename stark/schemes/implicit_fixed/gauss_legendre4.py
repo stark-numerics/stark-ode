@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from math import sqrt
 
-from stark.algebraist import Algebraist, AlgebraistImplicitCombination
+from stark.algebraist.classic import Algebraist, AlgebraistImplicitCombination
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.machinery.stage_solve.workers import CoupledCollocationResolventStep

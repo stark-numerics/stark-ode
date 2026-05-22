@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.algebraist import Algebraist
+from stark.algebraist.classic import Algebraist
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.machinery.stage_solve.workers import ShiftedOneStageResolventStep

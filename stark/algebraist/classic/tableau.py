@@ -4,8 +4,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field as dataclass_field
 from typing import Protocol
 
-from stark.algebraist.codegen import AlgebraistCodegen
-from stark.algebraist.paths import path_expression
+from stark.algebraist.classic.codegen import AlgebraistCodegen
+from stark.algebraist.classic.paths import path_expression
 
 
 class ButcherTableauLike(Protocol):

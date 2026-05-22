@@ -1,4 +1,4 @@
-from stark.algebraist import Algebraist, AlgebraistField
+from stark.algebraist.classic import Algebraist, AlgebraistField
 
 
 def test_algebraist_scope_stops_before_resolvent_and_inverter_generation() -> None:

@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from math import prod
 
-from stark.algebraist.fields import AlgebraistField
-from stark.algebraist.policies import (
+from stark.algebraist.classic.fields import AlgebraistField
+from stark.algebraist.classic.policies import (
     AlgebraistBroadcast,
     AlgebraistLooped,
     AlgebraistSmallFixed,

@@ -5,7 +5,7 @@ from math import sqrt
 
 import numpy as np
 
-from stark.algebraist import Algebraist, AlgebraistField, AlgebraistLooped
+from stark.algebraist.classic import Algebraist, AlgebraistField, AlgebraistLooped
 
 
 FPUT_SIZES = (64, 512, 2048)

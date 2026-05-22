@@ -4,7 +4,7 @@ import numpy as np
 
 from stark import Executor, Marcher
 from stark.accelerators import Accelerator
-from stark.algebraist import Algebraist, AlgebraistField
+from stark.algebraist.classic import Algebraist, AlgebraistField
 from stark.auditor import Auditor
 from stark.contracts import AccelerationRequest, AccelerationRole
 from stark.integrate import Integrator

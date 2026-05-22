@@ -6,7 +6,7 @@ import pytest
 
 from stark import Executor, Integrator, Interval, Marcher, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist import Algebraist, AlgebraistField
+from stark.algebraist.classic import Algebraist, AlgebraistField
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
 from stark.resolvents.support.policy import ResolventPolicy

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.algebraist import Algebraist
+from stark.algebraist.classic import Algebraist
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.execution.executor import Executor
 from stark.schemes.support.descriptor import SchemeDescriptor

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from stark import Executor, Integrator, Interval, Marcher, Tolerance
-from stark.algebraist import Algebraist, AlgebraistField, AlgebraistLooped
+from stark.algebraist.classic import Algebraist, AlgebraistField, AlgebraistLooped
 from stark.schemes.explicit_adaptive.cash_karp import SchemeCashKarp
 from stark.schemes.explicit_fixed.rk4 import SchemeRK4
 
