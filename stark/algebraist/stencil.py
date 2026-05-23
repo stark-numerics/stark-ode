@@ -5,7 +5,7 @@ from typing import Protocol
 
 
 class AlgebraistStencil(Protocol):
-    """Fixed-coefficient request consumed by an AlgebraistSpecialist."""
+    """Fixed-coefficient stencil request shape."""
 
     @property
     def scale(self) -> float:
@@ -14,3 +14,6 @@ class AlgebraistStencil(Protocol):
     @property
     def coefficients(self) -> Sequence[float]:
         ...
+
+
+__all__ = ["AlgebraistStencil"]

@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Protocol, TypeVar
 
-
 AlgebraistRequest = TypeVar("AlgebraistRequest", contravariant=True)
-AlgebraistKernel = Callable[..., object]
+AlgebraistKernel = TypeVar("AlgebraistKernel", covariant=True)
 
 
-class Algebraist(Protocol[AlgebraistRequest]):
-    """Provider of the best available kernel for an algebra request."""
+class Algebraist(Protocol[AlgebraistRequest, AlgebraistKernel]):
+    """Protocol for objects that provide algebra kernels from requests."""
 
     def provide(self, request: AlgebraistRequest) -> AlgebraistKernel:
         ...
+
+
+__all__ = ["Algebraist", "AlgebraistKernel", "AlgebraistRequest"]
