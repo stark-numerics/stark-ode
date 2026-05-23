@@ -1,7 +1,7 @@
 """Built-in Runge-Kutta schemes and their shared metadata."""
 
 from stark.schemes.support.descriptor import SchemeDescriptor
-from stark.schemes.support.tableau import ButcherTableau, EmbeddedButcherTableau, ImExButcherTableau
+from stark.schemes.support.tableau import ButcherTableau, ButcherTableauEmbedded, ButcherTableauImex
 from stark.schemes.explicit_adaptive import (
     BS23_TABLEAU,
     RKCK_TABLEAU,
@@ -87,13 +87,13 @@ __all__ = [
     "CROUZEIX_DIRK3_GAMMA",
     "CROUZEIX_DIRK3_TABLEAU",
     "EULER_TABLEAU",
-    "EmbeddedButcherTableau",
+    "ButcherTableauEmbedded",
     "GAUSS_LEGENDRE4_SQRT3",
     "GAUSS_LEGENDRE4_TABLEAU",
     "HEUN_TABLEAU",
     "IMEX_EULER_TABLEAU",
     "IMPLICIT_MIDPOINT_TABLEAU",
-    "ImExButcherTableau",
+    "ButcherTableauImex",
     "KUTTA3_TABLEAU",
     "KVAERNO3_TABLEAU",
     "KVAERNO4_TABLEAU",

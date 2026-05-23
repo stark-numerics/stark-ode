@@ -82,11 +82,11 @@ class SchemeCrankNicolson:
         self.k1 = workbench.allocate_translation()
         self.known_block = Block([workspace.allocate_translation()])
 
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         refresh_fixed_step_call(self)
 
         if algebraist is not None:
-            self.bind_algebraist_path(algebraist)
+            self.use_specialists(algebraist)
 
     def __call__(
         self,
@@ -96,7 +96,7 @@ class SchemeCrankNicolson:
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+    def use_specialists(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_implicit_fixed_scheme(
             known_shifts=(
                 AlgebraistImplicitCombination(
@@ -107,10 +107,10 @@ class SchemeCrankNicolson:
             ),
         )
         self.known_rhs_call = calls.require_known_shift_call(0, type(self).__name__)
-        self.call_pure = self.call_algebraist
+        self.call_pure = self.call_specialized
         refresh_fixed_step_call(self)
 
-    def call_generic(
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,
@@ -147,7 +147,7 @@ class SchemeCrankNicolson:
 
         return dt
 
-    def call_algebraist(
+    def call_specialized(
         self,
         interval: IntervalLike,
         state: State,

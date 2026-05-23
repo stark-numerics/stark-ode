@@ -58,7 +58,7 @@ from stark.schemes import (
     SchemeLobattoIIIC4,
     SchemeRadauIIA5,
 )
-from stark.schemes.support.tableau import ButcherTableau, ImExButcherTableau
+from stark.schemes.support.tableau import ButcherTableau, ButcherTableauImex
 
 
 def test_package_imports() -> None:
@@ -263,7 +263,7 @@ def test_core_objects_have_readable_representations() -> None:
     scheme_tolerance = SchemeTolerance(atol=1.0e-8, rtol=1.0e-6)
     regulator = Regulator()
     tableau = ButcherTableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="E")
-    imex_tableau = ImExButcherTableau(
+    imex_tableau = ButcherTableauImex(
         explicit=ButcherTableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="E"),
         implicit=ButcherTableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="I"),
     )
@@ -333,7 +333,7 @@ def test_core_objects_have_readable_representations() -> None:
     assert "Regulator" in repr(regulator)
     assert "safety=" in str(regulator)
     assert repr(tableau) == "ButcherTableau(stages=1, order=1, embedded_order=None, name='E')"
-    assert "ImExButcherTableau" in repr(imex_tableau)
+    assert "ButcherTableauImex" in repr(imex_tableau)
     assert IMEX_EULER_TABLEAU is not None
     assert BE_TABLEAU is not None
     assert IMPLICIT_MIDPOINT_TABLEAU is not None

@@ -158,7 +158,7 @@ def test_cash_karp_fehlberg_default_call_path_is_scheme_owned_generic_call(
     scheme = scheme_cls(zero_rhs, ScalarWorkbench())
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_generic
+    assert scheme.call_pure.__func__ is scheme_cls.call_inline
 
 
 @pytest.mark.parametrize(
@@ -247,7 +247,7 @@ def test_cash_karp_fehlberg_algebraist_path_is_selected_inside_scheme(
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_algebraist
+    assert scheme.call_pure.__func__ is scheme_cls.call_specialized
 
 
 @pytest.mark.parametrize(

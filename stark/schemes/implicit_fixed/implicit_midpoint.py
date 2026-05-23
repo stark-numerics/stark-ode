@@ -72,11 +72,11 @@ class SchemeImplicitMidpoint:
         )
         self.trial = self.stepper.workspace.allocate_translation()
 
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         refresh_fixed_step_call(self)
 
         if algebraist is not None:
-            self.bind_algebraist_path(algebraist)
+            self.use_specialists(algebraist)
 
     def __call__(
         self,
@@ -86,15 +86,15 @@ class SchemeImplicitMidpoint:
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+    def use_specialists(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_implicit_fixed_scheme(
             final_delta=AlgebraistImplicitCombination("final_delta", (2.0,)),
         )
         self.final_delta_call = calls.require_final_delta_call(type(self).__name__)
-        self.call_pure = self.call_algebraist
+        self.call_pure = self.call_specialized
         refresh_fixed_step_call(self)
 
-    def call_generic(
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,
@@ -124,7 +124,7 @@ class SchemeImplicitMidpoint:
 
         return dt
 
-    def call_algebraist(
+    def call_specialized(
         self,
         interval: IntervalLike,
         state: State,

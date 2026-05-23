@@ -157,7 +157,7 @@ def test_crouzeix_dirk3_default_call_path_is_scheme_owned_generic_call() -> None
     scheme = make_scheme()
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeCrouzeixDIRK3.call_generic
+    assert scheme.call_pure.__func__ is SchemeCrouzeixDIRK3.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -177,7 +177,7 @@ def test_crouzeix_dirk3_algebraist_path_is_scheme_owned_generated_call(
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeCrouzeixDIRK3.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeCrouzeixDIRK3.call_specialized
     assert scheme.redirect_call == scheme.call_pure
 
 

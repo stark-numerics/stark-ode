@@ -101,7 +101,7 @@ class SchemeBDF2:
         self.has_history = False
 
         initialise_adaptive_runtime(self, regulator)
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         refresh_adaptive_call(self)
 
     @staticmethod
@@ -185,7 +185,7 @@ class SchemeBDF2:
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def call_generic(
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,

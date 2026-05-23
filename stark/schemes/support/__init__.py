@@ -34,14 +34,14 @@ from stark.schemes.support.adaptive import (
 )
 from stark.schemes.support.tableau import (
     ButcherTableau,
-    EmbeddedButcherTableau,
-    ImExButcherTableau,
+    ButcherTableauEmbedded,
+    ButcherTableauImex,
 )
 
 __all__ = [
     "ButcherTableau",
-    "EmbeddedButcherTableau",
-    "ImExButcherTableau",
+    "ButcherTableauEmbedded",
+    "ButcherTableauImex",
     "SchemeStepAdaptiveProposal",
     "SchemeStepAdaptiveAdvanceReport",
     "SchemeDescriptor",

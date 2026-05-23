@@ -156,14 +156,14 @@ def test_algebraist_fixed_path_is_monitored_only_at_scheme_boundary() -> None:
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState()
 
-    assert scheme.call_pure.__func__ is SchemeEuler.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeEuler.call_specialized
 
     scheme.assign_monitor(monitor.scheme)
     accepted_dt = scheme(interval, state, Executor())
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(0.125)
-    assert scheme.call_pure.__func__ is SchemeEuler.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeEuler.call_specialized
     assert len(monitor.scheme.fixed_steps) == 1
 
 

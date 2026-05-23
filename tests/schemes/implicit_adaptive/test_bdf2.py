@@ -88,7 +88,7 @@ def test_bdf2_default_call_path_is_scheme_owned_generic_call() -> None:
     scheme = make_scheme()
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeBDF2.call_generic
+    assert scheme.call_pure.__func__ is SchemeBDF2.call_inline
 
     # Adaptive schemes bind executor runtime lazily on first public call.
     assert scheme.redirect_call.__self__ is scheme
@@ -100,7 +100,7 @@ def test_bdf2_accepts_algebraist_but_remains_generic_only() -> None:
     scheme = make_scheme(algebraist=algebraist)
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeBDF2.call_generic
+    assert scheme.call_pure.__func__ is SchemeBDF2.call_inline
 
     # Adaptive schemes still route through executor binding first.
     assert scheme.redirect_call.__self__ is scheme

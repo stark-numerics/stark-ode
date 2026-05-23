@@ -181,7 +181,7 @@ def test_collocation_fixed_default_call_path_is_scheme_owned_generic_call(
     scheme = make_scheme(scheme_cls)
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_generic
+    assert scheme.call_pure.__func__ is scheme_cls.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -195,7 +195,7 @@ def test_gauss_legendre4_algebraist_path_is_scheme_owned_generated_call(
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeGaussLegendre4.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeGaussLegendre4.call_specialized
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -215,7 +215,7 @@ def test_stiffly_accurate_collocation_accepts_no_op_algebraist_path(
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_generic
+    assert scheme.call_pure.__func__ is scheme_cls.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 

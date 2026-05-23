@@ -230,11 +230,11 @@ class SchemeKvaerno4:
         ) = workspace.allocate_translation_buffers(9)
 
         initialise_adaptive_runtime(self, regulator)
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         refresh_adaptive_call(self)
 
         if algebraist is not None:
-            self.bind_algebraist_path(algebraist)
+            self.use_specialists(algebraist)
 
     @staticmethod
     def default_regulator() -> Regulator:
@@ -248,7 +248,7 @@ class SchemeKvaerno4:
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+    def use_specialists(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_implicit_adaptive_scheme(
             known_shifts=(
                 AlgebraistImplicitCombination(
@@ -286,10 +286,10 @@ class SchemeKvaerno4:
         self.known5_call = calls.require_known_shift_call(4, scheme_name)
         self.high_delta_call = calls.require_high_delta_call(scheme_name)
         self.error_delta_call = calls.require_error_delta_call(scheme_name)
-        self.call_pure = self.call_algebraist
+        self.call_pure = self.call_specialized
         refresh_adaptive_call(self)
 
-    def call_generic(
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,
@@ -477,7 +477,7 @@ class SchemeKvaerno4:
         )
         return report.accepted_dt
 
-    def call_algebraist(
+    def call_specialized(
         self,
         interval: IntervalLike,
         state: State,

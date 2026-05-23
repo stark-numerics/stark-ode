@@ -132,11 +132,11 @@ class SchemeCrouzeixDIRK3:
             self.trial,
         ) = workspace.allocate_translation_buffers(8)
 
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         refresh_fixed_step_call(self)
 
         if algebraist is not None:
-            self.bind_algebraist_path(algebraist)
+            self.use_specialists(algebraist)
 
     def __call__(
         self,
@@ -146,7 +146,7 @@ class SchemeCrouzeixDIRK3:
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+    def use_specialists(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_implicit_fixed_scheme(
             known_shifts=(
                 None,
@@ -169,10 +169,10 @@ class SchemeCrouzeixDIRK3:
         self.known3_call = calls.require_known_shift_call(2, type(self).__name__)
         self.known4_call = calls.require_known_shift_call(3, type(self).__name__)
         self.final_delta_call = calls.require_final_delta_call(type(self).__name__)
-        self.call_pure = self.call_algebraist
+        self.call_pure = self.call_specialized
         refresh_fixed_step_call(self)
 
-    def call_generic(
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,
@@ -276,7 +276,7 @@ class SchemeCrouzeixDIRK3:
 
         return dt
 
-    def call_algebraist(
+    def call_specialized(
         self,
         interval: IntervalLike,
         state: State,

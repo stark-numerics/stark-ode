@@ -66,7 +66,7 @@ class SchemeRalston:
         self.advance_state = unbound_scheme_call
         self.combine_stage2 = unbound_scheme_call
         self._monitor = None
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         self.redirect_call = self.call_pure
         initialise_explicit_support(self, derivative, workbench)
         workspace = self.workspace
@@ -75,7 +75,7 @@ class SchemeRalston:
         refresh_fixed_step_call(self)
 
         if algebraist is not None:
-            self.use_algebraist(algebraist)
+            self.use_specialist(algebraist)
 
     def __call__(
         self,
@@ -85,14 +85,14 @@ class SchemeRalston:
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def use_algebraist(self, algebraist: Algebraist) -> None:
+    def use_specialist(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_explicit_scheme(self.tableau)
         self.combine_stage2 = calls.require_stage_state_call(1, type(self).__name__)
         self.advance_state = calls.solution_state_call
-        self.call_pure = self.call_algebraist
+        self.call_pure = self.call_specialized
         refresh_fixed_step_call(self)
 
-    def call_generic(
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,
@@ -136,7 +136,7 @@ class SchemeRalston:
 
         return dt
 
-    def call_algebraist(
+    def call_specialized(
         self,
         interval: IntervalLike,
         state: State,

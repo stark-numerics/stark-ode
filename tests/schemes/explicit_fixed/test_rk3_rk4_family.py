@@ -120,7 +120,7 @@ def test_rk3_rk4_default_call_path_is_scheme_owned_call_generic(scheme_cls) -> N
     scheme = scheme_cls(exponential_growth, ScalarWorkbench())
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_generic
+    assert scheme.call_pure.__func__ is scheme_cls.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -214,7 +214,7 @@ def test_rk3_rk4_algebraist_path_is_selected_inside_scheme(scheme_cls) -> None:
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_algebraist
+    assert scheme.call_pure.__func__ is scheme_cls.call_specialized
     assert scheme.redirect_call == scheme.call_pure
 
 

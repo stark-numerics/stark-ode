@@ -96,7 +96,7 @@ def test_rk4_default_call_path_is_scheme_owned_call_generic() -> None:
     scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeRK4.call_generic
+    assert scheme.call_pure.__func__ is SchemeRK4.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -152,7 +152,7 @@ def test_rk4_algebraist_path_is_selected_inside_scheme() -> None:
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeRK4.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeRK4.call_specialized
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -204,8 +204,8 @@ def test_rk4_satisfies_public_scheme_contract_without_base_class_assertions() ->
 def test_rk4_exposes_copyable_fixed_explicit_scheme_shape() -> None:
     required_names = {
         "__call__",
-        "call_generic",
-        "use_algebraist",
+        "call_inline",
+        "use_specialist",
         "snapshot_state",
         "set_apply_delta_safety",
     }

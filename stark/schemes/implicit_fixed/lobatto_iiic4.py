@@ -72,7 +72,7 @@ class SchemeLobattoIIIC4:
             resolvent,
         )
 
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         refresh_fixed_step_call(self)
 
     def __call__(
@@ -83,7 +83,7 @@ class SchemeLobattoIIIC4:
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def call_generic(
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,

@@ -94,7 +94,7 @@ class SchemeRadauIIA5:
             resolvent,
         )
 
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         refresh_fixed_step_call(self)
 
     def __call__(
@@ -105,7 +105,7 @@ class SchemeRadauIIA5:
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def call_generic(
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,

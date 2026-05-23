@@ -149,7 +149,7 @@ def test_adaptive_scheme_algebraist_binding_selects_scheme_owned_call_algebraist
     scheme = SchemeCashKarp(ArrayDerivative(), ArrayWorkbench(3), algebraist=ALGEBRAIST)
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeCashKarp.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeCashKarp.call_specialized
 
     # Adaptive schemes still bind executor runtime lazily on first call.
     assert scheme.redirect_call.__self__ is scheme

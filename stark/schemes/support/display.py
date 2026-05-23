@@ -5,7 +5,7 @@ from math import isclose
 from typing import Any
 
 from stark.schemes.support.descriptor import SchemeDescriptor
-from stark.schemes.support.tableau import ButcherTableau, ImExButcherTableau
+from stark.schemes.support.tableau import ButcherTableau, ButcherTableauImex
 
 
 def _is_stiffly_accurate(tableau: ButcherTableau) -> bool:
@@ -70,7 +70,7 @@ def display_implicit_resolvent_problem(tableau: ButcherTableau, short_name: str,
     return "\n".join(lines)
 
 
-def display_imex_resolvent_problem(tableau: ImExButcherTableau, short_name: str, full_name: str) -> str:
+def display_imex_resolvent_problem(tableau: ButcherTableauImex, short_name: str, full_name: str) -> str:
     stage_count = len(tableau.c)
     lines = [
         f"{short_name} IMEX resolvent problem ({full_name})",

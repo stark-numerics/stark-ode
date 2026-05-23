@@ -127,18 +127,18 @@ def test_algebraist_capability_matches_public_scheme_surface(
     if capability.capability == GENERATED:
         assert capability.reason is None
         binder_name = (
-            "use_algebraist"
+            "use_specialist"
             if capability.family == "explicit fixed"
-            else "bind_algebraist_path"
+            else "use_specialists"
         )
         assert binder_name in scheme_cls.__dict__
-        assert "call_algebraist" in scheme_cls.__dict__
+        assert "call_specialized" in scheme_cls.__dict__
         return
 
     assert capability.capability == HOOK_ONLY
     assert capability.reason
-    assert "bind_algebraist_path" not in scheme_cls.__dict__
-    assert "call_algebraist" not in scheme_cls.__dict__
+    assert "use_specialists" not in scheme_cls.__dict__
+    assert "call_specialized" not in scheme_cls.__dict__
 
 
 def test_algebraist_capability_matrix_names_supported_families() -> None:

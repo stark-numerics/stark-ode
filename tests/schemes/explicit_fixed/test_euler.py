@@ -79,7 +79,7 @@ def test_euler_default_call_path_is_scheme_owned_generic_call() -> None:
     scheme = SchemeEuler(exponential_growth, ScalarWorkbench())
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeEuler.call_generic
+    assert scheme.call_pure.__func__ is SchemeEuler.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -135,7 +135,7 @@ def test_euler_algebraist_path_is_selected_inside_scheme() -> None:
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeEuler.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeEuler.call_specialized
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -147,7 +147,7 @@ def test_euler_monitoring_records_fixed_step_without_changing_pure_path() -> Non
 
     scheme.assign_monitor(monitor.scheme)
 
-    assert scheme.call_pure.__func__ is SchemeEuler.call_generic
+    assert scheme.call_pure.__func__ is SchemeEuler.call_inline
     assert scheme.redirect_call.__func__ is scheme.call_monitored.__func__
 
     accepted_dt = scheme(interval, state, Executor())
@@ -180,7 +180,7 @@ def test_euler_monitoring_records_algebraist_fixed_step() -> None:
 
     scheme.assign_monitor(monitor.scheme)
 
-    assert scheme.call_pure.__func__ is SchemeEuler.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeEuler.call_specialized
     assert scheme.redirect_call.__func__ is scheme.call_monitored.__func__
 
     accepted_dt = scheme(interval, state, Executor())

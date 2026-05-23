@@ -183,7 +183,7 @@ def test_esdirk_adaptive_default_call_path_is_scheme_owned_generic_call(
     scheme = make_scheme(scheme_cls)
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_generic
+    assert scheme.call_pure.__func__ is scheme_cls.call_inline
 
     # Adaptive schemes bind executor runtime lazily on first public call.
     assert scheme.redirect_call.__self__ is scheme
@@ -216,7 +216,7 @@ def test_esdirk_adaptive_algebraist_path_is_scheme_owned_generated_call(
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_algebraist
+    assert scheme.call_pure.__func__ is scheme_cls.call_specialized
 
     # Adaptive schemes still route through executor binding first.
     assert scheme.redirect_call.__self__ is scheme

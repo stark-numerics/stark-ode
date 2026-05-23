@@ -14,7 +14,7 @@ from stark.schemes.support import (
     with_imex_workspace_methods,
     with_scheme_display,
 )
-from stark.schemes.support.tableau import ButcherTableau, ImExButcherTableau
+from stark.schemes.support.tableau import ButcherTableau, ButcherTableauImex
 
 
 IMEX_EULER_EXPLICIT = ButcherTableau(
@@ -31,7 +31,7 @@ IMEX_EULER_IMPLICIT = ButcherTableau(
     order=1,
 )
 
-IMEX_EULER_TABLEAU = ImExButcherTableau(
+IMEX_EULER_TABLEAU = ButcherTableauImex(
     explicit=IMEX_EULER_EXPLICIT,
     implicit=IMEX_EULER_IMPLICIT,
     short_name="IMEXEuler",
@@ -105,7 +105,7 @@ class SchemeIMEXEuler:
             self.tableau,
         )
 
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         refresh_fixed_step_call(self)
 
     def __call__(
@@ -116,7 +116,7 @@ class SchemeIMEXEuler:
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def call_generic(
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,

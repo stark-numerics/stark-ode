@@ -113,11 +113,11 @@ class SchemeFehlberg45:
         initialise_adaptive_runtime(self, regulator)
         self.initialise_buffers()
 
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         refresh_adaptive_call(self)
 
         if algebraist is not None:
-            self.bind_algebraist_path(algebraist)
+            self.use_specialists(algebraist)
 
     def __call__(
         self,
@@ -146,7 +146,7 @@ class SchemeFehlberg45:
         self.bound_apply_delta = workspace.apply_delta
         self.bound_stage_interval = workspace.stage_interval
 
-    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+    def use_specialists(self, algebraist: Algebraist) -> None:
         calls = algebraist.bind_explicit_scheme(self.tableau)
         error = calls.require_error_delta_call(type(self).__name__)
 
@@ -160,14 +160,14 @@ class SchemeFehlberg45:
         self.combine_solution = calls.solution_delta_call
         self.combine_error = error
 
-        self.call_pure = self.call_algebraist
+        self.call_pure = self.call_specialized
         refresh_adaptive_call(self)
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
         self.explicit.set_apply_delta_safety(enabled)
         self.bound_apply_delta = self.workspace.apply_delta
 
-    def call_generic(
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,
@@ -329,7 +329,7 @@ class SchemeFehlberg45:
         )
         return report.accepted_dt
 
-    def call_algebraist(
+    def call_specialized(
         self,
         interval: IntervalLike,
         state: State,

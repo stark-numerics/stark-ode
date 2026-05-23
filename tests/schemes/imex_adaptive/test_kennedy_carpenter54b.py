@@ -86,14 +86,14 @@ def make_scheme() -> SchemeKennedyCarpenter54b:
 def test_kennedy_carpenter54b_owns_converted_call_surface() -> None:
     assert "__call__" in SchemeKennedyCarpenter54b.__dict__
     assert "call_bind" in SchemeKennedyCarpenter54b.__dict__
-    assert "call_generic" in SchemeKennedyCarpenter54b.__dict__
-    assert "call_algebraist" in SchemeKennedyCarpenter54b.__dict__
+    assert "call_inline" in SchemeKennedyCarpenter54b.__dict__
+    assert "call_specialized" in SchemeKennedyCarpenter54b.__dict__
     assert "call_monitored" in SchemeKennedyCarpenter54b.__dict__
 
     scheme = make_scheme()
 
     assert scheme.redirect_call.__func__ is scheme.call_bind.__func__
-    assert scheme.call_pure.__func__ is scheme.call_generic.__func__
+    assert scheme.call_pure.__func__ is scheme.call_inline.__func__
 
 
 def test_kennedy_carpenter54b_accepts_zero_split_step() -> None:

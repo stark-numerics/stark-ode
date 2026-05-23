@@ -17,7 +17,7 @@ from stark.schemes.support import (
     with_imex_workspace_methods,
     with_scheme_display,
 )
-from stark.schemes.support.tableau import ButcherTableau, ImExButcherTableau
+from stark.schemes.support.tableau import ButcherTableau, ButcherTableauImex
 
 
 ARK324L2SA_EXPLICIT = ButcherTableau(
@@ -89,7 +89,7 @@ ARK324L2SA_IMPLICIT = ButcherTableau(
 )
 
 
-ARK324L2SA_TABLEAU = ImExButcherTableau(
+ARK324L2SA_TABLEAU = ButcherTableauImex(
     explicit=ARK324L2SA_EXPLICIT,
     implicit=ARK324L2SA_IMPLICIT,
     short_name="ARK324L2SA",
@@ -161,11 +161,11 @@ class SchemeKennedyCarpenter32:
         )
         self.stepper.require_embedded(type(self).__name__)
 
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         refresh_adaptive_call(self)
 
         if algebraist is not None:
-            self.bind_algebraist_path(algebraist)
+            self.use_specialists(algebraist)
 
     @staticmethod
     def default_regulator() -> Regulator:
@@ -179,12 +179,12 @@ class SchemeKennedyCarpenter32:
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
+    def use_specialists(self, algebraist: Algebraist) -> None:
         self.stepper.bind_algebraist(algebraist)
-        self.call_pure = self.call_algebraist
+        self.call_pure = self.call_specialized
         refresh_adaptive_call(self)
 
-    def call_generic(
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,
@@ -258,7 +258,7 @@ class SchemeKennedyCarpenter32:
         )
         return report.accepted_dt
 
-    def call_algebraist(
+    def call_specialized(
         self,
         interval: IntervalLike,
         state: State,

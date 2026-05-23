@@ -190,7 +190,7 @@ def test_one_stage_implicit_default_call_path_is_scheme_owned_generic_call(
     scheme = make_scheme(scheme_cls)
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_generic
+    assert scheme.call_pure.__func__ is scheme_cls.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -201,7 +201,7 @@ def test_backward_euler_accepts_no_op_algebraist_path() -> None:
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeBackwardEuler.call_generic
+    assert scheme.call_pure.__func__ is SchemeBackwardEuler.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -220,7 +220,7 @@ def test_one_stage_implicit_algebraist_path_is_scheme_owned_generated_call(
     scheme = make_array_scheme(scheme_cls, algebraist=Algebraist(fields=(field,)))
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_algebraist
+    assert scheme.call_pure.__func__ is scheme_cls.call_specialized
     assert scheme.redirect_call == scheme.call_pure
 
 
