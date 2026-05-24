@@ -6,12 +6,12 @@ import jax.numpy as jnp  # type: ignore[import-not-found]
 from stark.carriers.jax.storage import CarrierJaxValue, CarrierStorageJax
 
 
-class JaxNumpyModule(Protocol):
+class HintJaxNumpyModule(Protocol):
     def zeros(self, shape: tuple[int, ...], dtype: object) -> CarrierJaxValue: ...
     def array(self, value: CarrierJaxValue) -> CarrierJaxValue: ...
 
 
-jax_numpy = cast(JaxNumpyModule, jnp)
+jax_numpy = cast(HintJaxNumpyModule, jnp)
 
 
 @dataclass(frozen=True)

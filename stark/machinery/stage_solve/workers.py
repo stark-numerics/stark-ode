@@ -406,7 +406,7 @@ class ShiftedOneStageResolventStep:
         return self.trial_block[0]
 
 
-class CoupledCollocationResolventStep:
+class ResolventCoupledCollocationStep:
     """Reusable bind/zero/solve worker for fully coupled collocation stages."""
 
     __slots__ = ("workspace", "tableau_guard", "resolvent", "stage_block")
@@ -498,7 +498,7 @@ class SequentialDIRKResolventStep:
 
 
 __all__ = [
-    "CoupledCollocationResolventStep",
+    "ResolventCoupledCollocationStep",
     "ImExStepper",
     "SequentialDIRKResolventStep",
     "ShiftedOneStageResolventStep",

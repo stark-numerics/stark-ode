@@ -5,7 +5,7 @@ from itertools import product
 from typing import Literal
 
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.delta_specialist import AlgebraistDeltaStencil
+from stark.algebraist.stencil import AlgebraistStencil
 from stark.algebraist.generator.expression import AlgebraistGeneratorEmitterExpression
 from stark.algebraist.layout import (
     AlgebraistLayout,
@@ -15,7 +15,6 @@ from stark.algebraist.layout import (
     AlgebraistLayoutScalar,
     AlgebraistLayoutUnravel,
 )
-from stark.algebraist.update_specialist import AlgebraistUpdateStencil
 
 Kind = Literal["general", "delta", "update"]
 
@@ -30,13 +29,10 @@ class AlgebraistGeneratorEmitter:
         arity = request.value
         return self._emit(kind="general", arity=arity)
 
-    def delta(self, stencil: AlgebraistDeltaStencil) -> str:
+    def specialist(self, stencil: AlgebraistStencil) -> str:
         coefficients = tuple(float(coefficient) for coefficient in stencil.coefficients)
-        return self._emit(kind="delta", coefficients=coefficients, stencil_scale=float(stencil.scale))
-
-    def update(self, stencil: AlgebraistUpdateStencil) -> str:
-        coefficients = tuple(float(coefficient) for coefficient in stencil.coefficients)
-        return self._emit(kind="update", coefficients=coefficients, stencil_scale=float(stencil.scale))
+        kind: Kind = "update" if stencil.apply else "delta"
+        return self._emit(kind=kind, coefficients=coefficients, stencil_scale=float(stencil.scale))
 
     def _emit(
         self,

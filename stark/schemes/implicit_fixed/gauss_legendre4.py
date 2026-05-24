@@ -5,7 +5,7 @@ from math import sqrt
 from stark.algebraist.classic import Algebraist, AlgebraistImplicitCombination
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
-from stark.machinery.stage_solve.workers import CoupledCollocationResolventStep
+from stark.machinery.stage_solve.workers import ResolventCoupledCollocationStep
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     refresh_fixed_step_call,
@@ -34,7 +34,7 @@ GAUSS_LEGENDRE4_TABLEAU = ButcherTableau(
     full_name="Gauss-Legendre 4",
 )
 
-# `CoupledCollocationResolventStep` returns stage increments, not derivative
+# `ResolventCoupledCollocationStep` returns stage increments, not derivative
 # rates. For Gauss-Legendre 4 the final RK update is reconstructed from the two
 # stage increments using b^T A^-1, which reduces to (-sqrt(3), sqrt(3)).
 GAUSS_LEGENDRE4_STAGE_INCREMENT_WEIGHTS = (
@@ -83,7 +83,7 @@ class SchemeGaussLegendre4:
     ) -> None:
         self.final_delta_call = unbound_scheme_call
         self._monitor = None
-        self.stepper = CoupledCollocationResolventStep(
+        self.stepper = ResolventCoupledCollocationStep(
             "Gauss-Legendre 4",
             self.tableau,
             derivative,

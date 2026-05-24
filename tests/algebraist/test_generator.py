@@ -6,9 +6,8 @@ import pytest
 
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.generator import (
-    AlgebraistGeneratorDeltaSpecialist,
     AlgebraistGeneratorGeneral,
-    AlgebraistGeneratorUpdateSpecialist,
+    AlgebraistGeneratorSpecialist,
 )
 from stark.algebraist.layout import (
     AlgebraistLayout,
@@ -16,6 +15,7 @@ from stark.algebraist.layout import (
     AlgebraistLayoutScalar,
     AlgebraistLayoutUnravel,
 )
+from stark.schemes.support.stencil import SchemeStencil
 
 
 @dataclass
@@ -28,12 +28,6 @@ class State:
 class Translation:
     dx: float
     values: list[float]
-
-
-@dataclass(frozen=True)
-class Stencil:
-    scale: float
-    coefficients: tuple[float, ...]
 
 
 class Workbench:
@@ -77,13 +71,13 @@ def test_generator_general_combines_scalar_and_unravel_fields():
     assert out.values == pytest.approx([310.0, 420.0])
 
 
-def test_generator_delta_specialist_bakes_coefficients():
-    provider = AlgebraistGeneratorDeltaSpecialist(
+def test_generator_specialist_bakes_delta_coefficients():
+    provider = AlgebraistGeneratorSpecialist(
         translation=Translation(0.0, [0.0, 0.0]),
         workbench=Workbench(),
         layout=layout(),
     )
-    stencil = Stencil(scale=2.0, coefficients=(0.5, 0.25))
+    stencil = SchemeStencil(scale=2.0, coefficients=(0.5, 0.25))
     source = provider.source_string(stencil)
 
     assert "_a0 = step * 1.0" in source
@@ -101,13 +95,13 @@ def test_generator_delta_specialist_bakes_coefficients():
     assert out.values == pytest.approx([25.0, 40.0])
 
 
-def test_generator_update_specialist_updates_from_origin():
-    provider = AlgebraistGeneratorUpdateSpecialist(
+def test_generator_specialist_applies_delta_to_origin():
+    provider = AlgebraistGeneratorSpecialist(
         translation=Translation(0.0, [0.0, 0.0]),
         workbench=Workbench(),
         layout=layout(),
     )
-    stencil = Stencil(scale=1.0, coefficients=(0.5, 0.25))
+    stencil = SchemeStencil(scale=1.0, coefficients=(0.5, 0.25), apply=True)
     kernel = provider.provide(stencil)
 
     origin = State(100.0, [10.0, 20.0])

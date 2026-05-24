@@ -4,15 +4,15 @@ from typing import Protocol, TypeAlias, cast
 import jax.numpy as jnp # type: ignore[import-not-found]
 
 
-class JaxArray(Protocol):
+class HintJaxArray(Protocol):
     shape: tuple[int, ...]
     dtype: object
 
-class JaxNumpyModule(Protocol):
-    def asarray(self, value: JaxArray) -> JaxArray: ...
+class HintJaxNumpyModule(Protocol):
+    def asarray(self, value: HintJaxArray) -> HintJaxArray: ...
 
-jax_numpy = cast(JaxNumpyModule, jnp)
-CarrierJaxValue: TypeAlias = JaxArray
+jax_numpy = cast(HintJaxNumpyModule, jnp)
+CarrierJaxValue: TypeAlias = HintJaxArray
 
 @dataclass(frozen=True)
 class CarrierStorageJax:

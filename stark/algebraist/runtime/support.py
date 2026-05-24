@@ -2,26 +2,25 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Generic, TypeVar, ParamSpec, cast
+from typing import Generic, TypeVar, cast
 
 from stark.accelerators.absent import AcceleratorAbsent
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.delta import AlgebraistDeltaKernel, AlgebraistDeltaStencil
-from stark.algebraist.update import AlgebraistUpdateKernel, AlgebraistUpdateStencil
+from stark.algebraist.stencil import AlgebraistStencil
 from stark.algebraist.workbench import AlgebraistWorkbench
 from stark.contracts.acceleration import AcceleratorLike
 from stark.contracts.translations import State, Translation
 
-try:  # layout is optional context for runtime, but accepted for generate symmetry.
+try:  # layout is optional context for runtime, but accepted for generator symmetry.
     from stark.algebraist.layout import AlgebraistLayout
 except Exception:  # pragma: no cover - defensive during staged refactors
     AlgebraistLayout = object  # type: ignore[misc, assignment]
 
-
-KernelType = TypeVar("KernelType")
 StateType = TypeVar("StateType", bound=State)
 TranslationType = TypeVar("TranslationType", bound=Translation)
 RuntimeKernel = Callable[..., TranslationType]
+AnyRuntimeKernel = TypeVar("AnyRuntimeKernel", bound=Callable[..., object])
+
 
 @dataclass(frozen=True, slots=True)
 class AlgebraistRuntimeFallbackKernel(Generic[TranslationType]):
@@ -37,7 +36,8 @@ class AlgebraistRuntimeFallbackKernel(Generic[TranslationType]):
         expected = 2 * self.arity + 1
         if len(terms) != expected:
             raise TypeError(
-                f"combine{self.arity} requires {self.arity} coefficient/translation pairs and out."
+                f"combine{self.arity} requires {self.arity} "
+                "coefficient/translation pairs and out."
             )
 
         # The fallback path relies on Translation.__rmul__ and Translation.__add__.
@@ -90,7 +90,8 @@ class AlgebraistRuntimeCombineSynthesizer(Generic[TranslationType]):
         expected = 2 * self.arity + 1
         if len(terms) != expected:
             raise TypeError(
-                f"combine{self.arity} requires {self.arity} coefficient/translation pairs and out."
+                f"combine{self.arity} requires {self.arity} "
+                "coefficient/translation pairs and out."
             )
 
         out = cast(TranslationType, terms[-1])
@@ -132,10 +133,10 @@ class AlgebraistRuntimeDeltaKernel(Generic[TranslationType]):
 
 
 @dataclass(slots=True)
-class AlgebraistRuntimeUpdateKernel(Generic[StateType, TranslationType]):
-    """Runtime fixed-coefficient state-update kernel."""
+class AlgebraistRuntimeApplyKernel(Generic[StateType, TranslationType]):
+    """Runtime fixed-coefficient state-apply kernel."""
 
-    delta: AlgebraistDeltaKernel[TranslationType]
+    delta: Callable[..., TranslationType]
     scratch: TranslationType
 
     def __call__(
@@ -151,7 +152,7 @@ class AlgebraistRuntimeUpdateKernel(Generic[StateType, TranslationType]):
 
 
 def _validate_coefficients(coefficients: Sequence[float]) -> tuple[float, ...]:
-    normalized = tuple(coefficients)
+    normalized = tuple(float(coefficient) for coefficient in coefficients)
     if not normalized:
         raise ValueError("Algebraist stencil must contain at least one coefficient.")
     return normalized
@@ -159,12 +160,7 @@ def _validate_coefficients(coefficients: Sequence[float]) -> tuple[float, ...]:
 
 @dataclass(slots=True)
 class AlgebraistRuntimeSupport(Generic[TranslationType]):
-    """Shared implementation support for runtime Algebraist providers.
-
-    Runtime providers construct this internally. It centralizes validation,
-    direct-kernel resolution, fallback generation, synthesis, scratch allocation,
-    and accelerator decoration.
-    """
+    """Shared implementation support for runtime Algebraist providers."""
 
     translation: TranslationType
     workbench: AlgebraistWorkbench[TranslationType]
@@ -202,46 +198,58 @@ class AlgebraistRuntimeSupport(Generic[TranslationType]):
     def provide_tuple(self, max_arity: int = 12) -> tuple[RuntimeKernel[TranslationType], ...]:
         if max_arity < 1:
             raise ValueError("max_arity must be at least 1.")
-        return tuple(self.provide_general(AlgebraistArity(arity)) for arity in range(1, max_arity + 1))
+        return tuple(
+            self.provide_general(AlgebraistArity(arity))
+            for arity in range(1, max_arity + 1)
+        )
 
-    def provide_delta(self, request: AlgebraistDeltaStencil) -> AlgebraistDeltaKernel[TranslationType]:
+    def provide_specialist(self, request: AlgebraistStencil) -> Callable[..., object]:
         coefficients = _validate_coefficients(request.coefficients)
+        if request.apply:
+            return self.provide_apply(request=request, coefficients=coefficients)
+        return self.provide_delta(request=request, coefficients=coefficients)
+
+    def provide_delta(
+        self,
+        *,
+        request: AlgebraistStencil,
+        coefficients: tuple[float, ...] | None = None,
+    ) -> Callable[..., TranslationType]:
+        if coefficients is None:
+            coefficients = _validate_coefficients(request.coefficients)
         combine = self.provide_general(AlgebraistArity(len(coefficients)))
         kernel = AlgebraistRuntimeDeltaKernel(
-            scale=request.scale,
+            scale=float(request.scale),
             coefficients=coefficients,
             combine=combine,
         )
-        return cast(
-            AlgebraistDeltaKernel[TranslationType],
-            self.accelerate(kernel, label="runtime.delta", arity=len(coefficients)),
-        )
+        return self.accelerate(kernel, label="runtime.delta", arity=len(coefficients))
 
-    def provide_update(
+    def provide_apply(
         self,
-        request: AlgebraistUpdateStencil,
-    ) -> AlgebraistUpdateKernel[StateType, TranslationType]:
-        coefficients = _validate_coefficients(request.coefficients)
-        delta = self.provide_delta(request)
+        *,
+        request: AlgebraistStencil,
+        coefficients: tuple[float, ...] | None = None,
+    ) -> Callable[..., StateType]:
+        if coefficients is None:
+            coefficients = _validate_coefficients(request.coefficients)
+        delta = self.provide_delta(request=request, coefficients=coefficients)
         scratch = self.allocate_translation()
-        kernel = AlgebraistRuntimeUpdateKernel[StateType, TranslationType](
+        kernel = AlgebraistRuntimeApplyKernel[StateType, TranslationType](
             delta=delta,
             scratch=scratch,
         )
-        return cast(
-            AlgebraistUpdateKernel[StateType, TranslationType],
-            self.accelerate(kernel, label="runtime.update", arity=len(coefficients)),
-        )
+        return self.accelerate(kernel, label="runtime.apply", arity=len(coefficients))
 
     def accelerate(
         self,
-        kernel: KernelType,
+        kernel: AnyRuntimeKernel,
         *,
         label: str,
         **values: object,
-    ) -> KernelType:
+    ) -> AnyRuntimeKernel:
         accelerated = self.accelerator.resolve_support(kernel, label=label, **values)
-        return cast(KernelType, accelerated)
+        return cast(AnyRuntimeKernel, accelerated)
 
     def _validated_linear_combine(self) -> tuple[RuntimeKernel[TranslationType], ...]:
         raw = self.linear_combine
@@ -298,11 +306,11 @@ class AlgebraistRuntimeSupport(Generic[TranslationType]):
 
 
 __all__ = [
+    "AlgebraistRuntimeApplyKernel",
     "AlgebraistRuntimeCombineSynthesizer",
     "AlgebraistRuntimeDeltaKernel",
     "AlgebraistRuntimeFallbackCombine",
     "AlgebraistRuntimeFallbackKernel",
     "AlgebraistRuntimeSupport",
-    "AlgebraistRuntimeUpdateKernel",
     "RuntimeKernel",
 ]

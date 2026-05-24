@@ -14,22 +14,32 @@ SchemeStencilCoefficient: TypeAlias = float
 class SchemeStencil:
     """Fixed-coefficient scheme stencil.
 
-    A stencil describes the fixed coefficient part of an operation such as:
+    A stencil describes the fixed coefficient part of an operation:
 
         step * scale * sum(c_i * source_i)
 
-    The runtime step is supplied later to the kernel produced by an Algebraist
-    specialist. The coefficients and fixed scale are supplied here.
+    If ``apply`` is false, a specialist should produce a delta kernel:
+
+        out = step * scale * sum(c_i * source_i)
+
+    If ``apply`` is true, a specialist should produce an apply/update kernel:
+
+        result = origin + step * scale * sum(c_i * source_i)
+
+    The runtime step is supplied later to the produced kernel. The coefficients,
+    fixed scale, and operation kind are supplied here.
     """
 
     coefficients: tuple[SchemeStencilCoefficient, ...]
     scale: float
+    apply: bool
 
     def __init__(
         self,
         coefficients: Iterable[float],
         *,
         scale: float = 1.0,
+        apply: bool = False,
     ) -> None:
         object.__setattr__(
             self,
@@ -37,6 +47,7 @@ class SchemeStencil:
             tuple(float(coefficient) for coefficient in coefficients),
         )
         object.__setattr__(self, "scale", float(scale))
+        object.__setattr__(self, "apply", bool(apply))
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,7 +62,11 @@ class SchemeStencilTableau:
     scale: float = 1.0
 
     def stage(self, index: int) -> SchemeStencil:
-        """Return the stencil for a tableau stage row."""
+        """Return the applied stencil for a tableau stage row.
+
+        A stage row constructs a stage state from the origin state plus a
+        weighted sum of already-computed derivative translations.
+        """
 
         if not isinstance(index, int):
             raise TypeError("stage index must be an int.")
@@ -65,18 +80,29 @@ class SchemeStencilTableau:
         return SchemeStencil(
             self.tableau.a[index],
             scale=self.scale,
+            apply=True,
         )
 
-    def advance(self) -> SchemeStencil:
-        """Return the stencil for the accepted step advance weights."""
+    def advance_delta(self) -> SchemeStencil:
+        """Return the non-applied stencil for accepted advance weights."""
 
         return SchemeStencil(
             self.tableau.b,
             scale=self.scale,
+            apply=False,
         )
 
-    def error(self) -> SchemeStencil:
-        """Return the stencil for embedded error weights."""
+    def advance_update(self) -> SchemeStencil:
+        """Return the applied stencil for accepted advance weights."""
+
+        return SchemeStencil(
+            self.tableau.b,
+            scale=self.scale,
+            apply=True,
+        )
+
+    def error_delta(self) -> SchemeStencil:
+        """Return the non-applied stencil for embedded error weights."""
 
         if self.tableau.b_embedded is None:
             raise ValueError(
@@ -96,6 +122,7 @@ class SchemeStencilTableau:
         return SchemeStencil(
             (high_weight - low_weight for high_weight, low_weight in zip(high, low)),
             scale=self.scale,
+            apply=False,
         )
 
 

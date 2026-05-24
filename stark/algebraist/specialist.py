@@ -1,13 +1,26 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Protocol, TypeVar
 
-StencilType = TypeVar("StencilType", contravariant=True)
+from stark.algebraist.algebraist import Algebraist
+from stark.algebraist.stencil import AlgebraistStencil
+
+
 KernelType = TypeVar("KernelType", covariant=True)
 
 
-class AlgebraistSpecialist(Protocol[StencilType, KernelType]):
-    """Provider of a specialized algebra kernel from a stencil request."""
+AlgebraistKernel = Callable[..., object]
 
-    def provide(self, stencil: StencilType) -> KernelType:
+
+class AlgebraistSpecialist(Algebraist[AlgebraistStencil], Protocol):
+    """Provider of the best available kernel for a stencil request.
+
+    ``stencil.apply`` selects the produced kernel semantics.
+    """
+
+    def provide(self, request: AlgebraistStencil) -> AlgebraistKernel:
         ...
+
+
+__all__ = ["AlgebraistKernel", "AlgebraistSpecialist"]

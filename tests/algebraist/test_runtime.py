@@ -6,10 +6,10 @@ import pytest
 
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.runtime import (
-    AlgebraistRuntimeDeltaSpecialist,
     AlgebraistRuntimeGeneral,
-    AlgebraistRuntimeUpdateSpecialist,
+    AlgebraistRuntimeSpecialist,
 )
+from stark.schemes.support.stencil import SchemeStencil
 
 
 @dataclass
@@ -72,12 +72,6 @@ class TranslationWithLinearCombine(Translation):
     def __init__(self, value: float = 0.0) -> None:
         super().__init__(value)
         self.linear_combine = (scale, combine2, combine3)
-
-
-@dataclass(frozen=True)
-class Stencil:
-    scale: float
-    coefficients: tuple[float, ...]
 
 
 def test_arity_validates_value() -> None:
@@ -160,12 +154,12 @@ def test_runtime_general_as_tuple_provides_requested_arity_family() -> None:
     assert family[4] is general.provide(AlgebraistArity(5))
 
 
-def test_runtime_delta_specialist_binds_fixed_coefficients() -> None:
-    specialist = AlgebraistRuntimeDeltaSpecialist(
+def test_runtime_specialist_binds_delta_coefficients() -> None:
+    specialist = AlgebraistRuntimeSpecialist(
         translation=TranslationWithLinearCombine(),
         workbench=Workbench(),
     )
-    kernel = specialist.provide(Stencil(scale=0.5, coefficients=(1.0, 2.0)))
+    kernel = specialist.provide(SchemeStencil(scale=0.5, coefficients=(1.0, 2.0)))
     out = Translation()
 
     result = kernel(4.0, out, Translation(3.0), Translation(5.0))
@@ -174,14 +168,14 @@ def test_runtime_delta_specialist_binds_fixed_coefficients() -> None:
     assert out.value == pytest.approx(26.0)
 
 
-def test_runtime_update_specialist_applies_delta_to_origin_state() -> None:
-    specialist: AlgebraistRuntimeUpdateSpecialist[State, Translation] = (
-        AlgebraistRuntimeUpdateSpecialist(
-            translation=TranslationWithLinearCombine(),
-            workbench=Workbench(),
-        )
+def test_runtime_specialist_applies_delta_to_origin_state() -> None:
+    specialist: AlgebraistRuntimeSpecialist[State, Translation] = AlgebraistRuntimeSpecialist(
+        translation=TranslationWithLinearCombine(),
+        workbench=Workbench(),
     )
-    kernel = specialist.provide(Stencil(scale=1.0, coefficients=(0.25, 0.75)))
+    kernel = specialist.provide(
+        SchemeStencil(scale=1.0, coefficients=(0.25, 0.75), apply=True)
+    )
 
     origin = State(10.0)
     result = State()
@@ -191,11 +185,11 @@ def test_runtime_update_specialist_applies_delta_to_origin_state() -> None:
     assert result.value == pytest.approx(24.0)
 
 
-def test_runtime_delta_specialist_rejects_empty_stencil() -> None:
-    specialist = AlgebraistRuntimeDeltaSpecialist(
+def test_runtime_specialist_rejects_empty_stencil() -> None:
+    specialist = AlgebraistRuntimeSpecialist(
         translation=TranslationWithLinearCombine(),
         workbench=Workbench(),
     )
 
     with pytest.raises(ValueError):
-        specialist.provide(Stencil(scale=1.0, coefficients=()))
+        specialist.provide(SchemeStencil(coefficients=()))

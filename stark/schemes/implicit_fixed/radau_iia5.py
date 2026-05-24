@@ -5,7 +5,7 @@ from math import sqrt
 from stark.algebraist.classic import Algebraist
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
-from stark.machinery.stage_solve.workers import CoupledCollocationResolventStep
+from stark.machinery.stage_solve.workers import ResolventCoupledCollocationStep
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     refresh_fixed_step_call,
@@ -85,7 +85,7 @@ class SchemeRadauIIA5:
     ) -> None:
         del algebraist
         self._monitor = None
-        self.stepper = CoupledCollocationResolventStep(
+        self.stepper = ResolventCoupledCollocationStep(
             "Radau IIA 5",
             self.tableau,
             derivative,

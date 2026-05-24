@@ -3,16 +3,16 @@ from typing import Protocol, TypeAlias, cast
 
 import cupy as cp
 
-class CupyArray(Protocol):
+class HintCupyArray(Protocol):
     shape: tuple[int, ...]
     dtype: object
 
-class CupyModule(Protocol):
-    ndarray: type[CupyArray]
-    def asarray(self, value: CupyArray) -> CupyArray: ...
+class HintCupyModule(Protocol):
+    ndarray: type[HintCupyArray]
+    def asarray(self, value: HintCupyArray) -> HintCupyArray: ...
 
-cupy = cast(CupyModule, cp)
-CarrierCupyValue: TypeAlias = CupyArray
+cupy = cast(HintCupyModule, cp)
+CarrierCupyValue: TypeAlias = HintCupyArray
 
 
 @dataclass(frozen=True)

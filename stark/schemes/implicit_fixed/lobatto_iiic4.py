@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.algebraist.classic import Algebraist
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
-from stark.machinery.stage_solve.workers import CoupledCollocationResolventStep
+from stark.machinery.stage_solve.workers import ResolventCoupledCollocationStep
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     refresh_fixed_step_call,
@@ -63,7 +63,7 @@ class SchemeLobattoIIIC4:
     ) -> None:
         del algebraist
         self._monitor = None
-        self.stepper = CoupledCollocationResolventStep(
+        self.stepper = ResolventCoupledCollocationStep(
             "Lobatto IIIC 4",
             self.tableau,
             derivative,
