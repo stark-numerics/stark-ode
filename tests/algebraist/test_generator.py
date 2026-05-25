@@ -88,7 +88,7 @@ def test_generator_specialist_bakes_delta_coefficients():
     x1 = Translation(4.0, [3.0, 4.0])
     out = Translation(0.0, [0.0, 0.0])
 
-    returned = kernel(10.0, out, x0, x1)
+    returned = kernel(10.0, x0, x1, out)
 
     assert returned is out
     assert out.dx == pytest.approx(40.0)
@@ -109,7 +109,7 @@ def test_generator_specialist_applies_delta_to_origin():
     x0 = Translation(2.0, [1.0, 2.0])
     x1 = Translation(4.0, [3.0, 4.0])
 
-    returned = kernel(10.0, result, origin, x0, x1)
+    returned = kernel(10.0, origin, x0, x1, result)
 
     assert returned is result
     assert result.x == pytest.approx(120.0)

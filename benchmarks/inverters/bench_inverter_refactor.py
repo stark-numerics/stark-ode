@@ -12,7 +12,7 @@ from time import perf_counter
 
 from stark.accelerators import Accelerator
 from stark.block.operator import BlockOperator
-from stark.contracts import Block
+from stark.block import Block
 from stark.execution.safety import Safety
 from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES, InverterPolicy, InverterTolerance
 

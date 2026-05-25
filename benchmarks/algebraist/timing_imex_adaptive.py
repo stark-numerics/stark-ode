@@ -13,6 +13,7 @@ import numpy as np
 from stark import Executor, Integrator, Interval, Marcher, Safety, Tolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.classic import Algebraist, AlgebraistBroadcast, AlgebraistField, AlgebraistLooped
+from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.resolvents import ResolventPicard
 from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.imex_adaptive import SchemeKennedyCarpenter32
@@ -125,7 +126,6 @@ def make_executor() -> Executor:
 
 def make_resolvent(scheme_cls, workbench: ArrayWorkbench) -> ResolventPicard:
     return ResolventPicard(
-        implicit_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=16),
@@ -194,6 +194,16 @@ def make_case(
     algebraist: Algebraist | None,
 ) -> BenchmarkCase:
     workbench = ArrayWorkbench(count, algebraist)
+    specialist = (
+        AlgebraistRuntimeSpecialist(
+            translation=workbench.allocate_translation(),
+            workbench=workbench,
+            linear_combine=algebraist.linear_combine,
+            accelerator=algebraist.accelerator,
+        )
+        if algebraist is not None
+        else None
+    )
     derivative = SplitDerivative(
         explicit=explicit_rhs,
         implicit=implicit_rhs,
@@ -203,7 +213,7 @@ def make_case(
         derivative,
         workbench,
         resolvent=resolvent,
-        algebraist=algebraist,
+        specialist=specialist,
     )
     return BenchmarkCase(
         name=label,

@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-from stark.algebraist.classic import Algebraist
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
-from stark.machinery.stage_solve.workers import ShiftedOneStageResolventStep
-from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
+    SchemeDescriptor,
     refresh_fixed_step_call,
     with_fixed_step_monitoring,
-    with_implicit_stepper_methods,
     with_scheme_display,
 )
+from stark.schemes.support.implicit import (
+    initialise_implicit_support,
+    with_implicit_workspace_methods,
+)
+from stark.schemes.support.specialist import SchemeSpecialist
+from stark.schemes.support.stage_problem import SchemeStageProblem
 from stark.schemes.support.tableau import ButcherTableau
 
 
@@ -24,26 +27,42 @@ BE_TABLEAU = ButcherTableau(
 
 @with_scheme_display
 @with_fixed_step_monitoring
-@with_implicit_stepper_methods
+@with_implicit_workspace_methods
 class SchemeBackwardEuler:
-    """The implicit backward Euler method resolved by a stage resolvent.
+    """The implicit backward Euler method.
 
-    Backward Euler advances by solving
+    Backward Euler advances by solving the implicit increment equation:
 
-        x_{n+1} = x_n + dt f(x_{n+1}),
+        delta = h * f(t + h, y + delta)
 
-    so each step requires a shifted implicit solve rather than a direct explicit
-    stage evaluation. In STARK that solve is owned by a `Resolvent`, which may be
-    a generic automatic worker or a problem-specific custom one.
+    and then applying the solved increment:
 
-    Further reading: https://en.wikipedia.org/wiki/Backward_Euler_method
+        y <- y + delta
+
+    Algorithm sketch for one accepted step of size h:
+
+        1. Build the stage problem at t + h:
+               F(delta) = delta - h * f(t + h, y + delta)
+
+        2. Use the configured resolvent to solve:
+               F(delta) = 0
+
+        3. Apply the solved increment:
+               y <- y + delta
+
+    The scheme owns the time-stepping formula. The resolvent owns the
+    nonlinear solve for the implicit increment.
     """
 
     __slots__ = (
         "_monitor",
+        "block_allocator",
         "call_pure",
+        "delta",
+        "derivative",
         "redirect_call",
-        "stepper",
+        "resolvent",
+        "workspace",
     )
 
     descriptor = SchemeDescriptor("BE", "Backward Euler")
@@ -55,19 +74,22 @@ class SchemeBackwardEuler:
         workbench: Workbench,
         resolvent: Resolvent,
         *,
-        algebraist: Algebraist | None = None,
+        specialist: SchemeSpecialist | None = None,
     ) -> None:
-        del algebraist
         self._monitor = None
-        self.stepper = ShiftedOneStageResolventStep(
-            "Backward Euler",
-            self.tableau,
-            derivative,
-            workbench,
-            resolvent,
-        )
         self.call_pure = self.call_inline
+        self.redirect_call = self.call_pure
+        self.resolvent = resolvent
+
+        initialise_implicit_support(self, derivative, workbench)
+        self.delta = self.block_allocator.allocate(1)
+
         refresh_fixed_step_call(self)
+
+        if specialist is not None:
+            self.prepare_specialized_kernels(specialist)
+            self.call_pure = self.call_specialized
+            refresh_fixed_step_call(self)
 
     def __call__(
         self,
@@ -76,6 +98,11 @@ class SchemeBackwardEuler:
         executor: Executor,
     ) -> float:
         return self.redirect_call(interval, state, executor)
+
+    def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
+        """Accept specialist hooks for constructor consistency."""
+
+        del specialist
 
     def call_inline(
         self,
@@ -91,20 +118,37 @@ class SchemeBackwardEuler:
 
         dt = interval.step if interval.step <= remaining else remaining
 
-        stepper = self.stepper
-        delta = stepper.solve(
-            interval,
-            state,
-            dt,
+        workspace = self.workspace
+        resolvent = self.resolvent
+        delta = self.delta
+
+        # 1. Build the implicit stage problem:
+        #        F(delta) = delta - h * f(t + h, y + delta)
+        problem = SchemeStageProblem(
+            derivative=self.derivative,
+            interval=workspace.stage_at(interval, dt, dt),
+            origin=state,
+            rhs=None,
             alpha=dt,
-            stage_shift=dt,
         )
-        stepper.workspace.apply_delta(delta, state)
+
+        # 2. Solve F(delta) = 0.
+        resolvent(problem, delta)
+
+        # 3. Apply the solved increment: y <- y + delta.
+        workspace.apply_delta(delta[0], state)
 
         remaining_after = remaining - dt
         interval.step = 0.0 if remaining_after <= 0.0 else min(interval.step, remaining_after)
-
         return dt
+
+    def call_specialized(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor: Executor,
+    ) -> float:
+        return self.call_inline(interval, state, executor)
 
 
 __all__ = ["BE_TABLEAU", "SchemeBackwardEuler"]

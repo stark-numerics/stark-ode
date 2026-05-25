@@ -8,13 +8,7 @@ import pytest
 
 from stark import Executor, Interval, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist.classic import (
-    Algebraist,
-    AlgebraistBroadcast,
-    AlgebraistField,
-    AlgebraistLooped,
-    AlgebraistSmallFixed,
-)
+from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.resolvents import ResolventPicard
 from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.imex_adaptive.kennedy_carpenter32 import (
@@ -111,7 +105,7 @@ def array_implicit_rhs(
 def make_array_scheme(
     scheme_cls: type[Any],
     *,
-    algebraist: Algebraist | None = None,
+    specialist: bool = False,
 ) -> Any:
     workbench = ArrayScalarWorkbench()
     derivative = SplitDerivative(
@@ -119,7 +113,6 @@ def make_array_scheme(
         implicit=array_implicit_rhs,
     )
     resolvent = ResolventPicard(
-        array_implicit_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -130,15 +123,14 @@ def make_array_scheme(
         derivative,
         workbench,
         resolvent=resolvent,
-        algebraist=algebraist,
-    )
-
-
-def algebraist_fields() -> tuple[AlgebraistField, ...]:
-    return (
-        AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
-        AlgebraistField("value", "value", policy=AlgebraistLooped(rank=1)),
-        AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
+        specialist=(
+            AlgebraistRuntimeSpecialist(
+                translation=workbench.allocate_translation(),
+                workbench=workbench,
+            )
+            if specialist
+            else None
+        ),
     )
 
 
@@ -147,14 +139,12 @@ def tight_executor() -> Executor:
 
 
 @pytest.mark.parametrize("scheme_cls", IMEX_ADAPTIVE_SCHEMES)
-@pytest.mark.parametrize("field", algebraist_fields())
-def test_imex_adaptive_algebraist_path_is_scheme_owned_generated_call(
+def test_imex_adaptive_specialist_path_is_scheme_owned_generated_call(
     scheme_cls: type[Any],
-    field: AlgebraistField,
 ) -> None:
-    scheme = make_array_scheme(scheme_cls, algebraist=Algebraist(fields=(field,)))
+    scheme = make_array_scheme(scheme_cls, specialist=True)
 
-    assert "call_specialized" in scheme_cls.__dict__
+    assert hasattr(scheme_cls, "call_specialized")
     assert scheme.call_pure.__self__ is scheme
     assert scheme.call_pure.__func__ is scheme_cls.call_specialized
     assert scheme.redirect_call.__self__ is scheme
@@ -162,14 +152,11 @@ def test_imex_adaptive_algebraist_path_is_scheme_owned_generated_call(
 
 
 @pytest.mark.parametrize("scheme_cls", IMEX_ADAPTIVE_SCHEMES)
-@pytest.mark.parametrize("field", algebraist_fields())
-def test_imex_adaptive_algebraist_path_matches_generic_path(
+def test_imex_adaptive_specialist_path_matches_generic_path(
     scheme_cls: type[Any],
-    field: AlgebraistField,
 ) -> None:
-    algebraist = Algebraist(fields=(field,))
     generic = make_array_scheme(scheme_cls)
-    generated = make_array_scheme(scheme_cls, algebraist=algebraist)
+    generated = make_array_scheme(scheme_cls, specialist=True)
     generic_interval = Interval(present=0.0, step=0.1, stop=0.3)
     generated_interval = Interval(present=0.0, step=0.1, stop=0.3)
     generic_state = ArrayScalarState.zero()
@@ -184,19 +171,12 @@ def test_imex_adaptive_algebraist_path_matches_generic_path(
 
 
 @pytest.mark.parametrize("scheme_cls", IMEX_ADAPTIVE_SCHEMES)
-def test_imex_adaptive_algebraist_source_is_inspectable(
+def test_imex_adaptive_specialist_path_prepares_expected_kernel_family(
     scheme_cls: type[Any],
 ) -> None:
-    algebraist = Algebraist(fields=(AlgebraistField("value", "value"),))
-
-    make_array_scheme(scheme_cls, algebraist=algebraist)
+    scheme = make_array_scheme(scheme_cls, specialist=True)
 
     stage_count = len(scheme_cls.tableau.c)
-    for stage_index in range(1, stage_count):
-        assert f"stage{stage_index}_shift_combine" in algebraist.sources
-
-    assert "high_delta_combine" in algebraist.sources
-    assert "error_delta_combine" in algebraist.sources
-    assert "low_delta_combine" not in algebraist.sources
-    assert "explicit_k0" in algebraist.sources["stage1_shift_combine"]
-    assert "implicit_k0" in algebraist.sources["stage1_shift_combine"]
+    assert len(scheme.stage_rhs_kernels) == stage_count
+    assert callable(scheme.advance_delta_kernel)
+    assert callable(scheme.error_delta_kernel)

@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from stark.accelerators.binding import DerivativeAccelerated
-from stark.algebraist.classic import Algebraist
-from stark.auditor import Auditor
-from stark.contracts import Block, Derivative, IntervalLike, Resolvent, State, Workbench
+from stark.block import Block
+from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
-from stark.machinery.stage_solve.workspace import SchemeWorkspace
 from stark.resolvents.support.failure import ResolventError
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
@@ -15,56 +13,37 @@ from stark.schemes.support import (
     refresh_adaptive_call,
     with_adaptive_runtime_methods,
 )
+from stark.schemes.support.implicit import (
+    initialise_implicit_support,
+    with_implicit_workspace_methods,
+)
+from stark.schemes.support.specialist import SchemeSpecialist
+from stark.schemes.support.stage_problem import SchemeStageProblem
 
 
 @with_adaptive_runtime_methods
+@with_implicit_workspace_methods
 class SchemeBDF2:
     """Adaptive second-order backward differentiation formula.
 
-    BDF2 is a two-step implicit method. After a first backward-Euler startup
-    step, it advances with
+    Algorithm sketch for one trial step of size h:
 
-        alpha0 x_{n+1} + alpha1 x_n + alpha2 x_{n-1}
-        = dt f(t_{n+1}, x_{n+1}),
-
-    using a variable-step ratio and a backward-Euler-style embedded estimate for
-    step control.
-
-    This implementation stores the previous accepted displacement rather than a
-    full previous state. If the method has no usable history, or if the proposed
-    step changes too sharply relative to the previous accepted step, it falls
-    back to a backward-Euler startup solve so the history can settle before
-    resuming the multistep update.
-
-    The nonlinear solve still has the STARK-friendly shifted form
-
-        delta - shift - alpha f(t_{n+1}, state + delta) = 0,
-
-    so it slots into the one-stage resolvent layer without needing a coupled
-    block stage solve.
-
-    Further reading: https://en.wikipedia.org/wiki/Backward_differentiation_formula
+        1. Use a backward-Euler startup solve when no stable BDF2 history exists.
+        2. Otherwise build the BDF2 shifted residual from the previous accepted
+           displacement and current step ratio.
+        3. Solve the one-block implicit displacement problem with the configured
+           resolvent.
+        4. Compare the BDF2 displacement with a backward-Euler companion estimate.
+        5. Accept/reject through the adaptive controller.
     """
 
-    # Assigned by initialise_adaptive_runtime from stark.schemes.support.
     step_control: SchemeStepControl
 
     __slots__ = (
-        "step_control",
-        "call_pure",
-        "derivative",
-        "error",
-        "has_history",
-        "known_shift",
-        "known_shift_block",
-        "low",
-        "previous_delta",
-        "previous_step",
-        "redirect_call",
-        "resolvent",
-        "startup_rate",
-        "trial_block",
-        "workspace",
+        "step_control", "block_allocator", "call_pure", "derivative", "error",
+        "has_history", "implicit", "known_shift", "known_shift_block", "low",
+        "previous_delta", "previous_step", "redirect_call", "resolvent",
+        "startup_rate", "trial_block", "workspace",
     )
 
     descriptor = SchemeDescriptor("BDF2", "Backward Differentiation Formula 2")
@@ -76,27 +55,20 @@ class SchemeBDF2:
         resolvent: Resolvent,
         regulator: Regulator | None = None,
         *,
-        algebraist: Algebraist | None = None,
+        specialist: SchemeSpecialist | None = None,
     ) -> None:
-        del algebraist
-        translation_probe = workbench.allocate_translation()
-        Auditor.require_scheme_inputs(derivative, workbench, translation_probe)
-
-        if resolvent is None:
-            raise TypeError("BDF2 requires an explicit resolvent.")
-
-        self.derivative = DerivativeAccelerated(derivative)
-        self.workspace = SchemeWorkspace(workbench, translation_probe)
-        self.startup_rate = translation_probe
+        del specialist
         self.resolvent = resolvent
+        initialise_implicit_support(self, derivative, workbench)
+        self.derivative = DerivativeAccelerated(derivative)
 
         workspace = self.workspace
+        self.startup_rate = workspace.allocate_translation()
         self.trial_block = Block([workspace.allocate_translation()])
         self.previous_delta, self.low, self.error, self.known_shift = (
             workspace.allocate_translation_buffers(4)
         )
         self.known_shift_block = Block([self.known_shift])
-
         self.previous_step = 0.0
         self.has_history = False
 
@@ -136,31 +108,18 @@ class SchemeBDF2:
                 "Unknown step displacement:",
                 "  Delta = x_{n+1} - x_n",
                 "",
-                "Backward-Euler startup solve:",
-                "",
+                "Startup solve:",
                 "  Delta - h f(t_{n+1}, x_n + Delta) = 0",
                 "",
-                "Variable-step BDF2 solve after startup:",
-                "",
-                "  alpha_0 Delta - shift - h f(t_{n+1}, x_n + Delta) = 0",
-                "",
-                "where the shift term is built from the previous accepted step displacement",
-                "and the current step ratio.",
-                "",
-                "A custom resolvent for this method must accept arguments",
-                "`(alpha, rhs, out)` and overwrite `out` with the solved",
-                "one-block displacement, stored as `Block(Translation)`.",
+                "BDF2 solve:",
+                "  Delta - shift - alpha f(t_{n+1}, x_n + Delta) = 0",
             ]
         )
 
     def __repr__(self) -> str:
         return "\n".join(
             [
-                (
-                    f"{type(self).__name__}("
-                    f"short_name={self.short_name!r}, "
-                    f"full_name={self.full_name!r})"
-                ),
+                f"{type(self).__name__}(short_name={self.short_name!r}, full_name={self.full_name!r})",
                 self.display_method(),
             ]
         )
@@ -171,30 +130,15 @@ class SchemeBDF2:
     def __format__(self, format_spec: str) -> str:
         return format(str(self), format_spec)
 
-    def set_apply_delta_safety(self, enabled: bool) -> None:
-        self.workspace.set_apply_delta_safety(enabled)
-
-    def snapshot_state(self, state: State) -> State:
-        return self.workspace.snapshot_state(state)
-
-    def __call__(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
+    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def call_inline(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
+    def call_specialized(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+        return self.call_inline(interval, state, executor)
+
+    def call_inline(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         del executor
-
         proposal = self.step_control.propose_step(interval)
-
         if proposal.remaining <= 0.0:
             self.step_control.record_stopped(interval)
             return 0.0
@@ -203,7 +147,6 @@ class SchemeBDF2:
         apply_delta = workspace.apply_delta
         scale = workspace.scale
         ratio_fn = self.step_control.ratio
-
         remaining = proposal.remaining
         dt = proposal.dt
         proposed_dt = proposal.proposed_dt
@@ -217,152 +160,98 @@ class SchemeBDF2:
                 and 0.5 <= dt / self.previous_step <= 2.0
             )
 
-            if step_ratio_is_safe:
-                try:
-                    delta_high, error_ratio = self.solve_bdf2_step(
-                        interval,
-                        state,
-                        dt,
-                        ratio_fn,
-                    )
-                except ResolventError:
-                    rejection_count += 1
-                    dt = self.step_control.rejected_step(
-                        dt,
-                        1.0,
-                        remaining,
-                        self.short_name,
-                    )
-                    continue
-            else:
-                try:
-                    delta_high, error_ratio = self.solve_startup_step(
-                        interval,
-                        state,
-                        dt,
-                        ratio_fn,
-                    )
-                except ResolventError:
-                    rejection_count += 1
-                    dt = self.step_control.rejected_step(
-                        dt,
-                        1.0,
-                        remaining,
-                        self.short_name,
-                    )
-                    continue
+            try:
+                if step_ratio_is_safe:
+                    # 2. Solve the variable-step BDF2 shifted residual.
+                    delta_high, error_ratio = self.solve_bdf2_step(interval, state, dt, ratio_fn)
+                else:
+                    # 1. Use a backward-Euler startup solve.
+                    delta_high, error_ratio = self.solve_startup_step(interval, state, dt, ratio_fn)
+            except ResolventError:
+                rejection_count += 1
+                dt = self.step_control.rejected_step(dt, 1.0, remaining, self.short_name)
+                continue
 
             if error_ratio <= 1.0:
                 break
-
             rejection_count += 1
-            dt = self.step_control.rejected_step(
-                dt,
-                error_ratio,
-                remaining,
-                self.short_name,
-            )
+            dt = self.step_control.rejected_step(dt, error_ratio, remaining, self.short_name)
 
         accepted_dt = dt
         apply_delta(delta_high, state)
-
-        # `scale` may return a new translation rather than mutating its first
-        # argument, so keep the returned object as the next history value.
         self.previous_delta = scale(1.0, delta_high, self.previous_delta)
         self.previous_step = accepted_dt
         self.has_history = True
 
         remaining_after = remaining - accepted_dt
-        controller_next_dt = self.step_control.accepted_next_step(
-            accepted_dt,
-            error_ratio,
-            remaining_after,
-        )
-
-        if remaining_after <= 0.0:
-            next_dt = 0.0
-        else:
-            # Preserve the existing BDF2 policy: avoid immediately shrinking the
-            # next proposed step below the just-accepted step. Large changes are
-            # handled by the startup fallback on the following call.
-            next_dt = max(accepted_dt, controller_next_dt)
-
-        interval.step = next_dt
-
+        controller_next_dt = self.step_control.accepted_next_step(accepted_dt, error_ratio, remaining_after)
+        interval.step = 0.0 if remaining_after <= 0.0 else max(accepted_dt, controller_next_dt)
         report = self.step_control.record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,
-            next_dt=next_dt,
+            next_dt=interval.step,
             error_ratio=error_ratio,
             rejection_count=rejection_count,
         )
         return report.accepted_dt
 
-    def solve_startup_step(
-        self,
-        interval: IntervalLike,
-        state: State,
-        dt: float,
-        ratio_fn,
-    ):
+    def solve_startup_step(self, interval: IntervalLike, state: State, dt: float, ratio_fn):
         workspace = self.workspace
         derivative = self.derivative
         scale = workspace.scale
         combine2 = workspace.combine2
-        stage_interval = workspace.stage_interval
         trial_block = self.trial_block
 
         derivative(interval, state, self.startup_rate)
 
-        self.resolvent.bind(stage_interval(interval, dt, dt), state)
-
-        # `scale` may return a fresh zero translation; keep it in the block so
-        # fallback algebra and in-place algebra both behave correctly.
-        trial_block.items[0] = scale(0.0, trial_block[0], trial_block[0])
-        self.resolvent(dt, None, trial_block)
+        # Startup problem: Delta - h f(t+h, y + Delta) = 0.
+        self.known_shift = scale(0.0, self.known_shift, self.known_shift)
+        self.known_shift_block[0] = self.known_shift
+        trial_block[0] = scale(0.0, trial_block[0], trial_block[0])
+        problem = SchemeStageProblem(
+            derivative=derivative,
+            interval=workspace.stage_at(interval, dt, dt),
+            origin=state,
+            rhs=self.known_shift_block,
+            alpha=dt,
+        )
+        self.resolvent(problem, trial_block)
 
         delta_high = trial_block[0]
         delta_low = scale(dt, self.startup_rate, self.low)
         error = combine2(1.0, delta_high, -1.0, delta_low, self.error)
         error_ratio = ratio_fn(error.norm(), delta_high.norm())
-
         return delta_high, error_ratio
 
-    def solve_bdf2_step(
-        self,
-        interval: IntervalLike,
-        state: State,
-        dt: float,
-        ratio_fn,
-    ):
+    def solve_bdf2_step(self, interval: IntervalLike, state: State, dt: float, ratio_fn):
         workspace = self.workspace
         scale = workspace.scale
         combine2 = workspace.combine2
-        stage_interval = workspace.stage_interval
         trial_block = self.trial_block
 
         step_ratio = dt / self.previous_step
-
         alpha0 = (2.0 * step_ratio + 1.0) / (step_ratio + 1.0)
         alpha2 = (step_ratio * step_ratio) / (step_ratio + 1.0)
         beta = (step_ratio * step_ratio) / (2.0 * step_ratio + 1.0)
         alpha = dt * (step_ratio + 1.0) / (2.0 * step_ratio + 1.0)
 
-        # `scale` may return a new object, so update both the attribute and the
-        # block that the resolvent receives as its right-hand-side shift.
         self.known_shift = scale(beta, self.previous_delta, self.known_shift)
-        self.known_shift_block.items[0] = self.known_shift
-
-        self.resolvent.bind(stage_interval(interval, dt, dt), state)
-        trial_block.items[0] = scale(0.0, trial_block[0], trial_block[0])
-        self.resolvent(alpha, self.known_shift_block, trial_block)
+        self.known_shift_block[0] = self.known_shift
+        trial_block[0] = scale(0.0, trial_block[0], trial_block[0])
+        problem = SchemeStageProblem(
+            derivative=self.derivative,
+            interval=workspace.stage_at(interval, dt, dt),
+            origin=state,
+            rhs=self.known_shift_block,
+            alpha=alpha,
+        )
+        self.resolvent(problem, trial_block)
 
         delta_high = trial_block[0]
         delta_low = combine2(alpha0, delta_high, -alpha2, self.previous_delta, self.low)
         error = combine2(1.0, delta_high, -1.0, delta_low, self.error)
         error_ratio = ratio_fn(error.norm(), delta_high.norm())
-
         return delta_high, error_ratio
 
 

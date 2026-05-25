@@ -5,7 +5,8 @@ from math import sqrt
 from typing import Callable
 
 from stark.accelerators import AcceleratorAbsent
-from stark.contracts import AcceleratorLike, Block, InnerProduct, Translation, Workbench
+from stark.block import Block
+from stark.contracts import AcceleratorLike, InnerProduct, Translation, Workbench
 from stark.execution.safety import Safety
 from stark.algebraist.classic.combine import AlgebraistCombineResolver
 

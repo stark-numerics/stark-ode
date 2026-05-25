@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from stark import Executor, Integrator, Interval, Marcher, Safety, Tolerance
+from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.schemes.explicit_adaptive import SchemeCashKarp, SchemeDormandPrince
 from stark.schemes.explicit_fixed import SchemeEuler, SchemeRK4
 
@@ -48,6 +49,15 @@ def executor() -> Executor:
     )
 
 
+def specialist(parameters: FPUTParameters) -> AlgebraistRuntimeSpecialist:
+    workbench = FPUTWorkbench(parameters)
+    return AlgebraistRuntimeSpecialist(
+        translation=workbench.allocate_translation(),
+        workbench=workbench,
+        linear_combine=FPUT_ALGEBRAIST.linear_combine,
+    )
+
+
 class FPUTExplicitCase:
     __slots__ = ("integrator", "interval", "marcher", "state")
 
@@ -56,11 +66,11 @@ class FPUTExplicitCase:
         scheme_type: FixedScheme | AdaptiveScheme,
         parameters: FPUTParameters,
         *,
-        algebraist: object | None = None,
+        specialist: object | None = None,
     ) -> None:
         derivative = FPUTDerivative(parameters)
         workbench = FPUTWorkbench(parameters)
-        scheme = scheme_type(derivative, workbench, algebraist=algebraist)
+        scheme = scheme_type(derivative, workbench, specialist=specialist)
         run_executor = executor()
         self.marcher = Marcher(scheme, run_executor)
         self.integrator = Integrator(executor=run_executor)
@@ -81,17 +91,29 @@ class TimeFPUTExplicit:
     def setup(self, chain_size: int) -> None:
         fixed = fixed_parameters(chain_size)
         adaptive = adaptive_parameters(chain_size)
+        fixed_workbench = FPUTWorkbench(fixed)
+        adaptive_workbench = FPUTWorkbench(adaptive)
+        fixed_specialist = AlgebraistRuntimeSpecialist(
+            translation=fixed_workbench.allocate_translation(),
+            workbench=fixed_workbench,
+            linear_combine=FPUT_ALGEBRAIST.linear_combine,
+        )
+        adaptive_specialist = AlgebraistRuntimeSpecialist(
+            translation=adaptive_workbench.allocate_translation(),
+            workbench=adaptive_workbench,
+            linear_combine=FPUT_ALGEBRAIST.linear_combine,
+        )
         self.euler = FPUTExplicitCase(SchemeEuler, fixed)
-        self.euler_algebraist = FPUTExplicitCase(SchemeEuler, fixed, algebraist=FPUT_ALGEBRAIST)
+        self.euler_algebraist = FPUTExplicitCase(SchemeEuler, fixed, specialist=fixed_specialist)
         self.rk4 = FPUTExplicitCase(SchemeRK4, fixed)
-        self.rk4_algebraist = FPUTExplicitCase(SchemeRK4, fixed, algebraist=FPUT_ALGEBRAIST)
+        self.rk4_algebraist = FPUTExplicitCase(SchemeRK4, fixed, specialist=fixed_specialist)
         self.cash_karp = FPUTExplicitCase(SchemeCashKarp, adaptive)
-        self.cash_karp_algebraist = FPUTExplicitCase(SchemeCashKarp, adaptive, algebraist=FPUT_ALGEBRAIST)
+        self.cash_karp_algebraist = FPUTExplicitCase(SchemeCashKarp, adaptive, specialist=adaptive_specialist)
         self.dormand_prince = FPUTExplicitCase(SchemeDormandPrince, adaptive)
         self.dormand_prince_algebraist = FPUTExplicitCase(
             SchemeDormandPrince,
             adaptive,
-            algebraist=FPUT_ALGEBRAIST,
+            specialist=adaptive_specialist,
         )
 
     def time_euler(self, chain_size: int) -> None:
@@ -141,7 +163,7 @@ class TimeFPUTExplicitSetup:
 
     def time_euler_algebraist_setup(self, chain_size: int) -> None:
         del chain_size
-        FPUTExplicitCase(SchemeEuler, self.fixed_parameters, algebraist=FPUT_ALGEBRAIST)
+        FPUTExplicitCase(SchemeEuler, self.fixed_parameters, specialist=specialist(self.fixed_parameters))
 
     def time_rk4_setup(self, chain_size: int) -> None:
         del chain_size
@@ -149,7 +171,7 @@ class TimeFPUTExplicitSetup:
 
     def time_rk4_algebraist_setup(self, chain_size: int) -> None:
         del chain_size
-        FPUTExplicitCase(SchemeRK4, self.fixed_parameters, algebraist=FPUT_ALGEBRAIST)
+        FPUTExplicitCase(SchemeRK4, self.fixed_parameters, specialist=specialist(self.fixed_parameters))
 
     def time_cash_karp_setup(self, chain_size: int) -> None:
         del chain_size
@@ -157,7 +179,7 @@ class TimeFPUTExplicitSetup:
 
     def time_cash_karp_algebraist_setup(self, chain_size: int) -> None:
         del chain_size
-        FPUTExplicitCase(SchemeCashKarp, self.adaptive_parameters, algebraist=FPUT_ALGEBRAIST)
+        FPUTExplicitCase(SchemeCashKarp, self.adaptive_parameters, specialist=specialist(self.adaptive_parameters))
 
     def time_dormand_prince_setup(self, chain_size: int) -> None:
         del chain_size
@@ -168,5 +190,5 @@ class TimeFPUTExplicitSetup:
         FPUTExplicitCase(
             SchemeDormandPrince,
             self.adaptive_parameters,
-            algebraist=FPUT_ALGEBRAIST,
+            specialist=specialist(self.adaptive_parameters),
         )

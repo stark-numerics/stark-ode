@@ -7,13 +7,7 @@ import pytest
 
 from stark import Executor, Interval, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist.classic import (
-    Algebraist,
-    AlgebraistBroadcast,
-    AlgebraistField,
-    AlgebraistLooped,
-    AlgebraistSmallFixed,
-)
+from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.resolvents import ResolventPicard
 from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.implicit_fixed.backward_euler import SchemeBackwardEuler
@@ -115,7 +109,6 @@ def array_constant_rhs(
 
 def make_resolvent(scheme_cls, workbench: ScalarWorkbench) -> ResolventPicard:
     return ResolventPicard(
-        constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -129,7 +122,6 @@ def make_array_resolvent(
     workbench: ArrayScalarWorkbench,
 ) -> ResolventPicard:
     return ResolventPicard(
-        array_constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -147,21 +139,21 @@ def make_scheme(scheme_cls):
     )
 
 
-def make_array_scheme(scheme_cls, *, algebraist: Algebraist | None = None):
+def make_array_scheme(scheme_cls, *, specialist: bool = False):
     workbench = ArrayScalarWorkbench()
     return scheme_cls(
         array_constant_rhs,
         workbench,
         resolvent=make_array_resolvent(scheme_cls, workbench),
-        algebraist=algebraist,
+        specialist=(
+            AlgebraistRuntimeSpecialist(
+                translation=workbench.allocate_translation(),
+                workbench=workbench,
+            )
+            if specialist
+            else None
+        ),
     )
-
-
-ALGEBRAIST_FIELDS = [
-    AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
-    AlgebraistField("value", "value", policy=AlgebraistLooped(rank=1)),
-    AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
-]
 
 
 @pytest.mark.parametrize(
@@ -194,18 +186,14 @@ def test_one_stage_implicit_default_call_path_is_scheme_owned_generic_call(
     assert scheme.redirect_call == scheme.call_pure
 
 
-def test_backward_euler_accepts_no_op_algebraist_path() -> None:
-    scheme = make_array_scheme(
-        SchemeBackwardEuler,
-        algebraist=Algebraist(fields=(ALGEBRAIST_FIELDS[0],)),
-    )
+def test_backward_euler_accepts_no_op_specialist_path() -> None:
+    scheme = make_array_scheme(SchemeBackwardEuler, specialist=True)
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeBackwardEuler.call_inline
+    assert scheme.call_pure.__func__ is SchemeBackwardEuler.call_specialized
     assert scheme.redirect_call == scheme.call_pure
 
 
-@pytest.mark.parametrize("field", ALGEBRAIST_FIELDS)
 @pytest.mark.parametrize(
     "scheme_cls",
     [
@@ -213,11 +201,10 @@ def test_backward_euler_accepts_no_op_algebraist_path() -> None:
         SchemeCrankNicolson,
     ],
 )
-def test_one_stage_implicit_algebraist_path_is_scheme_owned_generated_call(
+def test_one_stage_implicit_specialist_path_is_scheme_owned_generated_call(
     scheme_cls,
-    field: AlgebraistField,
 ) -> None:
-    scheme = make_array_scheme(scheme_cls, algebraist=Algebraist(fields=(field,)))
+    scheme = make_array_scheme(scheme_cls, specialist=True)
 
     assert scheme.call_pure.__self__ is scheme
     assert scheme.call_pure.__func__ is scheme_cls.call_specialized
@@ -274,7 +261,6 @@ def test_one_stage_implicit_call_performs_one_constant_rhs_step(scheme_cls) -> N
     assert interval.step == pytest.approx(0.125)
 
 
-@pytest.mark.parametrize("field", ALGEBRAIST_FIELDS)
 @pytest.mark.parametrize(
     "scheme_cls",
     [
@@ -282,13 +268,11 @@ def test_one_stage_implicit_call_performs_one_constant_rhs_step(scheme_cls) -> N
         SchemeCrankNicolson,
     ],
 )
-def test_one_stage_implicit_algebraist_path_matches_generic_path(
+def test_one_stage_implicit_specialist_path_matches_generic_path(
     scheme_cls,
-    field: AlgebraistField,
 ) -> None:
-    algebraist = Algebraist(fields=(field,))
     generic = make_array_scheme(scheme_cls)
-    generated = make_array_scheme(scheme_cls, algebraist=algebraist)
+    generated = make_array_scheme(scheme_cls, specialist=True)
     generic_interval = Interval(present=0.0, step=0.125, stop=1.0)
     generated_interval = Interval(present=0.0, step=0.125, stop=1.0)
     generic_state = ArrayScalarState.zero()
@@ -302,16 +286,12 @@ def test_one_stage_implicit_algebraist_path_matches_generic_path(
     assert generated_interval.step == pytest.approx(generic_interval.step)
 
 
-def test_one_stage_implicit_algebraist_sources_are_inspectable() -> None:
-    midpoint_algebraist = Algebraist(fields=(ALGEBRAIST_FIELDS[0],))
-    crank_nicolson_algebraist = Algebraist(fields=(ALGEBRAIST_FIELDS[0],))
+def test_one_stage_implicit_specialist_kernels_are_prepared() -> None:
+    midpoint = make_array_scheme(SchemeImplicitMidpoint, specialist=True)
+    crank_nicolson = make_array_scheme(SchemeCrankNicolson, specialist=True)
 
-    make_array_scheme(SchemeImplicitMidpoint, algebraist=midpoint_algebraist)
-    make_array_scheme(SchemeCrankNicolson, algebraist=crank_nicolson_algebraist)
-
-    assert "final_delta_combine" in midpoint_algebraist.sources
-    assert "known_rhs_combine" in crank_nicolson_algebraist.sources
-    assert "step" in crank_nicolson_algebraist.sources["known_rhs_combine"]
+    assert callable(midpoint.advance_update)
+    assert callable(crank_nicolson.known_rhs_kernel)
 
 
 @pytest.mark.parametrize(

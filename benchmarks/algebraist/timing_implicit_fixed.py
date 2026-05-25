@@ -13,6 +13,7 @@ import numpy as np
 from stark import Executor, Integrator, Interval, Marcher, Tolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.classic import Algebraist, AlgebraistBroadcast, AlgebraistField, AlgebraistLooped
+from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.resolvents import ResolventCoupledPicard, ResolventPicard
 from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.implicit_fixed.backward_euler import SchemeBackwardEuler
@@ -123,9 +124,9 @@ def make_resolvent(scheme_cls, workbench: ArrayWorkbench, kind: str):
         tableau=scheme_cls.tableau,
     )
     if kind == "picard":
-        return ResolventPicard(decay_rhs, workbench, **kwargs)
+        return ResolventPicard(workbench, **kwargs)
     if kind == "coupled-picard":
-        return ResolventCoupledPicard(decay_rhs, workbench, **kwargs)
+        return ResolventCoupledPicard(workbench, **kwargs)
     raise ValueError(f"Unknown resolvent kind {kind!r}.")
 
 
@@ -189,12 +190,22 @@ def make_case(
     algebraist: Algebraist | None,
 ) -> BenchmarkCase:
     workbench = ArrayWorkbench(count, algebraist)
+    specialist = (
+        AlgebraistRuntimeSpecialist(
+            translation=workbench.allocate_translation(),
+            workbench=workbench,
+            linear_combine=algebraist.linear_combine,
+            accelerator=algebraist.accelerator,
+        )
+        if algebraist is not None
+        else None
+    )
     resolvent = make_resolvent(scheme_cls, workbench, resolvent_kind)
     scheme = scheme_cls(
         decay_rhs,
         workbench,
         resolvent=resolvent,
-        algebraist=algebraist,
+        specialist=specialist,
     )
     return BenchmarkCase(
         name=label,

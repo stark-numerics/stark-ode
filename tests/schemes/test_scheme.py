@@ -182,7 +182,7 @@ def _dummy_derivative(interval, state, out) -> None:
 
 
 def _imex_picard(split: ImExDerivative, workbench, tableau):
-    return ResolventPicard(split.implicit, workbench, accelerator=Accelerator.none(), tableau=tableau)
+    return ResolventPicard(workbench, accelerator=Accelerator.none(), tableau=tableau)
 
 
 def test_scheme_falls_back_to_arithmetic_linear_combination() -> None:
@@ -573,16 +573,3 @@ def test_integrator_monitored_collects_adaptive_step_payloads() -> None:
     assert monitor.scheme.adaptive_steps[0].accepted_dt == 0.1
     assert monitor.scheme.adaptive_steps[0].rejection_count == 0
     assert marcher.monitor is None
-
-
-
-
-
-
-
-
-
-
-
-
-

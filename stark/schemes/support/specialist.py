@@ -16,13 +16,14 @@ class SchemeDeltaKernel(Protocol[TranslationType]):
     Semantics:
 
         out = step * stencil.scale * sum(c_i * translation_i)
+
+    The final positional argument is the output translation.
     """
 
     def __call__(
         self,
         step: float,
-        out: TranslationType,
-        *translations: TranslationType,
+        *terms: TranslationType,
     ) -> TranslationType:
         ...
 
@@ -33,14 +34,16 @@ class SchemeApplyKernel(Protocol[StateType, TranslationType]):
     Semantics:
 
         result = origin + step * stencil.scale * sum(c_i * translation_i)
+
+    The first argument after ``step`` is the origin state. The final positional
+    argument is the result state.
     """
 
     def __call__(
         self,
         step: float,
-        result: StateType,
         origin: StateType,
-        *translations: TranslationType,
+        *terms: TranslationType | StateType,
     ) -> StateType:
         ...
 

@@ -6,7 +6,6 @@ import pytest
 
 from stark import Executor, Interval, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist.classic import Algebraist, AlgebraistField
 from stark.resolvents import ResolventPicard
 from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.imex_fixed.euler import SchemeIMEXEuler
@@ -79,12 +78,27 @@ class SplitDerivative:
     implicit: object
 
 
+class StubSpecialist:
+    def provide(self, stencil):
+        coefficients = tuple(stencil.coefficients)
+        stencil_scale = stencil.scale
+
+        def kernel(step: float, *terms):
+            *translations, out = terms
+            out.value = step * stencil_scale * sum(
+                coefficient * translation.value
+                for coefficient, translation in zip(coefficients, translations, strict=True)
+            )
+            return out
+
+        return kernel
+
+
 def make_resolvent(
     implicit_derivative,
     workbench: ScalarWorkbench,
 ) -> ResolventPicard:
     return ResolventPicard(
-        implicit_derivative,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=32),
@@ -97,7 +111,7 @@ def make_constant_scheme(
     explicit_value: float = 1.0,
     implicit_value: float = 2.0,
     *,
-    algebraist: Algebraist | None = None,
+    specialist: object | None = None,
 ) -> SchemeIMEXEuler:
     workbench = ScalarWorkbench()
     implicit = ConstantDerivative(implicit_value)
@@ -109,7 +123,7 @@ def make_constant_scheme(
         derivative,
         workbench,
         resolvent=make_resolvent(implicit, workbench),
-        algebraist=algebraist,
+        specialist=specialist,
     )
 
 
@@ -125,23 +139,27 @@ def test_imex_euler_default_call_path_is_scheme_owned_generic_call() -> None:
     assert scheme.redirect_call == scheme.call_pure
 
 
-def test_imex_euler_accepts_algebraist_but_remains_generic_only() -> None:
-    algebraist = Algebraist(fields=(AlgebraistField("value", "value"),))
-
-    scheme = make_constant_scheme(algebraist=algebraist)
+def test_imex_euler_specialist_path_is_scheme_owned_generated_call() -> None:
+    scheme = make_constant_scheme(specialist=StubSpecialist())
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeIMEXEuler.call_inline
+    assert scheme.call_pure.__func__ is SchemeIMEXEuler.call_specialized
     assert scheme.redirect_call == scheme.call_pure
 
 
-def test_imex_euler_algebraist_hook_does_not_generate_source() -> None:
-    algebraist = Algebraist(fields=(AlgebraistField("value", "value"),))
-    initial_sources = set(algebraist.sources)
+def test_imex_euler_specialist_path_matches_generic_path() -> None:
+    generic = make_constant_scheme()
+    specialized = make_constant_scheme(specialist=StubSpecialist())
+    generic_interval = Interval(present=0.0, step=0.125, stop=1.0)
+    specialized_interval = Interval(present=0.0, step=0.125, stop=1.0)
+    generic_state = ScalarState(0.0)
+    specialized_state = ScalarState(0.0)
 
-    make_constant_scheme(algebraist=algebraist)
+    generic_dt = generic(generic_interval, generic_state, Executor())
+    specialized_dt = specialized(specialized_interval, specialized_state, Executor())
 
-    assert set(algebraist.sources) == initial_sources
+    assert specialized_dt == pytest.approx(generic_dt)
+    assert specialized_state.value == pytest.approx(generic_state.value)
 
 
 def test_imex_euler_public_call_uses_redirect_call() -> None:

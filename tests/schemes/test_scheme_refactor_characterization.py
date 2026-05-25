@@ -141,7 +141,6 @@ def test_kennedy_carpenter32_adaptive_imex_characterization() -> None:
         implicit=zero_rhs,
     )
     resolvent = ResolventPicard(
-        zero_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -173,7 +172,6 @@ def test_kennedy_carpenter32_adaptive_imex_characterization() -> None:
 def test_backward_euler_implicit_fixed_characterization() -> None:
     workbench = ScalarWorkbench()
     resolvent = ResolventPicard(
-        constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),

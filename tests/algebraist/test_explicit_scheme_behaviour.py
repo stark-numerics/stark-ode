@@ -22,7 +22,7 @@ def make_algebraist() -> Algebraist:
 class ArrayState:
     y: np.ndarray
 
-    def copy(self) -> ArrayState:
+    def copy(self) -> "ArrayState":
         return ArrayState(self.y.copy())
 
 
@@ -36,10 +36,10 @@ class ArrayTranslation:
     def norm(self) -> float:
         return float(np.linalg.norm(self.dy))
 
-    def __add__(self, other: ArrayTranslation) -> ArrayTranslation:
+    def __add__(self, other: "ArrayTranslation") -> "ArrayTranslation":
         return ArrayTranslation(self.dy + other.dy)
 
-    def __rmul__(self, scalar: float) -> ArrayTranslation:
+    def __rmul__(self, scalar: float) -> "ArrayTranslation":
         return ArrayTranslation(scalar * self.dy)
 
 
@@ -73,91 +73,142 @@ class ArrayDerivative:
         )
 
 
+class ArraySpecialist:
+    def provide(self, stencil):
+        coefficients = tuple(stencil.coefficients)
+        stencil_scale = stencil.scale
+
+        if stencil.apply:
+            def apply_kernel(
+                step: float,
+                origin,
+                *terms,
+            ):
+                *translations, result = terms
+                delta = _combine_delta(step, stencil_scale, coefficients, translations)
+                delta(origin, result)
+                return result
+
+            return apply_kernel
+
+        def delta_kernel(
+            step: float,
+            *terms,
+        ):
+            *translations, out = terms
+            delta = _combine_delta(step, stencil_scale, coefficients, translations)
+            out.dy[...] = delta.dy
+            return out
+
+        return delta_kernel
+
+
+def _combine_delta(
+    step: float,
+    stencil_scale: float,
+    coefficients: tuple[float, ...],
+    translations: tuple[ArrayTranslation, ...],
+) -> ArrayTranslation:
+    if len(coefficients) != len(translations):
+        raise AssertionError(
+            f"stencil arity {len(coefficients)} received "
+            f"{len(translations)} translation(s)"
+        )
+
+    if not translations:
+        return ArrayTranslation(np.zeros(3))
+
+    total = 0.0 * translations[0]
+    for coefficient, translation in zip(coefficients, translations, strict=True):
+        total = total + (step * stencil_scale * coefficient) * translation
+    return total
+
+
 def build_state() -> ArrayState:
     return ArrayState(np.array([1.0, -0.5, 0.25]))
 
 
-def test_fixed_explicit_algebraist_path_matches_generic_semantics() -> None:
-    generic_state = build_state()
-    algebraist_state = build_state()
+def test_fixed_explicit_specialist_path_matches_inline_semantics() -> None:
+    inline_state = build_state()
+    specialist_state = build_state()
 
-    generic = SchemeRK4(ArrayDerivative(), ArrayWorkbench(3))
-    generated = SchemeRK4(
+    inline = SchemeRK4(ArrayDerivative(), ArrayWorkbench(3))
+    specialized = SchemeRK4(
         ArrayDerivative(),
         ArrayWorkbench(3),
-        algebraist=make_algebraist(),
+        specialist=ArraySpecialist(),
     )
 
-    generic_dt = generic(
+    inline_dt = inline(
         Interval(present=0.0, step=0.05, stop=0.05),
-        generic_state,
+        inline_state,
         Executor(),
     )
-    generated_dt = generated(
+    specialist_dt = specialized(
         Interval(present=0.0, step=0.05, stop=0.05),
-        algebraist_state,
+        specialist_state,
         Executor(),
     )
 
-    assert generated_dt == pytest.approx(generic_dt)
+    assert specialist_dt == pytest.approx(inline_dt)
     np.testing.assert_allclose(
-        algebraist_state.y,
-        generic_state.y,
+        specialist_state.y,
+        inline_state.y,
         rtol=1.0e-14,
         atol=1.0e-14,
     )
 
 
-def test_adaptive_explicit_algebraist_path_matches_generic_semantics() -> None:
-    generic_scheme = SchemeCashKarp(ArrayDerivative(), ArrayWorkbench(3))
-    generated_scheme = SchemeCashKarp(
+def test_adaptive_explicit_specialist_path_matches_inline_semantics() -> None:
+    inline_scheme = SchemeCashKarp(ArrayDerivative(), ArrayWorkbench(3))
+    specialized_scheme = SchemeCashKarp(
         ArrayDerivative(),
         ArrayWorkbench(3),
-        algebraist=make_algebraist(),
+        specialist=ArraySpecialist(),
     )
 
-    generic_state, generic_steps, generic_next_step = run_adaptive_solve(generic_scheme)
-    generated_state, generated_steps, generated_next_step = run_adaptive_solve(
-        generated_scheme
+    inline_state, inline_steps, inline_next_step = run_adaptive_solve(inline_scheme)
+    specialist_state, specialist_steps, specialist_next_step = run_adaptive_solve(
+        specialized_scheme
     )
 
-    assert generated_steps == generic_steps
-    assert generated_next_step == pytest.approx(
-        generic_next_step,
+    assert specialist_steps == inline_steps
+    assert specialist_next_step == pytest.approx(
+        inline_next_step,
         rel=1.0e-14,
         abs=1.0e-14,
     )
     np.testing.assert_allclose(
-        generated_state.y,
-        generic_state.y,
+        specialist_state.y,
+        inline_state.y,
         rtol=1.0e-14,
         atol=1.0e-14,
     )
 
-    generic_report = generic_scheme.step_control.report()
-    generated_report = generated_scheme.step_control.report()
+    inline_report = inline_scheme.step_control.report()
+    specialist_report = specialized_scheme.step_control.report()
 
-    assert generated_report.accepted_dt == pytest.approx(
-        generic_report.accepted_dt,
+    assert specialist_report.accepted_dt == pytest.approx(
+        inline_report.accepted_dt,
         rel=1.0e-14,
         abs=1.0e-14,
     )
-    assert generated_report.proposed_dt == pytest.approx(
-        generic_report.proposed_dt,
+    assert specialist_report.proposed_dt == pytest.approx(
+        inline_report.proposed_dt,
         rel=1.0e-14,
         abs=1.0e-14,
     )
-    assert generated_report.next_dt == pytest.approx(
-        generic_report.next_dt,
+    assert specialist_report.next_dt == pytest.approx(
+        inline_report.next_dt,
         rel=1.0e-14,
         abs=1.0e-14,
     )
-    assert generated_report.error_ratio == pytest.approx(
-        generic_report.error_ratio,
+    assert specialist_report.error_ratio == pytest.approx(
+        inline_report.error_ratio,
         rel=1.0e-14,
         abs=1.0e-14,
     )
-    assert generated_report.rejection_count == generic_report.rejection_count
+    assert specialist_report.rejection_count == inline_report.rejection_count
 
 
 def run_adaptive_solve(
@@ -171,24 +222,25 @@ def run_adaptive_solve(
 
     steps = 0
     for _snapshot_interval, _snapshot_state in integrator.live(marcher, interval, state):
+        del _snapshot_interval, _snapshot_state
         steps += 1
 
     return state, steps, interval.step
 
 
-def test_algebraist_generated_source_is_inspectable() -> None:
+def test_classic_algebraist_generated_source_is_inspectable() -> None:
     algebraist = make_algebraist()
 
     assert algebraist.sources
     assert algebraist.kernel_sources
     assert algebraist.wrapper_sources
-
     assert "apply" in algebraist.sources
     assert "apply_kernel" in algebraist.sources
     assert "norm" in algebraist.sources
     assert "norm_kernel" in algebraist.sources
 
     algebraist.bind_explicit_scheme(SchemeRK4.tableau)
+
     assert "stage1_state" in algebraist.sources
     assert "stage1_state_kernel" in algebraist.sources
     assert "solution_state" in algebraist.sources

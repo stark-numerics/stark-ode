@@ -13,6 +13,7 @@ import numpy as np
 from stark import Executor, Integrator, Interval, Marcher, Safety, Tolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.classic import Algebraist, AlgebraistBroadcast, AlgebraistField, AlgebraistLooped
+from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.schemes.explicit_adaptive import SchemeCashKarp, SchemeDormandPrince
 from stark.schemes.explicit_fixed import SchemeEuler, SchemeRK4
 
@@ -201,7 +202,17 @@ def make_case(
     algebraist: Algebraist | None,
 ) -> BenchmarkCase:
     workbench = PairWorkbench(count, algebraist)
-    scheme = scheme_cls(PairDerivative(count), workbench, algebraist=algebraist)
+    specialist = (
+        AlgebraistRuntimeSpecialist(
+            translation=workbench.allocate_translation(),
+            workbench=workbench,
+            linear_combine=algebraist.linear_combine,
+            accelerator=algebraist.accelerator,
+        )
+        if algebraist is not None
+        else None
+    )
+    scheme = scheme_cls(PairDerivative(count), workbench, specialist=specialist)
     return BenchmarkCase(
         name=label,
         scheme=scheme,

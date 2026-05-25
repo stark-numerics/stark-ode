@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from stark.accelerators import AcceleratorAbsent
+from stark.block import Block
 from stark.block.operator import BlockOperator
-from stark.contracts import AcceleratorLike, Block, InnerProduct, InverterPreconditionerLike, Workbench
+from stark.contracts import AcceleratorLike, InnerProduct, InverterPreconditionerLike, Workbench
 from stark.execution.safety import Safety
 from stark.execution.tolerance import Tolerance
 from stark.inverters.support.monitoring import MonitorInverterLike

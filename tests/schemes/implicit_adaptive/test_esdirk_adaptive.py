@@ -7,13 +7,7 @@ import pytest
 
 from stark import Executor, Integrator, Interval, Marcher, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist.classic import (
-    Algebraist,
-    AlgebraistBroadcast,
-    AlgebraistField,
-    AlgebraistLooped,
-    AlgebraistSmallFixed,
-)
+from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
 from stark.resolvents.support.policy import ResolventPolicy
@@ -117,7 +111,6 @@ def array_constant_rhs(
 def make_scheme(scheme_cls):
     workbench = ScalarWorkbench()
     resolvent = ResolventPicard(
-        constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -134,11 +127,10 @@ def make_scheme(scheme_cls):
 def make_array_scalar_scheme(
     scheme_cls,
     *,
-    algebraist: Algebraist | None = None,
+    specialist: bool = False,
 ):
     workbench = ArrayScalarWorkbench()
     resolvent = ResolventPicard(
-        array_constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -149,7 +141,14 @@ def make_array_scalar_scheme(
         array_constant_rhs,
         workbench,
         resolvent=resolvent,
-        algebraist=algebraist,
+        specialist=(
+            AlgebraistRuntimeSpecialist(
+                translation=workbench.allocate_translation(),
+                workbench=workbench,
+            )
+            if specialist
+            else None
+        ),
     )
 
 
@@ -198,22 +197,10 @@ def test_esdirk_adaptive_default_call_path_is_scheme_owned_generic_call(
         SchemeKvaerno4,
     ],
 )
-@pytest.mark.parametrize(
-    "field",
-    [
-        AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
-        AlgebraistField("value", "value", policy=AlgebraistLooped(rank=1)),
-        AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
-    ],
-)
-def test_esdirk_adaptive_algebraist_path_is_scheme_owned_generated_call(
+def test_esdirk_adaptive_specialist_path_is_scheme_owned_generated_call(
     scheme_cls,
-    field: AlgebraistField,
 ) -> None:
-    scheme = make_array_scalar_scheme(
-        scheme_cls,
-        algebraist=Algebraist(fields=(field,))
-    )
+    scheme = make_array_scalar_scheme(scheme_cls, specialist=True)
 
     assert scheme.call_pure.__self__ is scheme
     assert scheme.call_pure.__func__ is scheme_cls.call_specialized
@@ -303,21 +290,11 @@ def test_esdirk_adaptive_call_clips_to_remaining_interval(scheme_cls) -> None:
         SchemeKvaerno4,
     ],
 )
-@pytest.mark.parametrize(
-    "field",
-    [
-        AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
-        AlgebraistField("value", "value", policy=AlgebraistLooped(rank=1)),
-        AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
-    ],
-)
-def test_esdirk_adaptive_algebraist_path_matches_generic_path(
+def test_esdirk_adaptive_specialist_path_matches_generic_path(
     scheme_cls,
-    field: AlgebraistField,
 ) -> None:
-    algebraist = Algebraist(fields=(field,))
     generic = make_array_scalar_scheme(scheme_cls)
-    generated = make_array_scalar_scheme(scheme_cls, algebraist=algebraist)
+    generated = make_array_scalar_scheme(scheme_cls, specialist=True)
     generic_interval = Interval(present=0.0, step=0.1, stop=0.3)
     generated_interval = Interval(present=0.0, step=0.1, stop=0.3)
     generic_state = ArrayScalarState.zero()
@@ -339,19 +316,17 @@ def test_esdirk_adaptive_algebraist_path_matches_generic_path(
         (SchemeKvaerno4, ("known2", "known3", "known4", "known5")),
     ],
 )
-def test_esdirk_adaptive_algebraist_source_is_inspectable(
+def test_esdirk_adaptive_specialist_path_prepares_expected_kernel_family(
     scheme_cls,
     known_names: tuple[str, ...],
 ) -> None:
-    algebraist = Algebraist(fields=(AlgebraistField("value", "value"),))
+    scheme = make_array_scalar_scheme(scheme_cls, specialist=True)
 
-    make_array_scalar_scheme(scheme_cls, algebraist=algebraist)
+    for known_name in known_names:
+        assert callable(getattr(scheme, f"{known_name}_call"))
 
-    for name in known_names:
-        assert f"{name}_combine" in algebraist.sources
-    assert "high_delta_combine" in algebraist.sources
-    assert "error_delta_combine" in algebraist.sources
-    assert "low_delta_combine" not in algebraist.sources
+    assert callable(scheme.high_delta_call)
+    assert callable(scheme.error_delta_call)
 
 
 @pytest.mark.parametrize(

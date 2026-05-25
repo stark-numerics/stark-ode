@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from types import SimpleNamespace
 
 import pytest
 
 from stark import Executor, Interval
 from stark.monitor import Monitor
 from stark.schemes.explicit_fixed.euler import SchemeEuler
+from stark.schemes.support.stencil import SchemeStencil
 
 
 @dataclass(slots=True)
@@ -43,23 +43,43 @@ class ScalarWorkbench:
         return ScalarTranslation()
 
 
-class StubAlgebraist:
-    def bind_explicit_scheme(self, tableau):
-        del tableau
+class StubSpecialist:
+    def provide(self, stencil: SchemeStencil):
+        coefficients = stencil.coefficients
+        fixed_scale = stencil.scale
 
-        def solution_state(
-            origin: ScalarState,
-            dt: float,
-            k1: ScalarTranslation,
-            result: ScalarState,
-        ) -> None:
-            result.value = origin.value + dt * k1.value
+        if stencil.apply:
 
-        return SimpleNamespace(
-            stage_state_calls=(None,),
-            require_stage_state_call=lambda index, scheme_name: (None,)[index],
-            solution_state_call=solution_state,
-        )
+            def apply_kernel(
+                step: float,
+                origin,
+                *terms,
+            ):
+                *translations, result = terms
+                result.value = origin.value + step * fixed_scale * sum(
+                    coefficient * translation.value
+                    for coefficient, translation in zip(
+                        coefficients,
+                        translations,
+                        strict=True,
+                    )
+                )
+                return result
+
+            return apply_kernel
+
+        def delta_kernel(
+            step: float,
+            *terms,
+        ):
+            *translations, out = terms
+            out.value = step * fixed_scale * sum(
+                coefficient * translation.value
+                for coefficient, translation in zip(coefficients, translations, strict=True)
+            )
+            return out
+
+        return delta_kernel
 
 
 def exponential_growth(
@@ -75,7 +95,7 @@ def test_euler_owns_its_public_call_method() -> None:
     assert "__call__" in SchemeEuler.__dict__
 
 
-def test_euler_default_call_path_is_scheme_owned_generic_call() -> None:
+def test_euler_default_call_path_is_scheme_owned_inline_call() -> None:
     scheme = SchemeEuler(exponential_growth, ScalarWorkbench())
 
     assert scheme.call_pure.__self__ is scheme
@@ -105,7 +125,7 @@ def test_euler_public_call_uses_redirect_call() -> None:
     assert state.value == pytest.approx(42.0)
 
 
-def test_euler_generic_call_performs_one_forward_euler_step() -> None:
+def test_euler_inline_call_performs_one_forward_euler_step() -> None:
     scheme = SchemeEuler(exponential_growth, ScalarWorkbench())
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
@@ -116,7 +136,7 @@ def test_euler_generic_call_performs_one_forward_euler_step() -> None:
     assert state.value == pytest.approx(1.125)
 
 
-def test_euler_generic_call_clips_to_remaining_interval() -> None:
+def test_euler_inline_call_clips_to_remaining_interval() -> None:
     scheme = SchemeEuler(exponential_growth, ScalarWorkbench())
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(1.0)
@@ -127,11 +147,11 @@ def test_euler_generic_call_clips_to_remaining_interval() -> None:
     assert state.value == pytest.approx(1.05)
 
 
-def test_euler_algebraist_path_is_selected_inside_scheme() -> None:
+def test_euler_specialist_path_is_selected_inside_scheme() -> None:
     scheme = SchemeEuler(
         exponential_growth,
         ScalarWorkbench(),
-        algebraist=StubAlgebraist(),
+        specialist=StubSpecialist(),
     )
 
     assert scheme.call_pure.__self__ is scheme
@@ -164,15 +184,14 @@ def test_euler_monitoring_records_fixed_step_without_changing_pure_path() -> Non
     assert step.accepted_dt == pytest.approx(0.125)
 
     scheme.unassign_monitor()
-
     assert scheme.redirect_call == scheme.call_pure
 
 
-def test_euler_monitoring_records_algebraist_fixed_step() -> None:
+def test_euler_monitoring_records_specialist_fixed_step() -> None:
     scheme = SchemeEuler(
         exponential_growth,
         ScalarWorkbench(),
-        algebraist=StubAlgebraist(),
+        specialist=StubSpecialist(),
     )
     monitor = Monitor()
     interval = Interval(present=0.0, step=0.125, stop=1.0)
@@ -191,26 +210,26 @@ def test_euler_monitoring_records_algebraist_fixed_step() -> None:
     assert monitor.scheme.fixed_steps[0].scheme == "Euler"
 
 
-def test_euler_generic_and_algebraist_paths_match_for_one_step() -> None:
-    interval_generic = Interval(present=0.0, step=0.125, stop=1.0)
-    interval_algebraist = Interval(present=0.0, step=0.125, stop=1.0)
-    state_generic = ScalarState(1.0)
-    state_algebraist = ScalarState(1.0)
+def test_euler_inline_and_specialist_paths_match_for_one_step() -> None:
+    interval_inline = Interval(present=0.0, step=0.125, stop=1.0)
+    interval_specialist = Interval(present=0.0, step=0.125, stop=1.0)
+    state_inline = ScalarState(1.0)
+    state_specialist = ScalarState(1.0)
 
-    generic = SchemeEuler(exponential_growth, ScalarWorkbench())
-    algebraist = SchemeEuler(
+    inline = SchemeEuler(exponential_growth, ScalarWorkbench())
+    specialist = SchemeEuler(
         exponential_growth,
         ScalarWorkbench(),
-        algebraist=StubAlgebraist(),
+        specialist=StubSpecialist(),
     )
 
-    accepted_dt_generic = generic(interval_generic, state_generic, Executor())
-    accepted_dt_algebraist = algebraist(
-        interval_algebraist,
-        state_algebraist,
+    accepted_dt_inline = inline(interval_inline, state_inline, Executor())
+    accepted_dt_specialist = specialist(
+        interval_specialist,
+        state_specialist,
         Executor(),
     )
 
-    assert accepted_dt_generic == pytest.approx(accepted_dt_algebraist)
-    assert state_generic.value == pytest.approx(state_algebraist.value)
-    assert state_generic.value == pytest.approx(1.125)
+    assert accepted_dt_inline == pytest.approx(accepted_dt_specialist)
+    assert state_inline.value == pytest.approx(state_specialist.value)
+    assert state_inline.value == pytest.approx(1.125)

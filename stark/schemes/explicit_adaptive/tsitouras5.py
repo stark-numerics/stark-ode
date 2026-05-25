@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from stark.algebraist.classic import Algebraist
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
@@ -15,6 +14,8 @@ from stark.schemes.support import (
     with_explicit_workspace_methods,
     with_scheme_display,
 )
+from stark.schemes.support.specialist import SchemeSpecialist
+from stark.schemes.support.stencil import SchemeStencilTableau
 from stark.schemes.support.tableau import ButcherTableau
 
 
@@ -74,8 +75,18 @@ TSIT5_C = TSIT5_TABLEAU.c
 TSIT5_B_HIGH = TSIT5_TABLEAU.b
 TSIT5_B_LOW = TSIT5_TABLEAU.b_embedded
 assert TSIT5_B_LOW is not None
-
-TSIT5_B_ERR = tuple(high - low for high, low in zip(TSIT5_B_HIGH, TSIT5_B_LOW, strict=True))
+TSIT5_B_HIGH_NZ = (
+    TSIT5_B_HIGH[0],
+    TSIT5_B_HIGH[1],
+    TSIT5_B_HIGH[2],
+    TSIT5_B_HIGH[3],
+    TSIT5_B_HIGH[4],
+    TSIT5_B_HIGH[5],
+)
+TSIT5_ERROR_WEIGHTS = tuple(
+    high - low
+    for high, low in zip(TSIT5_B_HIGH, TSIT5_B_LOW, strict=True)
+)
 
 
 @with_scheme_display
@@ -84,9 +95,27 @@ TSIT5_B_ERR = tuple(high - low for high, low in zip(TSIT5_B_HIGH, TSIT5_B_LOW, s
 class SchemeTsitouras5:
     """The adaptive Tsitouras embedded 5(4) Runge-Kutta pair.
 
-    Tsitouras 5 is a modern fifth-order explicit adaptive method designed to
-    offer strong practical performance with a carefully tuned tableau and
-    embedded fourth-order error estimate.
+    Tsitouras 5 is a modern fifth-order explicit adaptive method designed to offer strong practical performance with a carefully tuned tableau and embedded fourth-order error estimate.
+
+    Algorithm sketch for one accepted step of size h:
+
+        1. k1 = f(t, y)
+        2. k2 = f(t + c[1] h, y + h * A[1] dot k)
+        3. k3 = f(t + c[2] h, y + h * A[2] dot k)
+        4. k4 = f(t + c[3] h, y + h * A[3] dot k)
+        5. k5 = f(t + c[4] h, y + h * A[4] dot k)
+        6. k6 = f(t + c[5] h, y + h * A[5] dot k)
+        7. k7 = f(t + c[6] h, y + h * A[6] dot k)
+        8. high_delta = h * b_high dot k
+        9. error_delta = h * ((b_high - b_low) dot k)
+
+    The adaptive controller repeats the stage and error-estimate steps with a
+    smaller h when the error ratio is too large. k1 is reused across rejected
+    attempts because it depends only on the current accepted state.
+
+    The inline path expresses the method directly with workspace arithmetic.
+    The specialized path uses fixed-coefficient kernels prepared from the same
+    tableau rows and weights.
 
     Further reading: https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods
     """
@@ -96,19 +125,13 @@ class SchemeTsitouras5:
 
     __slots__ = (
         "step_control",
+        "advance_delta",
         "bound_apply_delta",
         "bound_stage_interval",
         "call_pure",
-        "combine_error",
-        "combine_solution",
-        "combine_stage2",
-        "combine_stage3",
-        "combine_stage4",
-        "combine_stage5",
-        "combine_stage6",
-        "combine_stage7",
         "derivative",
         "error",
+        "error_delta",
         "explicit",
         "k1",
         "k2",
@@ -119,11 +142,17 @@ class SchemeTsitouras5:
         "k7",
         "redirect_call",
         "stage",
+        "stage2_update",
+        "stage3_update",
+        "stage4_update",
+        "stage5_update",
+        "stage6_update",
+        "stage7_update",
         "trial",
         "workspace",
     )
 
-    descriptor = SchemeDescriptor("TSIT5", "Tsitouras 5")
+    descriptor = SchemeDescriptor('TSIT5', 'Tsitouras 5')
     tableau = TSIT5_TABLEAU
 
     def __init__(
@@ -131,17 +160,20 @@ class SchemeTsitouras5:
         derivative: Derivative,
         workbench: Workbench,
         regulator: Regulator | None = None,
-        algebraist: Algebraist | None = None,
+        specialist: SchemeSpecialist | None = None,
     ) -> None:
         initialise_explicit_support(self, derivative, workbench)
         initialise_adaptive_runtime(self, regulator)
+
         self.initialise_buffers()
 
         self.call_pure = self.call_inline
         refresh_adaptive_call(self)
 
-        if algebraist is not None:
-            self.use_specialists(algebraist)
+        if specialist is not None:
+            self.prepare_specialized_kernels(specialist)
+            self.call_pure = self.call_specialized
+            refresh_adaptive_call(self)
 
     def __call__(
         self,
@@ -155,39 +187,38 @@ class SchemeTsitouras5:
         workspace = self.workspace
 
         self.stage = workspace.allocate_state_buffer()
-        self.trial, self.error, self.k2, self.k3, self.k4, self.k5, self.k6, self.k7 = (
-            workspace.allocate_translation_buffers(8)
-        )
+        self.trial, self.error, self.k2, self.k3, self.k4, self.k5, self.k6, self.k7 = workspace.allocate_translation_buffers(8)
 
-        self.combine_stage2 = unbound_scheme_call
-        self.combine_stage3 = unbound_scheme_call
-        self.combine_stage4 = unbound_scheme_call
-        self.combine_stage5 = unbound_scheme_call
-        self.combine_stage6 = unbound_scheme_call
-        self.combine_stage7 = unbound_scheme_call
-        self.combine_solution = unbound_scheme_call
-        self.combine_error = unbound_scheme_call
-
+        self.advance_delta = unbound_scheme_call
+        self.error_delta = unbound_scheme_call
+        self.stage2_update = unbound_scheme_call
+        self.stage3_update = unbound_scheme_call
+        self.stage4_update = unbound_scheme_call
+        self.stage5_update = unbound_scheme_call
+        self.stage6_update = unbound_scheme_call
+        self.stage7_update = unbound_scheme_call
         self.bound_apply_delta = workspace.apply_delta
         self.bound_stage_interval = workspace.stage_interval
 
-    def use_specialists(self, algebraist: Algebraist) -> None:
-        calls = algebraist.bind_explicit_scheme(self.tableau)
-        error = calls.require_error_delta_call(type(self).__name__)
+    def prepare_specialized_kernels(
+        self,
+        specialist: SchemeSpecialist,
+    ) -> None:
+        """Prepare fixed-coefficient kernels for the specialized path."""
 
+        stencils = SchemeStencilTableau(self.tableau)
 
+        # Stage rows build staged states from the tableau's A matrix.
+        self.stage2_update = specialist.provide(stencils.stage(1))
+        self.stage3_update = specialist.provide(stencils.stage(2))
+        self.stage4_update = specialist.provide(stencils.stage(3))
+        self.stage5_update = specialist.provide(stencils.stage(4))
+        self.stage6_update = specialist.provide(stencils.stage(5))
+        self.stage7_update = specialist.provide(stencils.stage(6))
 
-        self.combine_stage2 = calls.require_stage_state_call(1, type(self).__name__)
-        self.combine_stage3 = calls.require_stage_state_call(2, type(self).__name__)
-        self.combine_stage4 = calls.require_stage_state_call(3, type(self).__name__)
-        self.combine_stage5 = calls.require_stage_state_call(4, type(self).__name__)
-        self.combine_stage6 = calls.require_stage_state_call(5, type(self).__name__)
-        self.combine_stage7 = calls.require_stage_state_call(6, type(self).__name__)
-        self.combine_solution = calls.solution_delta_call
-        self.combine_error = error
-
-        self.call_pure = self.call_specialized
-        refresh_adaptive_call(self)
+        # The accepted advance and embedded error are translation deltas.
+        self.advance_delta = specialist.provide(stencils.advance_delta())
+        self.error_delta = specialist.provide(stencils.error_delta())
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
         self.explicit.set_apply_delta_safety(enabled)
@@ -201,10 +232,12 @@ class SchemeTsitouras5:
     ) -> float:
         del executor
 
-        proposal = self.step_control.propose_step(interval)
+        step_control = self.step_control
+        proposal = step_control.propose_step(interval)
+        record_stopped = step_control.record_stopped
 
         if proposal.remaining <= 0.0:
-            self.step_control.record_stopped(interval)
+            record_stopped(interval)
             return 0.0
 
         workspace = self.workspace
@@ -216,9 +249,13 @@ class SchemeTsitouras5:
         combine5 = workspace.combine5
         combine6 = workspace.combine6
         combine7 = workspace.combine7
-        apply_delta = workspace.apply_delta
-        stage_interval = workspace.stage_interval
-        bound = self.step_control.bound
+        apply_delta = self.bound_apply_delta
+        stage_interval = self.bound_stage_interval
+
+        ratio = step_control.ratio
+        rejected_step = step_control.rejected_step
+        accepted_next_step = step_control.accepted_next_step
+        record_accepted = step_control.record_accepted
 
         stage = self.stage
         trial_buffer = self.trial
@@ -237,24 +274,29 @@ class SchemeTsitouras5:
         t_start = proposal.t_start
         rejection_count = 0
 
+        # 1. k1 = f(t, y)
+        #
+        # k1 depends only on the current accepted state, so rejected attempts
+        # can reuse it while trying smaller step sizes.
         derivative(interval, state, k1)
 
         while True:
-            trial = scale(dt * TSIT5_A[1][0], k1, trial_buffer)
-            trial(state, stage)
+            # 2. k2 = f(t + TSIT5_C[1] h, y + h * A[1] dot k)
+            stage_delta = scale(dt * TSIT5_A[1][0], k1, trial_buffer)
+            stage_delta(state, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[1]), stage, k2)
-
-            trial = combine2(
+            # 3. k3 = f(t + TSIT5_C[2] h, y + h * A[2] dot k)
+            stage_delta = combine2(
                 dt * TSIT5_A[2][0],
                 k1,
                 dt * TSIT5_A[2][1],
                 k2,
                 trial_buffer,
             )
-            trial(state, stage)
+            stage_delta(state, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[2]), stage, k3)
-
-            trial = combine3(
+            # 4. k4 = f(t + TSIT5_C[3] h, y + h * A[3] dot k)
+            stage_delta = combine3(
                 dt * TSIT5_A[3][0],
                 k1,
                 dt * TSIT5_A[3][1],
@@ -263,10 +305,10 @@ class SchemeTsitouras5:
                 k3,
                 trial_buffer,
             )
-            trial(state, stage)
+            stage_delta(state, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[3]), stage, k4)
-
-            trial = combine4(
+            # 5. k5 = f(t + TSIT5_C[4] h, y + h * A[4] dot k)
+            stage_delta = combine4(
                 dt * TSIT5_A[4][0],
                 k1,
                 dt * TSIT5_A[4][1],
@@ -277,10 +319,10 @@ class SchemeTsitouras5:
                 k4,
                 trial_buffer,
             )
-            trial(state, stage)
+            stage_delta(state, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[4]), stage, k5)
-
-            trial = combine5(
+            # 6. k6 = f(t + TSIT5_C[5] h, y + h * A[5] dot k)
+            stage_delta = combine5(
                 dt * TSIT5_A[5][0],
                 k1,
                 dt * TSIT5_A[5][1],
@@ -293,10 +335,10 @@ class SchemeTsitouras5:
                 k5,
                 trial_buffer,
             )
-            trial(state, stage)
+            stage_delta(state, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[5]), stage, k6)
-
-            trial = combine6(
+            # 7. k7 = f(t + TSIT5_C[6] h, y + h * A[6] dot k)
+            stage_delta = combine6(
                 dt * TSIT5_A[6][0],
                 k1,
                 dt * TSIT5_A[6][1],
@@ -311,50 +353,51 @@ class SchemeTsitouras5:
                 k6,
                 trial_buffer,
             )
-            trial(state, stage)
+            stage_delta(state, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[6]), stage, k7)
-
-            delta_high = combine6(
-                dt * TSIT5_B_HIGH[0],
+            # 8. high_delta = h * b_high dot k
+            high_delta = combine6(
+                dt * TSIT5_B_HIGH_NZ[0],
                 k1,
-                dt * TSIT5_B_HIGH[1],
+                dt * TSIT5_B_HIGH_NZ[1],
                 k2,
-                dt * TSIT5_B_HIGH[2],
+                dt * TSIT5_B_HIGH_NZ[2],
                 k3,
-                dt * TSIT5_B_HIGH[3],
+                dt * TSIT5_B_HIGH_NZ[3],
                 k4,
-                dt * TSIT5_B_HIGH[4],
+                dt * TSIT5_B_HIGH_NZ[4],
                 k5,
-                dt * TSIT5_B_HIGH[5],
+                dt * TSIT5_B_HIGH_NZ[5],
                 k6,
                 trial_buffer,
             )
 
-            error = combine7(
-                dt * TSIT5_B_ERR[0],
+            # 9. error_delta = h * ((b_high - b_low) dot k)
+            error_delta = combine7(
+                dt * TSIT5_ERROR_WEIGHTS[0],
                 k1,
-                dt * TSIT5_B_ERR[1],
+                dt * TSIT5_ERROR_WEIGHTS[1],
                 k2,
-                dt * TSIT5_B_ERR[2],
+                dt * TSIT5_ERROR_WEIGHTS[2],
                 k3,
-                dt * TSIT5_B_ERR[3],
+                dt * TSIT5_ERROR_WEIGHTS[3],
                 k4,
-                dt * TSIT5_B_ERR[4],
+                dt * TSIT5_ERROR_WEIGHTS[4],
                 k5,
-                dt * TSIT5_B_ERR[5],
+                dt * TSIT5_ERROR_WEIGHTS[5],
                 k6,
-                dt * TSIT5_B_ERR[6],
+                dt * TSIT5_ERROR_WEIGHTS[6],
                 k7,
                 error_buffer,
             )
 
-            error_ratio = error.norm() / bound(delta_high.norm())
+            error_ratio = ratio(error_delta.norm(), high_delta.norm())
 
             if error_ratio <= 1.0:
                 break
 
             rejection_count += 1
-            dt = self.step_control.rejected_step(
+            dt = rejected_step(
                 dt,
                 error_ratio,
                 remaining,
@@ -363,16 +406,16 @@ class SchemeTsitouras5:
 
         accepted_dt = dt
         remaining_after = remaining - accepted_dt
-        next_dt = self.step_control.accepted_next_step(
+        next_dt = accepted_next_step(
             accepted_dt,
             error_ratio,
             remaining_after,
         )
 
         interval.step = next_dt
-        apply_delta(delta_high, state)
+        apply_delta(high_delta, state)
 
-        report = self.step_control.record_accepted(
+        report = record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,
@@ -380,6 +423,7 @@ class SchemeTsitouras5:
             error_ratio=error_ratio,
             rejection_count=rejection_count,
         )
+
         return report.accepted_dt
 
     def call_specialized(
@@ -390,16 +434,22 @@ class SchemeTsitouras5:
     ) -> float:
         del executor
 
-        proposal = self.step_control.propose_step(interval)
+        step_control = self.step_control
+        proposal = step_control.propose_step(interval)
+        record_stopped = step_control.record_stopped
 
         if proposal.remaining <= 0.0:
-            self.step_control.record_stopped(interval)
+            record_stopped(interval)
             return 0.0
 
         derivative = self.derivative
         apply_delta = self.bound_apply_delta
         stage_interval = self.bound_stage_interval
-        bound = self.step_control.bound
+
+        ratio = step_control.ratio
+        rejected_step = step_control.rejected_step
+        accepted_next_step = step_control.accepted_next_step
+        record_accepted = step_control.record_accepted
 
         stage = self.stage
         trial_buffer = self.trial
@@ -412,14 +462,14 @@ class SchemeTsitouras5:
         k6 = self.k6
         k7 = self.k7
 
-        combine_stage2 = self.combine_stage2
-        combine_stage3 = self.combine_stage3
-        combine_stage4 = self.combine_stage4
-        combine_stage5 = self.combine_stage5
-        combine_stage6 = self.combine_stage6
-        combine_stage7 = self.combine_stage7
-        combine_solution = self.combine_solution
-        combine_error = self.combine_error
+        advance_delta = self.advance_delta
+        error_delta = self.error_delta
+        stage2_update = self.stage2_update
+        stage3_update = self.stage3_update
+        stage4_update = self.stage4_update
+        stage5_update = self.stage5_update
+        stage6_update = self.stage6_update
+        stage7_update = self.stage7_update
 
         remaining = proposal.remaining
         dt = proposal.dt
@@ -427,36 +477,44 @@ class SchemeTsitouras5:
         t_start = proposal.t_start
         rejection_count = 0
 
+        # 1. k1 = f(t, y)
+        #
+        # k1 depends only on the current accepted state, so rejected attempts
+        # can reuse it while trying smaller step sizes.
         derivative(interval, state, k1)
 
         while True:
-            combine_stage2(state, dt, k1, stage)
+            # 2. k2 = f(t + TSIT5_C[1] h, y + h * A[1] dot k)
+            stage2_update(dt, state, k1, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[1]), stage, k2)
-
-            combine_stage3(state, dt, k1, k2, stage)
+            # 3. k3 = f(t + TSIT5_C[2] h, y + h * A[2] dot k)
+            stage3_update(dt, state, k1, k2, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[2]), stage, k3)
-
-            combine_stage4(state, dt, k1, k2, k3, stage)
+            # 4. k4 = f(t + TSIT5_C[3] h, y + h * A[3] dot k)
+            stage4_update(dt, state, k1, k2, k3, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[3]), stage, k4)
-
-            combine_stage5(state, dt, k1, k2, k3, k4, stage)
+            # 5. k5 = f(t + TSIT5_C[4] h, y + h * A[4] dot k)
+            stage5_update(dt, state, k1, k2, k3, k4, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[4]), stage, k5)
-
-            combine_stage6(state, dt, k1, k2, k3, k4, k5, stage)
+            # 6. k6 = f(t + TSIT5_C[5] h, y + h * A[5] dot k)
+            stage6_update(dt, state, k1, k2, k3, k4, k5, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[5]), stage, k6)
-
-            combine_stage7(state, dt, k1, k2, k3, k4, k5, k6, stage)
+            # 7. k7 = f(t + TSIT5_C[6] h, y + h * A[6] dot k)
+            stage7_update(dt, state, k1, k2, k3, k4, k5, k6, stage)
             derivative(stage_interval(interval, dt, dt * TSIT5_C[6]), stage, k7)
+            # 8. high_delta = h * b_high dot k
+            high_delta = advance_delta(dt, k1, k2, k3, k4, k5, k6, k7, trial_buffer)
 
-            delta_high = combine_solution(dt, k1, k2, k3, k4, k5, k6, trial_buffer)
-            error = combine_error(dt, k1, k2, k3, k4, k5, k6, k7, error_buffer)
-            error_ratio = error.norm() / bound(delta_high.norm())
+            # 9. error_delta = h * ((b_high - b_low) dot k)
+            error = error_delta(dt, k1, k2, k3, k4, k5, k6, k7, error_buffer)
+
+            error_ratio = ratio(error.norm(), high_delta.norm())
 
             if error_ratio <= 1.0:
                 break
 
             rejection_count += 1
-            dt = self.step_control.rejected_step(
+            dt = rejected_step(
                 dt,
                 error_ratio,
                 remaining,
@@ -465,16 +523,16 @@ class SchemeTsitouras5:
 
         accepted_dt = dt
         remaining_after = remaining - accepted_dt
-        next_dt = self.step_control.accepted_next_step(
+        next_dt = accepted_next_step(
             accepted_dt,
             error_ratio,
             remaining_after,
         )
 
         interval.step = next_dt
-        apply_delta(delta_high, state)
+        apply_delta(high_delta, state)
 
-        report = self.step_control.record_accepted(
+        report = record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,
@@ -482,6 +540,7 @@ class SchemeTsitouras5:
             error_ratio=error_ratio,
             rejection_count=rejection_count,
         )
+
         return report.accepted_dt
 
 

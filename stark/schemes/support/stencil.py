@@ -126,8 +126,107 @@ class SchemeStencilTableau:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class SchemeStageIncrementStencils:
+    """Stencil view for ESDIRK schemes solved in a stage-increment basis.
+
+    Sequential ESDIRK implementations do not store raw ``h * k_i`` rates after
+    each implicit solve. They store stage increments:
+
+        delta_i = h * sum(a_ij * k_j)
+
+    with an artificial first increment ``delta_0 = gamma * h * k_0`` for the
+    explicit first stage. These stencils convert tableau weights into that
+    increment basis once at import time.
+    """
+
+    known_shifts: tuple[tuple[float, ...], ...]
+    high_delta: tuple[float, ...]
+    low_delta: tuple[float, ...]
+    error_delta: tuple[float, ...]
+
+
+def esdirk_stage_increment_stencils(
+    tableau: ButcherTableau,
+    gamma: float,
+) -> SchemeStageIncrementStencils:
+    """Derive ESDIRK known-shift and error stencils from a tableau.
+
+    The returned coefficients are suitable for the solved stage increments used
+    by the built-in sequential ESDIRK schemes, not for raw derivative rates.
+    """
+
+    stage_count = len(tableau.b)
+    increment_rows = [[0.0 for _ in range(stage_count)] for _ in range(stage_count)]
+    increment_rows[0][0] = gamma
+
+    for row_index in range(1, stage_count):
+        for column_index, coefficient in enumerate(tableau.a[row_index]):
+            increment_rows[row_index][column_index] = coefficient
+
+        if increment_rows[row_index][row_index] != gamma:
+            raise ValueError("ESDIRK stage rows must share the supplied gamma.")
+
+    rate_weights_from_increments: list[tuple[float, ...]] = []
+    for row_index, row in enumerate(increment_rows):
+        diagonal = row[row_index]
+        if diagonal == 0.0:
+            raise ValueError("stage-increment basis must be lower triangular.")
+
+        weights = [0.0 for _ in range(stage_count)]
+        weights[row_index] = 1.0 / diagonal
+
+        for previous_index in range(row_index):
+            previous_scale = row[previous_index] / diagonal
+            previous_weights = rate_weights_from_increments[previous_index]
+            for column_index, coefficient in enumerate(previous_weights):
+                weights[column_index] -= previous_scale * coefficient
+
+        rate_weights_from_increments.append(tuple(weights))
+
+    def convert_rate_weights(rate_weights: Iterable[float]) -> tuple[float, ...]:
+        converted = [0.0 for _ in range(stage_count)]
+        for rate_index, rate_weight in enumerate(rate_weights):
+            basis_weights = rate_weights_from_increments[rate_index]
+            for column_index, coefficient in enumerate(basis_weights):
+                converted[column_index] += rate_weight * coefficient
+        return tuple(converted)
+
+    known_shifts = []
+    for row_index, row in enumerate(tableau.a):
+        if row_index == 0:
+            known_shifts.append(())
+            continue
+
+        known_shifts.append(convert_rate_weights(row[:row_index])[:row_index])
+
+    high_delta = convert_rate_weights(tableau.b)
+    low_delta = (
+        convert_rate_weights(tableau.b_embedded)
+        if tableau.b_embedded is not None
+        else ()
+    )
+    error_delta = (
+        tuple(
+            high - low
+            for high, low in zip(high_delta, low_delta, strict=True)
+        )
+        if low_delta
+        else ()
+    )
+
+    return SchemeStageIncrementStencils(
+        known_shifts=tuple(known_shifts),
+        high_delta=high_delta,
+        low_delta=low_delta,
+        error_delta=error_delta,
+    )
+
+
 __all__ = [
     "SchemeStencil",
     "SchemeStencilCoefficient",
+    "SchemeStageIncrementStencils",
     "SchemeStencilTableau",
+    "esdirk_stage_increment_stencils",
 ]

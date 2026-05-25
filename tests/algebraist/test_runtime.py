@@ -162,7 +162,7 @@ def test_runtime_specialist_binds_delta_coefficients() -> None:
     kernel = specialist.provide(SchemeStencil(scale=0.5, coefficients=(1.0, 2.0)))
     out = Translation()
 
-    result = kernel(4.0, out, Translation(3.0), Translation(5.0))
+    result = kernel(4.0, Translation(3.0), Translation(5.0), out)
 
     assert result is out
     assert out.value == pytest.approx(26.0)
@@ -179,17 +179,21 @@ def test_runtime_specialist_applies_delta_to_origin_state() -> None:
 
     origin = State(10.0)
     result = State()
-    returned = kernel(2.0, result, origin, Translation(4.0), Translation(8.0))
+    returned = kernel(2.0, origin, Translation(4.0), Translation(8.0), result)
 
     assert returned is result
     assert result.value == pytest.approx(24.0)
 
 
-def test_runtime_specialist_rejects_empty_stencil() -> None:
+def test_runtime_specialist_binds_empty_stencil_as_zero_delta() -> None:
     specialist = AlgebraistRuntimeSpecialist(
         translation=TranslationWithLinearCombine(),
         workbench=Workbench(),
     )
+    kernel = specialist.provide(SchemeStencil(coefficients=()))
+    out = Translation(5.0)
 
-    with pytest.raises(ValueError):
-        specialist.provide(SchemeStencil(coefficients=()))
+    result = kernel(2.0, out)
+
+    assert result is out
+    assert out.value == pytest.approx(0.0)

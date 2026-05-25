@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from stark import Interval
-from stark.contracts import Block
+from stark.block import Block
 from stark.resolvents import ResolventAnderson, ResolventPolicy, ResolventTolerance
+from stark.schemes.support.stage_problem import SchemeStageProblem
 
 
 @dataclass(slots=True)
@@ -86,7 +87,6 @@ def inner_product(left: ScalarTranslation, right: ScalarTranslation) -> float:
 
 def test_anderson_resolvent_solves_rhs_shift_without_reversing_residual_arguments() -> None:
     resolvent = ResolventAnderson(
-        zero_rhs,
         ScalarWorkbench(),
         inner_product,
         tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
@@ -96,8 +96,8 @@ def test_anderson_resolvent_solves_rhs_shift_without_reversing_residual_argument
     state = ScalarState(1.0)
     rhs = Block([ScalarTranslation(2.0)])
     out = Block([ScalarTranslation()])
+    problem = SchemeStageProblem(zero_rhs, interval, state, rhs, 0.0)
 
-    resolvent.bind(interval, state)
-    resolvent(alpha=0.0, rhs=rhs, out=out)
+    resolvent(problem, out)
 
     assert out[0].value == 2.0

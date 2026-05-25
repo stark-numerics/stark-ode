@@ -429,7 +429,6 @@ def _build_anderson_solver(label, scheme_type, parameters: FitzHughNagumoParamet
     workbench = FitzHughNagumoWorkbench(parameters.grid_size)
     derivative = FitzHughNagumoDerivative(parameters)
     resolvent = ResolventAnderson(
-        derivative,
         workbench,
         _translation_inner_product,
         tolerance=ResolventTolerance(
@@ -550,7 +549,6 @@ def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParamet
         accelerator=ACCELERATOR,
     )
     resolvent = ResolventNewton(
-        derivative,
         workbench,
         linearizer=linearizer,
         inverter=inverter,

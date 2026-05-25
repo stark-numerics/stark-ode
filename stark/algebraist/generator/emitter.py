@@ -95,11 +95,11 @@ class AlgebraistGeneratorEmitter:
             parameters.extend(f"a{index}" for index in range(source_count))
 
         for field in self.layout.fields:
-            if not isinstance(field.policy, AlgebraistLayoutScalar):
-                parameters.append(self._target_name(kind, field))
             if kind == "update":
                 parameters.append(self._origin_name(field))
             parameters.extend(f"x{index}_{field.translation_name}" for index in range(source_count))
+            if not isinstance(field.policy, AlgebraistLayoutScalar):
+                parameters.append(self._target_name(kind, field))
         return parameters
 
     def _wrapper_lines(
@@ -149,11 +149,11 @@ class AlgebraistGeneratorEmitter:
 
     @staticmethod
     def _delta_wrapper_signature(source_count: int) -> str:
-        return ", ".join(("step", "out", *(f"x{index}" for index in range(source_count))))
+        return ", ".join(("step", *(f"x{index}" for index in range(source_count)), "out"))
 
     @staticmethod
     def _update_wrapper_signature(source_count: int) -> str:
-        return ", ".join(("step", "result", "origin", *(f"x{index}" for index in range(source_count))))
+        return ", ".join(("step", "origin", *(f"x{index}" for index in range(source_count)), "result"))
 
     def _flat_arguments(self, *, kind: Kind, source_count: int) -> list[str]:
         arguments: list[str] = []
@@ -163,6 +163,10 @@ class AlgebraistGeneratorEmitter:
             arguments.extend(f"a{index}" for index in range(source_count))
 
         for field in self.layout.fields:
+            if kind == "update":
+                arguments.append(field.state_expression("origin"))
+            for index in range(source_count):
+                arguments.append(field.translation_expression(f"x{index}"))
             if not isinstance(field.policy, AlgebraistLayoutScalar):
                 target_root = "result" if kind == "update" else "out"
                 expression = (
@@ -171,10 +175,6 @@ class AlgebraistGeneratorEmitter:
                     else field.translation_expression(target_root)
                 )
                 arguments.append(expression)
-            if kind == "update":
-                arguments.append(field.state_expression("origin"))
-            for index in range(source_count):
-                arguments.append(field.translation_expression(f"x{index}"))
         return arguments
 
     def _field_lines(

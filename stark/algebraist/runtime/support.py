@@ -114,9 +114,18 @@ class AlgebraistRuntimeDeltaKernel(Generic[TranslationType]):
     def __call__(
         self,
         step: float,
-        out: TranslationType,
-        *translations: TranslationType,
+        *terms: TranslationType,
     ) -> TranslationType:
+        if len(terms) != len(self.coefficients) + 1:
+            received = max(0, len(terms) - 1)
+            raise TypeError(
+                f"Delta kernel requires {len(self.coefficients)} translations; "
+                f"received {received}."
+            )
+
+        translations = terms[:-1]
+        out = terms[-1]
+
         if len(translations) != len(self.coefficients):
             raise TypeError(
                 f"Delta kernel requires {len(self.coefficients)} translations; "
@@ -133,6 +142,21 @@ class AlgebraistRuntimeDeltaKernel(Generic[TranslationType]):
 
 
 @dataclass(slots=True)
+class AlgebraistRuntimeZeroDeltaKernel(Generic[TranslationType]):
+    """Runtime delta kernel for empty fixed-coefficient stencils."""
+
+    combine: RuntimeKernel[TranslationType]
+
+    def __call__(
+        self,
+        step: float,
+        out: TranslationType,
+    ) -> TranslationType:
+        del step
+        return self.combine(0.0, out, out)
+
+
+@dataclass(slots=True)
 class AlgebraistRuntimeApplyKernel(Generic[StateType, TranslationType]):
     """Runtime fixed-coefficient state-apply kernel."""
 
@@ -142,20 +166,22 @@ class AlgebraistRuntimeApplyKernel(Generic[StateType, TranslationType]):
     def __call__(
         self,
         step: float,
-        result: StateType,
         origin: StateType,
-        *translations: TranslationType,
+        *terms: object,
     ) -> StateType:
-        delta = self.delta(step, self.scratch, *translations)
+        if not terms:
+            raise TypeError("Apply kernel requires a result state.")
+
+        translations = cast(tuple[TranslationType, ...], terms[:-1])
+        result = cast(StateType, terms[-1])
+
+        delta = self.delta(step, *translations, self.scratch)
         delta(origin, result)
         return result
 
 
 def _validate_coefficients(coefficients: Sequence[float]) -> tuple[float, ...]:
-    normalized = tuple(float(coefficient) for coefficient in coefficients)
-    if not normalized:
-        raise ValueError("Algebraist stencil must contain at least one coefficient.")
-    return normalized
+    return tuple(float(coefficient) for coefficient in coefficients)
 
 
 @dataclass(slots=True)
@@ -217,6 +243,10 @@ class AlgebraistRuntimeSupport(Generic[TranslationType]):
     ) -> Callable[..., TranslationType]:
         if coefficients is None:
             coefficients = _validate_coefficients(request.coefficients)
+        if not coefficients:
+            combine = self.provide_general(AlgebraistArity(1))
+            kernel = AlgebraistRuntimeZeroDeltaKernel(combine=combine)
+            return self.accelerate(kernel, label="runtime.delta.zero", arity=0)
         combine = self.provide_general(AlgebraistArity(len(coefficients)))
         kernel = AlgebraistRuntimeDeltaKernel(
             scale=float(request.scale),
@@ -312,5 +342,6 @@ __all__ = [
     "AlgebraistRuntimeFallbackCombine",
     "AlgebraistRuntimeFallbackKernel",
     "AlgebraistRuntimeSupport",
+    "AlgebraistRuntimeZeroDeltaKernel",
     "RuntimeKernel",
 ]

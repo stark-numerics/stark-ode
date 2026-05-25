@@ -175,7 +175,6 @@ if __name__ == "__main__":
     # being asked to solve.
 
     resolvent = ResolventNewton(
-        derivative,
         workbench,
         linearizer=linearizer,
         inverter=inverter,

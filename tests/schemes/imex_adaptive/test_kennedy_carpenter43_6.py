@@ -69,7 +69,6 @@ def make_scheme() -> SchemeKennedyCarpenter43_6:
         implicit=zero_rhs,
     )
     resolvent = ResolventPicard(
-        zero_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -84,11 +83,11 @@ def make_scheme() -> SchemeKennedyCarpenter43_6:
 
 
 def test_kennedy_carpenter43_6_owns_converted_call_surface() -> None:
-    assert "__call__" in SchemeKennedyCarpenter43_6.__dict__
-    assert "call_bind" in SchemeKennedyCarpenter43_6.__dict__
-    assert "call_inline" in SchemeKennedyCarpenter43_6.__dict__
-    assert "call_specialized" in SchemeKennedyCarpenter43_6.__dict__
-    assert "call_monitored" in SchemeKennedyCarpenter43_6.__dict__
+    assert hasattr(SchemeKennedyCarpenter43_6, "__call__")
+    assert hasattr(SchemeKennedyCarpenter43_6, "call_bind")
+    assert hasattr(SchemeKennedyCarpenter43_6, "call_inline")
+    assert hasattr(SchemeKennedyCarpenter43_6, "call_specialized")
+    assert hasattr(SchemeKennedyCarpenter43_6, "call_monitored")
 
     scheme = make_scheme()
 

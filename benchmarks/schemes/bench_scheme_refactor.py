@@ -215,7 +215,6 @@ def make_resolvent(
     tableau,
 ) -> ResolventPicard:
     return ResolventPicard(
-        derivative,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=16),

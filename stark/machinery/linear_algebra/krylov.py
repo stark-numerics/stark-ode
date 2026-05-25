@@ -18,7 +18,8 @@ bookkeeping.
 import numpy as np
 
 from stark.accelerators import AcceleratorAbsent
-from stark.contracts import AcceleratorLike, Block
+from stark.block import Block
+from stark.contracts import AcceleratorLike
 from stark.block.operator import BlockOperator
 from stark.inverters.support.workspace import InverterWorkspace
 

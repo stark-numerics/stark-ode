@@ -12,7 +12,7 @@ from time import perf_counter
 
 from stark import Interval
 from stark.accelerators import Accelerator
-from stark.contracts import Block
+from stark.block import Block
 from stark.execution.safety import Safety
 from stark.inverters import InverterGMRES, InverterPolicy, InverterTolerance
 from stark.resolvents import (
@@ -232,7 +232,6 @@ def build_cases() -> list[ResolventSmokeCase]:
         ResolventSmokeCase(
             "Picard / one-stage",
             ResolventPicard(
-                derivative,
                 picard_workbench,
                 tolerance=make_tolerance(),
                 policy=make_policy(),
@@ -244,7 +243,6 @@ def build_cases() -> list[ResolventSmokeCase]:
         ResolventSmokeCase(
             "Anderson / one-stage",
             ResolventAnderson(
-                derivative,
                 anderson_workbench,
                 scalar_inner_product,
                 tolerance=make_tolerance(),
@@ -258,7 +256,6 @@ def build_cases() -> list[ResolventSmokeCase]:
         ResolventSmokeCase(
             "Broyden / one-stage",
             ResolventBroyden(
-                derivative,
                 broyden_workbench,
                 scalar_inner_product,
                 tolerance=make_tolerance(),
@@ -272,7 +269,6 @@ def build_cases() -> list[ResolventSmokeCase]:
         ResolventSmokeCase(
             "Newton / one-stage",
             ResolventNewton(
-                derivative,
                 newton_workbench,
                 linearizer,
                 make_inverter(newton_workbench),
@@ -286,7 +282,6 @@ def build_cases() -> list[ResolventSmokeCase]:
         ResolventSmokeCase(
             "Picard / coupled stages",
             ResolventCoupledPicard(
-                derivative,
                 coupled_picard_workbench,
                 GAUSS_LEGENDRE4_TABLEAU,
                 tolerance=make_tolerance(),
@@ -299,7 +294,6 @@ def build_cases() -> list[ResolventSmokeCase]:
         ResolventSmokeCase(
             "Newton / coupled stages",
             ResolventCoupledNewton(
-                derivative,
                 coupled_newton_workbench,
                 GAUSS_LEGENDRE4_TABLEAU,
                 linearizer,

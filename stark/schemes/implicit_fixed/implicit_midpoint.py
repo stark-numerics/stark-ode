@@ -1,17 +1,22 @@
 from __future__ import annotations
 
-from stark.algebraist.classic import Algebraist, AlgebraistImplicitCombination
+from typing import Any, cast
+
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
-from stark.machinery.stage_solve.workers import ShiftedOneStageResolventStep
-from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
+    SchemeDescriptor,
     refresh_fixed_step_call,
-    unbound_scheme_call,
     with_fixed_step_monitoring,
-    with_implicit_stepper_methods,
     with_scheme_display,
 )
+from stark.schemes.support.implicit import (
+    initialise_implicit_support,
+    with_implicit_workspace_methods,
+)
+from stark.schemes.support.specialist import SchemeSpecialist
+from stark.schemes.support.stage_problem import SchemeStageProblem
+from stark.schemes.support.stencil import SchemeStencil
 from stark.schemes.support.tableau import ButcherTableau
 
 
@@ -27,27 +32,33 @@ IMPLICIT_MIDPOINT_TABLEAU = ButcherTableau(
 
 @with_scheme_display
 @with_fixed_step_monitoring
-@with_implicit_stepper_methods
+@with_implicit_workspace_methods
 class SchemeImplicitMidpoint:
     """The one-stage implicit midpoint Runge-Kutta method.
 
-    Implicit midpoint is the simplest nontrivial collocation method. In STARK's
-    resolvent language it solves for a midpoint correction `z` satisfying
+    Implicit midpoint solves a midpoint increment and then doubles it to
+    advance the full step.
 
-        z = (dt / 2) f(t_n + dt/2, x_n + z),
+    Algorithm sketch for one accepted step of size h:
 
-    then doubles that midpoint correction to advance the full step.
+        1. Solve the midpoint increment:
+               z = h/2 * f(t + h/2, y + z)
 
-    Further reading: https://en.wikipedia.org/wiki/Midpoint_method
+        2. Advance with the full-step increment:
+               y <- y + 2z
     """
 
     __slots__ = (
         "_monitor",
+        "advance_update",
+        "block_allocator",
         "call_pure",
-        "final_delta_call",
+        "derivative",
+        "midpoint",
         "redirect_call",
-        "stepper",
+        "resolvent",
         "trial",
+        "workspace",
     )
 
     descriptor = SchemeDescriptor("IM", "Implicit Midpoint")
@@ -59,100 +70,90 @@ class SchemeImplicitMidpoint:
         workbench: Workbench,
         resolvent: Resolvent,
         *,
-        algebraist: Algebraist | None = None,
+        specialist: SchemeSpecialist | None = None,
     ) -> None:
-        self.final_delta_call = unbound_scheme_call
         self._monitor = None
-        self.stepper = ShiftedOneStageResolventStep(
-            "Implicit Midpoint",
-            self.tableau,
-            derivative,
-            workbench,
-            resolvent,
-        )
-        self.trial = self.stepper.workspace.allocate_translation()
-
         self.call_pure = self.call_inline
+        self.redirect_call = self.call_pure
+        self.resolvent = resolvent
+        self.advance_update = None
+
+        initialise_implicit_support(self, derivative, workbench)
+        self.midpoint = self.block_allocator.allocate(1)
+        self.trial = self.workspace.allocate_translation()
+
         refresh_fixed_step_call(self)
 
-        if algebraist is not None:
-            self.use_specialists(algebraist)
+        if specialist is not None:
+            self.prepare_specialized_kernels(specialist)
+            self.call_pure = self.call_specialized
+            refresh_fixed_step_call(self)
 
-    def __call__(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
+    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def use_specialists(self, algebraist: Algebraist) -> None:
-        calls = algebraist.bind_implicit_fixed_scheme(
-            final_delta=AlgebraistImplicitCombination("final_delta", (2.0,)),
-        )
-        self.final_delta_call = calls.require_final_delta_call(type(self).__name__)
-        self.call_pure = self.call_specialized
-        refresh_fixed_step_call(self)
+    def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
+        # Step 2 applies the doubled midpoint increment.
+        self.advance_update = specialist.provide(SchemeStencil((2.0,), apply=True))
 
-    def call_inline(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
+    def call_inline(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         del executor
 
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
 
-        workspace = self.stepper.workspace
         dt = interval.step if interval.step <= remaining else remaining
+        workspace = self.workspace
+        midpoint = self.midpoint
 
-        midpoint = self.stepper.solve(
-            interval,
-            state,
-            dt,
+        # 1. Solve the midpoint increment:
+        #        z = h/2 * f(t + h/2, y + z)
+        problem = SchemeStageProblem(
+            derivative=self.derivative,
+            interval=workspace.stage_at(interval, dt, 0.5 * dt),
+            origin=state,
+            rhs=None,
             alpha=0.5 * dt,
-            stage_shift=0.5 * dt,
         )
-        delta = workspace.scale(2.0, midpoint, self.trial)
+        self.resolvent(problem, midpoint)
+
+        # 2. Advance y <- y + 2z.
+        delta = workspace.scale(2.0, midpoint[0], self.trial)
         workspace.apply_delta(delta, state)
 
         remaining_after = remaining - dt
         interval.step = 0.0 if remaining_after <= 0.0 else min(interval.step, remaining_after)
-
         return dt
 
-    def call_specialized(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
+    def call_specialized(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         del executor
 
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
 
-        workspace = self.stepper.workspace
-        final_delta_call = self.final_delta_call
         dt = interval.step if interval.step <= remaining else remaining
+        workspace = self.workspace
+        midpoint = self.midpoint
+        advance_update = cast(Any, self.advance_update)
 
-        midpoint = self.stepper.solve(
-            interval,
-            state,
-            dt,
+        # 1. Solve the midpoint increment:
+        #        z = h/2 * f(t + h/2, y + z)
+        problem = SchemeStageProblem(
+            derivative=self.derivative,
+            interval=workspace.stage_at(interval, dt, 0.5 * dt),
+            origin=state,
+            rhs=None,
             alpha=0.5 * dt,
-            stage_shift=0.5 * dt,
         )
-        delta = final_delta_call(midpoint, self.trial)
-        workspace.apply_delta(delta, state)
+        self.resolvent(problem, midpoint)
+
+        # 2. Advance y <- y + 2z.
+        advance_update(1.0, state, midpoint[0], state)
 
         remaining_after = remaining - dt
         interval.step = 0.0 if remaining_after <= 0.0 else min(interval.step, remaining_after)
-
         return dt
 
 
