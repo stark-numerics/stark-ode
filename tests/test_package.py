@@ -90,13 +90,14 @@ def test_audit_module_imports() -> None:
 
 def test_algebraist_package_imports() -> None:
     """The algebraist package should expose generated-kernel helpers."""
-    algebraist = importlib.import_module("stark.algebraist.classic")
+    algebraist = importlib.import_module("stark.algebraist")
 
-    assert algebraist.Algebraist is not None
-    assert algebraist.AlgebraistField is not None
-    assert algebraist.AlgebraistBroadcast is not None
-    assert algebraist.AlgebraistLooped is not None
-    assert algebraist.AlgebraistSmallFixed is not None
+    assert algebraist.AlgebraistRuntimeGeneral is not None
+    assert algebraist.AlgebraistRuntimeSpecialist is not None
+    assert algebraist.AlgebraistGeneratorGeneral is not None
+    assert algebraist.AlgebraistGeneratorSpecialist is not None
+    assert algebraist.AlgebraistLayoutField is not None
+    assert algebraist.AlgebraistLayoutLooped is not None
 
 
 def test_regulator_module_imports() -> None:
@@ -110,7 +111,8 @@ def test_regulator_module_imports() -> None:
     assert importlib.import_module("stark.schemes.support.tableau") is not None
     assert importlib.import_module("stark.machinery.stage_solve.workspace") is not None
     assert importlib.import_module("stark.machinery.stage_solve.workers") is not None
-    assert importlib.import_module("stark.algebraist.classic.combine") is not None
+    assert importlib.import_module("stark.algebraist.runtime") is not None
+    assert importlib.import_module("stark.algebraist.generator") is not None
     assert importlib.import_module("stark.schemes.support.display") is not None
 
 

@@ -12,8 +12,14 @@ import numpy as np
 
 from stark import Executor, Integrator, Interval, Marcher, Safety, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist.classic import Algebraist, AlgebraistBroadcast, AlgebraistField, AlgebraistLooped
-from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
+from stark.algebraist.arity import AlgebraistArity
+from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
+from stark.algebraist.layout import (
+    AlgebraistLayout,
+    AlgebraistLayoutBroadcast,
+    AlgebraistLayoutField,
+    AlgebraistLayoutLooped,
+)
 from stark.schemes.explicit_adaptive import SchemeCashKarp, SchemeDormandPrince
 from stark.schemes.explicit_fixed import SchemeEuler, SchemeRK4
 
@@ -64,11 +70,11 @@ class PairTranslation:
 
 
 class PairWorkbench:
-    __slots__ = ("algebraist", "count")
+    __slots__ = ("count", "linear_combine")
 
-    def __init__(self, count: int, algebraist: Algebraist | None = None) -> None:
+    def __init__(self, count: int) -> None:
         self.count = count
-        self.algebraist = algebraist
+        self.linear_combine: tuple[Callable[..., object], ...] = ()
 
     def allocate_state(self) -> PairState:
         return PairState(
@@ -81,13 +87,10 @@ class PairWorkbench:
         np.copyto(dst.p, src.p)
 
     def allocate_translation(self) -> PairTranslation:
-        linear_combine = ()
-        if self.algebraist is not None:
-            linear_combine = self.algebraist.linear_combine
         return PairTranslation(
             np.zeros(self.count, dtype=np.float64),
             np.zeros(self.count, dtype=np.float64),
-            linear_combine,
+            self.linear_combine,
         )
 
 
@@ -117,15 +120,35 @@ def make_initial_state(count: int) -> PairState:
     )
 
 
-def make_algebraist(policy, accelerator=None) -> Algebraist:
-    return Algebraist(
+@dataclass(frozen=True, slots=True)
+class PairAlgebraist:
+    linear_combine: tuple[Callable[..., object], ...]
+    specialist: AlgebraistGeneratorSpecialist
+
+
+def make_algebraist(policy, workbench: PairWorkbench, accelerator=None) -> PairAlgebraist:
+    active_accelerator = accelerator if accelerator is not None else Accelerator.none()
+    layout = AlgebraistLayout(
         fields=(
-            AlgebraistField("dq", "q", policy=policy),
-            AlgebraistField("dp", "p", policy=policy),
+            AlgebraistLayoutField("dq", "q", policy=policy),
+            AlgebraistLayoutField("dp", "p", policy=policy),
         ),
-        accelerator=accelerator,
-        generate_norm="rms",
     )
+    general = AlgebraistGeneratorGeneral(
+        translation=workbench.allocate_translation(),
+        workbench=workbench,
+        layout=layout,
+        accelerator=active_accelerator,
+    )
+    linear_combine = tuple(general.provide(AlgebraistArity(arity)) for arity in range(1, 13))
+    workbench.linear_combine = linear_combine
+    specialist = AlgebraistGeneratorSpecialist(
+        translation=workbench.allocate_translation(),
+        workbench=workbench,
+        layout=layout,
+        accelerator=active_accelerator,
+    )
+    return PairAlgebraist(linear_combine=linear_combine, specialist=specialist)
 
 
 def numba_accelerator():
@@ -199,19 +222,12 @@ def make_case(
     count: int,
     steps: int,
     step: float,
-    algebraist: Algebraist | None,
+    policy=None,
+    accelerator=None,
 ) -> BenchmarkCase:
-    workbench = PairWorkbench(count, algebraist)
-    specialist = (
-        AlgebraistRuntimeSpecialist(
-            translation=workbench.allocate_translation(),
-            workbench=workbench,
-            linear_combine=algebraist.linear_combine,
-            accelerator=algebraist.accelerator,
-        )
-        if algebraist is not None
-        else None
-    )
+    workbench = PairWorkbench(count)
+    algebraist = make_algebraist(policy, workbench, accelerator) if policy is not None else None
+    specialist = algebraist.specialist if algebraist is not None else None
     scheme = scheme_cls(PairDerivative(count), workbench, specialist=specialist)
     return BenchmarkCase(
         name=label,
@@ -290,7 +306,7 @@ def build_results(
             count=count,
             steps=steps,
             step=step,
-            algebraist=None,
+            policy=None,
         )
         reference = generic.solve_once()
         results.append(
@@ -303,14 +319,13 @@ def build_results(
             )
         )
 
-        broadcast_algebraist = make_algebraist(AlgebraistBroadcast())
         broadcast = make_case(
             label=f"{scheme_name}/algebraist-broadcast",
             scheme_cls=scheme_cls,
             count=count,
             steps=steps,
             step=step,
-            algebraist=broadcast_algebraist,
+            policy=AlgebraistLayoutBroadcast(),
         )
         results.append(
             time_case(
@@ -323,14 +338,14 @@ def build_results(
         )
 
         if numba is not None:
-            numba_algebraist = make_algebraist(AlgebraistLooped(rank=1), numba)
             numba_case = make_case(
                 label=f"{scheme_name}/algebraist-looped-numba",
                 scheme_cls=scheme_cls,
                 count=count,
                 steps=steps,
                 step=step,
-                algebraist=numba_algebraist,
+                policy=AlgebraistLayoutLooped(rank=1),
+                accelerator=numba,
             )
             results.append(
                 time_case(

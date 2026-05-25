@@ -7,7 +7,9 @@ import numpy as np
 
 from stark import Executor, Integrator, Interval, Marcher, Safety, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist.classic import Algebraist, AlgebraistField, AlgebraistSmallFixed
+from stark.algebraist.arity import AlgebraistArity
+from stark.algebraist.generator import AlgebraistGeneratorGeneral
+from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutUnravel
 from stark.schemes import SchemeKvaerno4
 
 
@@ -18,11 +20,8 @@ except ModuleNotFoundError:
     ACCELERATOR = Accelerator.none()
     USE_NUMBA_ACCELERATION = False
 
-ALGEBRAIST = Algebraist(
-    fields=(AlgebraistField("dy", "y", policy=AlgebraistSmallFixed(shape=(3,))),),
-    accelerator=ACCELERATOR,
-    fused_up_to=3,
-    generate_norm="rms",
+ALGEBRAIST_LAYOUT = AlgebraistLayout(
+    fields=(AlgebraistLayoutField("dy", "y", policy=AlgebraistLayoutUnravel(shape=(3,))),),
 )
 
 
@@ -68,9 +67,11 @@ class RobertsonTranslation:
     def __rmul__(self, scalar):
         return RobertsonTranslation(scalar * self.dy)
 
-    linear_combine = ALGEBRAIST.linear_combine
-    __call__ = ALGEBRAIST.apply
-    norm = ALGEBRAIST.norm
+    def __call__(self, origin: RobertsonState, result: RobertsonState) -> None:
+        result.y[...] = origin.y + self.dy
+
+    def norm(self) -> float:
+        return sqrt(float(np.dot(self.dy, self.dy)) / self.dy.size)
 
 
 class RobertsonWorkbench:
@@ -79,8 +80,7 @@ class RobertsonWorkbench:
 
     def __init__(self) -> None:
         if not self.__class__._compiled:
-            probe = np.zeros(3, dtype=np.float64)
-            ALGEBRAIST.compile_examples(probe)
+            RobertsonTranslation.linear_combine = _generated_linear_combine(self)
             self.__class__._compiled = True
 
     def __repr__(self) -> str:
@@ -96,6 +96,16 @@ class RobertsonWorkbench:
 
     def allocate_translation(self):
         return RobertsonTranslation(np.zeros(3, dtype=np.float64))
+
+
+def _generated_linear_combine(workbench):
+    provider = AlgebraistGeneratorGeneral(
+        translation=workbench.allocate_translation(),
+        workbench=workbench,
+        layout=ALGEBRAIST_LAYOUT,
+        accelerator=ACCELERATOR,
+    )
+    return tuple(provider.provide(AlgebraistArity(arity)) for arity in range(1, 13))
 
 
 class RobertsonFullDerivative:

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import sqrt
 from time import perf_counter
 
 import numpy as np
 
 from stark import Executor, ImExDerivative, Integrator, Interval, Marcher, Safety, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist.classic import Algebraist, AlgebraistField, AlgebraistLooped
+from stark.algebraist.arity import AlgebraistArity
+from stark.algebraist.generator import AlgebraistGeneratorGeneral
+from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
 from stark.execution.regulator import Regulator
 from stark.inverters import InverterPolicy, InverterTolerance
 from stark.resolvents import ResolventAnderson, ResolventNewton, ResolventPolicy, ResolventTolerance
@@ -21,13 +24,11 @@ except ModuleNotFoundError:
     ACCELERATOR = Accelerator.none()
     USE_NUMBA_ACCELERATION = False
 
-ALGEBRAIST = Algebraist(
+ALGEBRAIST_LAYOUT = AlgebraistLayout(
     fields=(
-        AlgebraistField("du", "u", policy=AlgebraistLooped(rank=1)),
-        AlgebraistField("dv", "v", policy=AlgebraistLooped(rank=1)),
+        AlgebraistLayoutField("du", "u", policy=AlgebraistLayoutLooped(rank=1)),
+        AlgebraistLayoutField("dv", "v", policy=AlgebraistLayoutLooped(rank=1)),
     ),
-    accelerator=ACCELERATOR,
-    generate_norm="rms",
 )
 
 
@@ -146,9 +147,13 @@ class FitzHughNagumoTranslation:
     def __rmul__(self, scalar: float) -> FitzHughNagumoTranslation:
         return FitzHughNagumoTranslation(scalar * self.du, scalar * self.dv)
 
-    linear_combine = ALGEBRAIST.linear_combine
-    __call__ = ALGEBRAIST.apply
-    norm = ALGEBRAIST.norm
+    def __call__(self, origin: FitzHughNagumoState, result: FitzHughNagumoState) -> None:
+        result.u[...] = origin.u + self.du
+        result.v[...] = origin.v + self.dv
+
+    def norm(self) -> float:
+        energy = np.dot(self.du.ravel(), self.du.ravel()) + np.dot(self.dv.ravel(), self.dv.ravel())
+        return sqrt(float(energy) / self.du.size)
 
 
 class FitzHughNagumoWorkbench:
@@ -160,7 +165,7 @@ class FitzHughNagumoWorkbench:
         if not self.__class__._compiled:
             probe = np.zeros(grid_size, dtype=np.float64)
             ACCELERATOR.compile_examples(_laplacian_periodic, (probe, probe, 1.0))
-            ALGEBRAIST.compile_examples(probe, probe)
+            FitzHughNagumoTranslation.linear_combine = _generated_linear_combine(self)
             self.__class__._compiled = True
 
     def __repr__(self) -> str:
@@ -183,6 +188,16 @@ class FitzHughNagumoWorkbench:
             np.zeros(self.grid_size, dtype=np.float64),
             np.zeros(self.grid_size, dtype=np.float64),
         )
+
+
+def _generated_linear_combine(workbench):
+    provider = AlgebraistGeneratorGeneral(
+        translation=workbench.allocate_translation(),
+        workbench=workbench,
+        layout=ALGEBRAIST_LAYOUT,
+        accelerator=ACCELERATOR,
+    )
+    return tuple(provider.provide(AlgebraistArity(arity)) for arity in range(1, 13))
 
 
 class FitzHughNagumoDerivative:

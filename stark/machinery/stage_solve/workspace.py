@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
+from stark.algebraist.runtime import AlgebraistRuntimeGeneral
 from stark.contracts.intervals import IntervalLike
 from stark.contracts import Translation, Workbench
-from stark.algebraist.classic.combine import AlgebraistCombineResolver
 
 
 class _StageInterval:
@@ -62,22 +62,24 @@ class SchemeWorkspace:
         self.state_buffer = workbench.allocate_state()
         self.stage_interval = _StageInterval()
         self.apply_delta = self.apply_delta_safe
-        combine_resolver = AlgebraistCombineResolver.from_translation(
+        algebraist = AlgebraistRuntimeGeneral(
             translation,
-            workbench.allocate_translation,
-            )
-        self.scale = combine_resolver.scale
-        self.combine2 = combine_resolver.combine2
-        self.combine3 = combine_resolver.combine3
-        self.combine4 = combine_resolver.combine4
-        self.combine5 = combine_resolver.combine5
-        self.combine6 = combine_resolver.combine6
-        self.combine7 = combine_resolver.combine7
-        self.combine8 = combine_resolver.combine8
-        self.combine9 = combine_resolver.combine9
-        self.combine10 = combine_resolver.combine10
-        self.combine11 = combine_resolver.combine11
-        self.combine12 = combine_resolver.combine12
+            workbench=workbench,
+        )
+        (
+            self.scale,
+            self.combine2,
+            self.combine3,
+            self.combine4,
+            self.combine5,
+            self.combine6,
+            self.combine7,
+            self.combine8,
+            self.combine9,
+            self.combine10,
+            self.combine11,
+            self.combine12,
+        ) = algebraist.as_tuple(12)
 
     def __repr__(self) -> str:
         allocate_state_name = getattr(self.allocate_state, "__qualname__", type(self.allocate_state).__name__)

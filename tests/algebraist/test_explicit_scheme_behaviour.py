@@ -6,16 +6,8 @@ import numpy as np
 import pytest
 
 from stark import Executor, Integrator, Interval, Marcher, Tolerance
-from stark.algebraist.classic import Algebraist, AlgebraistField, AlgebraistLooped
 from stark.schemes.explicit_adaptive.cash_karp import SchemeCashKarp
 from stark.schemes.explicit_fixed.rk4 import SchemeRK4
-
-
-def make_algebraist() -> Algebraist:
-    return Algebraist(
-        fields=(AlgebraistField("dy", "y", policy=AlgebraistLooped(rank=1)),),
-        generate_norm="l2",
-    )
 
 
 @dataclass(slots=True)
@@ -226,31 +218,6 @@ def run_adaptive_solve(
         steps += 1
 
     return state, steps, interval.step
-
-
-def test_classic_algebraist_generated_source_is_inspectable() -> None:
-    algebraist = make_algebraist()
-
-    assert algebraist.sources
-    assert algebraist.kernel_sources
-    assert algebraist.wrapper_sources
-    assert "apply" in algebraist.sources
-    assert "apply_kernel" in algebraist.sources
-    assert "norm" in algebraist.sources
-    assert "norm_kernel" in algebraist.sources
-
-    algebraist.bind_explicit_scheme(SchemeRK4.tableau)
-
-    assert "stage1_state" in algebraist.sources
-    assert "stage1_state_kernel" in algebraist.sources
-    assert "solution_state" in algebraist.sources
-    assert "solution_state_kernel" in algebraist.sources
-    assert "solution_combine" in algebraist.sources
-    assert "solution_combine_kernel" in algebraist.sources
-
-    for source in algebraist.sources.values():
-        assert isinstance(source, str)
-        assert source.startswith("def ")
 
 
 def test_non_algebraist_scheme_does_not_carry_generated_source_state() -> None:
