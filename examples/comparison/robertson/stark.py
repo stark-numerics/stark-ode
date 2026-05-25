@@ -193,11 +193,10 @@ def _prepare_solver(name, marcher, integrate, problem_parameters, stark_paramete
     return solve_once
 
 class RobertsonFullCubicResolvent:
-    __slots__ = ("tableau", "state", "cubic")
+    __slots__ = ("tableau", "cubic")
 
     def __init__(self, tableau=None) -> None:
         self.tableau = tableau
-        self.state = None
         self.cubic = RobertsonCubicRoot()
 
     def __repr__(self) -> str:
@@ -206,13 +205,12 @@ class RobertsonFullCubicResolvent:
     __str__ = __repr__
 
     def bind(self, interval, state) -> None:
-        del interval
-        self.state = state
+        del interval, state
 
-    def __call__(self, alpha, rhs, out) -> None:
-        state = self.state
-        if state is None:
-            raise RuntimeError("RobertsonFullCubicResolvent must be bound before use.")
+    def __call__(self, problem, out) -> None:
+        state = problem.origin
+        alpha = problem.alpha
+        rhs = problem.rhs
 
         delta = out[0]
         if alpha == 0.0:
@@ -321,8 +319,6 @@ def prepare_kvaerno4_full_custom(problem_parameters, stark_parameters, initial_c
         initial_conditions,
         reference,
     )
-
-
 
 
 

@@ -101,17 +101,17 @@ class AllenCahnSpectralResolvent:
         inv_dx2 = 1.0 / (geometry.dx * geometry.dx)
         self.operator_symbol = diffusivity * 2.0 * (np.cos(theta) - 1.0) * inv_dx2
         self.spectrum = np.zeros(geometry.grid_size, dtype=np.complex128)
-        self.state_u: np.ndarray | None = None
 
     def bind(self, interval: Interval, state: StarkVector) -> None:
-        del interval
-        # The scheme binds the resolvent at the start of a step so the stage
-        # solve can see the base state x_n.
-        self.state_u = state.value
+        # The current resolvent contract passes the stage problem directly to
+        # `__call__`; this method remains as a no-op for older display text and
+        # custom resolvent examples that still mention binding.
+        del interval, state
 
-    def __call__(self, alpha: float, rhs, out) -> None:
-        base_u = self.state_u
-        assert base_u is not None
+    def __call__(self, problem, out) -> None:
+        base_u = problem.origin.value
+        alpha = problem.alpha
+        rhs = problem.rhs
 
         # The stage equation presented by STARK is
         #

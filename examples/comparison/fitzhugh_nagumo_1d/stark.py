@@ -402,11 +402,10 @@ def _imex_derivative(parameters: FitzHughNagumoParameters) -> ImExDerivative:
 
 
 class FitzHughNagumoSpectralResolvent:
-    __slots__ = ("tableau", "state", "operator_symbol", "u_hat")
+    __slots__ = ("tableau", "operator_symbol", "u_hat")
 
     def __init__(self, parameters: FitzHughNagumoParameters, tableau=None) -> None:
         self.tableau = tableau
-        self.state: FitzHughNagumoState | None = None
         theta = 2.0 * np.pi * np.fft.fftfreq(parameters.grid_size)
         self.operator_symbol = parameters.diffusivity_u * 2.0 * (np.cos(theta) - 1.0) * parameters.inv_dx2
         self.u_hat = np.zeros(parameters.grid_size, dtype=np.complex128)
@@ -417,21 +416,25 @@ class FitzHughNagumoSpectralResolvent:
     __str__ = __repr__
 
     def bind(self, interval: Interval, state: FitzHughNagumoState) -> None:
-        del interval
-        self.state = state
+        del interval, state
 
-    def __call__(self, alpha: float, rhs, out) -> None:
-        del rhs
-        state = self.state
-        if state is None:
-            raise RuntimeError("FitzHughNagumoSpectralResolvent must be bound before use.")
+    def __call__(self, problem, out) -> None:
+        state = problem.origin
+        alpha = problem.alpha
+        rhs = problem.rhs
         delta = out[0]
         if alpha == 0.0:
-            delta.du.fill(0.0)
+            if rhs is None:
+                delta.du.fill(0.0)
+            else:
+                np.copyto(delta.du, rhs[0].du)
             delta.dv.fill(0.0)
             return
 
-        np.copyto(self.u_hat, np.fft.fft(state.u))
+        if rhs is None:
+            np.copyto(self.u_hat, np.fft.fft(state.u))
+        else:
+            np.copyto(self.u_hat, np.fft.fft(state.u + rhs[0].du))
         denominator = 1.0 - alpha * self.operator_symbol
         self.u_hat /= denominator
         resolved_u = np.fft.ifft(self.u_hat).real
@@ -614,8 +617,6 @@ def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParamet
         steps=marcher.steps,
         runtime=runtime,
     )
-
-
 
 
 
