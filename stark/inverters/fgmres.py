@@ -16,7 +16,8 @@ acts on `Block` objects. When no preconditioner is supplied, FGMRES reduces to
 a slightly more general but somewhat more expensive GMRES-like scheme.
 """
 
-from stark.contracts import AcceleratorLike, Block, InnerProduct, InverterPreconditionerLike, Workbench
+from stark.block import Block
+from stark.contracts import AcceleratorLike, InnerProduct, InverterPreconditionerLike, Workbench
 from stark.block.operator import BlockOperator
 from stark.execution.safety import Safety
 from stark.inverters.support.descriptor import InverterDescriptor

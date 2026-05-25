@@ -4,61 +4,71 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
-from stark.auditor import Auditor
-from stark.block.operator import BlockOperator
-from stark.contracts import AcceleratorLike, Block, Derivative, IntervalLike, InverterLike, Linearizer, State, Workbench
+from stark.block import Block, BlockAllocator, BlockOperator
+from stark.contracts import (
+    AcceleratorLike,
+    InverterLike,
+    Linearizer,
+    Translation,
+    Workbench,
+)
 from stark.execution.safety import Safety
 from stark.execution.tolerance import Tolerance
-from stark.machinery.stage_solve.workspace import SchemeWorkspace
-from stark.resolvents.support.descriptor import ResolventDescriptor
-from stark.resolvents.support.failure import ResolventError
-from stark.resolvents.support.policy import ResolventPolicy
 from stark.resolvents.support import (
     MonitorResolventLike,
+    ResolventError,
+    ResolventPolicy,
+    ResolventSpecialist,
+    ResolventStageProblem,
     ResolventStageResidual,
-    check_one_stage_block,
+    ResolventStencilBlock,
     initialise_resolvent_runtime,
-    with_resolvent_binding_methods,
+    refresh_resolvent_call,
+    with_resolvent_call_methods,
     with_resolvent_display_methods,
     with_resolvent_monitoring_methods,
 )
-from stark.resolvents.support.workspace import ResolventWorkspace
+from stark.resolvents.support.descriptor import ResolventDescriptor
 from stark.resolvents.support.tolerance import ResolventTolerance
 
 
 @with_resolvent_display_methods
-@with_resolvent_binding_methods
+@with_resolvent_call_methods
 @with_resolvent_monitoring_methods
 class ResolventNewton:
-    """
-    Newton-driven resolvent for one-stage shifted implicit equations.
+    """Newton iteration for one-stage shifted implicit residuals.
 
-    Newton iteration repeatedly linearizes the stage residual, solves the
-    correction equation with the configured inverter, and adds that correction
-    to the current stage increment.
+    Residual equation:
 
-    Further reading:
-    https://en.wikipedia.org/wiki/Newton%27s_method
+        F(delta) = delta - rhs - alpha * f(t, origin + delta)
+
+    Algorithm sketch:
+
+        1. Compute F(delta).
+        2. Accept if ||F(delta)|| is within tolerance.
+        3. Build the differential DF(delta).
+        4. Solve DF(delta) correction = -F(delta).
+        5. Apply the Newton update delta <- delta + correction.
+        6. Recheck once after the final correction.
     """
 
     __slots__ = (
         "_monitor",
-        "alpha",
         "accelerator",
+        "alpha",
+        "allocator",
+        "call_pure",
         "correction",
-        "interval",
         "inverter",
+        "newton_update",
         "operator",
         "policy",
         "redirect_call",
         "residual",
         "residual_buffer",
-        "resolvent_workspace",
         "rhs_buffer",
         "safety",
-        "scheme_workspace",
         "size",
-        "state",
         "tableau",
         "tolerance",
     )
@@ -66,16 +76,8 @@ class ResolventNewton:
     descriptor = ResolventDescriptor("Newton", "Newton Iteration")
 
     if TYPE_CHECKING:
-        def bind(self, interval: IntervalLike, state: State) -> None: ...
-
-        def bind_accelerator(self, accelerator: AcceleratorLike) -> None: ...
-
         def assign_monitor(self, monitor: MonitorResolventLike) -> None: ...
-
         def unassign_monitor(self) -> None: ...
-
-        def call_unbound(self, alpha: float, rhs: Block | None, out: Block) -> None: ...
-
         def record_solve(
             self,
             block_size: int,
@@ -87,7 +89,6 @@ class ResolventNewton:
 
     def __init__(
         self,
-        derivative: Derivative,
         workbench: Workbench,
         linearizer: Linearizer,
         inverter: InverterLike,
@@ -95,107 +96,176 @@ class ResolventNewton:
         policy: ResolventPolicy | None = None,
         safety: Safety | None = None,
         accelerator: AcceleratorLike | None = None,
+        specialist: ResolventSpecialist[Translation] | None = None,
         tableau: Any | None = None,
     ) -> None:
-        translation_probe = workbench.allocate_translation()
-        Auditor.require_scheme_inputs(derivative, workbench, translation_probe)
-        Auditor.require_linearizer_inputs(linearizer, workbench, translation_probe)
-
         self.tableau = tableau
         initialise_resolvent_runtime(self, safety, accelerator)
 
-        self.scheme_workspace = SchemeWorkspace(workbench, translation_probe)
-        self.resolvent_workspace = ResolventWorkspace(
-            workbench,
-            translation_probe,
-            self.safety,
-            accelerator=self.accelerator,
+        self.allocator = BlockAllocator(workbench)
+        self.tolerance = (
+            tolerance
+            if tolerance is not None
+            else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         )
-        self.tolerance = tolerance if tolerance is not None else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         self.policy = policy if policy is not None else ResolventPolicy()
         self.inverter = inverter
         self.residual = ResolventStageResidual(
             "ResolventNewton",
-            derivative,
-            self.scheme_workspace,
+            workbench,
             linearizer=linearizer,
+            accelerator=self.accelerator,
         )
         self.correction = None
         self.residual_buffer = None
         self.rhs_buffer = None
         self.operator = None
+        self.newton_update = None
         self.size = -1
 
-    def check_block_sizes(self, out: Block, rhs: Block | None = None) -> None:
-        check_one_stage_block("out", out)
-        if rhs is not None:
-            check_one_stage_block("rhs", rhs)
+        if specialist is not None:
+            self.prepare_specialized_kernels(specialist)
+            self.call_pure = self.call_specialized
+            refresh_resolvent_call(self)
 
-    def call_checked(self, alpha: float, rhs: Block | None, out: Block) -> None:
-        self.check_block_sizes(out, rhs)
-        self.call_unchecked(alpha, rhs, out)
+    def prepare_specialized_kernels(
+        self,
+        specialist: ResolventSpecialist[Translation],
+    ) -> None:
+        # Step 5: Newton update delta <- delta + correction.
+        self.newton_update = specialist.provide(
+            ResolventStencilBlock((1.0, 1.0))
+        )
 
-    def call_unchecked(self, alpha: float, rhs: Block | None, out: Block) -> None:
-        interval = cast(IntervalLike, self.interval)
-        state = cast(State, self.state)
-
-        self.alpha = alpha
-        self.residual.configure(interval, state, alpha, rhs=rhs)
-        self.resolvent_workspace.zero_block(out)
-        self.resolve(out)
-
-    def prepare(self, size: int) -> None:
+    def prepare_buffers(self, delta: Block[Translation]) -> None:
+        size = len(delta)
         if self.size == size:
             return
+
         self.size = size
-        self.correction = self.resolvent_workspace.allocate_block(size)
-        self.residual_buffer = self.resolvent_workspace.allocate_block(size)
-        self.rhs_buffer = self.resolvent_workspace.allocate_block(size)
-        self.operator = BlockOperator([None for _ in range(size)], check_sizes=self.safety.block_sizes)  # type: ignore[list-item]
+        self.correction = self.allocator.allocate_like(delta)
+        self.residual_buffer = self.allocator.allocate_like(delta)
+        self.rhs_buffer = self.allocator.allocate_like(delta)
+        self.operator = BlockOperator(None for _ in range(size))
 
-    def resolve_operator(self, size: int):
-        custom_operator = getattr(self.residual, "block_operator", None)
-        if custom_operator is not None:
-            return custom_operator
-        self.prepare(size)
-        return cast(BlockOperator, self.operator)
-
-    def resolve(self, block: Block) -> None:
+    def call_inline(
+        self,
+        problem: ResolventStageProblem,
+        delta: Block[Translation],
+    ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
             raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
 
-        self.prepare(len(block))
-        correction = cast(Block, self.correction)
-        residual_buffer = cast(Block, self.residual_buffer)
-        rhs_buffer = cast(Block, self.rhs_buffer)
-        operator = self.resolve_operator(len(block))
+        self.alpha = problem.alpha
+        self.prepare_buffers(delta)
 
-        block_size = len(block)
+        F = self.residual
+        F.configure(problem)
+        correction = cast(Block[Translation], self.correction)
+        residual = cast(Block[Translation], self.residual_buffer)
+        rhs = cast(Block[Translation], self.rhs_buffer)
+        operator = cast(BlockOperator[Translation], self.operator)
+
+        block_size = len(delta)
         iteration_count = 0
 
         for _ in range(self.policy.max_iterations):
-            self.residual(block, residual_buffer)
-            error = residual_buffer.norm()
-            scale = block.norm()
+            # 1. Compute F(delta).
+            F(delta, residual)
+
+            # 2. Accept if ||F(delta)|| is within tolerance.
+            error = residual.norm()
+            scale = delta.norm()
             if self.tolerance.accepts(error, scale):
                 self.record_solve(block_size, iteration_count, error, scale, True)
-                return
+                return delta
 
+            # 3. Build the differential DF(delta).
             operator.reset()
-            self.residual.linearize(block, operator)
-            self.resolvent_workspace.combine2_block(0.0, residual_buffer, -1.0, residual_buffer, rhs_buffer)
-            self.resolvent_workspace.zero_block(correction)
+            F.differential(delta, operator)
+
+            # 4. Solve DF(delta) correction = -F(delta).
+            rhs.replace(-1.0 * residual)
+            correction.replace(0.0 * correction)
             self.inverter.bind(operator)
-            self.inverter(rhs_buffer, correction)
-            self.resolvent_workspace.combine2_block(1.0, block, 1.0, correction, block)
+            self.inverter(rhs, correction)
+
+            # 5. Newton update: delta <- delta + correction.
+            delta += correction
             iteration_count += 1
 
-        self.residual(block, residual_buffer)
-        error = residual_buffer.norm()
-        scale = block.norm()
+        # 6. Recheck once after the final correction.
+        F(delta, residual)
+
+        error = residual.norm()
+        scale = delta.norm()
         if self.tolerance.accepts(error, scale):
             self.record_solve(block_size, iteration_count, error, scale, True)
-            return
+            return delta
+
+        self.record_solve(block_size, iteration_count, error, scale, False)
+        raise ResolventError(
+            f"{type(self).__name__} failed to resolve the residual within "
+            f"{self.policy.max_iterations} iterations (error={error:g})."
+        )
+
+    def call_specialized(
+        self,
+        problem: ResolventStageProblem,
+        delta: Block[Translation],
+    ) -> Block[Translation]:
+        if self.policy.max_iterations < 1:
+            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
+
+        self.alpha = problem.alpha
+        self.prepare_buffers(delta)
+
+        F = self.residual
+        F.configure(problem)
+        correction = cast(Block[Translation], self.correction)
+        residual = cast(Block[Translation], self.residual_buffer)
+        rhs = cast(Block[Translation], self.rhs_buffer)
+        operator = cast(BlockOperator[Translation], self.operator)
+        newton_update = self.newton_update
+        assert newton_update is not None
+
+        block_size = len(delta)
+        iteration_count = 0
+
+        for _ in range(self.policy.max_iterations):
+            # 1. Compute F(delta).
+            F(delta, residual)
+
+            # 2. Accept if ||F(delta)|| is within tolerance.
+            error = residual.norm()
+            scale = delta.norm()
+            if self.tolerance.accepts(error, scale):
+                self.record_solve(block_size, iteration_count, error, scale, True)
+                return delta
+
+            # 3. Build the differential DF(delta).
+            operator.reset()
+            F.differential(delta, operator)
+
+            # 4. Solve DF(delta) correction = -F(delta).
+            rhs.replace(-1.0 * residual)
+            correction.replace(0.0 * correction)
+            self.inverter.bind(operator)
+            self.inverter(rhs, correction)
+
+            # 5. Newton update: delta <- delta + correction.
+            newton_update(1.0, delta, delta, correction)
+            iteration_count += 1
+
+        # 6. Recheck once after the final correction.
+        F(delta, residual)
+
+        error = residual.norm()
+        scale = delta.norm()
+        if self.tolerance.accepts(error, scale):
+            self.record_solve(block_size, iteration_count, error, scale, True)
+            return delta
+
         self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
             f"{type(self).__name__} failed to resolve the residual within "

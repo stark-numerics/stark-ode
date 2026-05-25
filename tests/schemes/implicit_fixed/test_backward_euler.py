@@ -56,7 +56,6 @@ def constant_rhs(
 def make_scheme() -> SchemeBackwardEuler:
     workbench = ScalarWorkbench()
     resolvent = ResolventPicard(
-        constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -78,7 +77,7 @@ def test_backward_euler_default_call_path_is_scheme_owned_generic_call() -> None
     scheme = make_scheme()
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeBackwardEuler.call_generic
+    assert scheme.call_pure.__func__ is SchemeBackwardEuler.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 

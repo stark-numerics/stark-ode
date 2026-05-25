@@ -6,14 +6,14 @@ import cupy as cp
 from stark.carriers.cupy.storage import CarrierCupyValue
 
 
-class CupyModule(Protocol):
+class HintCupyModule(Protocol):
     def abs(self, value: CarrierCupyValue) -> CarrierCupyValue: ...
     def max(self, value: CarrierCupyValue) -> CarrierCupyValue: ...
     def mean(self, value: CarrierCupyValue) -> CarrierCupyValue: ...
     def sqrt(self, value: CarrierCupyValue) -> CarrierCupyValue: ...
 
 
-cupy = cast(CupyModule, cp)
+cupy = cast(HintCupyModule, cp)
 
 
 @dataclass(frozen=True)

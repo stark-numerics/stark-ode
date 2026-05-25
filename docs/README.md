@@ -336,7 +336,7 @@ The easiest way to do that is with `Algebraist`, which generates inspectable
 fast paths from field metadata:
 
 ```python
-from stark.algebraist import Algebraist, AlgebraistField, AlgebraistLooped
+from stark.algebraist.classic import Algebraist, AlgebraistField, AlgebraistLooped
 
 ALGEBRAIST = Algebraist(
     fields=(

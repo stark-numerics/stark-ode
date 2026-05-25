@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from stark import Executor, Integrator, Interval, Marcher, Tolerance
-from stark.algebraist import Algebraist, AlgebraistField, AlgebraistLooped
 from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.schemes.explicit_adaptive.cash_karp import SchemeCashKarp
 from stark.schemes.explicit_adaptive.dormand_prince import SchemeDormandPrince
@@ -22,12 +21,6 @@ from stark.schemes.explicit_fixed.rk4 import SchemeRK4
 from stark.schemes.explicit_fixed.ssprk33 import SchemeSSPRK33
 
 
-ALGEBRAIST = Algebraist(
-    fields=(AlgebraistField("dy", "y", policy=AlgebraistLooped(rank=1)),),
-    generate_norm="l2",
-)
-
-
 @dataclass(slots=True)
 class ArrayState:
     y: np.ndarray
@@ -37,9 +30,11 @@ class ArrayState:
 class ArrayTranslation:
     dy: np.ndarray
 
-    linear_combine = ALGEBRAIST.linear_combine
-    __call__ = ALGEBRAIST.apply
-    norm = ALGEBRAIST.norm
+    def __call__(self, origin: ArrayState, result: ArrayState) -> None:
+        result.y[...] = origin.y + self.dy
+
+    def norm(self) -> float:
+        return float(np.linalg.norm(self.dy))
 
     def __add__(self, other: "ArrayTranslation") -> "ArrayTranslation":
         return ArrayTranslation(self.dy + other.dy)
@@ -73,6 +68,57 @@ class ArrayDerivative:
         )
 
 
+class ArraySpecialist:
+    def provide(self, stencil):
+        coefficients = tuple(stencil.coefficients)
+        stencil_scale = stencil.scale
+
+        if stencil.apply:
+            def apply_kernel(
+                step: float,
+                origin,
+                *terms,
+            ):
+                *translations, result = terms
+                delta = _combine_delta(step, stencil_scale, coefficients, translations)
+                delta(origin, result)
+                return result
+
+            return apply_kernel
+
+        def delta_kernel(
+            step: float,
+            *terms,
+        ):
+            *translations, out = terms
+            delta = _combine_delta(step, stencil_scale, coefficients, translations)
+            out.dy[...] = delta.dy
+            return out
+
+        return delta_kernel
+
+
+def _combine_delta(
+    step: float,
+    stencil_scale: float,
+    coefficients: tuple[float, ...],
+    translations: tuple[ArrayTranslation, ...],
+) -> ArrayTranslation:
+    if len(coefficients) != len(translations):
+        raise AssertionError(
+            f"stencil arity {len(coefficients)} received "
+            f"{len(translations)} translation(s)"
+        )
+
+    if not translations:
+        return ArrayTranslation(np.zeros(3))
+
+    total = 0.0 * translations[0]
+    for coefficient, translation in zip(coefficients, translations, strict=True):
+        total = total + (step * stencil_scale * coefficient) * translation
+    return total
+
+
 FIXED_SCHEMES = [
     SchemeEuler,
     SchemeHeun,
@@ -83,7 +129,6 @@ FIXED_SCHEMES = [
     SchemeRK38,
     SchemeRK4,
 ]
-
 
 ADAPTIVE_SCHEMES = [
     SchemeBogackiShampine,
@@ -98,10 +143,10 @@ def build_state() -> ArrayState:
     return ArrayState(np.array([1.0, -0.5, 0.25]))
 
 
-def run_fixed_step(scheme_type, *, algebraist: Algebraist | None = None) -> ArrayState:
+def run_fixed_step(scheme_type, *, specialist=None) -> ArrayState:
     state = build_state()
     interval = Interval(0.0, 0.05, 0.05)
-    scheme = scheme_type(ArrayDerivative(), ArrayWorkbench(3), algebraist=algebraist)
+    scheme = scheme_type(ArrayDerivative(), ArrayWorkbench(3), specialist=specialist)
 
     accepted_dt = scheme(interval, state, Executor())
 
@@ -109,10 +154,10 @@ def run_fixed_step(scheme_type, *, algebraist: Algebraist | None = None) -> Arra
     return state
 
 
-def run_adaptive_solve(scheme_type, *, algebraist: Algebraist | None = None) -> tuple[ArrayState, int, float]:
+def run_adaptive_solve(scheme_type, *, specialist=None) -> tuple[ArrayState, int, float]:
     state = build_state()
     interval = Interval(0.0, 0.05, 0.25)
-    scheme = scheme_type(ArrayDerivative(), ArrayWorkbench(3), algebraist=algebraist)
+    scheme = scheme_type(ArrayDerivative(), ArrayWorkbench(3), specialist=specialist)
     marcher = Marcher(scheme, Executor(tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-10)))
     integrator = Integrator(executor=marcher.executor)
 
@@ -125,32 +170,35 @@ def run_adaptive_solve(scheme_type, *, algebraist: Algebraist | None = None) -> 
 
 
 @pytest.mark.parametrize("scheme_type", FIXED_SCHEMES)
-def test_fixed_explicit_scheme_algebraist_path_matches_generic_path(scheme_type):
-    generic = run_fixed_step(scheme_type)
-    algebraist = run_fixed_step(scheme_type, algebraist=ALGEBRAIST)
+def test_fixed_explicit_scheme_specialist_path_matches_inline_path(scheme_type):
+    inline = run_fixed_step(scheme_type)
+    specialist = run_fixed_step(scheme_type, specialist=ArraySpecialist())
 
-    np.testing.assert_allclose(algebraist.y, generic.y, rtol=1.0e-14, atol=1.0e-14)
+    np.testing.assert_allclose(specialist.y, inline.y, rtol=1.0e-14, atol=1.0e-14)
 
 
 @pytest.mark.parametrize("scheme_type", ADAPTIVE_SCHEMES)
-def test_adaptive_explicit_scheme_algebraist_path_matches_generic_path(scheme_type):
-    generic_state, generic_steps, generic_next_step = run_adaptive_solve(scheme_type)
-    algebraist_state, algebraist_steps, algebraist_next_step = run_adaptive_solve(
+def test_adaptive_explicit_scheme_specialist_path_matches_inline_path(scheme_type):
+    inline_state, inline_steps, inline_next_step = run_adaptive_solve(scheme_type)
+    specialist_state, specialist_steps, specialist_next_step = run_adaptive_solve(
         scheme_type,
-        algebraist=ALGEBRAIST,
+        specialist=ArraySpecialist(),
     )
 
-    assert algebraist_steps == generic_steps
-    assert algebraist_next_step == pytest.approx(generic_next_step, rel=1.0e-14, abs=1.0e-14)
-    np.testing.assert_allclose(algebraist_state.y, generic_state.y, rtol=1.0e-14, atol=1.0e-14)
+    assert specialist_steps == inline_steps
+    assert specialist_next_step == pytest.approx(inline_next_step, rel=1.0e-14, abs=1.0e-14)
+    np.testing.assert_allclose(specialist_state.y, inline_state.y, rtol=1.0e-14, atol=1.0e-14)
 
 
-def test_adaptive_scheme_algebraist_binding_selects_scheme_owned_call_algebraist():
-    scheme = SchemeCashKarp(ArrayDerivative(), ArrayWorkbench(3), algebraist=ALGEBRAIST)
+def test_adaptive_scheme_specialist_binding_selects_scheme_owned_call_specialized():
+    scheme = SchemeCashKarp(
+        ArrayDerivative(),
+        ArrayWorkbench(3),
+        specialist=ArraySpecialist(),
+    )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeCashKarp.call_algebraist
-
+    assert scheme.call_pure.__func__ is SchemeCashKarp.call_specialized
     # Adaptive schemes still bind executor runtime lazily on first call.
     assert scheme.redirect_call.__self__ is scheme
     assert scheme.redirect_call.__func__ is scheme.call_bind.__func__

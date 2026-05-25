@@ -6,7 +6,7 @@ import pytest
 
 from stark.accelerators import Accelerator
 from stark.block.operator import BlockOperator
-from stark.contracts import Block
+from stark.block import Block
 from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
 from stark.inverters.support.policy import InverterPolicy
 from stark.inverters.support.tolerance import InverterTolerance
@@ -224,13 +224,3 @@ def test_built_in_inverters_hold_an_explicit_accelerator(inverter_type) -> None:
     inverter = inverter_type(ScalarWorkbench(), scalar_inner_product, accelerator=accelerator)
 
     assert inverter.accelerator is accelerator
-
-
-
-
-
-
-
-
-
-

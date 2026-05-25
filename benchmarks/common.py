@@ -5,7 +5,9 @@ from math import sqrt
 
 import numpy as np
 
-from stark.algebraist import Algebraist, AlgebraistField, AlgebraistLooped
+from stark.algebraist.arity import AlgebraistArity
+from stark.algebraist.generator import AlgebraistGeneratorGeneral
+from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
 
 
 FPUT_SIZES = (64, 512, 2048)
@@ -21,12 +23,11 @@ class FPUTParameters:
     amplitude: float = 0.1
 
 
-FPUT_ALGEBRAIST = Algebraist(
+FPUT_ALGEBRAIST_LAYOUT = AlgebraistLayout(
     fields=(
-        AlgebraistField("dq", "q", policy=AlgebraistLooped(rank=1)),
-        AlgebraistField("dp", "p", policy=AlgebraistLooped(rank=1)),
+        AlgebraistLayoutField("dq", "q", policy=AlgebraistLayoutLooped(rank=1)),
+        AlgebraistLayoutField("dp", "p", policy=AlgebraistLayoutLooped(rank=1)),
     ),
-    generate_norm="l2",
 )
 
 
@@ -44,15 +45,17 @@ class FPUTState:
 class FPUTTranslation:
     __slots__ = ("dq", "dp")
 
-    linear_combine = FPUT_ALGEBRAIST.linear_combine
-    __call__ = FPUT_ALGEBRAIST.apply
-
     def __init__(self, dq: np.ndarray, dp: np.ndarray) -> None:
         self.dq = dq
         self.dp = dp
 
+    def __call__(self, origin: FPUTState, result: FPUTState) -> None:
+        result.q[...] = origin.q + self.dq
+        result.p[...] = origin.p + self.dp
+
     def norm(self) -> float:
-        return float(FPUT_ALGEBRAIST.norm(self) / sqrt(self.dq.size))
+        energy = np.dot(self.dq.ravel(), self.dq.ravel()) + np.dot(self.dp.ravel(), self.dp.ravel())
+        return sqrt(float(energy) / self.dq.size)
 
     def __add__(self, other: "FPUTTranslation") -> "FPUTTranslation":
         return FPUTTranslation(self.dq + other.dq, self.dp + other.dp)
@@ -66,6 +69,8 @@ class FPUTWorkbench:
 
     def __init__(self, parameters: FPUTParameters) -> None:
         self.chain_size = parameters.chain_size
+        if not hasattr(FPUTTranslation, "linear_combine"):
+            FPUTTranslation.linear_combine = _generated_fput_linear_combine(self)
 
     def allocate_state(self) -> FPUTState:
         return FPUTState(
@@ -82,6 +87,15 @@ class FPUTWorkbench:
             np.zeros(self.chain_size, dtype=np.float64),
             np.zeros(self.chain_size, dtype=np.float64),
         )
+
+
+def _generated_fput_linear_combine(workbench: FPUTWorkbench):
+    provider = AlgebraistGeneratorGeneral(
+        translation=workbench.allocate_translation(),
+        workbench=workbench,
+        layout=FPUT_ALGEBRAIST_LAYOUT,
+    )
+    return tuple(provider.provide(AlgebraistArity(arity)) for arity in range(1, 13))
 
 
 class FPUTDerivative:

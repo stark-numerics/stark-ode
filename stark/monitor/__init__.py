@@ -1,4 +1,4 @@
-from stark.monitor.core import Monitor, MonitorSummary
+from stark.monitor.monitor import Monitor, MonitorSummary
 from stark.monitor.inverter import (
     MonitorInverter,
     MonitorInverterSolve,

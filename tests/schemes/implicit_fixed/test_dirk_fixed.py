@@ -7,13 +7,7 @@ import pytest
 
 from stark import Executor, Interval, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist import (
-    Algebraist,
-    AlgebraistBroadcast,
-    AlgebraistField,
-    AlgebraistLooped,
-    AlgebraistSmallFixed,
-)
+from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.resolvents import ResolventPicard
 from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.implicit_fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
@@ -114,7 +108,6 @@ def array_constant_rhs(
 def make_scheme() -> SchemeCrouzeixDIRK3:
     workbench = ScalarWorkbench()
     resolvent = ResolventPicard(
-        constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -130,11 +123,10 @@ def make_scheme() -> SchemeCrouzeixDIRK3:
 
 def make_array_scalar_scheme(
     *,
-    algebraist: Algebraist | None = None,
+    specialist: bool = False,
 ) -> SchemeCrouzeixDIRK3:
     workbench = ArrayScalarWorkbench()
     resolvent = ResolventPicard(
-        array_constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -145,7 +137,14 @@ def make_array_scalar_scheme(
         array_constant_rhs,
         workbench,
         resolvent=resolvent,
-        algebraist=algebraist,
+        specialist=(
+            AlgebraistRuntimeSpecialist(
+                translation=workbench.allocate_translation(),
+                workbench=workbench,
+            )
+            if specialist
+            else None
+        ),
     )
 
 
@@ -157,27 +156,15 @@ def test_crouzeix_dirk3_default_call_path_is_scheme_owned_generic_call() -> None
     scheme = make_scheme()
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeCrouzeixDIRK3.call_generic
+    assert scheme.call_pure.__func__ is SchemeCrouzeixDIRK3.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 
-@pytest.mark.parametrize(
-    "field",
-    [
-        AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
-        AlgebraistField("value", "value", policy=AlgebraistLooped(rank=1)),
-        AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
-    ],
-)
-def test_crouzeix_dirk3_algebraist_path_is_scheme_owned_generated_call(
-    field: AlgebraistField,
-) -> None:
-    scheme = make_array_scalar_scheme(
-        algebraist=Algebraist(fields=(field,))
-    )
+def test_crouzeix_dirk3_specialist_path_is_scheme_owned_generated_call() -> None:
+    scheme = make_array_scalar_scheme(specialist=True)
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeCrouzeixDIRK3.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeCrouzeixDIRK3.call_specialized
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -215,20 +202,9 @@ def test_crouzeix_dirk3_call_performs_one_constant_rhs_step() -> None:
     assert interval.step == pytest.approx(0.125)
 
 
-@pytest.mark.parametrize(
-    "field",
-    [
-        AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
-        AlgebraistField("value", "value", policy=AlgebraistLooped(rank=1)),
-        AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
-    ],
-)
-def test_crouzeix_dirk3_algebraist_path_matches_generic_path(
-    field: AlgebraistField,
-) -> None:
-    algebraist = Algebraist(fields=(field,))
+def test_crouzeix_dirk3_specialist_path_matches_generic_path() -> None:
     generic = make_array_scalar_scheme()
-    generated = make_array_scalar_scheme(algebraist=algebraist)
+    generated = make_array_scalar_scheme(specialist=True)
     generic_interval = Interval(present=0.0, step=0.125, stop=1.0)
     generated_interval = Interval(present=0.0, step=0.125, stop=1.0)
     generic_state = ArrayScalarState.zero()
@@ -242,16 +218,13 @@ def test_crouzeix_dirk3_algebraist_path_matches_generic_path(
     assert generated_interval.step == pytest.approx(generic_interval.step)
 
 
-def test_crouzeix_dirk3_algebraist_source_is_inspectable() -> None:
-    algebraist = Algebraist(fields=(AlgebraistField("value", "value"),))
+def test_crouzeix_dirk3_specialist_kernels_are_prepared() -> None:
+    scheme = make_array_scalar_scheme(specialist=True)
 
-    make_array_scalar_scheme(algebraist=algebraist)
-
-    assert "known2_combine" in algebraist.sources
-    assert "known3_combine" in algebraist.sources
-    assert "known4_combine" in algebraist.sources
-    assert "final_delta_combine" in algebraist.sources
-    assert "error_delta_combine" not in algebraist.sources
+    assert callable(scheme.known2_kernel)
+    assert callable(scheme.known3_kernel)
+    assert callable(scheme.known4_kernel)
+    assert callable(scheme.final_update)
 
 
 def test_crouzeix_dirk3_call_clips_to_remaining_interval() -> None:

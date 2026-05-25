@@ -87,7 +87,6 @@ if __name__ == "__main__":
         safety=executor.safety,
     )
     newton_resolvent = ResolventNewton(
-        full_derivative,
         workbench,
         linearizer=linearizer,
         inverter=inverter,

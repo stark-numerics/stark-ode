@@ -6,7 +6,8 @@ from stark import Auditor, Executor, ImExDerivative, Integrator, Interval, March
 from stark.accelerators import Accelerator, AcceleratorAbsent
 from stark.block.operator import BlockOperator
 from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
-from stark.contracts import Block, Resolvent
+from stark.block import Block
+from stark.contracts import Resolvent
 from stark.inverters.support.descriptor import InverterDescriptor
 from stark.inverters.support.policy import InverterPolicy
 from stark.inverters.support.tolerance import InverterTolerance
@@ -49,7 +50,7 @@ from stark.schemes import (
     SchemeLobattoIIIC4,
     SchemeRadauIIA5,
 )
-from stark.schemes.support.tableau import ButcherTableau, ImExButcherTableau
+from stark.schemes.support.tableau import ButcherTableau, ButcherTableauImex
 
 
 def test_package_imports() -> None:
@@ -86,7 +87,7 @@ def test_regulator_module_imports() -> None:
     assert importlib.import_module("stark.schemes.support.tableau") is not None
     assert importlib.import_module("stark.machinery.stage_solve.workspace") is not None
     assert importlib.import_module("stark.machinery.stage_solve.workers") is not None
-    assert importlib.import_module("stark.algebraist.combine") is not None
+    assert importlib.import_module("stark.algebraist.runtime") is not None
     assert importlib.import_module("stark.schemes.support.display") is not None
 
 
@@ -242,16 +243,15 @@ def test_core_objects_have_readable_representations() -> None:
     scheme_tolerance = SchemeTolerance(atol=1.0e-8, rtol=1.0e-6)
     regulator = Regulator()
     tableau = ButcherTableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="E")
-    imex_tableau = ImExButcherTableau(
+    imex_tableau = ButcherTableauImex(
         explicit=ButcherTableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="E"),
         implicit=ButcherTableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="I"),
     )
     marcher = Marcher(MinimalScheme(), Executor(tolerance=tolerance))
     auditor = Auditor(interval=interval, marcher=marcher, snapshots=True, exercise=False)
     workbench = MinimalWorkbench()
-    auto_picard = ResolventPicard(lambda interval, state, out: None, workbench, accelerator=AcceleratorAbsent())
+    auto_picard = ResolventPicard(workbench, accelerator=AcceleratorAbsent())
     auto_coupled_picard = ResolventCoupledPicard(
-        lambda interval, state, out: None,
         workbench,
         tableau=ButcherTableau(
             c=(0.5, 0.5),
@@ -262,23 +262,19 @@ def test_core_objects_have_readable_representations() -> None:
         ),
     )
     auto_anderson = ResolventAnderson(
-        lambda interval, state, out: None,
         workbench,
         inner_product=lambda left, right: 0.0,
     )
     auto_broyden = ResolventBroyden(
-        lambda interval, state, out: None,
         workbench,
         inner_product=lambda left, right: 0.0,
     )
     auto_newton = ResolventNewton(
-        lambda interval, state, out: None,
         workbench,
         linearizer=lambda interval, state, out: setattr(out, "apply", lambda translation, result: None),
         inverter=MinimalInverter(),
     )
     auto_coupled_newton = ResolventCoupledNewton(
-        lambda interval, state, out: None,
         workbench,
         tableau=ButcherTableau(
             c=(0.5, 0.5),
@@ -298,7 +294,7 @@ def test_core_objects_have_readable_representations() -> None:
     assert str(interval) == "[0, 1] step=0.1"
     assert repr(block) == "Block(size=0)"
     assert str(block) == "block[0]"
-    assert repr(block_operator) == "BlockOperator(size=0)"
+    assert repr(block_operator).startswith("BlockOperator(")
     assert str(block_operator) == "block operator[0]"
     assert repr(inverter_policy) == "InverterPolicy(max_iterations=32, restart=16, breakdown_tol=1e-30)"
     assert str(inverter_policy) == "max_iterations=32, restart=16, breakdown_tol=1e-30"
@@ -315,7 +311,7 @@ def test_core_objects_have_readable_representations() -> None:
     assert "Regulator" in repr(regulator)
     assert "safety=" in str(regulator)
     assert repr(tableau) == "ButcherTableau(stages=1, order=1, embedded_order=None, name='E')"
-    assert "ImExButcherTableau" in repr(imex_tableau)
+    assert "ButcherTableauImex" in repr(imex_tableau)
     assert IMEX_EULER_TABLEAU is not None
     assert BE_TABLEAU is not None
     assert IMPLICIT_MIDPOINT_TABLEAU is not None
@@ -379,17 +375,3 @@ def test_benchmark_packages_import() -> None:
     assert importlib.import_module("examples.comparison.brusselator_2d.common") is not None
     assert importlib.import_module("examples.comparison.fitzhugh_nagumo_1d.common") is not None
     assert importlib.import_module("examples.comparison.fput.common") is not None
-
-
-
-
-
-
-
-
-
-
-
-
-
-

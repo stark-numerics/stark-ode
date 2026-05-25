@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.execution.executor import Executor
 from stark.schemes.support.descriptor import SchemeDescriptor
@@ -12,6 +11,8 @@ from stark.schemes.support import (
     unbound_scheme_call,
     with_scheme_display,
 )
+from stark.schemes.support.specialist import SchemeSpecialist
+from stark.schemes.support.stencil import SchemeStencilTableau
 from stark.schemes.support.tableau import ButcherTableau
 
 
@@ -36,14 +37,23 @@ class SchemeEuler:
     useful as a baseline and for very cheap exploratory integrations, but it is
     only first-order accurate and has a small stability region.
 
+    Algorithm sketch for one accepted step of size h:
+
+        1. k1 = f(t, y)
+        2. y  <- y + h*k1
+
+    The inline path expresses the method directly with workspace arithmetic.
+    The specialized path uses a fixed-coefficient apply kernel prepared from
+    the same tableau weights.
+
     Further reading: https://en.wikipedia.org/wiki/Euler_method
     """
 
     __slots__ = (
         "_monitor",
-        "advance_state",
+        "advance_delta_buffer",
+        "advance_update",
         "call_pure",
-        "delta",
         "derivative",
         "explicit",
         "k1",
@@ -58,18 +68,23 @@ class SchemeEuler:
         self,
         derivative: Derivative,
         workbench: Workbench,
-        algebraist: Algebraist | None = None,
+        specialist: SchemeSpecialist | None = None,
     ) -> None:
-        self.advance_state = unbound_scheme_call
+        self.advance_update = unbound_scheme_call
+
         self._monitor = None
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         self.redirect_call = self.call_pure
+
         initialise_explicit_support(self, derivative, workbench)
-        self.delta = self.workspace.allocate_translation()
+        self.advance_delta_buffer = self.workspace.allocate_translation()
+
         refresh_fixed_step_call(self)
 
-        if algebraist is not None:
-            self.use_algebraist(algebraist)
+        if specialist is not None:
+            self.prepare_specialized_kernels(specialist)
+            self.call_pure = self.call_specialized
+            refresh_fixed_step_call(self)
 
     def __call__(
         self,
@@ -79,13 +94,18 @@ class SchemeEuler:
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def use_algebraist(self, algebraist: Algebraist) -> None:
-        calls = algebraist.bind_explicit_scheme(self.tableau)
-        self.advance_state = calls.solution_state_call
-        self.call_pure = self.call_algebraist
-        refresh_fixed_step_call(self)
+    def prepare_specialized_kernels(
+        self,
+        specialist: SchemeSpecialist,
+    ) -> None:
+        """Prepare fixed-coefficient kernels for the specialized path."""
 
-    def call_generic(
+        stencils = SchemeStencilTableau(self.tableau)
+
+        # Step 2 advances the accepted state from the tableau's b weights.
+        self.advance_update = specialist.provide(stencils.advance_update())
+
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,
@@ -103,18 +123,20 @@ class SchemeEuler:
         apply_delta = workspace.apply_delta
 
         k1 = self.k1
-        delta_buffer = self.delta
+        advance_delta_buffer = self.advance_delta_buffer
 
         dt = interval.step if interval.step <= remaining else remaining
 
+        # 1. k1 = f(t, y)
         derivative(interval, state, k1)
 
-        delta = scale(dt * EULER_B[0], k1, delta_buffer)
-        apply_delta(delta, state)
+        # 2. y <- y + h*k1
+        advance_delta = scale(dt * EULER_B[0], k1, advance_delta_buffer)
+        apply_delta(advance_delta, state)
 
         return dt
 
-    def call_algebraist(
+    def call_specialized(
         self,
         interval: IntervalLike,
         state: State,
@@ -130,11 +152,14 @@ class SchemeEuler:
 
         k1 = self.k1
         derivative = self.derivative
-        advance_state = self.advance_state
+        advance_update = self.advance_update
 
+        # 1. k1 = f(t, y)
         derivative(interval, state, k1)
 
-        advance_state(state, dt, k1, state)
+        # 2. y <- y + h*k1
+        advance_update(dt, state, k1, state)
+
         return dt
 
 

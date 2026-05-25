@@ -5,13 +5,13 @@ import cupy as cp
 from stark.carriers.cupy.storage import CarrierCupyValue, CarrierStorageCupy
 
 
-class CupyModule(Protocol):
+class HintCupyModule(Protocol):
     def empty(self, shape: tuple[int, ...], dtype: object) -> CarrierCupyValue: ...
     def multiply(self, left: CarrierCupyValue, right: float, *, out: CarrierCupyValue) -> object: ...
     def add(self, left: CarrierCupyValue, right: CarrierCupyValue, *, out: CarrierCupyValue) -> object: ...
 
 
-cupy = cast(CupyModule, cp)
+cupy = cast(HintCupyModule, cp)
 
 
 class CarrierArithmeticCupy:

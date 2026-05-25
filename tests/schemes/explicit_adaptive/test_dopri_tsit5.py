@@ -1,14 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from types import SimpleNamespace
 
-import pytest
-
-from stark import Executor, Integrator, Interval, Marcher, Tolerance
-from stark.monitor import Monitor
-from stark.schemes.explicit_adaptive.dormand_prince import SchemeDormandPrince
-from stark.schemes.explicit_adaptive.tsitouras5 import SchemeTsitouras5
+from stark import Executor, Interval, Tolerance
 
 
 @dataclass(slots=True)
@@ -26,10 +20,10 @@ class ScalarTranslation:
     def norm(self) -> float:
         return abs(self.value)
 
-    def __add__(self, other: ScalarTranslation) -> ScalarTranslation:
+    def __add__(self, other: "ScalarTranslation") -> "ScalarTranslation":
         return ScalarTranslation(self.value + other.value)
 
-    def __rmul__(self, scalar: float) -> ScalarTranslation:
+    def __rmul__(self, scalar: float) -> "ScalarTranslation":
         return ScalarTranslation(scalar * self.value)
 
 
@@ -44,72 +38,55 @@ class ScalarWorkbench:
         return ScalarTranslation()
 
 
-class StubAlgebraist:
-    def bind_explicit_scheme(self, tableau):
-        high_indices = tuple(index for index, weight in enumerate(tableau.b) if weight != 0.0)
-        low = tableau.b_embedded
-        assert low is not None
+class StubSpecialist:
+    def provide(self, stencil):
+        coefficients = tuple(stencil.coefficients)
+        stencil_scale = stencil.scale
 
-        error_weights = tuple(
-            high - embedded for high, embedded in zip(tableau.b, low, strict=True)
-        )
-        error_indices = tuple(
-            index for index, weight in enumerate(error_weights) if weight != 0.0
-        )
+        if stencil.apply:
+            def apply_kernel(
+                step: float,
+                origin,
+                *terms,
+            ):
+                *translations, result = terms
+                delta = _combine_delta(step, stencil_scale, coefficients, translations)
+                delta(origin, result)
+                return result
 
-        def make_stage(stage_index: int):
-            weights = tableau.a[stage_index]
+            return apply_kernel
 
-            def stage_call(
-                state: ScalarState,
-                dt: float,
-                *args,
-            ) -> None:
-                rates = args[:-1]
-                stage = args[-1]
-                stage.value = state.value + dt * sum(
-                    weight * rate.value
-                    for weight, rate in zip(weights, rates, strict=True)
-                )
-
-            return stage_call
-
-        def solution(
-            dt: float,
-            *args,
-        ) -> ScalarTranslation:
-            rates = args[:-1]
-            out = args[-1]
-            out.value = dt * sum(
-                tableau.b[index] * rate.value
-                for index, rate in zip(high_indices, rates, strict=True)
-            )
+        def delta_kernel(
+            step: float,
+            *terms,
+        ):
+            *translations, out = terms
+            delta = _combine_delta(step, stencil_scale, coefficients, translations)
+            out.value = delta.value
             return out
 
-        def error(
-            dt: float,
-            *args,
-        ) -> ScalarTranslation:
-            rates = args[:-1]
-            out = args[-1]
-            out.value = dt * sum(
-                error_weights[index] * rate.value
-                for index, rate in zip(error_indices, rates, strict=True)
-            )
-            return out
+        return delta_kernel
 
-        stages = tuple(
-            None if index == 0 else make_stage(index)
-            for index in range(len(tableau.c))
+
+def _combine_delta(
+    step: float,
+    stencil_scale: float,
+    coefficients: tuple[float, ...],
+    translations: tuple[ScalarTranslation, ...],
+) -> ScalarTranslation:
+    if len(coefficients) != len(translations):
+        raise AssertionError(
+            f"stencil arity {len(coefficients)} received "
+            f"{len(translations)} translation(s)"
         )
 
-        return SimpleNamespace(
-            stage_state_calls=stages,
-            require_stage_state_call=lambda index, scheme_name: stages[index],
-            solution_delta_call=solution,
-            error_delta_call=error,
-            require_error_delta_call=lambda scheme_name: error,
-        )
+    if not translations:
+        return ScalarTranslation()
+
+    total = 0.0 * translations[0]
+    for coefficient, translation in zip(coefficients, translations, strict=True):
+        total = total + (step * stencil_scale * coefficient) * translation
+    return total
 
 
 def zero_rhs(
@@ -134,38 +111,28 @@ def tight_executor() -> Executor:
     return Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
-@pytest.mark.parametrize(
-    "scheme_cls",
-    [
-        SchemeDormandPrince,
-        SchemeTsitouras5,
-    ],
-)
+import pytest
+
+from stark import Integrator, Interval, Marcher
+from stark.monitor import Monitor
+from stark.schemes.explicit_adaptive.dormand_prince import SchemeDormandPrince
+from stark.schemes.explicit_adaptive.tsitouras5 import SchemeTsitouras5
+
+
+@pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])
 def test_dopri_tsit5_scheme_owns_its_public_call_method(scheme_cls) -> None:
     assert "__call__" in scheme_cls.__dict__
 
 
-@pytest.mark.parametrize(
-    "scheme_cls",
-    [
-        SchemeDormandPrince,
-        SchemeTsitouras5,
-    ],
-)
-def test_dopri_tsit5_default_call_path_is_scheme_owned_generic_call(scheme_cls) -> None:
+@pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])
+def test_dopri_tsit5_default_call_path_is_scheme_owned_inline_call(scheme_cls) -> None:
     scheme = scheme_cls(zero_rhs, ScalarWorkbench())
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_generic
+    assert scheme.call_pure.__func__ is scheme_cls.call_inline
 
 
-@pytest.mark.parametrize(
-    "scheme_cls",
-    [
-        SchemeDormandPrince,
-        SchemeTsitouras5,
-    ],
-)
+@pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])
 def test_dopri_tsit5_public_call_uses_redirect_call(scheme_cls) -> None:
     scheme = scheme_cls(zero_rhs, ScalarWorkbench())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
@@ -174,7 +141,7 @@ def test_dopri_tsit5_public_call_uses_redirect_call(scheme_cls) -> None:
     def replacement_call(
         replacement_interval: Interval,
         replacement_state: ScalarState,
-        replacement_executor: Executor,
+        replacement_executor,
     ) -> float:
         del replacement_interval, replacement_executor
         replacement_state.value = 42.0
@@ -188,13 +155,7 @@ def test_dopri_tsit5_public_call_uses_redirect_call(scheme_cls) -> None:
     assert state.value == pytest.approx(42.0)
 
 
-@pytest.mark.parametrize(
-    "scheme_cls",
-    [
-        SchemeDormandPrince,
-        SchemeTsitouras5,
-    ],
-)
+@pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])
 def test_dopri_tsit5_call_returns_accepted_dt_and_updates_next_step(scheme_cls) -> None:
     scheme = scheme_cls(zero_rhs, ScalarWorkbench())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
@@ -207,13 +168,7 @@ def test_dopri_tsit5_call_returns_accepted_dt_and_updates_next_step(scheme_cls) 
     assert state.value == pytest.approx(2.0)
 
 
-@pytest.mark.parametrize(
-    "scheme_cls",
-    [
-        SchemeDormandPrince,
-        SchemeTsitouras5,
-    ],
-)
+@pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])
 def test_dopri_tsit5_call_clips_to_remaining_interval(scheme_cls) -> None:
     scheme = scheme_cls(zero_rhs, ScalarWorkbench())
     interval = Interval(present=0.1, step=1.0, stop=0.3)
@@ -226,62 +181,47 @@ def test_dopri_tsit5_call_clips_to_remaining_interval(scheme_cls) -> None:
     assert state.value == pytest.approx(2.0)
 
 
-@pytest.mark.parametrize(
-    "scheme_cls",
-    [
-        SchemeDormandPrince,
-        SchemeTsitouras5,
-    ],
-)
-def test_dopri_tsit5_algebraist_path_is_selected_inside_scheme(scheme_cls) -> None:
+@pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])
+def test_dopri_tsit5_specialist_path_is_selected_inside_scheme(scheme_cls) -> None:
     scheme = scheme_cls(
         exponential_growth,
         ScalarWorkbench(),
-        algebraist=StubAlgebraist(),
+        specialist=StubSpecialist(),
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_algebraist
+    assert scheme.call_pure.__func__ is scheme_cls.call_specialized
 
 
-@pytest.mark.parametrize(
-    "scheme_cls",
-    [
-        SchemeDormandPrince,
-        SchemeTsitouras5,
-    ],
-)
-def test_dopri_tsit5_generic_and_algebraist_paths_match_for_one_step(scheme_cls) -> None:
-    interval_generic = Interval(present=0.0, step=0.1, stop=0.3)
-    interval_algebraist = Interval(present=0.0, step=0.1, stop=0.3)
-    state_generic = ScalarState(1.0)
-    state_algebraist = ScalarState(1.0)
+@pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])
+def test_dopri_tsit5_inline_and_specialist_paths_match_for_one_step(scheme_cls) -> None:
+    interval_inline = Interval(present=0.0, step=0.1, stop=0.3)
+    interval_specialist = Interval(present=0.0, step=0.1, stop=0.3)
+    state_inline = ScalarState(1.0)
+    state_specialist = ScalarState(1.0)
 
-    generic = scheme_cls(exponential_growth, ScalarWorkbench())
-    algebraist = scheme_cls(
+    inline = scheme_cls(exponential_growth, ScalarWorkbench())
+    specialist = scheme_cls(
         exponential_growth,
         ScalarWorkbench(),
-        algebraist=StubAlgebraist(),
+        specialist=StubSpecialist(),
     )
 
-    accepted_dt_generic = generic(interval_generic, state_generic, tight_executor())
-    accepted_dt_algebraist = algebraist(
-        interval_algebraist,
-        state_algebraist,
+    accepted_dt_inline = inline(interval_inline, state_inline, tight_executor())
+    accepted_dt_specialist = specialist(
+        interval_specialist,
+        state_specialist,
         tight_executor(),
     )
 
-    assert accepted_dt_generic == pytest.approx(accepted_dt_algebraist)
-    assert state_generic.value == pytest.approx(state_algebraist.value)
-    assert interval_generic.step == pytest.approx(interval_algebraist.step)
+    assert accepted_dt_specialist == pytest.approx(accepted_dt_inline)
+    assert state_specialist.value == pytest.approx(state_inline.value)
+    assert interval_specialist.step == pytest.approx(interval_inline.step)
 
 
 @pytest.mark.parametrize(
     ("scheme_cls", "scheme_name"),
-    [
-        (SchemeDormandPrince, "RKDP"),
-        (SchemeTsitouras5, "TSIT5"),
-    ],
+    [(SchemeDormandPrince, "RKDP"), (SchemeTsitouras5, "TSIT5")],
 )
 def test_dopri_tsit5_monitoring_records_existing_adaptive_fields(
     scheme_cls,
@@ -296,7 +236,6 @@ def test_dopri_tsit5_monitoring_records_existing_adaptive_fields(
     list(Integrator().live_monitored(marcher, interval, state, monitor))
 
     assert len(monitor.scheme.adaptive_steps) == 2
-
     first = monitor.scheme.adaptive_steps[0]
     second = monitor.scheme.adaptive_steps[1]
 

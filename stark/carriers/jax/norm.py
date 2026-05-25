@@ -6,14 +6,14 @@ import jax.numpy as jnp  # type: ignore[import-not-found]
 from stark.carriers.jax.storage import CarrierJaxValue
 
 
-class JaxNumpyModule(Protocol):
+class HintJaxNumpyModule(Protocol):
     def abs(self, value: CarrierJaxValue) -> CarrierJaxValue: ...
     def max(self, value: CarrierJaxValue) -> CarrierJaxValue: ...
     def mean(self, value: CarrierJaxValue) -> CarrierJaxValue: ...
     def sqrt(self, value: CarrierJaxValue) -> CarrierJaxValue: ...
 
 
-jax_numpy = cast(JaxNumpyModule, jnp)
+jax_numpy = cast(HintJaxNumpyModule, jnp)
 
 
 @dataclass(frozen=True)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from types import SimpleNamespace
 
 import pytest
 
@@ -9,6 +8,7 @@ from stark import Executor, Interval
 from stark.schemes.explicit_fixed.kutta3 import SchemeKutta3
 from stark.schemes.explicit_fixed.rk38 import SchemeRK38
 from stark.schemes.explicit_fixed.ssprk33 import SchemeSSPRK33
+from stark.schemes.support.stencil import SchemeStencil
 
 
 @dataclass(slots=True)
@@ -44,47 +44,43 @@ class ScalarWorkbench:
         return ScalarTranslation()
 
 
-class StubAlgebraist:
-    def bind_explicit_scheme(self, tableau):
-        def make_stage(stage_index: int):
-            weights = tableau.a[stage_index]
+class StubSpecialist:
+    def provide(self, stencil: SchemeStencil):
+        coefficients = stencil.coefficients
+        fixed_scale = stencil.scale
 
-            def stage_call(
-                state: ScalarState,
-                dt: float,
-                *args,
-            ) -> None:
-                rates = args[:-1]
-                stage = args[-1]
-                stage.value = state.value + dt * sum(
-                    weight * rate.value
-                    for weight, rate in zip(weights, rates, strict=True)
+        if stencil.apply:
+
+            def apply_kernel(
+                step: float,
+                origin,
+                *terms,
+            ):
+                *translations, result = terms
+                result.value = origin.value + step * fixed_scale * sum(
+                    coefficient * translation.value
+                    for coefficient, translation in zip(
+                        coefficients,
+                        translations,
+                        strict=True,
+                    )
                 )
+                return result
 
-            return stage_call
+            return apply_kernel
 
-        def solution_state(
-            origin: ScalarState,
-            dt: float,
-            *args,
-        ) -> None:
-            rates = args[:-1]
-            result = args[-1]
-            result.value = origin.value + dt * sum(
-                weight * rate.value
-                for weight, rate in zip(tableau.b, rates, strict=True)
+        def delta_kernel(
+            step: float,
+            *terms,
+        ):
+            *translations, out = terms
+            out.value = step * fixed_scale * sum(
+                coefficient * translation.value
+                for coefficient, translation in zip(coefficients, translations, strict=True)
             )
+            return out
 
-        stages = tuple(
-            None if index == 0 else make_stage(index)
-            for index in range(len(tableau.c))
-        )
-
-        return SimpleNamespace(
-            stage_state_calls=stages,
-            require_stage_state_call=lambda index, scheme_name: stages[index],
-            solution_state_call=solution_state,
-        )
+        return delta_kernel
 
 
 def exponential_growth(
@@ -97,75 +93,14 @@ def exponential_growth(
 
 
 @pytest.mark.parametrize(
-    "scheme_cls",
-    [
-        SchemeKutta3,
-        SchemeRK38,
-        SchemeSSPRK33,
-    ],
-)
-def test_rk3_rk4_scheme_owns_its_public_call_method(scheme_cls) -> None:
-    assert "__call__" in scheme_cls.__dict__
-
-
-@pytest.mark.parametrize(
-    "scheme_cls",
-    [
-        SchemeKutta3,
-        SchemeRK38,
-        SchemeSSPRK33,
-    ],
-)
-def test_rk3_rk4_default_call_path_is_scheme_owned_call_generic(scheme_cls) -> None:
-    scheme = scheme_cls(exponential_growth, ScalarWorkbench())
-
-    assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_generic
-    assert scheme.redirect_call == scheme.call_pure
-
-
-@pytest.mark.parametrize(
-    "scheme_cls",
-    [
-        SchemeKutta3,
-        SchemeRK38,
-        SchemeSSPRK33,
-    ],
-)
-def test_rk3_rk4_public_call_uses_redirect_call(scheme_cls) -> None:
-    scheme = scheme_cls(exponential_growth, ScalarWorkbench())
-    interval = Interval(present=0.0, step=0.125, stop=1.0)
-    state = ScalarState(1.0)
-
-    def replacement_call(
-        replacement_interval: Interval,
-        replacement_state: ScalarState,
-        replacement_executor: Executor,
-    ) -> float:
-        del replacement_interval, replacement_executor
-        replacement_state.value = 42.0
-        return 0.03125
-
-    scheme.redirect_call = replacement_call
-
-    accepted_dt = scheme(interval, state, Executor())
-
-    assert accepted_dt == pytest.approx(0.03125)
-    assert state.value == pytest.approx(42.0)
-
-
-@pytest.mark.parametrize(
     ("scheme_cls", "expected"),
     [
         (SchemeKutta3, 1.1331380208333333),
-        (SchemeRK38, 1.133148193359375),
         (SchemeSSPRK33, 1.1331380208333333),
+        (SchemeRK38, 1.133148193359375),
     ],
 )
-def test_rk3_rk4_call_generic_performs_one_step(
-    scheme_cls,
-    expected: float,
-) -> None:
+def test_rk3_rk4_scheme_performs_one_step(scheme_cls, expected) -> None:
     scheme = scheme_cls(exponential_growth, ScalarWorkbench())
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
@@ -180,14 +115,11 @@ def test_rk3_rk4_call_generic_performs_one_step(
     ("scheme_cls", "expected"),
     [
         (SchemeKutta3, 1.0512708333333334),
-        (SchemeRK38, 1.05127109375),
         (SchemeSSPRK33, 1.0512708333333334),
+        (SchemeRK38, 1.05127109375),
     ],
 )
-def test_rk3_rk4_call_generic_clips_to_remaining_interval(
-    scheme_cls,
-    expected: float,
-) -> None:
+def test_rk3_rk4_scheme_clips_to_remaining_interval(scheme_cls, expected) -> None:
     scheme = scheme_cls(exponential_growth, ScalarWorkbench())
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(1.0)
@@ -202,19 +134,15 @@ def test_rk3_rk4_call_generic_clips_to_remaining_interval(
     "scheme_cls",
     [
         SchemeKutta3,
-        SchemeRK38,
         SchemeSSPRK33,
+        SchemeRK38,
     ],
 )
-def test_rk3_rk4_algebraist_path_is_selected_inside_scheme(scheme_cls) -> None:
-    scheme = scheme_cls(
-        exponential_growth,
-        ScalarWorkbench(),
-        algebraist=StubAlgebraist(),
-    )
+def test_rk3_rk4_default_call_path_is_scheme_owned_inline_call(scheme_cls) -> None:
+    scheme = scheme_cls(exponential_growth, ScalarWorkbench())
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_algebraist
+    assert scheme.call_pure.__func__ is scheme_cls.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -222,31 +150,49 @@ def test_rk3_rk4_algebraist_path_is_selected_inside_scheme(scheme_cls) -> None:
     "scheme_cls",
     [
         SchemeKutta3,
-        SchemeRK38,
         SchemeSSPRK33,
+        SchemeRK38,
     ],
 )
-def test_rk3_rk4_generic_and_algebraist_paths_match_for_one_step(
-    scheme_cls,
-) -> None:
-    interval_generic = Interval(present=0.0, step=0.125, stop=1.0)
-    interval_algebraist = Interval(present=0.0, step=0.125, stop=1.0)
-    state_generic = ScalarState(1.0)
-    state_algebraist = ScalarState(1.0)
-
-    generic = scheme_cls(exponential_growth, ScalarWorkbench())
-    algebraist = scheme_cls(
+def test_rk3_rk4_specialist_path_is_selected_inside_scheme(scheme_cls) -> None:
+    scheme = scheme_cls(
         exponential_growth,
         ScalarWorkbench(),
-        algebraist=StubAlgebraist(),
+        specialist=StubSpecialist(),
     )
 
-    accepted_dt_generic = generic(interval_generic, state_generic, Executor())
-    accepted_dt_algebraist = algebraist(
-        interval_algebraist,
-        state_algebraist,
+    assert scheme.call_pure.__self__ is scheme
+    assert scheme.call_pure.__func__ is scheme_cls.call_specialized
+    assert scheme.redirect_call == scheme.call_pure
+
+
+@pytest.mark.parametrize(
+    "scheme_cls",
+    [
+        SchemeKutta3,
+        SchemeSSPRK33,
+        SchemeRK38,
+    ],
+)
+def test_rk3_rk4_inline_and_specialist_paths_match_for_one_step(scheme_cls) -> None:
+    interval_inline = Interval(present=0.0, step=0.125, stop=1.0)
+    interval_specialist = Interval(present=0.0, step=0.125, stop=1.0)
+    state_inline = ScalarState(1.0)
+    state_specialist = ScalarState(1.0)
+
+    inline = scheme_cls(exponential_growth, ScalarWorkbench())
+    specialist = scheme_cls(
+        exponential_growth,
+        ScalarWorkbench(),
+        specialist=StubSpecialist(),
+    )
+
+    accepted_dt_inline = inline(interval_inline, state_inline, Executor())
+    accepted_dt_specialist = specialist(
+        interval_specialist,
+        state_specialist,
         Executor(),
     )
 
-    assert accepted_dt_generic == pytest.approx(accepted_dt_algebraist)
-    assert state_generic.value == pytest.approx(state_algebraist.value)
+    assert accepted_dt_inline == pytest.approx(accepted_dt_specialist)
+    assert state_inline.value == pytest.approx(state_specialist.value)

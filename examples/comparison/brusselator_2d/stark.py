@@ -6,7 +6,9 @@ import numpy as np
 
 from stark import Executor, Marcher, Integrator, Interval, Safety, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist import Algebraist, AlgebraistField, AlgebraistLooped
+from stark.algebraist.arity import AlgebraistArity
+from stark.algebraist.generator import AlgebraistGeneratorGeneral
+from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
 from stark.schemes.explicit_adaptive import SchemeCashKarp, SchemeDormandPrince
 
 
@@ -35,13 +37,11 @@ def _rhs_kernel(u, v, du, dv, alpha, a, b, inv_dx2):
             dv[i, j] = alpha * lap_v + b * u_ij - reaction
 
 
-ALGEBRAIST = Algebraist(
+ALGEBRAIST_LAYOUT = AlgebraistLayout(
     fields=(
-        AlgebraistField("du", "u", policy=AlgebraistLooped(rank=2)),
-        AlgebraistField("dv", "v", policy=AlgebraistLooped(rank=2)),
+        AlgebraistLayoutField("du", "u", policy=AlgebraistLayoutLooped(rank=2)),
+        AlgebraistLayoutField("dv", "v", policy=AlgebraistLayoutLooped(rank=2)),
     ),
-    accelerator=ACCELERATOR,
-    generate_norm="rms",
 )
 
 
@@ -82,9 +82,13 @@ class BrusselatorTranslation:
     def __rmul__(self, scalar):
         return BrusselatorTranslation(scalar * self.du, scalar * self.dv)
 
-    linear_combine = ALGEBRAIST.linear_combine
-    __call__ = ALGEBRAIST.apply
-    norm = ALGEBRAIST.norm
+    def __call__(self, origin, result):
+        result.u[...] = origin.u + self.du
+        result.v[...] = origin.v + self.dv
+
+    def norm(self):
+        energy = np.dot(self.du.ravel(), self.du.ravel()) + np.dot(self.dv.ravel(), self.dv.ravel())
+        return sqrt(float(energy) / self.du.size)
 
 
 class BrusselatorWorkbench:
@@ -95,8 +99,7 @@ class BrusselatorWorkbench:
         grid_size = problem_parameters["grid_size"]
         self.grid_shape = (grid_size, grid_size)
         if not self.__class__._compiled:
-            probe = np.zeros(self.grid_shape, dtype=np.float64)
-            ALGEBRAIST.compile_examples(probe, probe)
+            BrusselatorTranslation.linear_combine = _generated_linear_combine(self)
             self.__class__._compiled = True
 
     def __repr__(self) -> str:
@@ -119,6 +122,16 @@ class BrusselatorWorkbench:
             np.zeros(self.grid_shape, dtype=np.float64),
             np.zeros(self.grid_shape, dtype=np.float64),
         )
+
+
+def _generated_linear_combine(workbench):
+    provider = AlgebraistGeneratorGeneral(
+        translation=workbench.allocate_translation(),
+        workbench=workbench,
+        layout=ALGEBRAIST_LAYOUT,
+        accelerator=ACCELERATOR,
+    )
+    return tuple(provider.provide(AlgebraistArity(arity)) for arity in range(1, 13))
 
 
 class BrusselatorDerivative:

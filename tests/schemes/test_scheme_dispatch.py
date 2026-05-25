@@ -97,7 +97,6 @@ def zero_rhs(
 
 def make_one_stage_resolvent(scheme_cls, workbench: ScalarWorkbench) -> ResolventPicard:
     return ResolventPicard(
-        constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -108,7 +107,6 @@ def make_one_stage_resolvent(scheme_cls, workbench: ScalarWorkbench) -> Resolven
 
 def make_bdf2_resolvent(workbench: ScalarWorkbench) -> ResolventPicard:
     return ResolventPicard(
-        constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -122,7 +120,6 @@ def make_coupled_resolvent(
     workbench: ScalarWorkbench,
 ) -> ResolventCoupledPicard:
     return ResolventCoupledPicard(
-        constant_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -174,7 +171,6 @@ def make_imex_fixed_scheme() -> SchemeIMEXEuler:
         implicit=implicit,
     )
     resolvent = ResolventPicard(
-        implicit,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -194,7 +190,6 @@ def make_kennedy_carpenter32_scheme():
         implicit=zero_rhs,
     )
     resolvent = ResolventPicard(
-        zero_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -214,7 +209,6 @@ def make_kennedy_carpenter43_6_scheme():
         implicit=zero_rhs,
     )
     resolvent = ResolventPicard(
-        zero_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -234,7 +228,6 @@ def make_kennedy_carpenter43_7_scheme():
         implicit=zero_rhs,
     )
     resolvent = ResolventPicard(
-        zero_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -254,7 +247,6 @@ def make_kennedy_carpenter54_scheme():
         implicit=zero_rhs,
     )
     resolvent = ResolventPicard(
-        zero_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),

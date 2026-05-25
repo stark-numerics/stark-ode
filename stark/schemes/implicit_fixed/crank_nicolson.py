@@ -1,18 +1,22 @@
 from __future__ import annotations
 
-from stark.accelerators.binding import DerivativeAccelerated
-from stark.algebraist import Algebraist, AlgebraistImplicitCombination
-from stark.contracts import Block, Derivative, IntervalLike, Resolvent, State, Workbench
+from typing import Any, cast
+
+from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
 from stark.execution.executor import Executor
-from stark.machinery.stage_solve.workers import ShiftedOneStageResolventStep
-from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
+    SchemeDescriptor,
     refresh_fixed_step_call,
-    unbound_scheme_call,
     with_fixed_step_monitoring,
-    with_implicit_stepper_methods,
     with_scheme_display,
 )
+from stark.schemes.support.implicit import (
+    initialise_implicit_support,
+    with_implicit_workspace_methods,
+)
+from stark.schemes.support.specialist import SchemeSpecialist
+from stark.schemes.support.stage_problem import SchemeStageProblem
+from stark.schemes.support.stencil import SchemeStencil
 from stark.schemes.support.tableau import ButcherTableau
 
 
@@ -28,32 +32,35 @@ CRANK_NICOLSON_TABLEAU = ButcherTableau(
 
 @with_scheme_display
 @with_fixed_step_monitoring
-@with_implicit_stepper_methods
+@with_implicit_workspace_methods
 class SchemeCrankNicolson:
     """The fixed-step Crank-Nicolson / trapezoidal Runge-Kutta method.
 
-    This method evaluates one explicit stage at the start of the step, then
-    resolves a one-stage shifted implicit problem at the end of the step:
+    Crank-Nicolson combines one explicit derivative at the start of the step
+    with one implicit derivative at the end of the step.
 
-        delta = (dt / 2) f(t_n, x_n)
-              + (dt / 2) f(t_n + dt, x_n + delta).
+    Algorithm sketch for one accepted step of size h:
 
-    It is a simple but important bridge case between purely explicit methods and
-    fully implicit sequential DIRK methods.
-
-    Further reading:
-    https://en.wikipedia.org/wiki/Trapezoidal_rule_(differential_equations)
+        1. Compute k1 = f(t, y).
+        2. Build the known explicit contribution h/2 * k1.
+        3. Solve the shifted implicit increment:
+               delta = h/2 * k1 + h/2 * f(t + h, y + delta)
+        4. Apply the solved increment:
+               y <- y + delta
     """
 
     __slots__ = (
         "_monitor",
+        "block_allocator",
         "call_pure",
         "derivative",
+        "known_rhs",
+        "known_rhs_kernel",
         "k1",
-        "known_block",
-        "known_rhs_call",
         "redirect_call",
-        "stepper",
+        "resolvent",
+        "stage_delta",
+        "workspace",
     )
 
     descriptor = SchemeDescriptor("CN", "Crank-Nicolson")
@@ -65,124 +72,98 @@ class SchemeCrankNicolson:
         workbench: Workbench,
         resolvent: Resolvent,
         *,
-        algebraist: Algebraist | None = None,
+        specialist: SchemeSpecialist | None = None,
     ) -> None:
-        self.known_rhs_call = unbound_scheme_call
         self._monitor = None
-        self.derivative = DerivativeAccelerated(derivative)
-        self.stepper = ShiftedOneStageResolventStep(
-            "Crank-Nicolson",
-            self.tableau,
-            derivative,
-            workbench,
-            resolvent,
-        )
+        self.call_pure = self.call_inline
+        self.redirect_call = self.call_pure
+        self.resolvent = resolvent
+        self.known_rhs_kernel = None
 
-        workspace = self.stepper.workspace
-        self.k1 = workbench.allocate_translation()
-        self.known_block = Block([workspace.allocate_translation()])
+        initialise_implicit_support(self, derivative, workbench)
+        self.k1 = self.workspace.allocate_translation()
+        self.known_rhs = self.block_allocator.allocate(1)
+        self.stage_delta = self.block_allocator.allocate(1)
 
-        self.call_pure = self.call_generic
         refresh_fixed_step_call(self)
 
-        if algebraist is not None:
-            self.bind_algebraist_path(algebraist)
+        if specialist is not None:
+            self.prepare_specialized_kernels(specialist)
+            self.call_pure = self.call_specialized
+            refresh_fixed_step_call(self)
 
-    def __call__(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
+    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
-        calls = algebraist.bind_implicit_fixed_scheme(
-            known_shifts=(
-                AlgebraistImplicitCombination(
-                    "known_rhs",
-                    (0.5,),
-                    step_scale=True,
-                ),
-            ),
-        )
-        self.known_rhs_call = calls.require_known_shift_call(0, type(self).__name__)
-        self.call_pure = self.call_algebraist
-        refresh_fixed_step_call(self)
+    def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
+        # Step 2 builds the known explicit contribution h/2 * k1.
+        self.known_rhs_kernel = specialist.provide(SchemeStencil((0.5,)))
 
-    def call_generic(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
+    def call_inline(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         del executor
 
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
 
-        workspace = self.stepper.workspace
-        derivative = self.derivative
-        known_block = self.known_block
-        k1 = self.k1
-
         dt = interval.step if interval.step <= remaining else remaining
+        workspace = self.workspace
 
-        derivative(interval, state, k1)
-        known_block.items[0] = workspace.scale(0.5 * dt, k1, known_block[0])
+        # 1. Compute k1 = f(t, y).
+        self.derivative(interval, state, self.k1)
 
-        delta = self.stepper.solve(
-            interval,
-            state,
-            dt,
+        # 2. Build the known explicit contribution h/2 * k1.
+        self.known_rhs[0] = workspace.scale(0.5 * dt, self.k1, self.known_rhs[0])
+
+        # 3. Solve delta = h/2 * k1 + h/2 * f(t + h, y + delta).
+        problem = SchemeStageProblem(
+            derivative=self.derivative,
+            interval=workspace.stage_at(interval, dt, dt),
+            origin=state,
+            rhs=self.known_rhs,
             alpha=0.5 * dt,
-            stage_shift=dt,
-            rhs=known_block,
         )
-        workspace.apply_delta(delta, state)
+        self.resolvent(problem, self.stage_delta)
+
+        # 4. Apply the solved increment: y <- y + delta.
+        workspace.apply_delta(self.stage_delta[0], state)
 
         remaining_after = remaining - dt
         interval.step = 0.0 if remaining_after <= 0.0 else min(interval.step, remaining_after)
-
         return dt
 
-    def call_algebraist(
-        self,
-        interval: IntervalLike,
-        state: State,
-        executor: Executor,
-    ) -> float:
+    def call_specialized(self, interval: IntervalLike, state: State, executor: Executor) -> float:
         del executor
 
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
 
-        workspace = self.stepper.workspace
-        derivative = self.derivative
-        known_block = self.known_block
-        known_rhs_call = self.known_rhs_call
-        k1 = self.k1
-
         dt = interval.step if interval.step <= remaining else remaining
+        workspace = self.workspace
+        known_rhs_kernel = cast(Any, self.known_rhs_kernel)
 
-        derivative(interval, state, k1)
-        known_block.items[0] = known_rhs_call(dt, k1, known_block[0])
+        # 1. Compute k1 = f(t, y).
+        self.derivative(interval, state, self.k1)
 
-        delta = self.stepper.solve(
-            interval,
-            state,
-            dt,
+        # 2. Build the known explicit contribution h/2 * k1.
+        self.known_rhs[0] = known_rhs_kernel(dt, self.k1, self.known_rhs[0])
+
+        # 3. Solve delta = h/2 * k1 + h/2 * f(t + h, y + delta).
+        problem = SchemeStageProblem(
+            derivative=self.derivative,
+            interval=workspace.stage_at(interval, dt, dt),
+            origin=state,
+            rhs=self.known_rhs,
             alpha=0.5 * dt,
-            stage_shift=dt,
-            rhs=known_block,
         )
-        workspace.apply_delta(delta, state)
+        self.resolvent(problem, self.stage_delta)
+
+        # 4. Apply the solved increment: y <- y + delta.
+        workspace.apply_delta(self.stage_delta[0], state)
 
         remaining_after = remaining - dt
         interval.step = 0.0 if remaining_after <= 0.0 else min(interval.step, remaining_after)
-
         return dt
 
 

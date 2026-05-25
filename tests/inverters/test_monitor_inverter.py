@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from stark.block.operator import BlockOperator
-from stark.contracts import Block
+from stark.block import Block
 from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
 from stark.inverters.support.policy import InverterPolicy
 from stark.inverters.support.tolerance import InverterTolerance

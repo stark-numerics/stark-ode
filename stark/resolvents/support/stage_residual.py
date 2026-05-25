@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+from typing import cast
+
 from stark.accelerators.binding import DerivativeAccelerated, LinearizerAccelerated
-from stark.contracts import Block, Derivative, IntervalLike, Linearizer, State
-from stark.machinery.stage_solve.workspace import SchemeWorkspace
+from stark.algebraist.arity import AlgebraistArity
+from stark.algebraist.runtime.general import AlgebraistRuntimeGeneral
+from stark.block import Block, BlockOperator
+from stark.contracts import AcceleratorLike, Derivative, IntervalLike, Linearizer, State, Translation, Workbench
+from stark.resolvents.support.problem import (
+    ResolventCoupledStageProblem,
+    ResolventStageProblem,
+)
 
 
 class ResolventStageJacobianOperator:
-    """Mutable Jacobian action configured by a linearizer for one stage solve."""
+    """Mutable Jacobian action configured by a linearizer."""
 
     __slots__ = ("apply", "method_name")
 
@@ -14,44 +22,56 @@ class ResolventStageJacobianOperator:
         self.method_name = method_name
         self.apply = self._unconfigured
 
-    def __call__(self, translation, out) -> None:
+    def __call__(self, translation: Translation, out: Translation) -> None:
         self.apply(translation, out)
 
-    def _unconfigured(self, translation, out) -> None:
+    def _unconfigured(self, translation: Translation, out: Translation) -> None:
         del translation, out
-        raise RuntimeError(f"{self.method_name} Jacobian operator was used before the linearizer configured it.")
+        raise RuntimeError(
+            f"{self.method_name} Jacobian operator was used before the "
+            "linearizer configured it."
+        )
 
 
 class ResolventStageResidualOperator:
-    """Linearized stage operator `I - alpha J` for one stage residual."""
+    """Linearized one-stage residual operator ``I - alpha J``."""
 
     __slots__ = ("combine2", "jacobian_buffer", "jacobian", "alpha")
 
-    def __init__(self, workspace: SchemeWorkspace, jacobian: ResolventStageJacobianOperator) -> None:
-        self.combine2 = workspace.combine2
-        self.jacobian_buffer = workspace.allocate_translation()
+    def __init__(self, combine2, allocate_translation, jacobian) -> None:
+        self.combine2 = combine2
+        self.jacobian_buffer = allocate_translation()
         self.jacobian = jacobian
         self.alpha = 0.0
 
-    def __call__(self, translation, out) -> None:
+    def __call__(self, translation: Translation, out: Translation) -> None:
         self.jacobian(translation, self.jacobian_buffer)
         self.combine2(1.0, translation, -self.alpha, self.jacobian_buffer, out)
 
 
 class ResolventCoupledStageResidualOperator:
-    """Linearized block operator for a fully coupled implicit RK stage system."""
+    """Linearized block operator for coupled implicit RK stages."""
 
-    __slots__ = ("scale", "combine2", "jacobian_buffer", "jacobians", "matrix", "step")
+    __slots__ = (
+        "scale",
+        "combine2",
+        "jacobian_buffer",
+        "jacobians",
+        "matrix",
+        "step",
+    )
 
     def __init__(
         self,
-        workspace: SchemeWorkspace,
+        scale,
+        combine2,
+        allocate_translation,
         jacobians: list[ResolventStageJacobianOperator],
         matrix: tuple[tuple[float, ...], ...],
     ) -> None:
-        self.scale = workspace.scale
-        self.combine2 = workspace.combine2
-        self.jacobian_buffer = workspace.allocate_translation()
+        self.scale = scale
+        self.combine2 = combine2
+        self.jacobian_buffer = allocate_translation()
         self.jacobians = jacobians
         self.matrix = matrix
         self.step = 0.0
@@ -61,31 +81,44 @@ class ResolventCoupledStageResidualOperator:
         for jacobian in self.jacobians:
             jacobian.apply = jacobian._unconfigured
 
-    def __call__(self, block: Block, out: Block) -> None:
+    def __call__(self, block: Block[Translation], out: Block[Translation]) -> None:
         for row_index, row in enumerate(self.matrix):
             out_item = self.scale(0.0, out[row_index], out[row_index])
+
             for column_index, coefficient in enumerate(row):
                 if row_index == column_index:
-                    out_item = self.combine2(1.0, out_item, 1.0, block[column_index], out_item)
+                    out_item = self.combine2(
+                        1.0,
+                        out_item,
+                        1.0,
+                        block[column_index],
+                        out_item,
+                    )
+
                 if coefficient == 0.0:
                     continue
-                self.jacobians[column_index](block[column_index], self.jacobian_buffer)
-                out_item = self.combine2(1.0, out_item, -self.step * coefficient, self.jacobian_buffer, out_item)
-            out.items[row_index] = out_item
+
+                self.jacobians[column_index](
+                    block[column_index],
+                    self.jacobian_buffer,
+                )
+                out_item = self.combine2(
+                    1.0,
+                    out_item,
+                    -self.step * coefficient,
+                    self.jacobian_buffer,
+                    out_item,
+                )
+
+            out[row_index] = out_item
 
 
 class ResolventStageResidual:
-    """
-    Residual worker for shifted implicit stage equations.
+    """Residual worker for one-stage implicit equations.
 
-    The nonlinear problem is
+    For a configured ``ResolventStageProblem`` this evaluates:
 
-        delta - rhs - alpha f(state + delta) = 0
-
-    with optional right-hand side shift `rhs`. This is the common one-stage
-    shape behind backward Euler, sequential DIRK stages, and similar implicit
-    corrections. When a linearizer is supplied, the Newton operator is
-    `I - alpha J`.
+        F(delta) = delta - rhs - alpha * f(interval, origin + delta)
     """
 
     __slots__ = (
@@ -104,90 +137,124 @@ class ResolventStageResidual:
         "linearizer",
         "jacobian_operator",
         "residual_operator",
-        "_linearize",
+        "_differential",
     )
 
     def __init__(
         self,
         method_name: str,
-        derivative: Derivative,
-        workspace: SchemeWorkspace,
+        workbench: Workbench,
         linearizer: Linearizer | None = None,
+        accelerator: AcceleratorLike | None = None,
     ) -> None:
         self.method_name = method_name
-        self.scale = workspace.scale
-        self.combine2 = workspace.combine2
-        self.combine3 = workspace.combine3
-        self.copy_state = workspace.copy_state
-        self.base_state = workspace.allocate_state_buffer()
-        self.interval: IntervalLike | None = None
-        self.trial_state = workspace.allocate_state_buffer()
-        self.rhs = workspace.allocate_translation()
-        self.derivative = DerivativeAccelerated(derivative)
-        self.derivative_buffer = workspace.allocate_translation()
-        self.alpha = 0.0
-        self.linearizer = LinearizerAccelerated(linearizer) if linearizer is not None else None
-        self.jacobian_operator = ResolventStageJacobianOperator(method_name)
-        self.residual_operator = ResolventStageResidualOperator(workspace, self.jacobian_operator)
-        self._linearize = self._linearize_configured if linearizer is not None else self._linearize_missing
+        translation_probe = workbench.allocate_translation()
+        general = AlgebraistRuntimeGeneral(
+            translation=translation_probe,
+            workbench=workbench,
+            accelerator=accelerator,
+        )
+        self.scale = general.provide(AlgebraistArity(1))
+        self.combine2 = general.provide(AlgebraistArity(2))
+        self.combine3 = general.provide(AlgebraistArity(3))
 
-    def configure(self, interval: IntervalLike, state: State, alpha: float, rhs: Block | None = None) -> None:
-        self.interval = interval
-        self.copy_state(self.base_state, state)
-        self.alpha = alpha
-        if rhs is None:
+        self.copy_state = workbench.copy_state
+        self.base_state = workbench.allocate_state()
+        self.interval: IntervalLike | None = None
+        self.trial_state = workbench.allocate_state()
+        self.rhs = workbench.allocate_translation()
+        self.derivative: Derivative | None = None
+        self.derivative_buffer = workbench.allocate_translation()
+        self.alpha = 0.0
+
+        self.linearizer = (
+            LinearizerAccelerated(linearizer) if linearizer is not None else None
+        )
+        self.jacobian_operator = ResolventStageJacobianOperator(method_name)
+        self.residual_operator = ResolventStageResidualOperator(
+            self.combine2,
+            workbench.allocate_translation,
+            self.jacobian_operator,
+        )
+        self._differential = (
+            self._differential_configured
+            if linearizer is not None
+            else self._differential_missing
+        )
+
+    def configure(self, problem: ResolventStageProblem) -> None:
+        self.interval = problem.interval
+        self.copy_state(self.base_state, problem.origin)
+        self.alpha = problem.alpha
+        self.derivative = DerivativeAccelerated(problem.derivative)
+
+        if problem.rhs is None:
             self.rhs = self.scale(0.0, self.rhs, self.rhs)
             return
-        self.rhs = self.combine2(0.0, self.rhs, 1.0, rhs[0], self.rhs)
 
-    def __call__(self, block: Block, out: Block) -> None:
+        self.rhs = self.combine2(0.0, self.rhs, 1.0, problem.rhs[0], self.rhs)
+
+    def __call__(
+        self,
+        block: Block[Translation],
+        out: Block[Translation],
+    ) -> None:
         interval = self.interval
+        derivative = self.derivative
         assert interval is not None
+        assert derivative is not None
+
         delta = block[0]
         delta(self.base_state, self.trial_state)
-        self.derivative(interval, self.trial_state, self.derivative_buffer)
-        out.items[0] = self.combine3(1.0, delta, -1.0, self.rhs, -self.alpha, self.derivative_buffer, out[0])
+        derivative(interval, self.trial_state, self.derivative_buffer)
+        out[0] = self.combine3(
+            1.0,
+            delta,
+            -1.0,
+            self.rhs,
+            -self.alpha,
+            self.derivative_buffer,
+            out[0],
+        )
 
-    def linearize(self, block: Block, out) -> None:
-        self._linearize(block, out)
+    def differential(self, block: Block[Translation], out) -> None:
+        self._differential(block, out)
 
-    def _linearize_missing(self, block: Block, out) -> None:
+    # Backward-compatible alias while Newton callers are migrated.
+    def linearize(self, block: Block[Translation], out) -> None:
+        self.differential(block, out)
+
+    def _differential_missing(self, block: Block[Translation], out) -> None:
         del block, out
-        raise RuntimeError(f"{self.method_name} Newton resolution requires a linearizer.")
+        raise RuntimeError(
+            f"{self.method_name} Newton resolution requires a linearizer."
+        )
 
-    def _linearize_configured(self, block: Block, out) -> None:
+    def _differential_configured(self, block: Block[Translation], out) -> None:
         linearizer = self.linearizer
-        assert linearizer is not None
         interval = self.interval
+        assert linearizer is not None
         assert interval is not None
+
         block[0](self.base_state, self.trial_state)
         linearizer(interval, self.trial_state, self.jacobian_operator)
         self.residual_operator.alpha = self.alpha
-        out.operators[0] = self.residual_operator
+        out[0] = self.residual_operator
 
 
 class ResolventCoupledStageResidual:
-    """
-    Residual worker for fully coupled implicit Runge-Kutta stage systems.
-
-    For a tableau with coefficients `a_ij` and stage block `delta = (delta_i)`,
-    the nonlinear problem is
-
-        delta_i - rhs_i - dt * sum_j a_ij f(t_n + c_j dt, state + delta_j) = 0.
-
-    This is the coupled stage shape behind fully implicit Gauss, Lobatto, and
-    Radau-type Runge-Kutta methods.
-    """
+    """Residual worker for coupled implicit Runge-Kutta stage systems."""
 
     __slots__ = (
         "method_name",
-        "stage_count",
-        "stage_shifts",
-        "matrix",
         "scale",
         "combine2",
         "copy_state",
+        "workbench",
         "base_state",
+        "stage_count",
+        "stage_shifts",
+        "matrix",
         "stage_states",
         "stage_intervals",
         "rhs_block",
@@ -197,78 +264,126 @@ class ResolventCoupledStageResidual:
         "jacobian_operators",
         "residual_operator",
         "block_operator",
-        "_linearize",
+        "_differential",
         "step",
     )
 
     def __init__(
         self,
         method_name: str,
-        derivative: Derivative,
-        workspace: SchemeWorkspace,
-        stage_shifts: tuple[float, ...],
-        matrix: tuple[tuple[float, ...], ...],
+        workbench: Workbench,
         linearizer: Linearizer | None = None,
+        accelerator: AcceleratorLike | None = None,
     ) -> None:
         self.method_name = method_name
-        self.stage_count = len(stage_shifts)
-        self.stage_shifts = stage_shifts
-        self.matrix = matrix
-        self.scale = workspace.scale
-        self.combine2 = workspace.combine2
-        self.copy_state = workspace.copy_state
-        self.base_state = workspace.allocate_state_buffer()
-        self.stage_states = [workspace.allocate_state_buffer() for _ in range(self.stage_count)]
-        self.stage_intervals: list[IntervalLike | None] = [None for _ in range(self.stage_count)]
-        self.rhs_block = Block([workspace.allocate_translation() for _ in range(self.stage_count)])
-        self.derivative = DerivativeAccelerated(derivative)
-        self.derivative_buffers = [workspace.allocate_translation() for _ in range(self.stage_count)]
-        self.linearizer = LinearizerAccelerated(linearizer) if linearizer is not None else None
-        self.jacobian_operators = [
-            ResolventStageJacobianOperator(f"{method_name}[stage {index}]")
-            for index in range(self.stage_count)
-        ]
-        self.residual_operator = ResolventCoupledStageResidualOperator(workspace, self.jacobian_operators, matrix)
-        self.block_operator = self.residual_operator
-        self._linearize = self._linearize_configured if linearizer is not None else self._linearize_missing
+        translation_probe = workbench.allocate_translation()
+        general = AlgebraistRuntimeGeneral(
+            translation=translation_probe,
+            workbench=workbench,
+            accelerator=accelerator,
+        )
+        self.scale = general.provide(AlgebraistArity(1))
+        self.combine2 = general.provide(AlgebraistArity(2))
+        self.copy_state = workbench.copy_state
+        self.workbench = workbench
+        self.base_state = workbench.allocate_state()
+
+        self.stage_count = 0
+        self.stage_shifts: tuple[float, ...] = ()
+        self.matrix: tuple[tuple[float, ...], ...] = ()
+        self.stage_states: list[State] = []
+        self.stage_intervals: list[IntervalLike | None] = []
+        self.rhs_block = Block([])
+        self.derivative: Derivative | None = None
+        self.derivative_buffers: list[Translation] = []
+        self.linearizer = (
+            LinearizerAccelerated(linearizer) if linearizer is not None else None
+        )
+        self.jacobian_operators: list[ResolventStageJacobianOperator] = []
+        self.residual_operator: ResolventCoupledStageResidualOperator | None = None
+        self.block_operator = None
+        self._differential = (
+            self._differential_configured
+            if linearizer is not None
+            else self._differential_missing
+        )
         self.step = 0.0
 
-    def configure(self, interval: IntervalLike, state: State, step: float, rhs: Block | None = None) -> None:
-        self.copy_state(self.base_state, state)
-        self.step = step
-        self.residual_operator.step = step
-        for index, shift in enumerate(self.stage_shifts):
+    def configure(self, problem: ResolventCoupledStageProblem) -> None:
+        self._ensure_stage_count(len(problem.stage_shifts))
+
+        self.copy_state(self.base_state, problem.origin)
+        self.stage_shifts = problem.stage_shifts
+        self.matrix = problem.matrix
+        self.step = problem.step
+        self.derivative = DerivativeAccelerated(problem.derivative)
+
+        residual_operator = self.residual_operator
+        assert residual_operator is not None
+        residual_operator.matrix = problem.matrix
+        residual_operator.step = problem.step
+
+        for index, shift in enumerate(problem.stage_shifts):
             stage_interval = self.stage_intervals[index]
             if stage_interval is None:
-                stage_interval = interval.copy()
+                stage_interval = problem.interval.copy()
                 self.stage_intervals[index] = stage_interval
-            stage_interval.present = interval.present + shift * step
-            stage_interval.step = step
-            stage_interval.stop = interval.stop
-        if rhs is None:
-            for index, item in enumerate(self.rhs_block):
-                self.rhs_block.items[index] = self.scale(0.0, item, item)
-            return
-        if len(rhs) != self.stage_count:
-            raise ValueError(f"rhs must have {self.stage_count} items for {self.method_name}.")
-        for index, item in enumerate(self.rhs_block):
-            self.rhs_block.items[index] = self.combine2(0.0, item, 1.0, rhs[index], item)
 
-    def __call__(self, block: Block, out: Block) -> None:
+            stage_interval.present = problem.interval.present + shift * problem.step
+            stage_interval.step = problem.step
+            stage_interval.stop = problem.interval.stop
+
+        if problem.rhs is None:
+            for index, item in enumerate(self.rhs_block):
+                self.rhs_block[index] = self.scale(0.0, item, item)
+            return
+
+        if len(problem.rhs) != self.stage_count:
+            raise ValueError(
+                f"rhs must have {self.stage_count} items for {self.method_name}."
+            )
+
+        for index, item in enumerate(self.rhs_block):
+            self.rhs_block[index] = self.combine2(
+                0.0,
+                item,
+                1.0,
+                problem.rhs[index],
+                item,
+            )
+
+    def __call__(
+        self,
+        block: Block[Translation],
+        out: Block[Translation],
+    ) -> None:
         if len(block) != self.stage_count or len(out) != self.stage_count:
-            raise ValueError(f"{self.method_name} expects {self.stage_count}-item stage blocks.")
+            raise ValueError(
+                f"{self.method_name} expects {self.stage_count}-item stage blocks."
+            )
+
+        derivative = self.derivative
+        assert derivative is not None
 
         for index, delta in enumerate(block):
             delta(self.base_state, self.stage_states[index])
             interval = self.stage_intervals[index]
             assert interval is not None
-            self.derivative(interval, self.stage_states[index], self.derivative_buffers[index])
+            derivative(interval, self.stage_states[index], self.derivative_buffers[index])
 
         for row_index, row in enumerate(self.matrix):
-            out_item = self.combine2(1.0, block[row_index], -1.0, self.rhs_block[row_index], out[row_index])
+            out_item = self.combine2(
+                1.0,
+                block[row_index],
+                -1.0,
+                self.rhs_block[row_index],
+                out[row_index],
+            )
+
             for column_index, coefficient in enumerate(row):
                 if coefficient == 0.0:
                     continue
+
                 out_item = self.combine2(
                     1.0,
                     out_item,
@@ -276,27 +391,67 @@ class ResolventCoupledStageResidual:
                     self.derivative_buffers[column_index],
                     out_item,
                 )
-            out.items[row_index] = out_item
 
-    def linearize(self, block: Block, out) -> None:
-        self._linearize(block, out)
+            out[row_index] = out_item
 
-    def _linearize_missing(self, block: Block, out) -> None:
+    def differential(self, block: Block[Translation], out) -> None:
+        self._differential(block, out)
+
+    def linearize(self, block: Block[Translation], out) -> None:
+        self.differential(block, out)
+
+    def _differential_missing(self, block: Block[Translation], out) -> None:
         del block, out
-        raise RuntimeError(f"{self.method_name} Newton resolution requires a linearizer.")
+        raise RuntimeError(
+            f"{self.method_name} Newton resolution requires a linearizer."
+        )
 
-    def _linearize_configured(self, block: Block, out) -> None:
+    def _differential_configured(self, block: Block[Translation], out) -> None:
         linearizer = self.linearizer
         assert linearizer is not None
+
         if len(block) != self.stage_count:
-            raise ValueError(f"{self.method_name} expects {self.stage_count}-item stage blocks.")
+            raise ValueError(
+                f"{self.method_name} expects {self.stage_count}-item stage blocks."
+            )
+
         out.reset()
-        out.step = self.step
+        residual_operator = self.residual_operator
+        assert residual_operator is not None
+        residual_operator.step = self.step
+
         for index, delta in enumerate(block):
             delta(self.base_state, self.stage_states[index])
             interval = self.stage_intervals[index]
             assert interval is not None
             linearizer(interval, self.stage_states[index], self.jacobian_operators[index])
+
+    def _ensure_stage_count(self, stage_count: int) -> None:
+        if self.stage_count == stage_count:
+            return
+
+        workbench = self.workbench
+        self.stage_count = stage_count
+        self.stage_states = [workbench.allocate_state() for _ in range(stage_count)]
+        self.stage_intervals = [None for _ in range(stage_count)]
+        self.rhs_block = Block(
+            [workbench.allocate_translation() for _ in range(stage_count)]
+        )
+        self.derivative_buffers = [
+            workbench.allocate_translation() for _ in range(stage_count)
+        ]
+        self.jacobian_operators = [
+            ResolventStageJacobianOperator(f"{self.method_name}[stage {index}]")
+            for index in range(stage_count)
+        ]
+        self.residual_operator = ResolventCoupledStageResidualOperator(
+            self.scale,
+            self.combine2,
+            workbench.allocate_translation,
+            self.jacobian_operators,
+            self.matrix,
+        )
+        self.block_operator = self.residual_operator
 
 
 __all__ = [
@@ -306,15 +461,3 @@ __all__ = [
     "ResolventStageResidual",
     "ResolventStageResidualOperator",
 ]
-
-
-
-
-
-
-
-
-
-
-
-

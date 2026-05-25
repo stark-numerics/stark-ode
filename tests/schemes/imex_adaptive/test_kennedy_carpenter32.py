@@ -7,13 +7,7 @@ import pytest
 
 from stark import Executor, Interval, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist import (
-    Algebraist,
-    AlgebraistBroadcast,
-    AlgebraistField,
-    AlgebraistLooped,
-    AlgebraistSmallFixed,
-)
+from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
 from stark.resolvents.support.policy import ResolventPolicy
@@ -134,7 +128,6 @@ def make_scheme() -> SchemeKennedyCarpenter32:
         implicit=zero_rhs,
     )
     resolvent = ResolventPicard(
-        zero_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -150,7 +143,7 @@ def make_scheme() -> SchemeKennedyCarpenter32:
 
 def make_array_scheme(
     *,
-    algebraist: Algebraist | None = None,
+    specialist: bool = False,
 ) -> SchemeKennedyCarpenter32:
     workbench = ArrayScalarWorkbench()
     derivative = SplitDerivative(
@@ -158,7 +151,6 @@ def make_array_scheme(
         implicit=array_implicit_rhs,
     )
     resolvent = ResolventPicard(
-        array_implicit_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -169,7 +161,14 @@ def make_array_scheme(
         derivative,
         workbench,
         resolvent=resolvent,
-        algebraist=algebraist,
+        specialist=(
+            AlgebraistRuntimeSpecialist(
+                translation=workbench.allocate_translation(),
+                workbench=workbench,
+            )
+            if specialist
+            else None
+        ),
     )
 
 
@@ -178,33 +177,23 @@ def tight_executor() -> Executor:
 
 
 def test_kennedy_carpenter32_owns_converted_call_surface() -> None:
-    assert "__call__" in SchemeKennedyCarpenter32.__dict__
-    assert "call_bind" in SchemeKennedyCarpenter32.__dict__
-    assert "call_generic" in SchemeKennedyCarpenter32.__dict__
-    assert "call_algebraist" in SchemeKennedyCarpenter32.__dict__
-    assert "call_monitored" in SchemeKennedyCarpenter32.__dict__
+    assert hasattr(SchemeKennedyCarpenter32, "__call__")
+    assert hasattr(SchemeKennedyCarpenter32, "call_bind")
+    assert hasattr(SchemeKennedyCarpenter32, "call_inline")
+    assert hasattr(SchemeKennedyCarpenter32, "call_specialized")
+    assert hasattr(SchemeKennedyCarpenter32, "call_monitored")
 
     scheme = make_scheme()
 
     assert scheme.redirect_call.__func__ is scheme.call_bind.__func__
-    assert scheme.call_pure.__func__ is scheme.call_generic.__func__
+    assert scheme.call_pure.__func__ is scheme.call_inline.__func__
 
 
-@pytest.mark.parametrize(
-    "field",
-    [
-        AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
-        AlgebraistField("value", "value", policy=AlgebraistLooped(rank=1)),
-        AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
-    ],
-)
-def test_kennedy_carpenter32_algebraist_path_is_scheme_owned_generated_call(
-    field: AlgebraistField,
-) -> None:
-    scheme = make_array_scheme(algebraist=Algebraist(fields=(field,)))
+def test_kennedy_carpenter32_specialist_path_is_scheme_owned_generated_call() -> None:
+    scheme = make_array_scheme(specialist=True)
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeKennedyCarpenter32.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeKennedyCarpenter32.call_specialized
     assert scheme.redirect_call.__self__ is scheme
     assert scheme.redirect_call.__func__ is scheme.call_bind.__func__
 
@@ -228,20 +217,9 @@ def test_kennedy_carpenter32_accepts_zero_split_step() -> None:
     assert report.rejection_count == 0
 
 
-@pytest.mark.parametrize(
-    "field",
-    [
-        AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
-        AlgebraistField("value", "value", policy=AlgebraistLooped(rank=1)),
-        AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
-    ],
-)
-def test_kennedy_carpenter32_algebraist_path_matches_generic_path(
-    field: AlgebraistField,
-) -> None:
-    algebraist = Algebraist(fields=(field,))
+def test_kennedy_carpenter32_specialist_path_matches_generic_path() -> None:
     generic = make_array_scheme()
-    generated = make_array_scheme(algebraist=algebraist)
+    generated = make_array_scheme(specialist=True)
     generic_interval = Interval(present=0.0, step=0.1, stop=0.3)
     generated_interval = Interval(present=0.0, step=0.1, stop=0.3)
     generic_state = ArrayScalarState.zero()
@@ -255,19 +233,12 @@ def test_kennedy_carpenter32_algebraist_path_matches_generic_path(
     assert generated_interval.step == pytest.approx(generic_interval.step)
 
 
-def test_kennedy_carpenter32_algebraist_source_is_inspectable() -> None:
-    algebraist = Algebraist(fields=(AlgebraistField("value", "value"),))
+def test_kennedy_carpenter32_specialist_path_prepares_expected_kernel_family() -> None:
+    scheme = make_array_scheme(specialist=True)
 
-    make_array_scheme(algebraist=algebraist)
-
-    assert "stage1_shift_combine" in algebraist.sources
-    assert "stage2_shift_combine" in algebraist.sources
-    assert "stage3_shift_combine" in algebraist.sources
-    assert "high_delta_combine" in algebraist.sources
-    assert "error_delta_combine" in algebraist.sources
-    assert "low_delta_combine" not in algebraist.sources
-    assert "explicit_k0" in algebraist.sources["stage1_shift_combine"]
-    assert "implicit_k0" in algebraist.sources["stage1_shift_combine"]
+    assert len(scheme.stage_rhs_kernels) == len(SchemeKennedyCarpenter32.tableau.c)
+    assert callable(scheme.advance_delta_kernel)
+    assert callable(scheme.error_delta_kernel)
 
 
 def test_kennedy_carpenter32_clips_to_remaining_interval() -> None:

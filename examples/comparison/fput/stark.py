@@ -6,7 +6,9 @@ import numpy as np
 
 from stark import Executor, Marcher, Integrator, Interval, Safety, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist import Algebraist, AlgebraistField, AlgebraistLooped
+from stark.algebraist.arity import AlgebraistArity
+from stark.algebraist.generator import AlgebraistGeneratorGeneral
+from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
 from stark.schemes.explicit_adaptive import SchemeCashKarp, SchemeDormandPrince
 
 
@@ -16,13 +18,11 @@ try:
 except ModuleNotFoundError:
     ACCELERATOR = Accelerator.none()
     USE_NUMBA_ACCELERATION = False
-ALGEBRAIST = Algebraist(
+ALGEBRAIST_LAYOUT = AlgebraistLayout(
     fields=(
-        AlgebraistField("dq", "q", policy=AlgebraistLooped(rank=1)),
-        AlgebraistField("dp", "p", policy=AlgebraistLooped(rank=1)),
+        AlgebraistLayoutField("dq", "q", policy=AlgebraistLayoutLooped(rank=1)),
+        AlgebraistLayoutField("dp", "p", policy=AlgebraistLayoutLooped(rank=1)),
     ),
-    accelerator=ACCELERATOR,
-    generate_norm="l2",
 )
 
 @ACCELERATOR.decorate
@@ -67,7 +67,8 @@ class FPUTTranslation:
     __str__ = __repr__
 
     def norm(self):
-        return float(ALGEBRAIST.norm(self) / sqrt(self.dq.size))
+        energy = np.dot(self.dq.ravel(), self.dq.ravel()) + np.dot(self.dp.ravel(), self.dp.ravel())
+        return sqrt(float(energy) / self.dq.size)
 
     def __add__(self, other):
         return FPUTTranslation(self.dq + other.dq, self.dp + other.dp)
@@ -75,8 +76,9 @@ class FPUTTranslation:
     def __rmul__(self, scalar):
         return FPUTTranslation(scalar * self.dq, scalar * self.dp)
 
-    linear_combine = ALGEBRAIST.linear_combine
-    __call__ = ALGEBRAIST.apply
+    def __call__(self, origin, result):
+        result.q[...] = origin.q + self.dq
+        result.p[...] = origin.p + self.dp
 
 
 class FPUTWorkbench:
@@ -86,8 +88,7 @@ class FPUTWorkbench:
     def __init__(self, problem_parameters):
         self.chain_size = problem_parameters["chain_size"]
         if not self.__class__._compiled:
-            probe = np.zeros(self.chain_size, dtype=np.float64)
-            ALGEBRAIST.compile_examples(probe, probe)
+            FPUTTranslation.linear_combine = _generated_linear_combine(self)
             self.__class__._compiled = True
 
     def __repr__(self) -> str:
@@ -110,6 +111,16 @@ class FPUTWorkbench:
             np.zeros(self.chain_size, dtype=np.float64),
             np.zeros(self.chain_size, dtype=np.float64),
         )
+
+
+def _generated_linear_combine(workbench):
+    provider = AlgebraistGeneratorGeneral(
+        translation=workbench.allocate_translation(),
+        workbench=workbench,
+        layout=ALGEBRAIST_LAYOUT,
+        accelerator=ACCELERATOR,
+    )
+    return tuple(provider.provide(AlgebraistArity(arity)) for arity in range(1, 13))
 
 
 class FPUTDerivative:

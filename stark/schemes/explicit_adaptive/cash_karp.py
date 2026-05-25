@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.execution.executor import Executor
 from stark.execution.regulator import Regulator
@@ -15,6 +14,8 @@ from stark.schemes.support import (
     with_explicit_workspace_methods,
     with_scheme_display,
 )
+from stark.schemes.support.specialist import SchemeSpecialist
+from stark.schemes.support.stencil import SchemeStencilTableau
 from stark.schemes.support.tableau import ButcherTableau
 
 
@@ -48,10 +49,10 @@ RKCK_TABLEAU = ButcherTableau(
 )
 
 RKCK_A = RKCK_TABLEAU.a
+RKCK_C = RKCK_TABLEAU.c
 RKCK_B_HIGH = RKCK_TABLEAU.b
 RKCK_B_LOW = RKCK_TABLEAU.b_embedded
 assert RKCK_B_LOW is not None
-
 RKCK_B_HIGH_NZ = (
     RKCK_B_HIGH[0],
     RKCK_B_HIGH[2],
@@ -65,6 +66,10 @@ RKCK_B_ERR_NZ = (
     RKCK_B_HIGH[4] - RKCK_B_LOW[4],
     RKCK_B_HIGH[5] - RKCK_B_LOW[5],
 )
+RKCK_ERROR_WEIGHTS = tuple(
+    high - low
+    for high, low in zip(RKCK_B_HIGH, RKCK_B_LOW, strict=True)
+)
 
 
 @with_scheme_display
@@ -73,12 +78,28 @@ RKCK_B_ERR_NZ = (
 class SchemeCashKarp:
     """The adaptive Cash-Karp embedded 5(4) Runge-Kutta pair.
 
-    Cash-Karp advances with a fifth-order explicit method and estimates the
-    local error with an embedded fourth-order formula. It is a classic adaptive
-    explicit solver for smooth non-stiff problems.
+    Cash-Karp advances with a fifth-order explicit method and estimates local error with an embedded fourth-order formula. It is a classic adaptive explicit solver for smooth non-stiff problems.
 
-    Further reading:
-    https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods
+    Algorithm sketch for one accepted step of size h:
+
+        1. k1 = f(t, y)
+        2. k2 = f(t + c[1] h, y + h * A[1] dot k)
+        3. k3 = f(t + c[2] h, y + h * A[2] dot k)
+        4. k4 = f(t + c[3] h, y + h * A[3] dot k)
+        5. k5 = f(t + c[4] h, y + h * A[4] dot k)
+        6. k6 = f(t + c[5] h, y + h * A[5] dot k)
+        7. high_delta = h * b_high dot k
+        8. error_delta = h * ((b_high - b_low) dot k)
+
+    The adaptive controller repeats the stage and error-estimate steps with a
+    smaller h when the error ratio is too large. k1 is reused across rejected
+    attempts because it depends only on the current accepted state.
+
+    The inline path expresses the method directly with workspace arithmetic.
+    The specialized path uses fixed-coefficient kernels prepared from the same
+    tableau rows and weights.
+
+    Further reading: https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods
     """
 
     # Assigned by initialise_adaptive_runtime from stark.schemes.support.
@@ -86,18 +107,13 @@ class SchemeCashKarp:
 
     __slots__ = (
         "step_control",
+        "advance_delta",
         "bound_apply_delta",
         "bound_stage_interval",
         "call_pure",
-        "combine_error",
-        "combine_solution",
-        "combine_stage2",
-        "combine_stage3",
-        "combine_stage4",
-        "combine_stage5",
-        "combine_stage6",
         "derivative",
         "error",
+        "error_delta",
         "explicit",
         "k1",
         "k2",
@@ -107,11 +123,16 @@ class SchemeCashKarp:
         "k6",
         "redirect_call",
         "stage",
+        "stage2_update",
+        "stage3_update",
+        "stage4_update",
+        "stage5_update",
+        "stage6_update",
         "trial",
         "workspace",
     )
 
-    descriptor = SchemeDescriptor("RKCK", "Cash Karp")
+    descriptor = SchemeDescriptor('RKCK', 'Cash Karp')
     tableau = RKCK_TABLEAU
 
     def __init__(
@@ -119,17 +140,20 @@ class SchemeCashKarp:
         derivative: Derivative,
         workbench: Workbench,
         regulator: Regulator | None = None,
-        algebraist: Algebraist | None = None,
+        specialist: SchemeSpecialist | None = None,
     ) -> None:
         initialise_explicit_support(self, derivative, workbench)
         initialise_adaptive_runtime(self, regulator)
+
         self.initialise_buffers()
 
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         refresh_adaptive_call(self)
 
-        if algebraist is not None:
-            self.bind_algebraist_path(algebraist)
+        if specialist is not None:
+            self.prepare_specialized_kernels(specialist)
+            self.call_pure = self.call_specialized
+            refresh_adaptive_call(self)
 
     def __call__(
         self,
@@ -143,43 +167,42 @@ class SchemeCashKarp:
         workspace = self.workspace
 
         self.stage = workspace.allocate_state_buffer()
-        self.trial, self.error, self.k2, self.k3, self.k4, self.k5, self.k6 = (
-            workspace.allocate_translation_buffers(7)
-        )
+        self.trial, self.error, self.k2, self.k3, self.k4, self.k5, self.k6 = workspace.allocate_translation_buffers(7)
 
-        self.combine_stage2 = unbound_scheme_call
-        self.combine_stage3 = unbound_scheme_call
-        self.combine_stage4 = unbound_scheme_call
-        self.combine_stage5 = unbound_scheme_call
-        self.combine_stage6 = unbound_scheme_call
-        self.combine_solution = unbound_scheme_call
-        self.combine_error = unbound_scheme_call
-
+        self.advance_delta = unbound_scheme_call
+        self.error_delta = unbound_scheme_call
+        self.stage2_update = unbound_scheme_call
+        self.stage3_update = unbound_scheme_call
+        self.stage4_update = unbound_scheme_call
+        self.stage5_update = unbound_scheme_call
+        self.stage6_update = unbound_scheme_call
         self.bound_apply_delta = workspace.apply_delta
         self.bound_stage_interval = workspace.stage_interval
 
-    def bind_algebraist_path(self, algebraist: Algebraist) -> None:
-        calls = algebraist.bind_explicit_scheme(self.tableau)
-        error = calls.require_error_delta_call(type(self).__name__)
+    def prepare_specialized_kernels(
+        self,
+        specialist: SchemeSpecialist,
+    ) -> None:
+        """Prepare fixed-coefficient kernels for the specialized path."""
 
+        stencils = SchemeStencilTableau(self.tableau)
 
+        # Stage rows build staged states from the tableau's A matrix.
+        self.stage2_update = specialist.provide(stencils.stage(1))
+        self.stage3_update = specialist.provide(stencils.stage(2))
+        self.stage4_update = specialist.provide(stencils.stage(3))
+        self.stage5_update = specialist.provide(stencils.stage(4))
+        self.stage6_update = specialist.provide(stencils.stage(5))
 
-        self.combine_stage2 = calls.require_stage_state_call(1, type(self).__name__)
-        self.combine_stage3 = calls.require_stage_state_call(2, type(self).__name__)
-        self.combine_stage4 = calls.require_stage_state_call(3, type(self).__name__)
-        self.combine_stage5 = calls.require_stage_state_call(4, type(self).__name__)
-        self.combine_stage6 = calls.require_stage_state_call(5, type(self).__name__)
-        self.combine_solution = calls.solution_delta_call
-        self.combine_error = error
-
-        self.call_pure = self.call_algebraist
-        refresh_adaptive_call(self)
+        # The accepted advance and embedded error are translation deltas.
+        self.advance_delta = specialist.provide(stencils.advance_delta())
+        self.error_delta = specialist.provide(stencils.error_delta())
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
         self.explicit.set_apply_delta_safety(enabled)
         self.bound_apply_delta = self.workspace.apply_delta
 
-    def call_generic(
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,
@@ -187,10 +210,12 @@ class SchemeCashKarp:
     ) -> float:
         del executor
 
-        proposal = self.step_control.propose_step(interval)
+        step_control = self.step_control
+        proposal = step_control.propose_step(interval)
+        record_stopped = step_control.record_stopped
 
         if proposal.remaining <= 0.0:
-            self.step_control.record_stopped(interval)
+            record_stopped(interval)
             return 0.0
 
         workspace = self.workspace
@@ -200,9 +225,14 @@ class SchemeCashKarp:
         combine3 = workspace.combine3
         combine4 = workspace.combine4
         combine5 = workspace.combine5
-        apply_delta = workspace.apply_delta
-        stage_interval = workspace.stage_interval
-        ratio = self.step_control.ratio
+        combine6 = workspace.combine6
+        apply_delta = self.bound_apply_delta
+        stage_interval = self.bound_stage_interval
+
+        ratio = step_control.ratio
+        rejected_step = step_control.rejected_step
+        accepted_next_step = step_control.accepted_next_step
+        record_accepted = step_control.record_accepted
 
         stage = self.stage
         trial_buffer = self.trial
@@ -220,24 +250,29 @@ class SchemeCashKarp:
         t_start = proposal.t_start
         rejection_count = 0
 
+        # 1. k1 = f(t, y)
+        #
+        # k1 depends only on the current accepted state, so rejected attempts
+        # can reuse it while trying smaller step sizes.
         derivative(interval, state, k1)
 
         while True:
-            trial = scale(dt * RKCK_A[1][0], k1, trial_buffer)
-            trial(state, stage)
-            derivative(stage_interval(interval, dt, dt / 5.0), stage, k2)
-
-            trial = combine2(
+            # 2. k2 = f(t + RKCK_C[1] h, y + h * A[1] dot k)
+            stage_delta = scale(dt * RKCK_A[1][0], k1, trial_buffer)
+            stage_delta(state, stage)
+            derivative(stage_interval(interval, dt, dt * RKCK_C[1]), stage, k2)
+            # 3. k3 = f(t + RKCK_C[2] h, y + h * A[2] dot k)
+            stage_delta = combine2(
                 dt * RKCK_A[2][0],
                 k1,
                 dt * RKCK_A[2][1],
                 k2,
                 trial_buffer,
             )
-            trial(state, stage)
-            derivative(stage_interval(interval, dt, 3.0 * dt / 10.0), stage, k3)
-
-            trial = combine3(
+            stage_delta(state, stage)
+            derivative(stage_interval(interval, dt, dt * RKCK_C[2]), stage, k3)
+            # 4. k4 = f(t + RKCK_C[3] h, y + h * A[3] dot k)
+            stage_delta = combine3(
                 dt * RKCK_A[3][0],
                 k1,
                 dt * RKCK_A[3][1],
@@ -246,10 +281,10 @@ class SchemeCashKarp:
                 k3,
                 trial_buffer,
             )
-            trial(state, stage)
-            derivative(stage_interval(interval, dt, 3.0 * dt / 5.0), stage, k4)
-
-            trial = combine4(
+            stage_delta(state, stage)
+            derivative(stage_interval(interval, dt, dt * RKCK_C[3]), stage, k4)
+            # 5. k5 = f(t + RKCK_C[4] h, y + h * A[4] dot k)
+            stage_delta = combine4(
                 dt * RKCK_A[4][0],
                 k1,
                 dt * RKCK_A[4][1],
@@ -260,10 +295,10 @@ class SchemeCashKarp:
                 k4,
                 trial_buffer,
             )
-            trial(state, stage)
-            derivative(stage_interval(interval, dt, dt), stage, k5)
-
-            trial = combine5(
+            stage_delta(state, stage)
+            derivative(stage_interval(interval, dt, dt * RKCK_C[4]), stage, k5)
+            # 6. k6 = f(t + RKCK_C[5] h, y + h * A[5] dot k)
+            stage_delta = combine5(
                 dt * RKCK_A[5][0],
                 k1,
                 dt * RKCK_A[5][1],
@@ -276,10 +311,10 @@ class SchemeCashKarp:
                 k5,
                 trial_buffer,
             )
-            trial(state, stage)
-            derivative(stage_interval(interval, dt, 7.0 * dt / 8.0), stage, k6)
-
-            delta_high = combine4(
+            stage_delta(state, stage)
+            derivative(stage_interval(interval, dt, dt * RKCK_C[5]), stage, k6)
+            # 7. high_delta = h * b_high dot k
+            high_delta = combine4(
                 dt * RKCK_B_HIGH_NZ[0],
                 k1,
                 dt * RKCK_B_HIGH_NZ[1],
@@ -291,7 +326,8 @@ class SchemeCashKarp:
                 trial_buffer,
             )
 
-            error = combine5(
+            # 8. error_delta = h * ((b_high - b_low) dot k)
+            error_delta = combine5(
                 dt * RKCK_B_ERR_NZ[0],
                 k1,
                 dt * RKCK_B_ERR_NZ[1],
@@ -305,13 +341,13 @@ class SchemeCashKarp:
                 error_buffer,
             )
 
-            error_ratio = ratio(error.norm(), delta_high.norm())
+            error_ratio = ratio(error_delta.norm(), high_delta.norm())
 
             if error_ratio <= 1.0:
                 break
 
             rejection_count += 1
-            dt = self.step_control.rejected_step(
+            dt = rejected_step(
                 dt,
                 error_ratio,
                 remaining,
@@ -320,16 +356,16 @@ class SchemeCashKarp:
 
         accepted_dt = dt
         remaining_after = remaining - accepted_dt
-        next_dt = self.step_control.accepted_next_step(
+        next_dt = accepted_next_step(
             accepted_dt,
             error_ratio,
             remaining_after,
         )
 
         interval.step = next_dt
-        apply_delta(delta_high, state)
+        apply_delta(high_delta, state)
 
-        report = self.step_control.record_accepted(
+        report = record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,
@@ -337,9 +373,10 @@ class SchemeCashKarp:
             error_ratio=error_ratio,
             rejection_count=rejection_count,
         )
+
         return report.accepted_dt
 
-    def call_algebraist(
+    def call_specialized(
         self,
         interval: IntervalLike,
         state: State,
@@ -347,16 +384,22 @@ class SchemeCashKarp:
     ) -> float:
         del executor
 
-        proposal = self.step_control.propose_step(interval)
+        step_control = self.step_control
+        proposal = step_control.propose_step(interval)
+        record_stopped = step_control.record_stopped
 
         if proposal.remaining <= 0.0:
-            self.step_control.record_stopped(interval)
+            record_stopped(interval)
             return 0.0
 
         derivative = self.derivative
         apply_delta = self.bound_apply_delta
         stage_interval = self.bound_stage_interval
-        ratio = self.step_control.ratio
+
+        ratio = step_control.ratio
+        rejected_step = step_control.rejected_step
+        accepted_next_step = step_control.accepted_next_step
+        record_accepted = step_control.record_accepted
 
         stage = self.stage
         trial_buffer = self.trial
@@ -368,13 +411,13 @@ class SchemeCashKarp:
         k5 = self.k5
         k6 = self.k6
 
-        combine_stage2 = self.combine_stage2
-        combine_stage3 = self.combine_stage3
-        combine_stage4 = self.combine_stage4
-        combine_stage5 = self.combine_stage5
-        combine_stage6 = self.combine_stage6
-        combine_solution = self.combine_solution
-        combine_error = self.combine_error
+        advance_delta = self.advance_delta
+        error_delta = self.error_delta
+        stage2_update = self.stage2_update
+        stage3_update = self.stage3_update
+        stage4_update = self.stage4_update
+        stage5_update = self.stage5_update
+        stage6_update = self.stage6_update
 
         remaining = proposal.remaining
         dt = proposal.dt
@@ -382,33 +425,41 @@ class SchemeCashKarp:
         t_start = proposal.t_start
         rejection_count = 0
 
+        # 1. k1 = f(t, y)
+        #
+        # k1 depends only on the current accepted state, so rejected attempts
+        # can reuse it while trying smaller step sizes.
         derivative(interval, state, k1)
 
         while True:
-            combine_stage2(state, dt, k1, stage)
-            derivative(stage_interval(interval, dt, dt / 5.0), stage, k2)
+            # 2. k2 = f(t + RKCK_C[1] h, y + h * A[1] dot k)
+            stage2_update(dt, state, k1, stage)
+            derivative(stage_interval(interval, dt, dt * RKCK_C[1]), stage, k2)
+            # 3. k3 = f(t + RKCK_C[2] h, y + h * A[2] dot k)
+            stage3_update(dt, state, k1, k2, stage)
+            derivative(stage_interval(interval, dt, dt * RKCK_C[2]), stage, k3)
+            # 4. k4 = f(t + RKCK_C[3] h, y + h * A[3] dot k)
+            stage4_update(dt, state, k1, k2, k3, stage)
+            derivative(stage_interval(interval, dt, dt * RKCK_C[3]), stage, k4)
+            # 5. k5 = f(t + RKCK_C[4] h, y + h * A[4] dot k)
+            stage5_update(dt, state, k1, k2, k3, k4, stage)
+            derivative(stage_interval(interval, dt, dt * RKCK_C[4]), stage, k5)
+            # 6. k6 = f(t + RKCK_C[5] h, y + h * A[5] dot k)
+            stage6_update(dt, state, k1, k2, k3, k4, k5, stage)
+            derivative(stage_interval(interval, dt, dt * RKCK_C[5]), stage, k6)
+            # 7. high_delta = h * b_high dot k
+            high_delta = advance_delta(dt, k1, k2, k3, k4, k5, k6, trial_buffer)
 
-            combine_stage3(state, dt, k1, k2, stage)
-            derivative(stage_interval(interval, dt, 3.0 * dt / 10.0), stage, k3)
+            # 8. error_delta = h * ((b_high - b_low) dot k)
+            error = error_delta(dt, k1, k2, k3, k4, k5, k6, error_buffer)
 
-            combine_stage4(state, dt, k1, k2, k3, stage)
-            derivative(stage_interval(interval, dt, 3.0 * dt / 5.0), stage, k4)
-
-            combine_stage5(state, dt, k1, k2, k3, k4, stage)
-            derivative(stage_interval(interval, dt, dt), stage, k5)
-
-            combine_stage6(state, dt, k1, k2, k3, k4, k5, stage)
-            derivative(stage_interval(interval, dt, 7.0 * dt / 8.0), stage, k6)
-
-            delta_high = combine_solution(dt, k1, k3, k4, k6, trial_buffer)
-            error = combine_error(dt, k1, k3, k4, k5, k6, error_buffer)
-            error_ratio = ratio(error.norm(), delta_high.norm())
+            error_ratio = ratio(error.norm(), high_delta.norm())
 
             if error_ratio <= 1.0:
                 break
 
             rejection_count += 1
-            dt = self.step_control.rejected_step(
+            dt = rejected_step(
                 dt,
                 error_ratio,
                 remaining,
@@ -417,16 +468,16 @@ class SchemeCashKarp:
 
         accepted_dt = dt
         remaining_after = remaining - accepted_dt
-        next_dt = self.step_control.accepted_next_step(
+        next_dt = accepted_next_step(
             accepted_dt,
             error_ratio,
             remaining_after,
         )
 
         interval.step = next_dt
-        apply_delta(delta_high, state)
+        apply_delta(high_delta, state)
 
-        report = self.step_control.record_accepted(
+        report = record_accepted(
             accepted_dt=accepted_dt,
             t_start=t_start,
             proposed_dt=proposed_dt,
@@ -434,6 +485,7 @@ class SchemeCashKarp:
             error_ratio=error_ratio,
             rejection_count=rejection_count,
         )
+
         return report.accepted_dt
 
 

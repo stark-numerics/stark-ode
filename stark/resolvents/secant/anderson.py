@@ -4,63 +4,224 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
-from stark.auditor import Auditor
-from stark.contracts import AcceleratorLike, Block, Derivative, InnerProduct, IntervalLike, State, Workbench
+import numpy as np
+
+from stark.accelerators import AcceleratorAbsent
+from stark.block import Block, BlockAllocator
+from stark.contracts import AcceleratorLike, InnerProduct, Translation, Workbench
 from stark.execution.safety import Safety
 from stark.execution.tolerance import Tolerance
-from stark.machinery.stage_solve.workspace import SchemeWorkspace
-from stark.resolvents.support.descriptor import ResolventDescriptor
-from stark.resolvents.support.failure import ResolventError
-from stark.resolvents.support.policy import ResolventPolicy
 from stark.resolvents.support import (
     MonitorResolventLike,
+    ResolventError,
+    ResolventPolicy,
+    ResolventSpecialist,
+    ResolventStageProblem,
     ResolventStageResidual,
-    SecantHistory,
-    check_one_stage_block,
+    ResolventStencilBlock,
     initialise_resolvent_runtime,
-    with_resolvent_binding_methods,
+    refresh_resolvent_call,
+    with_resolvent_call_methods,
     with_resolvent_display_methods,
     with_resolvent_monitoring_methods,
 )
-from stark.resolvents.support.workspace import ResolventWorkspace
+from stark.resolvents.support.descriptor import ResolventDescriptor
+from stark.resolvents.support.secant import (
+    BlockInnerProduct,
+    ResolventSecantLeastSquares,
+    block_inner_product,
+)
 from stark.resolvents.support.tolerance import ResolventTolerance
 
 
+class ResolventAndersonHistory:
+    """Anderson-specific history of fixed-point and residual differences.
+
+    The history stores the recent differences used by Anderson acceleration.
+    It is algorithmic state, not a block workspace.
+    """
+
+    __slots__ = (
+        "accelerator",
+        "allocator",
+        "depth",
+        "inner_product",
+        "least_squares",
+        "size",
+        "count",
+        "head",
+        "fixed_point_differences",
+        "residual_differences",
+        "previous_fixed_point",
+        "previous_residual",
+    )
+
+    def __init__(
+        self,
+        allocator: BlockAllocator[Translation],
+        inner_product: BlockInnerProduct,
+        depth: int,
+        accelerator: AcceleratorLike | None = None,
+    ) -> None:
+        if type(depth) is not int:
+            raise TypeError("Anderson history depth must be an int.")
+        if depth < 1:
+            raise ValueError("Anderson history depth must be at least 1.")
+
+        self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
+        self.allocator = allocator
+        self.inner_product = inner_product
+        self.depth = depth
+        self.size = -1
+        self.count = 0
+        self.head = 0
+        self.fixed_point_differences: list[Block[Translation]] = []
+        self.residual_differences: list[Block[Translation]] = []
+        self.previous_fixed_point: Block[Translation] | None = None
+        self.previous_residual: Block[Translation] | None = None
+        self.least_squares = self.accelerator.resolve_support(
+            ResolventSecantLeastSquares(depth),
+            label="resolvent_anderson_least_squares",
+            depth=depth,
+        )
+
+    def bind_accelerator(self, accelerator: AcceleratorLike) -> None:
+        self.accelerator = accelerator
+        self.least_squares = accelerator.resolve_support(
+            ResolventSecantLeastSquares(self.depth),
+            label="resolvent_anderson_least_squares",
+            depth=self.depth,
+        )
+
+    def __len__(self) -> int:
+        return self.count
+
+    def ensure_size(self, block: Block[Translation]) -> None:
+        size = len(block)
+        if self.size == size:
+            return
+
+        self.size = size
+        self.count = 0
+        self.head = 0
+        self.fixed_point_differences = [
+            self.allocator.allocate_like(block) for _ in range(self.depth)
+        ]
+        self.residual_differences = [
+            self.allocator.allocate_like(block) for _ in range(self.depth)
+        ]
+        self.previous_fixed_point = self.allocator.allocate_like(block)
+        self.previous_residual = self.allocator.allocate_like(block)
+
+    def clear(self) -> None:
+        self.count = 0
+        self.head = 0
+        self.previous_fixed_point = None
+        self.previous_residual = None
+
+    def observe(self, fixed_point: Block[Translation], residual: Block[Translation]) -> None:
+        """Record the current fixed-point candidate and residual."""
+
+        self.ensure_size(fixed_point)
+
+        if self.previous_fixed_point is None or self.previous_residual is None:
+            self.previous_fixed_point = self.allocator.allocate_like(fixed_point)
+            self.previous_residual = self.allocator.allocate_like(residual)
+            self.previous_fixed_point.replace(fixed_point)
+            self.previous_residual.replace(residual)
+            return
+
+        fixed_point_difference = fixed_point - self.previous_fixed_point
+        residual_difference = residual - self.previous_residual
+
+        if self.count < self.depth:
+            index = (self.head + self.count) % self.depth
+            self.count += 1
+        else:
+            index = self.head
+            self.head = (self.head + 1) % self.depth
+
+        self.fixed_point_differences[index].replace(fixed_point_difference)
+        self.residual_differences[index].replace(residual_difference)
+        self.previous_fixed_point.replace(fixed_point)
+        self.previous_residual.replace(residual)
+
+    def correction(
+        self,
+        residual: Block[Translation],
+        out: Block[Translation],
+    ) -> bool:
+        """Write the Anderson projected correction into ``out``."""
+
+        if self.count == 0:
+            return False
+
+        coefficients = self.least_squares.solve(
+            self.count,
+            self.inner_product,
+            self.residual_differences,
+            residual,
+            self.slot,
+        )
+        self.combine_fixed_point_differences(out, coefficients)
+        return True
+
+    def combine_fixed_point_differences(
+        self,
+        out: Block[Translation],
+        coefficients: np.ndarray,
+    ) -> None:
+        out.replace(0.0 * out)
+
+        for index in range(min(self.count, len(coefficients))):
+            coefficient = float(coefficients[index])
+            if coefficient == 0.0:
+                continue
+            out += coefficient * self.fixed_point_differences[self.slot(index)]
+
+    def slot(self, index: int) -> int:
+        return (self.head + index) % self.depth
+
+
 @with_resolvent_display_methods
-@with_resolvent_binding_methods
+@with_resolvent_call_methods
 @with_resolvent_monitoring_methods
 class ResolventAnderson:
-    """
-    Anderson-accelerated resolvent for one-stage shifted implicit equations.
+    """Anderson-accelerated fixed-point resolvent.
 
-    Anderson acceleration starts from the same fixed-point map as Picard, then
-    uses a rolling history of fixed-point and residual differences to project a
-    better next guess.
+    Residual equation:
 
-    Further reading:
-    https://en.wikipedia.org/wiki/Anderson_acceleration
+        F(delta) = 0
+
+    Anderson starts from the Picard fixed-point candidate and accelerates it
+    using a short history of fixed-point and residual differences.
+
+    Algorithm sketch:
+
+        1. Compute F(delta).
+        2. Accept if ||F(delta)|| is within tolerance.
+        3. Build the Picard fixed-point candidate delta - F(delta).
+        4. Record Anderson history from fixed-point/residual differences.
+        5. Subtract the projected Anderson correction when history exists.
+        6. Recheck once after the final correction.
     """
 
     __slots__ = (
         "_monitor",
-        "alpha",
         "accelerator",
-        "correction",
-        "depth",
+        "alpha",
+        "allocator",
+        "call_pure",
         "fixed_point",
         "history",
-        "interval",
+        "history_correction",
         "policy",
-        "previous_fixed_point",
-        "previous_residual",
         "redirect_call",
         "residual",
         "residual_buffer",
-        "resolvent_workspace",
         "safety",
-        "scheme_workspace",
         "size",
-        "state",
+        "subtract_update",
         "tableau",
         "tolerance",
     )
@@ -68,16 +229,8 @@ class ResolventAnderson:
     descriptor = ResolventDescriptor("Anderson", "Anderson Acceleration")
 
     if TYPE_CHECKING:
-        def bind(self, interval: IntervalLike, state: State) -> None: ...
-
-        def bind_accelerator(self, accelerator: AcceleratorLike) -> None: ...
-
         def assign_monitor(self, monitor: MonitorResolventLike) -> None: ...
-
         def unassign_monitor(self) -> None: ...
-
-        def call_unbound(self, alpha: float, rhs: Block | None, out: Block) -> None: ...
-
         def record_solve(
             self,
             block_size: int,
@@ -89,7 +242,6 @@ class ResolventAnderson:
 
     def __init__(
         self,
-        derivative: Derivative,
         workbench: Workbench,
         inner_product: InnerProduct,
         tolerance: Tolerance | None = None,
@@ -97,114 +249,185 @@ class ResolventAnderson:
         depth: int = 4,
         safety: Safety | None = None,
         accelerator: AcceleratorLike | None = None,
+        specialist: ResolventSpecialist[Translation] | None = None,
         tableau: Any | None = None,
     ) -> None:
-        translation_probe = workbench.allocate_translation()
-        Auditor.require_scheme_inputs(derivative, workbench, translation_probe)
-
         self.tableau = tableau
         initialise_resolvent_runtime(self, safety, accelerator)
 
-        self.scheme_workspace = SchemeWorkspace(workbench, translation_probe)
-        self.tolerance = tolerance if tolerance is not None else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
+        self.allocator = BlockAllocator(workbench)
+        self.tolerance = (
+            tolerance
+            if tolerance is not None
+            else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
+        )
         self.policy = policy if policy is not None else ResolventPolicy()
-        self.depth = depth
-        self.resolvent_workspace = ResolventWorkspace(
+        self.residual = ResolventStageResidual(
+            "ResolventAnderson",
             workbench,
-            translation_probe,
-            self.safety,
-            inner_product=inner_product,
             accelerator=self.accelerator,
         )
-        self.history = SecantHistory(self.resolvent_workspace, depth, accelerator=self.accelerator)
-        self.residual = ResolventStageResidual("ResolventAnderson", derivative, self.scheme_workspace)
         self.residual_buffer = None
-        self.previous_residual = None
         self.fixed_point = None
-        self.previous_fixed_point = None
-        self.correction = None
+        self.history_correction = None
+        self.subtract_update = None
         self.size = -1
 
-    def call_checked(self, alpha: float, rhs: Block | None, out: Block) -> None:
-        check_one_stage_block("out", out)
-        if rhs is not None:
-            check_one_stage_block("rhs", rhs)
-        self.call_unchecked(alpha, rhs, out)
+        lifted_inner_product = lambda left, right: block_inner_product(
+            inner_product,
+            left,
+            right,
+        )
+        self.history = ResolventAndersonHistory(
+            self.allocator,
+            lifted_inner_product,
+            depth,
+            accelerator=self.accelerator,
+        )
 
-    def call_unchecked(self, alpha: float, rhs: Block | None, out: Block) -> None:
-        interval = cast(IntervalLike, self.interval)
-        state = cast(State, self.state)
+        if specialist is not None:
+            self.prepare_specialized_kernels(specialist)
+            self.call_pure = self.call_specialized
+            refresh_resolvent_call(self)
 
-        self.alpha = alpha
-        self.residual.configure(interval, state, alpha, rhs=rhs)
-        self.resolvent_workspace.zero_block(out)
-        self.resolve(out)
+    def prepare_specialized_kernels(
+        self,
+        specialist: ResolventSpecialist[Translation],
+    ) -> None:
+        # Steps 3 and 5 use the same block subtraction stencil.
+        self.subtract_update = specialist.provide(
+            ResolventStencilBlock((1.0, -1.0))
+        )
 
-    def prepare(self, size: int) -> None:
+    def prepare_buffers(self, delta: Block[Translation]) -> None:
+        size = len(delta)
         if self.size == size:
             return
-        self.size = size
-        self.residual_buffer = self.resolvent_workspace.allocate_block(size)
-        self.previous_residual = self.resolvent_workspace.allocate_block(size)
-        self.fixed_point = self.resolvent_workspace.allocate_block(size)
-        self.previous_fixed_point = self.resolvent_workspace.allocate_block(size)
-        self.correction = self.resolvent_workspace.allocate_block(size)
-        self.history.ensure_size(size)
 
-    def resolve(self, block: Block) -> None:
+        self.size = size
+        self.residual_buffer = self.allocator.allocate_like(delta)
+        self.fixed_point = self.allocator.allocate_like(delta)
+        self.history_correction = self.allocator.allocate_like(delta)
+        self.history.ensure_size(delta)
+
+    def call_inline(
+        self,
+        problem: ResolventStageProblem,
+        delta: Block[Translation],
+    ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
             raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
 
-        self.prepare(len(block))
-        residual_buffer = cast(Block, self.residual_buffer)
-        previous_residual = cast(Block, self.previous_residual)
-        fixed_point = cast(Block, self.fixed_point)
-        previous_fixed_point = cast(Block, self.previous_fixed_point)
-        correction = cast(Block, self.correction)
+        self.alpha = problem.alpha
+        self.prepare_buffers(delta)
+        self.history.clear()
 
-        history = self.history
-        workspace = history.workspace
-        combine2_block = workspace.combine2_block
-        copy_block = workspace.copy_block
-        history.clear()
-        have_previous = False
-        block_size = len(block)
+        F = self.residual
+        F.configure(problem)
+        residual = cast(Block[Translation], self.residual_buffer)
+        fixed_point = cast(Block[Translation], self.fixed_point)
+        history_correction = cast(Block[Translation], self.history_correction)
+
+        block_size = len(delta)
         iteration_count = 0
 
         for _ in range(self.policy.max_iterations):
-            self.residual(block, residual_buffer)
-            error = residual_buffer.norm()
-            scale = block.norm()
+            # 1. Compute F(delta).
+            F(delta, residual)
+
+            # 2. Accept if ||F(delta)|| is within tolerance.
+            error = residual.norm()
+            scale = delta.norm()
             if self.tolerance.accepts(error, scale):
                 self.record_solve(block_size, iteration_count, error, scale, True)
-                return
+                return delta
 
-            # Build the plain Picard fixed-point candidate first; Anderson only
-            # changes how that candidate is mixed with recent history.
-            combine2_block(1.0, block, -1.0, residual_buffer, fixed_point)
-            if have_previous:
-                history.append_difference(fixed_point, previous_fixed_point, residual_buffer, previous_residual)
+            # 3. Build the Picard fixed-point candidate delta - F(delta).
+            fixed_point.replace(delta - residual)
 
-            if len(history) > 0:
-                # Solve the small history least-squares problem and subtract
-                # the projected correction from the fixed-point candidate.
-                coefficients = history.solve_right_least_squares(residual_buffer)
-                history.combine_left(correction, coefficients)
-                combine2_block(1.0, fixed_point, -1.0, correction, block)
+            # 4. Record Anderson history.
+            self.history.observe(fixed_point, residual)
+
+            # 5. Subtract the projected Anderson correction when available.
+            if self.history.correction(residual, history_correction):
+                delta.replace(fixed_point - history_correction)
             else:
-                copy_block(block, fixed_point)
+                delta.replace(fixed_point)
 
-            copy_block(previous_fixed_point, fixed_point)
-            copy_block(previous_residual, residual_buffer)
-            have_previous = True
             iteration_count += 1
 
-        self.residual(block, residual_buffer)
-        error = residual_buffer.norm()
-        scale = block.norm()
+        # 6. Recheck once after the final correction.
+        F(delta, residual)
+
+        error = residual.norm()
+        scale = delta.norm()
         if self.tolerance.accepts(error, scale):
             self.record_solve(block_size, iteration_count, error, scale, True)
-            return
+            return delta
+
+        self.record_solve(block_size, iteration_count, error, scale, False)
+        raise ResolventError(
+            f"{type(self).__name__} failed to resolve the residual within "
+            f"{self.policy.max_iterations} iterations (error={error:g})."
+        )
+
+    def call_specialized(
+        self,
+        problem: ResolventStageProblem,
+        delta: Block[Translation],
+    ) -> Block[Translation]:
+        if self.policy.max_iterations < 1:
+            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
+
+        self.alpha = problem.alpha
+        self.prepare_buffers(delta)
+        self.history.clear()
+
+        F = self.residual
+        F.configure(problem)
+        residual = cast(Block[Translation], self.residual_buffer)
+        fixed_point = cast(Block[Translation], self.fixed_point)
+        history_correction = cast(Block[Translation], self.history_correction)
+        subtract_update = self.subtract_update
+        assert subtract_update is not None
+
+        block_size = len(delta)
+        iteration_count = 0
+
+        for _ in range(self.policy.max_iterations):
+            # 1. Compute F(delta).
+            F(delta, residual)
+
+            # 2. Accept if ||F(delta)|| is within tolerance.
+            error = residual.norm()
+            scale = delta.norm()
+            if self.tolerance.accepts(error, scale):
+                self.record_solve(block_size, iteration_count, error, scale, True)
+                return delta
+
+            # 3. Build the Picard fixed-point candidate delta - F(delta).
+            subtract_update(1.0, fixed_point, delta, residual)
+
+            # 4. Record Anderson history.
+            self.history.observe(fixed_point, residual)
+
+            # 5. Subtract the projected Anderson correction when available.
+            if self.history.correction(residual, history_correction):
+                subtract_update(1.0, delta, fixed_point, history_correction)
+            else:
+                delta.replace(fixed_point)
+
+            iteration_count += 1
+
+        # 6. Recheck once after the final correction.
+        F(delta, residual)
+
+        error = residual.norm()
+        scale = delta.norm()
+        if self.tolerance.accepts(error, scale):
+            self.record_solve(block_size, iteration_count, error, scale, True)
+            return delta
+
         self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
             f"{type(self).__name__} failed to resolve the residual within "
@@ -212,4 +435,4 @@ class ResolventAnderson:
         )
 
 
-__all__ = ["ResolventAnderson"]
+__all__ = ["ResolventAnderson", "ResolventAndersonHistory"]

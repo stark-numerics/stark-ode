@@ -5,7 +5,7 @@ from __future__ import annotations
 from importlib import import_module
 
 __all__ = [
-    "CoupledCollocationResolventStep",
+    "ResolventCoupledCollocationStep",
     "ImExStepper",
     "SchemeWorkspace",
     "SequentialDIRKResolventStep",
@@ -18,7 +18,7 @@ def __getattr__(name: str):
         module = import_module("stark.machinery.stage_solve.workspace")
         return getattr(module, name)
     if name in {
-        "CoupledCollocationResolventStep",
+        "ResolventCoupledCollocationStep",
         "ImExStepper",
         "SequentialDIRKResolventStep",
         "ShiftedOneStageResolventStep",

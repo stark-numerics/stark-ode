@@ -6,12 +6,12 @@ import cupy as cp
 from stark.carriers.cupy.storage import CarrierCupyValue, CarrierStorageCupy
 
 
-class CupyModule(Protocol):
+class HintCupyModule(Protocol):
     def zeros(self, shape: tuple[int, ...], dtype: object) -> CarrierCupyValue: ...
     def array(self, value: CarrierCupyValue, *, copy: bool = ...) -> CarrierCupyValue: ...
 
 
-cupy = cast(CupyModule, cp)
+cupy = cast(HintCupyModule, cp)
 
 
 @dataclass(frozen=True)

@@ -2,62 +2,58 @@ from __future__ import annotations
 
 """Picard-backed resolvent for fully coupled implicit RK stage systems."""
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from stark.auditor import Auditor
-from stark.contracts import AcceleratorLike, Block, Derivative, IntervalLike, State, Workbench
+from stark.block import Block, BlockAllocator
+from stark.contracts import AcceleratorLike, Translation, Workbench
 from stark.execution.safety import Safety
 from stark.execution.tolerance import Tolerance
-from stark.machinery.stage_solve.workspace import SchemeWorkspace
-from stark.resolvents.support.descriptor import ResolventDescriptor
-from stark.resolvents.support.failure import ResolventError
-from stark.resolvents.support.policy import ResolventPolicy
 from stark.resolvents.support import (
     MonitorResolventLike,
+    ResolventCoupledStageProblem,
     ResolventCoupledStageResidual,
+    ResolventError,
+    ResolventPolicy,
+    ResolventSpecialist,
+    ResolventStencilBlock,
     initialise_resolvent_runtime,
-    with_resolvent_binding_methods,
+    refresh_resolvent_call,
+    with_resolvent_call_methods,
     with_resolvent_display_methods,
     with_resolvent_monitoring_methods,
 )
-from stark.resolvents.support.workspace import ResolventWorkspace
+from stark.resolvents.support.descriptor import ResolventDescriptor
 from stark.resolvents.support.tolerance import ResolventTolerance
-
-if TYPE_CHECKING:
-    from stark.schemes.support.tableau import ButcherTableau
 
 
 @with_resolvent_display_methods
-@with_resolvent_binding_methods
+@with_resolvent_call_methods
 @with_resolvent_monitoring_methods
 class ResolventCoupledPicard:
-    """
-    Picard-driven resolvent for fully coupled implicit Runge-Kutta stages.
+    """Picard iteration for fully coupled implicit RK stage systems.
 
-    The unknown is a block of stage increments. Each iteration evaluates the
-    coupled residual induced by the tableau matrix and subtracts that residual
-    from the stage block to form the next fixed-point guess.
+    Algorithm sketch:
 
-    Further reading:
-    https://en.wikipedia.org/wiki/Fixed-point_iteration
-    https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
+        1. Start from the current block of stage increments delta.
+        2. Compute the coupled residual F(delta).
+        3. Accept if ||F(delta)|| is within tolerance.
+        4. Otherwise apply delta <- delta - F(delta).
+        5. Recheck once after the final correction.
     """
 
     __slots__ = (
         "_monitor",
-        "alpha",
         "accelerator",
-        "interval",
+        "alpha",
+        "allocator",
+        "call_pure",
+        "picard_update",
         "policy",
         "redirect_call",
         "residual",
         "residual_buffer",
-        "resolvent_workspace",
         "safety",
-        "scheme_workspace",
         "size",
-        "stage_count",
-        "state",
         "tableau",
         "tolerance",
     )
@@ -65,16 +61,8 @@ class ResolventCoupledPicard:
     descriptor = ResolventDescriptor("Picard", "Picard Iteration")
 
     if TYPE_CHECKING:
-        def bind(self, interval: IntervalLike, state: State) -> None: ...
-
-        def bind_accelerator(self, accelerator: AcceleratorLike) -> None: ...
-
         def assign_monitor(self, monitor: MonitorResolventLike) -> None: ...
-
         def unassign_monitor(self) -> None: ...
-
-        def call_unbound(self, alpha: float, rhs: Block | None, out: Block) -> None: ...
-
         def record_solve(
             self,
             block_size: int,
@@ -86,91 +74,146 @@ class ResolventCoupledPicard:
 
     def __init__(
         self,
-        derivative: Derivative,
         workbench: Workbench,
-        tableau: ButcherTableau,
         tolerance: Tolerance | None = None,
         policy: ResolventPolicy | None = None,
         safety: Safety | None = None,
         accelerator: AcceleratorLike | None = None,
+        specialist: ResolventSpecialist[Translation] | None = None,
+        tableau: Any | None = None,
     ) -> None:
-        translation_probe = workbench.allocate_translation()
-        Auditor.require_scheme_inputs(derivative, workbench, translation_probe)
-
-        self.stage_count = len(tableau.c)
         self.tableau = tableau
         initialise_resolvent_runtime(self, safety, accelerator)
 
-        self.scheme_workspace = SchemeWorkspace(workbench, translation_probe)
-        self.resolvent_workspace = ResolventWorkspace(
-            workbench,
-            translation_probe,
-            self.safety,
-            accelerator=self.accelerator,
+        self.allocator = BlockAllocator(workbench)
+        self.tolerance = (
+            tolerance
+            if tolerance is not None
+            else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         )
-        self.tolerance = tolerance if tolerance is not None else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         self.policy = policy if policy is not None else ResolventPolicy()
         self.residual = ResolventCoupledStageResidual(
             "ResolventCoupledPicard",
-            derivative,
-            self.scheme_workspace,
-            stage_shifts=tableau.c,
-            matrix=tableau.a,
+            workbench,
+            accelerator=self.accelerator,
         )
         self.residual_buffer = None
+        self.picard_update = None
         self.size = -1
 
-    def check_block_sizes(self, out: Block, rhs: Block | None = None) -> None:
-        if len(out) != self.stage_count:
-            raise ValueError(f"out must be a {self.stage_count}-item block for this resolvent.")
-        if rhs is not None and len(rhs) != self.stage_count:
-            raise ValueError(f"rhs must be a {self.stage_count}-item block for this resolvent.")
+        if specialist is not None:
+            self.prepare_specialized_kernels(specialist)
+            self.call_pure = self.call_specialized
+            refresh_resolvent_call(self)
 
-    def call_checked(self, alpha: float, rhs: Block | None, out: Block) -> None:
-        self.check_block_sizes(out, rhs)
-        self.call_unchecked(alpha, rhs, out)
+    def prepare_specialized_kernels(
+        self,
+        specialist: ResolventSpecialist[Translation],
+    ) -> None:
+        # Step 4: coupled Picard correction delta <- delta - F(delta).
+        self.picard_update = specialist.provide(
+            ResolventStencilBlock((1.0, -1.0))
+        )
 
-    def call_unchecked(self, alpha: float, rhs: Block | None, out: Block) -> None:
-        interval = cast(IntervalLike, self.interval)
-        state = cast(State, self.state)
+    def residual_buffer_for(
+        self,
+        delta: Block[Translation],
+    ) -> Block[Translation]:
+        size = len(delta)
+        if self.size != size:
+            self.size = size
+            self.residual_buffer = self.allocator.allocate_like(delta)
 
-        self.alpha = alpha
-        self.residual.configure(interval, state, alpha, rhs=rhs)
-        self.resolvent_workspace.zero_block(out)
-        self.resolve(out)
+        return cast(Block[Translation], self.residual_buffer)
 
-    def prepare(self, size: int) -> None:
-        if self.size == size:
-            return
-        self.size = size
-        self.residual_buffer = self.resolvent_workspace.allocate_block(size)
-
-    def resolve(self, block: Block) -> None:
+    def call_inline(
+        self,
+        problem: ResolventCoupledStageProblem,
+        delta: Block[Translation],
+    ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
             raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
 
-        self.prepare(len(block))
-        residual_buffer = cast(Block, self.residual_buffer)
+        self.alpha = problem.step
+        F = self.residual
+        F.configure(problem)
+        residual = self.residual_buffer_for(delta)
 
-        block_size = len(block)
+        block_size = len(delta)
         iteration_count = 0
 
         for _ in range(self.policy.max_iterations):
-            self.residual(block, residual_buffer)
-            error = residual_buffer.norm()
-            scale = block.norm()
+            # 2. Compute the coupled residual F(delta).
+            F(delta, residual)
+
+            # 3. Accept if ||F(delta)|| is within tolerance.
+            error = residual.norm()
+            scale = delta.norm()
             if self.tolerance.accepts(error, scale):
                 self.record_solve(block_size, iteration_count, error, scale, True)
-                return
-            self.resolvent_workspace.combine2_block(1.0, block, -1.0, residual_buffer, block)
+                return delta
+
+            # 4. Coupled Picard correction: delta <- delta - F(delta).
+            delta -= residual
             iteration_count += 1
 
-        self.residual(block, residual_buffer)
-        error = residual_buffer.norm()
-        scale = block.norm()
+        # 5. Recheck once after the final correction.
+        F(delta, residual)
+
+        error = residual.norm()
+        scale = delta.norm()
         if self.tolerance.accepts(error, scale):
             self.record_solve(block_size, iteration_count, error, scale, True)
-            return
+            return delta
+
+        self.record_solve(block_size, iteration_count, error, scale, False)
+        raise ResolventError(
+            f"{type(self).__name__} failed to resolve the residual within "
+            f"{self.policy.max_iterations} iterations (error={error:g})."
+        )
+
+    def call_specialized(
+        self,
+        problem: ResolventCoupledStageProblem,
+        delta: Block[Translation],
+    ) -> Block[Translation]:
+        if self.policy.max_iterations < 1:
+            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
+
+        self.alpha = problem.step
+        F = self.residual
+        F.configure(problem)
+        residual = self.residual_buffer_for(delta)
+        picard_update = self.picard_update
+        assert picard_update is not None
+
+        block_size = len(delta)
+        iteration_count = 0
+
+        for _ in range(self.policy.max_iterations):
+            # 2. Compute the coupled residual F(delta).
+            F(delta, residual)
+
+            # 3. Accept if ||F(delta)|| is within tolerance.
+            error = residual.norm()
+            scale = delta.norm()
+            if self.tolerance.accepts(error, scale):
+                self.record_solve(block_size, iteration_count, error, scale, True)
+                return delta
+
+            # 4. Coupled Picard correction: delta <- delta - F(delta).
+            picard_update(1.0, delta, delta, residual)
+            iteration_count += 1
+
+        # 5. Recheck once after the final correction.
+        F(delta, residual)
+
+        error = residual.norm()
+        scale = delta.norm()
+        if self.tolerance.accepts(error, scale):
+            self.record_solve(block_size, iteration_count, error, scale, True)
+            return delta
+
         self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
             f"{type(self).__name__} failed to resolve the residual within "

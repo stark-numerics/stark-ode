@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from types import SimpleNamespace
 
 import pytest
 
@@ -9,6 +8,7 @@ from stark import Executor, Interval
 from stark.schemes.explicit_fixed.heun import SchemeHeun
 from stark.schemes.explicit_fixed.midpoint import SchemeMidpoint
 from stark.schemes.explicit_fixed.ralston import SchemeRalston
+from stark.schemes.support.stencil import SchemeStencil
 
 
 @dataclass(slots=True)
@@ -44,37 +44,43 @@ class ScalarWorkbench:
         return ScalarTranslation()
 
 
-class StubAlgebraist:
-    def bind_explicit_scheme(self, tableau):
-        def stage2(
-            state: ScalarState,
-            dt: float,
-            k1: ScalarTranslation,
-            stage: ScalarState,
-        ) -> None:
-            stage.value = state.value + dt * tableau.a[1][0] * k1.value
+class StubSpecialist:
+    def provide(self, stencil: SchemeStencil):
+        coefficients = stencil.coefficients
+        fixed_scale = stencil.scale
 
-        def solution_state(
-            origin: ScalarState,
-            dt: float,
-            *args,
-        ) -> None:
-            rates = args[:-1]
-            result = args[-1]
-            if len(rates) == 1:
-                result.value = origin.value + dt * rates[0].value
-                return
+        if stencil.apply:
 
-            result.value = origin.value + dt * sum(
-                weight * rate.value
-                for weight, rate in zip(tableau.b, rates, strict=True)
+            def apply_kernel(
+                step: float,
+                origin,
+                *terms,
+            ):
+                *translations, result = terms
+                result.value = origin.value + step * fixed_scale * sum(
+                    coefficient * translation.value
+                    for coefficient, translation in zip(
+                        coefficients,
+                        translations,
+                        strict=True,
+                    )
+                )
+                return result
+
+            return apply_kernel
+
+        def delta_kernel(
+            step: float,
+            *terms,
+        ):
+            *translations, out = terms
+            out.value = step * fixed_scale * sum(
+                coefficient * translation.value
+                for coefficient, translation in zip(coefficients, translations, strict=True)
             )
+            return out
 
-        return SimpleNamespace(
-            stage_state_calls=(None, stage2),
-            require_stage_state_call=lambda index, scheme_name: (None, stage2)[index],
-            solution_state_call=solution_state,
-        )
+        return delta_kernel
 
 
 def exponential_growth(
@@ -106,11 +112,11 @@ def test_rk2_scheme_owns_its_public_call_method(scheme_cls) -> None:
         SchemeRalston,
     ],
 )
-def test_rk2_default_call_path_is_scheme_owned_call_generic(scheme_cls) -> None:
+def test_rk2_default_call_path_is_scheme_owned_inline_call(scheme_cls) -> None:
     scheme = scheme_cls(exponential_growth, ScalarWorkbench())
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_generic
+    assert scheme.call_pure.__func__ is scheme_cls.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -152,7 +158,7 @@ def test_rk2_public_call_uses_redirect_call(scheme_cls) -> None:
         SchemeRalston,
     ],
 )
-def test_rk2_call_generic_performs_one_second_order_step(scheme_cls) -> None:
+def test_rk2_call_inline_performs_one_second_order_step(scheme_cls) -> None:
     scheme = scheme_cls(exponential_growth, ScalarWorkbench())
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
@@ -171,7 +177,7 @@ def test_rk2_call_generic_performs_one_second_order_step(scheme_cls) -> None:
         SchemeRalston,
     ],
 )
-def test_rk2_call_generic_clips_to_remaining_interval(scheme_cls) -> None:
+def test_rk2_call_inline_clips_to_remaining_interval(scheme_cls) -> None:
     scheme = scheme_cls(exponential_growth, ScalarWorkbench())
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(1.0)
@@ -190,15 +196,15 @@ def test_rk2_call_generic_clips_to_remaining_interval(scheme_cls) -> None:
         SchemeRalston,
     ],
 )
-def test_rk2_algebraist_path_is_selected_inside_scheme(scheme_cls) -> None:
+def test_rk2_specialist_path_is_selected_inside_scheme(scheme_cls) -> None:
     scheme = scheme_cls(
         exponential_growth,
         ScalarWorkbench(),
-        algebraist=StubAlgebraist(),
+        specialist=StubSpecialist(),
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_algebraist
+    assert scheme.call_pure.__func__ is scheme_cls.call_specialized
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -210,26 +216,26 @@ def test_rk2_algebraist_path_is_selected_inside_scheme(scheme_cls) -> None:
         SchemeRalston,
     ],
 )
-def test_rk2_generic_and_algebraist_paths_match_for_one_step(scheme_cls) -> None:
-    interval_generic = Interval(present=0.0, step=0.125, stop=1.0)
-    interval_algebraist = Interval(present=0.0, step=0.125, stop=1.0)
-    state_generic = ScalarState(1.0)
-    state_algebraist = ScalarState(1.0)
+def test_rk2_inline_and_specialist_paths_match_for_one_step(scheme_cls) -> None:
+    interval_inline = Interval(present=0.0, step=0.125, stop=1.0)
+    interval_specialist = Interval(present=0.0, step=0.125, stop=1.0)
+    state_inline = ScalarState(1.0)
+    state_specialist = ScalarState(1.0)
 
-    generic = scheme_cls(exponential_growth, ScalarWorkbench())
-    algebraist = scheme_cls(
+    inline = scheme_cls(exponential_growth, ScalarWorkbench())
+    specialist = scheme_cls(
         exponential_growth,
         ScalarWorkbench(),
-        algebraist=StubAlgebraist(),
+        specialist=StubSpecialist(),
     )
 
-    accepted_dt_generic = generic(interval_generic, state_generic, Executor())
-    accepted_dt_algebraist = algebraist(
-        interval_algebraist,
-        state_algebraist,
+    accepted_dt_inline = inline(interval_inline, state_inline, Executor())
+    accepted_dt_specialist = specialist(
+        interval_specialist,
+        state_specialist,
         Executor(),
     )
 
-    assert accepted_dt_generic == pytest.approx(accepted_dt_algebraist)
-    assert state_generic.value == pytest.approx(state_algebraist.value)
-    assert state_generic.value == pytest.approx(1.1328125)
+    assert accepted_dt_inline == pytest.approx(accepted_dt_specialist)
+    assert state_inline.value == pytest.approx(state_specialist.value)
+    assert state_inline.value == pytest.approx(1.1328125)

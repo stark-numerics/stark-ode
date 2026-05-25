@@ -146,7 +146,7 @@ class ButcherTableau:
         return self.display()
 
 
-class EmbeddedButcherTableau(ButcherTableau):
+class ButcherTableauEmbedded(ButcherTableau):
     def __init__(
         self,
         *,
@@ -172,7 +172,7 @@ class EmbeddedButcherTableau(ButcherTableau):
 
 
 @dataclass(frozen=True, slots=True)
-class ImExButcherTableau:
+class ButcherTableauImex:
     explicit: ButcherTableau
     implicit: ButcherTableau
     short_name: str | None = None
@@ -192,7 +192,7 @@ class ImExButcherTableau:
         name = " ".join(part for part in (self.short_name, self.full_name) if part).strip()
         name_text = f", name={name!r}" if name else ""
         return (
-            "ImExButcherTableau("
+            "ButcherTableauImex("
             f"stages={len(self.explicit.c)!r}, "
             f"order={self.order!r}, "
             f"embedded_order={self.embedded_order!r}"
@@ -235,7 +235,7 @@ class ImExButcherTableau:
         return self.display()
 
 
-__all__ = ["ButcherTableau", "EmbeddedButcherTableau", "ImExButcherTableau"]
+__all__ = ["ButcherTableau", "ButcherTableauEmbedded", "ButcherTableauImex"]
 
 
 

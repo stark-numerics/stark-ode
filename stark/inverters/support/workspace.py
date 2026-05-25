@@ -5,9 +5,10 @@ from math import sqrt
 from typing import Callable
 
 from stark.accelerators import AcceleratorAbsent
-from stark.contracts import AcceleratorLike, Block, InnerProduct, Translation, Workbench
+from stark.algebraist.runtime import AlgebraistRuntimeGeneral
+from stark.block import Block
+from stark.contracts import AcceleratorLike, InnerProduct, Translation, Workbench
 from stark.execution.safety import Safety
-from stark.algebraist.combine import AlgebraistCombineResolver
 
 
 @dataclass(slots=True, init=False)
@@ -42,16 +43,12 @@ class InverterWorkspace:
 
     def bind_accelerator(self, accelerator: AcceleratorLike) -> None:
         self.accelerator = accelerator
-        combine_resolver = accelerator.resolve_support(
-            AlgebraistCombineResolver.from_translation(
-                self.translation,
-                self.allocate_translation,
-            ),
-            label="inverter_combiner",
+        algebraist = AlgebraistRuntimeGeneral(
+            translation=self.translation,
+            workbench=self,
+            accelerator=accelerator,
         )
-        self.scale = combine_resolver.scale
-        self.combine2 = combine_resolver.combine2
-        self.combine3 = combine_resolver.combine3
+        self.scale, self.combine2, self.combine3 = algebraist.as_tuple(3)
 
     def __repr__(self) -> str:
         allocate_translation_name = getattr(

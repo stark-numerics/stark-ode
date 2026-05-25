@@ -156,7 +156,6 @@ def test_resolvent_picard_solves_scalar_backward_euler_step() -> None:
     workbench = ScalarWorkbench()
     derivative = ScalarDerivative(rate=-1.0)
     resolvent = ResolventPicard(
-        derivative,
         workbench,
         tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=32),
@@ -184,7 +183,6 @@ def test_backward_euler_matches_closed_form_for_quadratic_decay() -> None:
         QuadraticDerivative(),
         workbench,
         resolvent=ResolventPicard(
-            QuadraticDerivative(),
             workbench,
             tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
             policy=ResolventPolicy(max_iterations=64),
@@ -210,7 +208,6 @@ def test_resolvent_newton_solves_scalar_backward_euler_step() -> None:
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
     resolvent = ResolventNewton(
-        derivative,
         workbench,
         linearizer=ScalarLinearizer(rate=-10.0),
         inverter=inverter,
@@ -241,7 +238,6 @@ def test_marcher_binds_executor_accelerator_into_newton_linearizer() -> None:
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
     resolvent = ResolventNewton(
-        derivative,
         workbench,
         linearizer=ScalarLinearizerWithAcceleration(rate=0.0, accelerated_rate=-10.0),
         inverter=inverter,
@@ -263,9 +259,9 @@ def test_resolvent_newton_requires_linearized_residual() -> None:
     derivative = ScalarDerivative(rate=-1.0)
     inverter = InverterGMRES(workbench, scalar_inner_product)
     with pytest.raises(TypeError):
-        ResolventNewton(derivative, workbench, inverter=inverter)  # type: ignore[call-arg]
+        ResolventNewton(workbench, inverter=inverter)  # type: ignore[call-arg]
 
-    resolvent = ResolventPicard(derivative, workbench)
+    resolvent = ResolventPicard(workbench)
     scheme = SchemeBackwardEuler(
         derivative,
         workbench,
@@ -286,7 +282,6 @@ def test_implicit_midpoint_solves_scalar_linear_decay_step() -> None:
         derivative,
         workbench,
         resolvent=ResolventPicard(
-            derivative,
             workbench,
             tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
             policy=ResolventPolicy(max_iterations=64),
@@ -309,7 +304,6 @@ def test_crank_nicolson_solves_scalar_linear_decay_step() -> None:
         derivative,
         workbench,
         resolvent=ResolventPicard(
-            derivative,
             workbench,
             tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
             policy=ResolventPolicy(max_iterations=64),
@@ -337,7 +331,6 @@ def test_crouzeix_dirk3_solves_constant_derivative_step() -> None:
         derivative,
         workbench,
         resolvent=ResolventPicard(
-            derivative,
             workbench,
             tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
             policy=ResolventPolicy(max_iterations=32),
@@ -365,7 +358,6 @@ def test_gauss_legendre4_solves_constant_derivative_step() -> None:
         derivative,
         workbench,
         resolvent=ResolventCoupledPicard(
-            derivative,
             workbench,
             tableau=SchemeGaussLegendre4.tableau,
             tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
@@ -394,7 +386,6 @@ def test_coupled_newton_gauss_legendre4_solves_scalar_linear_decay_step() -> Non
         derivative,
         workbench,
         resolvent=ResolventCoupledNewton(
-            derivative,
             workbench,
             tableau=SchemeGaussLegendre4.tableau,
             linearizer=ScalarLinearizer(rate=-10.0),
@@ -424,7 +415,6 @@ def test_radau_iia5_solves_constant_derivative_step() -> None:
         derivative,
         workbench,
         resolvent=ResolventCoupledPicard(
-            derivative,
             workbench,
             tableau=SchemeRadauIIA5.tableau,
             tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
@@ -452,7 +442,6 @@ def test_lobatto_iiic4_solves_constant_derivative_step() -> None:
         derivative,
         workbench,
         resolvent=ResolventCoupledPicard(
-            derivative,
             workbench,
             tableau=SchemeLobattoIIIC4.tableau,
             tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
@@ -481,7 +470,6 @@ def test_coupled_newton_radau_iia5_tracks_scalar_linear_decay() -> None:
         derivative,
         workbench,
         resolvent=ResolventCoupledNewton(
-            derivative,
             workbench,
             tableau=SchemeRadauIIA5.tableau,
             linearizer=ScalarLinearizer(rate=-10.0),
@@ -512,7 +500,6 @@ def test_coupled_newton_lobatto_iiic4_tracks_scalar_linear_decay() -> None:
         derivative,
         workbench,
         resolvent=ResolventCoupledNewton(
-            derivative,
             workbench,
             tableau=SchemeLobattoIIIC4.tableau,
             linearizer=ScalarLinearizer(rate=-10.0),
@@ -539,7 +526,6 @@ def test_backward_euler_rejects_mismatched_resolvent_tableau() -> None:
             derivative,
             workbench,
             resolvent=ResolventPicard(
-                derivative,
                 workbench,
                 tableau=SchemeSDIRK21.tableau,
             ),
@@ -556,7 +542,6 @@ def test_sdirk21_advances_linear_decay_with_adaptive_control() -> None:
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
     resolvent = ResolventNewton(
-        derivative,
         workbench,
         linearizer=ScalarLinearizer(rate=-10.0),
         inverter=inverter,
@@ -589,7 +574,6 @@ def test_kvaerno3_advances_linear_decay_with_adaptive_control() -> None:
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
     resolvent = ResolventNewton(
-        derivative,
         workbench,
         linearizer=ScalarLinearizer(rate=-10.0),
         inverter=inverter,
@@ -622,7 +606,6 @@ def test_kvaerno4_advances_linear_decay_with_adaptive_control() -> None:
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
     resolvent = ResolventNewton(
-        derivative,
         workbench,
         linearizer=ScalarLinearizer(rate=-10.0),
         inverter=inverter,
@@ -655,7 +638,6 @@ def test_bdf2_advances_linear_decay_with_adaptive_control() -> None:
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
     resolvent = ResolventNewton(
-        derivative,
         workbench,
         linearizer=ScalarLinearizer(rate=-10.0),
         inverter=inverter,
@@ -676,14 +658,3 @@ def test_bdf2_advances_linear_decay_with_adaptive_control() -> None:
         pass
 
     assert abs(state.value - 0.1353352832366127) < 2.0e-2
-
-
-
-
-
-
-
-
-
-
-

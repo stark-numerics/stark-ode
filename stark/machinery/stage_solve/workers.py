@@ -1,11 +1,6 @@
 from __future__ import annotations
 
 from stark.accelerators.binding import DerivativeAccelerated
-from stark.algebraist import (
-    Algebraist,
-    AlgebraistImExAdaptiveSchemeBinding,
-    AlgebraistImExCombination,
-)
 from stark.auditor import Auditor
 from stark.contracts import Block, Derivative, ImExDerivative, IntervalLike, Resolvent, State, Translation, Workbench
 from stark.resolvents.support.guard import ResolventTableauGuard
@@ -72,7 +67,6 @@ class ImExStepper:
         "weight_translations",
         "explicit_low_weights",
         "implicit_low_weights",
-        "algebraist_binding",
     )
 
     def __init__(self, derivative: ImExDerivative, workspace: SchemeWorkspace, resolvent: Resolvent, tableau) -> None:
@@ -98,79 +92,11 @@ class ImExStepper:
             self.explicit_low_weights is None or self.implicit_low_weights is None
         ):
             raise ValueError("Embedded IMEX tableaus require explicit and implicit embedded weights.")
-        self.algebraist_binding = None
 
     def __repr__(self) -> str:
         return f"ImExStepper(stages={len(self.tableau.c)!r})"
 
     __str__ = __repr__
-
-    def bind_algebraist(
-        self,
-        algebraist: Algebraist,
-    ) -> AlgebraistImExAdaptiveSchemeBinding:
-        explicit_a = self.tableau.explicit.a
-        implicit_a = self.tableau.implicit.a
-        stage_shifts: list[AlgebraistImExCombination | None] = []
-
-        for stage_index in range(len(self.tableau.c)):
-            explicit_row = explicit_a[stage_index]
-            implicit_row = implicit_a[stage_index]
-            explicit_coefficients = [
-                explicit_row[source_index]
-                if source_index < len(explicit_row)
-                else 0.0
-                for source_index in range(stage_index)
-            ]
-            implicit_coefficients = [
-                implicit_row[source_index]
-                if source_index < len(implicit_row)
-                else 0.0
-                for source_index in range(stage_index)
-            ]
-            combination = AlgebraistImExCombination.from_coefficients(
-                f"stage{stage_index}_shift",
-                explicit=explicit_coefficients,
-                implicit=implicit_coefficients,
-            )
-            stage_shifts.append(None if combination.term_count == 0 else combination)
-
-        high_delta = AlgebraistImExCombination.from_coefficients(
-            "high_delta",
-            explicit=self.tableau.explicit.b,
-            implicit=self.tableau.implicit.b,
-        )
-
-        error_delta = None
-        explicit_low = self.tableau.explicit.b_embedded
-        implicit_low = self.tableau.implicit.b_embedded
-        if explicit_low is not None and implicit_low is not None:
-            error_delta = AlgebraistImExCombination.from_coefficients(
-                "error_delta",
-                explicit=tuple(
-                    high - low
-                    for high, low in zip(
-                        self.tableau.explicit.b,
-                        explicit_low,
-                        strict=True,
-                    )
-                ),
-                implicit=tuple(
-                    high - low
-                    for high, low in zip(
-                        self.tableau.implicit.b,
-                        implicit_low,
-                        strict=True,
-                    )
-                ),
-            )
-
-        self.algebraist_binding = algebraist.bind_imex_adaptive_scheme(
-            stage_shifts=stage_shifts,
-            high_delta=high_delta,
-            error_delta=error_delta,
-        )
-        return self.algebraist_binding
 
     def require_embedded(self, owner: str) -> None:
         if self.explicit_low_weights is None or self.implicit_low_weights is None:
@@ -232,97 +158,6 @@ class ImExStepper:
             stage_state = self.stage_solver(current_interval, state, shift, alpha, self.stage_blocks[stage_index])
             implicit(current_interval, stage_state, self.implicit_rates[stage_index])
             explicit(current_interval, stage_state, self.explicit_rates[stage_index])
-
-    def step_algebraist(
-        self,
-        interval: IntervalLike,
-        state: State,
-        dt: float,
-        *,
-        include_norms: bool = False,
-    ):
-        binding = self.algebraist_binding
-        if binding is None:
-            raise ValueError("ImExStepper has no bound Algebraist generated calls.")
-
-        stage_interval = self.workspace.stage_interval
-        explicit = self.explicit_derivative
-        implicit = self.implicit_derivative
-        implicit_a = self.tableau.implicit.a
-
-        for stage_index, c_value in enumerate(self.tableau.c):
-            stage_shift_call = binding.stage_shift_calls[stage_index]
-            shift = None
-            if stage_shift_call is not None:
-                combination = binding.stage_shifts[stage_index]
-                assert combination is not None
-                shift = stage_shift_call(
-                    dt,
-                    *self._imex_combination_arguments(combination),
-                    self.shift,
-                )
-
-            implicit_row = implicit_a[stage_index]
-            alpha = dt * implicit_row[stage_index] if stage_index < len(implicit_row) else 0.0
-            current_interval = stage_interval(interval, dt, c_value * dt)
-            stage_state = self.stage_solver(current_interval, state, shift, alpha, self.stage_blocks[stage_index])
-            implicit(current_interval, stage_state, self.implicit_rates[stage_index])
-            explicit(current_interval, stage_state, self.explicit_rates[stage_index])
-
-        high_delta_call = binding.require_high_delta_call("ImExStepper")
-        assert binding.high_delta is not None
-        high = high_delta_call(
-            dt,
-            *self._imex_combination_arguments(binding.high_delta),
-            self.trial,
-        )
-
-        if self.tableau.embedded_order is None:
-            if include_norms:
-                return high, None, high.norm(), None
-            return high, None, None, None
-
-        error_delta_call = binding.require_error_delta_call("ImExStepper")
-        assert binding.error_delta is not None
-        error = error_delta_call(
-            dt,
-            *self._imex_combination_arguments(binding.error_delta),
-            self.error,
-        )
-
-        if include_norms:
-            return high, error, high.norm(), error.norm()
-        return high, error, None, None
-
-    def step_adaptive_algebraist(
-        self,
-        interval: IntervalLike,
-        state: State,
-        dt: float,
-    ):
-        high, error, high_norm, error_norm = self.step_algebraist(
-            interval,
-            state,
-            dt,
-            include_norms=True,
-        )
-        del error
-        return high, high_norm, error_norm
-
-    def _imex_combination_arguments(
-        self,
-        combination: AlgebraistImExCombination,
-    ) -> tuple[Translation, ...]:
-        arguments: list[Translation] = []
-        arguments.extend(
-            self.explicit_rates[index]
-            for index in combination.explicit_indices
-        )
-        arguments.extend(
-            self.implicit_rates[index]
-            for index in combination.implicit_indices
-        )
-        return tuple(arguments)
 
     def _combine_weights(self, dt: float, explicit_weights, implicit_weights, out: Translation) -> Translation:
         term_count = 0
@@ -406,7 +241,7 @@ class ShiftedOneStageResolventStep:
         return self.trial_block[0]
 
 
-class CoupledCollocationResolventStep:
+class ResolventCoupledCollocationStep:
     """Reusable bind/zero/solve worker for fully coupled collocation stages."""
 
     __slots__ = ("workspace", "tableau_guard", "resolvent", "stage_block")
@@ -498,7 +333,7 @@ class SequentialDIRKResolventStep:
 
 
 __all__ = [
-    "CoupledCollocationResolventStep",
+    "ResolventCoupledCollocationStep",
     "ImExStepper",
     "SequentialDIRKResolventStep",
     "ShiftedOneStageResolventStep",

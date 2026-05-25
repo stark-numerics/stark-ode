@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from stark.algebraist import Algebraist
 from stark.contracts import Derivative, IntervalLike, State, Workbench
 from stark.execution.executor import Executor
 from stark.schemes.support.descriptor import SchemeDescriptor
@@ -12,6 +11,8 @@ from stark.schemes.support import (
     unbound_scheme_call,
     with_scheme_display,
 )
+from stark.schemes.support.specialist import SchemeSpecialist
+from stark.schemes.support.stencil import SchemeStencilTableau
 from stark.schemes.support.tableau import ButcherTableau
 
 
@@ -35,20 +36,30 @@ class SchemeMidpoint:
     half-step and then advances using that midpoint slope. It is one of the
     standard second-order explicit schemes.
 
+    Algorithm sketch for one accepted step of size h:
+
+        1. k1 = f(t, y)
+        2. k2 = f(t + h/2, y + h/2*k1)
+        3. y  <- y + h*k2
+
+    The inline path expresses the method directly with workspace arithmetic.
+    The specialized path uses fixed-coefficient kernels prepared from the same
+    tableau rows and weights.
+
     Further reading: https://en.wikipedia.org/wiki/Midpoint_method
     """
 
     __slots__ = (
         "_monitor",
-        "advance_state",
+        "advance_update",
         "call_pure",
-        "combine_stage2",
         "derivative",
         "explicit",
         "k1",
         "k2",
         "redirect_call",
         "stage",
+        "stage2_update",
         "trial",
         "workspace",
     )
@@ -60,21 +71,27 @@ class SchemeMidpoint:
         self,
         derivative: Derivative,
         workbench: Workbench,
-        algebraist: Algebraist | None = None,
+        specialist: SchemeSpecialist | None = None,
     ) -> None:
-        self.advance_state = unbound_scheme_call
-        self.combine_stage2 = unbound_scheme_call
+        self.advance_update = unbound_scheme_call
+        self.stage2_update = unbound_scheme_call
+
         self._monitor = None
-        self.call_pure = self.call_generic
+        self.call_pure = self.call_inline
         self.redirect_call = self.call_pure
+
         initialise_explicit_support(self, derivative, workbench)
+
         workspace = self.workspace
         self.stage = workspace.allocate_state_buffer()
         self.trial, self.k2 = workspace.allocate_translation_buffers(2)
+
         refresh_fixed_step_call(self)
 
-        if algebraist is not None:
-            self.use_algebraist(algebraist)
+        if specialist is not None:
+            self.prepare_specialized_kernels(specialist)
+            self.call_pure = self.call_specialized
+            refresh_fixed_step_call(self)
 
     def __call__(
         self,
@@ -84,14 +101,21 @@ class SchemeMidpoint:
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def use_algebraist(self, algebraist: Algebraist) -> None:
-        calls = algebraist.bind_explicit_scheme(self.tableau)
-        self.combine_stage2 = calls.require_stage_state_call(1, type(self).__name__)
-        self.advance_state = calls.solution_state_call
-        self.call_pure = self.call_algebraist
-        refresh_fixed_step_call(self)
+    def prepare_specialized_kernels(
+        self,
+        specialist: SchemeSpecialist,
+    ) -> None:
+        """Prepare fixed-coefficient kernels for the specialized path."""
 
-    def call_generic(
+        stencils = SchemeStencilTableau(self.tableau)
+
+        # Step 2 builds the midpoint stage state from row 1 of the A matrix.
+        self.stage2_update = specialist.provide(stencils.stage(1))
+
+        # Step 3 advances the accepted state from the tableau's b weights.
+        self.advance_update = specialist.provide(stencils.advance_update())
+
+    def call_inline(
         self,
         interval: IntervalLike,
         state: State,
@@ -118,24 +142,27 @@ class SchemeMidpoint:
         dt = interval.step if interval.step <= remaining else remaining
         half_dt = 0.5 * dt
 
+        # 1. k1 = f(t, y)
         derivative(interval, state, k1)
 
-        trial = scale(half_dt, k1, trial_buffer)
-        trial(state, stage)
+        # 2. k2 = f(t + h/2, y + h/2*k1)
+        stage_delta = scale(half_dt, k1, trial_buffer)
+        stage_delta(state, stage)
         derivative(stage_interval(interval, dt, half_dt), stage, k2)
 
-        delta = combine2(
+        # 3. y <- y + h*k2
+        advance_delta = combine2(
             dt * MIDPOINT_B[0],
             k1,
             dt * MIDPOINT_B[1],
             k2,
             trial_buffer,
         )
-        apply_delta(delta, state)
+        apply_delta(advance_delta, state)
 
         return dt
 
-    def call_algebraist(
+    def call_specialized(
         self,
         interval: IntervalLike,
         state: State,
@@ -153,17 +180,22 @@ class SchemeMidpoint:
         stage = self.stage
         k1 = self.k1
         k2 = self.k2
+
         derivative = self.derivative
         stage_interval = self.workspace.stage_interval
-        combine_stage2 = self.combine_stage2
-        advance_state = self.advance_state
+        stage2_update = self.stage2_update
+        advance_update = self.advance_update
 
+        # 1. k1 = f(t, y)
         derivative(interval, state, k1)
 
-        combine_stage2(state, dt, k1, stage)
+        # 2. k2 = f(t + h/2, y + h/2*k1)
+        stage2_update(dt, state, k1, stage)
         derivative(stage_interval(interval, dt, half_dt), stage, k2)
 
-        advance_state(state, dt, k2, state)
+        # 3. y <- y + h*k2
+        advance_update(dt, state, k1, k2, state)
+
         return dt
 
 

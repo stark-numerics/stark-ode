@@ -55,7 +55,6 @@ def make_imex_euler() -> SchemeIMEXEuler:
     )
     workbench = DummyWorkbench()
     resolvent = ResolventPicard(
-        split.implicit,
         workbench,
         accelerator=Accelerator.none(),
         tableau=SchemeIMEXEuler.tableau,

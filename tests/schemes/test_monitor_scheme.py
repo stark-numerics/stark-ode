@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 from stark import Executor, Integrator, Interval, Marcher, Monitor, Tolerance
 from stark.schemes.explicit_adaptive.cash_karp import SchemeCashKarp
 from stark.schemes.explicit_fixed.euler import SchemeEuler
+from stark.schemes.support.stencil import SchemeStencil
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -47,23 +47,43 @@ class ScalarWorkbench:
         return ScalarTranslation()
 
 
-class StubAlgebraist:
-    def bind_explicit_scheme(self, tableau):
-        del tableau
+class StubSpecialist:
+    def provide(self, stencil: SchemeStencil):
+        coefficients = stencil.coefficients
+        fixed_scale = stencil.scale
 
-        def solution_state(
-            origin: ScalarState,
-            dt: float,
-            k1: ScalarTranslation,
-            result: ScalarState,
-        ) -> None:
-            result.value = origin.value + dt * k1.value
+        if stencil.apply:
 
-        return SimpleNamespace(
-            stage_state_calls=(None,),
-            require_stage_state_call=lambda index, scheme_name: (None,)[index],
-            solution_state_call=solution_state,
-        )
+            def apply_kernel(
+                step: float,
+                origin,
+                *terms,
+            ):
+                *translations, result = terms
+                result.value = origin.value + step * fixed_scale * sum(
+                    coefficient * translation.value
+                    for coefficient, translation in zip(
+                        coefficients,
+                        translations,
+                        strict=True,
+                    )
+                )
+                return result
+
+            return apply_kernel
+
+        def delta_kernel(
+            step: float,
+            *terms,
+        ):
+            *translations, out = terms
+            out.value = step * fixed_scale * sum(
+                coefficient * translation.value
+                for coefficient, translation in zip(coefficients, translations, strict=True)
+            )
+            return out
+
+        return delta_kernel
 
 
 def constant_rhs(
@@ -146,24 +166,25 @@ def test_monitor_is_unassigned_after_monitored_integration_exception() -> None:
     assert monitor.scheme.adaptive_steps == []
 
 
-def test_algebraist_fixed_path_is_monitored_only_at_scheme_boundary() -> None:
+def test_specialist_fixed_path_is_monitored_only_at_scheme_boundary() -> None:
     scheme = SchemeEuler(
         constant_rhs,
         ScalarWorkbench(),
-        algebraist=StubAlgebraist(),
+        specialist=StubSpecialist(),
     )
     monitor = Monitor()
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState()
 
-    assert scheme.call_pure.__func__ is SchemeEuler.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeEuler.call_specialized
 
     scheme.assign_monitor(monitor.scheme)
+
     accepted_dt = scheme(interval, state, Executor())
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(0.125)
-    assert scheme.call_pure.__func__ is SchemeEuler.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeEuler.call_specialized
     assert len(monitor.scheme.fixed_steps) == 1
 
 
@@ -173,7 +194,6 @@ def test_schemes_depend_on_monitor_protocol_not_concrete_monitor_records() -> No
         for path in (ROOT / "stark" / "schemes").rglob("*.py")
         if "__pycache__" not in path.parts
     ]
-
     offenders = [
         path.relative_to(ROOT)
         for path in scheme_files

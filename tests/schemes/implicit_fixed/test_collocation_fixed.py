@@ -7,13 +7,7 @@ import pytest
 
 from stark import Executor, Interval, Tolerance
 from stark.accelerators import Accelerator
-from stark.algebraist import (
-    Algebraist,
-    AlgebraistBroadcast,
-    AlgebraistField,
-    AlgebraistLooped,
-    AlgebraistSmallFixed,
-)
+from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.resolvents import ResolventCoupledPicard
 from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.implicit_fixed.gauss_legendre4 import SchemeGaussLegendre4
@@ -116,7 +110,6 @@ def array_constant_rhs(
 def make_scheme(scheme_cls):
     workbench = ScalarWorkbench()
     resolvent = ResolventCoupledPicard(
-        constant_rhs,
         workbench,
         tableau=scheme_cls.tableau,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
@@ -130,10 +123,9 @@ def make_scheme(scheme_cls):
     )
 
 
-def make_array_scheme(scheme_cls, *, algebraist: Algebraist | None = None):
+def make_array_scheme(scheme_cls, *, specialist: bool = False):
     workbench = ArrayScalarWorkbench()
     resolvent = ResolventCoupledPicard(
-        array_constant_rhs,
         workbench,
         tableau=scheme_cls.tableau,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
@@ -144,15 +136,15 @@ def make_array_scheme(scheme_cls, *, algebraist: Algebraist | None = None):
         array_constant_rhs,
         workbench,
         resolvent=resolvent,
-        algebraist=algebraist,
+        specialist=(
+            AlgebraistRuntimeSpecialist(
+                translation=workbench.allocate_translation(),
+                workbench=workbench,
+            )
+            if specialist
+            else None
+        ),
     )
-
-
-ALGEBRAIST_FIELDS = [
-    AlgebraistField("value", "value", policy=AlgebraistBroadcast()),
-    AlgebraistField("value", "value", policy=AlgebraistLooped(rank=1)),
-    AlgebraistField("value", "value", policy=AlgebraistSmallFixed(shape=(1,))),
-]
 
 
 @pytest.mark.parametrize(
@@ -181,21 +173,15 @@ def test_collocation_fixed_default_call_path_is_scheme_owned_generic_call(
     scheme = make_scheme(scheme_cls)
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_generic
+    assert scheme.call_pure.__func__ is scheme_cls.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 
-@pytest.mark.parametrize("field", ALGEBRAIST_FIELDS)
-def test_gauss_legendre4_algebraist_path_is_scheme_owned_generated_call(
-    field: AlgebraistField,
-) -> None:
-    scheme = make_array_scheme(
-        SchemeGaussLegendre4,
-        algebraist=Algebraist(fields=(field,)),
-    )
+def test_gauss_legendre4_specialist_path_is_scheme_owned_generated_call() -> None:
+    scheme = make_array_scheme(SchemeGaussLegendre4, specialist=True)
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeGaussLegendre4.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeGaussLegendre4.call_specialized
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -206,16 +192,13 @@ def test_gauss_legendre4_algebraist_path_is_scheme_owned_generated_call(
         SchemeRadauIIA5,
     ],
 )
-def test_stiffly_accurate_collocation_accepts_no_op_algebraist_path(
+def test_stiffly_accurate_collocation_accepts_no_op_specialist_path(
     scheme_cls,
 ) -> None:
-    scheme = make_array_scheme(
-        scheme_cls,
-        algebraist=Algebraist(fields=(ALGEBRAIST_FIELDS[0],)),
-    )
+    scheme = make_array_scheme(scheme_cls, specialist=True)
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_generic
+    assert scheme.call_pure.__func__ is scheme_cls.call_specialized
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -269,13 +252,9 @@ def test_collocation_fixed_call_performs_one_constant_rhs_step(scheme_cls) -> No
     assert interval.step == pytest.approx(0.125)
 
 
-@pytest.mark.parametrize("field", ALGEBRAIST_FIELDS)
-def test_gauss_legendre4_algebraist_path_matches_generic_path(
-    field: AlgebraistField,
-) -> None:
-    algebraist = Algebraist(fields=(field,))
+def test_gauss_legendre4_specialist_path_matches_generic_path() -> None:
     generic = make_array_scheme(SchemeGaussLegendre4)
-    generated = make_array_scheme(SchemeGaussLegendre4, algebraist=algebraist)
+    generated = make_array_scheme(SchemeGaussLegendre4, specialist=True)
     generic_interval = Interval(present=0.0, step=0.125, stop=1.0)
     generated_interval = Interval(present=0.0, step=0.125, stop=1.0)
     generic_state = ArrayScalarState.zero()
@@ -289,13 +268,10 @@ def test_gauss_legendre4_algebraist_path_matches_generic_path(
     assert generated_interval.step == pytest.approx(generic_interval.step)
 
 
-def test_gauss_legendre4_algebraist_source_is_inspectable() -> None:
-    algebraist = Algebraist(fields=(ALGEBRAIST_FIELDS[0],))
+def test_gauss_legendre4_specialist_kernel_is_prepared() -> None:
+    scheme = make_array_scheme(SchemeGaussLegendre4, specialist=True)
 
-    make_array_scheme(SchemeGaussLegendre4, algebraist=algebraist)
-
-    assert "final_delta_combine" in algebraist.sources
-    assert "known_rhs_combine" not in algebraist.sources
+    assert callable(scheme.advance_update)
 
 
 @pytest.mark.parametrize(

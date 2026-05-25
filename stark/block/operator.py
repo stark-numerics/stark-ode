@@ -1,48 +1,88 @@
 from __future__ import annotations
 
-from stark.contracts import Block, Operator
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
+from typing import Generic, TypeVar
+
+from stark.block.block import Block
 
 
-class BlockOperator:
-    """Lift per-translation operators componentwise onto blocks."""
+TranslationType = TypeVar("TranslationType")
+BlockEntryOperator = Callable[[TranslationType, TranslationType], None]
 
-    __slots__ = ("operators", "redirect_call")
 
-    def __init__(self, operators: list[Operator], check_sizes: bool = True) -> None:
-        self.operators = operators
-        self.redirect_call = self.call_checked if check_sizes else self.call_unchecked
+@dataclass(slots=True, init=False)
+class BlockOperator(Generic[TranslationType]):
+    """Entrywise linear operator on a Block."""
+
+    operators: list[BlockEntryOperator[TranslationType] | None]
+
+    def __init__(
+        self,
+        operators: Iterable[BlockEntryOperator[TranslationType] | None],
+    ) -> None:
+        self.operators = list(operators)
 
     def __repr__(self) -> str:
-        return f"BlockOperator(size={len(self.operators)!r})"
+        return f"{type(self).__name__}(operators={tuple(self.operators)!r})"
 
     def __str__(self) -> str:
         return f"block operator[{len(self.operators)}]"
 
-    def __call__(self, block: Block, out: Block) -> None:
-        self.redirect_call(block, out)
+    def __len__(self) -> int:
+        return len(self.operators)
+
+    def __getitem__(
+        self,
+        index: int,
+    ) -> BlockEntryOperator[TranslationType] | None:
+        return self.operators[index]
+
+    def __setitem__(
+        self,
+        index: int,
+        operator: BlockEntryOperator[TranslationType] | None,
+    ) -> None:
+        self.operators[index] = operator
 
     def reset(self) -> None:
         for index in range(len(self.operators)):
-            self.operators[index] = None  # type: ignore[list-item]
+            self.operators[index] = None
 
-    def call_checked(self, block: Block, out: Block) -> None:
-        if len(self.operators) != len(out) or len(out) != len(block):
-            raise ValueError("BlockOperator sizes must match the input and output blocks.")
-        self.call_unchecked(block, out)
+    def __call__(
+        self,
+        block: Block[TranslationType],
+        out: Block[TranslationType],
+    ) -> Block[TranslationType]:
+        Block._require_same_size(block, out)
 
-    def call_unchecked(self, block: Block, out: Block) -> None:
-        for index, (operator, out_item, block_item) in enumerate(zip(self.operators, out, block, strict=True)):
-            operator(block_item, out_item)
-            out.items[index] = out_item
+        if len(block) != len(self.operators):
+            raise ValueError(
+                "Block operator size must match the input block size."
+            )
+
+        for index, operator in enumerate(self.operators):
+            if operator is None:
+                raise RuntimeError(
+                    f"BlockOperator entry {index} is not configured."
+                )
+
+            operator(block[index], out[index])
+
+        return out
+
+    @classmethod
+    def repeated(
+        cls,
+        operator: BlockEntryOperator[TranslationType],
+        size: int,
+    ) -> BlockOperator[TranslationType]:
+        if type(size) is not int:
+            raise TypeError("BlockOperator size must be an integer.")
+        if size < 0:
+            raise ValueError("BlockOperator size must be non-negative.")
+
+        return cls(operator for _ in range(size))
 
 
-__all__ = ["BlockOperator"]
-
-
-
-
-
-
-
-
-
+__all__ = ["BlockEntryOperator", "BlockOperator"]

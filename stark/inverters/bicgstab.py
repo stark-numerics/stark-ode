@@ -17,7 +17,8 @@ its convergence can be less predictable. That tradeoff makes it a useful
 contrast inside the STARK inverter library.
 """
 
-from stark.contracts import AcceleratorLike, Block, InnerProduct, InverterPreconditionerLike, Workbench
+from stark.block import Block
+from stark.contracts import AcceleratorLike, InnerProduct, InverterPreconditionerLike, Workbench
 from stark.block.operator import BlockOperator
 from stark.execution.safety import Safety
 from stark.inverters.support.descriptor import InverterDescriptor

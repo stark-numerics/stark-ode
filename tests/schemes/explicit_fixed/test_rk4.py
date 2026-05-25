@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from types import SimpleNamespace
 
 import pytest
 
 from stark import Executor, Interval
 from stark.schemes.explicit_fixed.rk4 import SchemeRK4
+from stark.schemes.support.stencil import SchemeStencil
 
 
 @dataclass(slots=True)
@@ -42,41 +42,43 @@ class ScalarWorkbench:
         return ScalarTranslation()
 
 
-class StubAlgebraist:
-    def bind_explicit_scheme(self, tableau):
-        del tableau
+class StubSpecialist:
+    def provide(self, stencil: SchemeStencil):
+        coefficients = stencil.coefficients
+        fixed_scale = stencil.scale
 
-        def stage2(state: ScalarState, dt: float, k1: ScalarTranslation, stage: ScalarState) -> None:
-            stage.value = state.value + 0.5 * dt * k1.value
+        if stencil.apply:
 
-        def stage3(state: ScalarState, dt: float, k2: ScalarTranslation, stage: ScalarState) -> None:
-            stage.value = state.value + 0.5 * dt * k2.value
+            def apply_kernel(
+                step: float,
+                origin,
+                *terms,
+            ):
+                *translations, result = terms
+                result.value = origin.value + step * fixed_scale * sum(
+                    coefficient * translation.value
+                    for coefficient, translation in zip(
+                        coefficients,
+                        translations,
+                        strict=True,
+                    )
+                )
+                return result
 
-        def stage4(state: ScalarState, dt: float, k3: ScalarTranslation, stage: ScalarState) -> None:
-            stage.value = state.value + dt * k3.value
+            return apply_kernel
 
-        def solution_state(
-            origin: ScalarState,
-            dt: float,
-            k1: ScalarTranslation,
-            k2: ScalarTranslation,
-            k3: ScalarTranslation,
-            k4: ScalarTranslation,
-            result: ScalarState,
-        ) -> None:
-            origin_value = origin.value
-            result.value = origin_value + dt * (
-                (1.0 / 6.0) * k1.value
-                + (1.0 / 3.0) * k2.value
-                + (1.0 / 3.0) * k3.value
-                + (1.0 / 6.0) * k4.value
+        def delta_kernel(
+            step: float,
+            *terms,
+        ):
+            *translations, out = terms
+            out.value = step * fixed_scale * sum(
+                coefficient * translation.value
+                for coefficient, translation in zip(coefficients, translations, strict=True)
             )
+            return out
 
-        return SimpleNamespace(
-            stage_state_calls=(None, stage2, stage3, stage4),
-            require_stage_state_call=lambda index, scheme_name: (None, stage2, stage3, stage4)[index],
-            solution_state_call=solution_state,
-        )
+        return delta_kernel
 
 
 def exponential_growth(
@@ -92,11 +94,11 @@ def test_rk4_owns_its_public_call_method() -> None:
     assert "__call__" in SchemeRK4.__dict__
 
 
-def test_rk4_default_call_path_is_scheme_owned_call_generic() -> None:
+def test_rk4_default_call_path_is_scheme_owned_inline_call() -> None:
     scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeRK4.call_generic
+    assert scheme.call_pure.__func__ is SchemeRK4.call_inline
     assert scheme.redirect_call == scheme.call_pure
 
 
@@ -122,7 +124,7 @@ def test_rk4_public_call_uses_redirect_call() -> None:
     assert state.value == pytest.approx(42.0)
 
 
-def test_rk4_call_generic_still_performs_one_rk4_step() -> None:
+def test_rk4_call_inline_performs_one_rk4_step() -> None:
     scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
@@ -133,7 +135,7 @@ def test_rk4_call_generic_still_performs_one_rk4_step() -> None:
     assert state.value == pytest.approx(1.133148193359375)
 
 
-def test_rk4_call_generic_clips_to_remaining_interval() -> None:
+def test_rk4_call_inline_clips_to_remaining_interval() -> None:
     scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(1.0)
@@ -144,41 +146,42 @@ def test_rk4_call_generic_clips_to_remaining_interval() -> None:
     assert state.value == pytest.approx(1.05127109375)
 
 
-def test_rk4_algebraist_path_is_selected_inside_scheme() -> None:
+def test_rk4_specialist_path_is_selected_inside_scheme() -> None:
     scheme = SchemeRK4(
         exponential_growth,
         ScalarWorkbench(),
-        algebraist=StubAlgebraist(),
+        specialist=StubSpecialist(),
     )
 
     assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeRK4.call_algebraist
+    assert scheme.call_pure.__func__ is SchemeRK4.call_specialized
     assert scheme.redirect_call == scheme.call_pure
 
 
-def test_rk4_generic_and_algebraist_paths_match_for_one_step() -> None:
-    interval_generic = Interval(present=0.0, step=0.125, stop=1.0)
-    interval_algebraist = Interval(present=0.0, step=0.125, stop=1.0)
-    state_generic = ScalarState(1.0)
-    state_algebraist = ScalarState(1.0)
+def test_rk4_inline_and_specialist_paths_match_for_one_step() -> None:
+    interval_inline = Interval(present=0.0, step=0.125, stop=1.0)
+    interval_specialist = Interval(present=0.0, step=0.125, stop=1.0)
+    state_inline = ScalarState(1.0)
+    state_specialist = ScalarState(1.0)
 
-    generic = SchemeRK4(exponential_growth, ScalarWorkbench())
-    algebraist = SchemeRK4(
+    inline = SchemeRK4(exponential_growth, ScalarWorkbench())
+    specialist = SchemeRK4(
         exponential_growth,
         ScalarWorkbench(),
-        algebraist=StubAlgebraist(),
+        specialist=StubSpecialist(),
     )
 
-    accepted_dt_generic = generic(interval_generic, state_generic, Executor())
-    accepted_dt_algebraist = algebraist(
-        interval_algebraist,
-        state_algebraist,
+    accepted_dt_inline = inline(interval_inline, state_inline, Executor())
+    accepted_dt_specialist = specialist(
+        interval_specialist,
+        state_specialist,
         Executor(),
     )
 
-    assert accepted_dt_generic == pytest.approx(accepted_dt_algebraist)
-    assert state_generic.value == pytest.approx(state_algebraist.value)
-    assert state_generic.value == pytest.approx(1.133148193359375)
+    assert accepted_dt_inline == pytest.approx(accepted_dt_specialist)
+    assert state_inline.value == pytest.approx(state_specialist.value)
+    assert state_inline.value == pytest.approx(1.133148193359375)
+
 
 def test_rk4_satisfies_public_scheme_contract_without_base_class_assertions() -> None:
     scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
@@ -192,7 +195,6 @@ def test_rk4_satisfies_public_scheme_contract_without_base_class_assertions() ->
 
     accepted_dt = scheme(interval, state, Executor())
     snapshot = scheme.snapshot_state(state)
-
     scheme.set_apply_delta_safety(False)
     scheme.set_apply_delta_safety(True)
 
@@ -204,33 +206,12 @@ def test_rk4_satisfies_public_scheme_contract_without_base_class_assertions() ->
 def test_rk4_exposes_copyable_fixed_explicit_scheme_shape() -> None:
     required_names = {
         "__call__",
-        "call_generic",
-        "use_algebraist",
+        "call_inline",
+        "call_specialized",
+        "prepare_specialized_kernels",
         "snapshot_state",
         "set_apply_delta_safety",
     }
-
     available_names = set(dir(SchemeRK4))
 
     assert required_names <= available_names
-
-
-def test_rk4_satisfies_public_scheme_contract_without_base_class_assertions() -> None:
-    scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
-
-    assert callable(scheme)
-    assert callable(scheme.snapshot_state)
-    assert callable(scheme.set_apply_delta_safety)
-
-    interval = Interval(present=0.0, step=0.125, stop=1.0)
-    state = ScalarState(1.0)
-
-    accepted_dt = scheme(interval, state, Executor())
-    snapshot = scheme.snapshot_state(state)
-
-    scheme.set_apply_delta_safety(False)
-    scheme.set_apply_delta_safety(True)
-
-    assert accepted_dt == pytest.approx(0.125)
-    assert snapshot is not state
-    assert snapshot.value == pytest.approx(state.value)

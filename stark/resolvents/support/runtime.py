@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from stark.accelerators import AcceleratorAbsent
-from stark.contracts import AcceleratorLike, Block, IntervalLike, State
+from stark.block import Block
+from stark.contracts import AcceleratorLike, IntervalLike, State
 from stark.execution.safety import Safety
 from stark.resolvents.support.monitoring import MonitorResolventLike
 
@@ -12,12 +13,24 @@ def initialise_resolvent_runtime(
     accelerator: AcceleratorLike | None = None,
 ) -> None:
     resolvent.safety = safety if safety is not None else Safety()
-    resolvent.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
-    resolvent.interval = None
-    resolvent.state = None
+    resolvent.accelerator = (
+        accelerator if accelerator is not None else AcceleratorAbsent()
+    )
     resolvent.alpha = 0.0
     resolvent._monitor = None
-    resolvent.redirect_call = resolvent.call_unbound
+
+    if hasattr(resolvent, "call_inline"):
+        resolvent.call_pure = resolvent.call_inline
+        resolvent.redirect_call = resolvent.call_pure
+    else:
+        # Legacy fallback for resolvents not yet migrated.
+        resolvent.interval = None
+        resolvent.state = None
+        resolvent.redirect_call = resolvent.call_unbound
+
+
+def refresh_resolvent_call(resolvent) -> None:
+    resolvent.redirect_call = resolvent.call_pure
 
 
 def with_resolvent_display_methods(cls):
@@ -29,13 +42,17 @@ def with_resolvent_display_methods(cls):
 
     def __repr__(self) -> str:
         extra_parts = []
+
         if hasattr(self, "depth"):
             extra_parts.append(f"depth={self.depth!r}")
+
         if hasattr(self, "inverter"):
             extra_parts.append(f"inverter={self.inverter!r}")
+
         extra = ", ".join(extra_parts)
         if extra:
             extra = f", {extra}"
+
         return (
             f"{type(self).__name__}("
             f"tolerance={self.tolerance!r}, "
@@ -54,13 +71,33 @@ def with_resolvent_display_methods(cls):
     return cls
 
 
+def with_resolvent_call_methods(cls):
+    """Install new-paradigm resolvent call routing."""
+
+    def bind_accelerator(self, accelerator: AcceleratorLike) -> None:
+        self.accelerator = accelerator
+
+    def __call__(self, problem, delta):
+        return self.redirect_call(problem, delta)
+
+    cls.bind_accelerator = bind_accelerator
+    cls.__call__ = __call__
+    return cls
+
+
 def with_resolvent_binding_methods(cls):
-    """Install standard bound/unbound resolvent call routing methods."""
+    """Install legacy bound/unbound call routing.
+
+    Kept only so old resolvents can coexist during staged migration.
+    New resolvents should use ``with_resolvent_call_methods``.
+    """
 
     def bind(self, interval: IntervalLike, state: State) -> None:
         self.interval = interval
         self.state = state
-        self.redirect_call = self.call_checked if self.safety.block_sizes else self.call_unchecked
+        self.redirect_call = (
+            self.call_checked if self.safety.block_sizes else self.call_unchecked
+        )
 
     def bind_accelerator(self, accelerator: AcceleratorLike) -> None:
         self.accelerator = accelerator
@@ -99,6 +136,7 @@ def with_resolvent_monitoring_methods(cls):
         monitor = self._monitor
         if monitor is None:
             return
+
         descriptor = getattr(type(self), "descriptor", None)
         resolvent_name = getattr(descriptor, "short_name", type(self).__name__)
         monitor.record_solve(
@@ -125,7 +163,9 @@ def check_one_stage_block(name: str, block: Block) -> None:
 __all__ = [
     "check_one_stage_block",
     "initialise_resolvent_runtime",
+    "refresh_resolvent_call",
     "with_resolvent_binding_methods",
+    "with_resolvent_call_methods",
     "with_resolvent_display_methods",
     "with_resolvent_monitoring_methods",
 ]

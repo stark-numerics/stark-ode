@@ -5,8 +5,9 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Interval, Monitor
-from stark.contracts import Block
+from stark.block import Block
 from stark.resolvents import ResolventPicard
+from stark.schemes.support.stage_problem import SchemeStageProblem
 
 
 @dataclass(slots=True)
@@ -84,14 +85,14 @@ def zero_rhs(
 
 def test_picard_records_resolvent_solve_when_monitor_assigned() -> None:
     monitor = Monitor()
-    resolvent = ResolventPicard(zero_rhs, ScalarWorkbench())
+    resolvent = ResolventPicard(ScalarWorkbench())
     interval = Interval(present=0.0, step=0.1, stop=1.0)
     state = ScalarState()
     out = Block([ScalarTranslation()])
+    problem = SchemeStageProblem(zero_rhs, interval, state, None, 0.1)
 
-    resolvent.bind(interval, state)
     resolvent.assign_monitor(monitor.resolvent)
-    resolvent(0.1, None, out)
+    resolvent(problem, out)
 
     assert len(monitor.resolvent.solves) == 1
 
@@ -107,14 +108,14 @@ def test_picard_records_resolvent_solve_when_monitor_assigned() -> None:
 
 def test_picard_unassign_monitor_restores_unmonitored_solves() -> None:
     monitor = Monitor()
-    resolvent = ResolventPicard(zero_rhs, ScalarWorkbench())
+    resolvent = ResolventPicard(ScalarWorkbench())
     interval = Interval(present=0.0, step=0.1, stop=1.0)
     state = ScalarState()
     out = Block([ScalarTranslation()])
+    problem = SchemeStageProblem(zero_rhs, interval, state, None, 0.1)
 
-    resolvent.bind(interval, state)
     resolvent.assign_monitor(monitor.resolvent)
     resolvent.unassign_monitor()
-    resolvent(0.1, None, out)
+    resolvent(problem, out)
 
     assert monitor.resolvent.solves == []

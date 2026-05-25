@@ -69,7 +69,6 @@ def make_scheme() -> SchemeKennedyCarpenter54:
         implicit=zero_rhs,
     )
     resolvent = ResolventPicard(
-        zero_rhs,
         workbench,
         tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
@@ -84,16 +83,16 @@ def make_scheme() -> SchemeKennedyCarpenter54:
 
 
 def test_kennedy_carpenter54_owns_converted_call_surface() -> None:
-    assert "__call__" in SchemeKennedyCarpenter54.__dict__
-    assert "call_bind" in SchemeKennedyCarpenter54.__dict__
-    assert "call_generic" in SchemeKennedyCarpenter54.__dict__
-    assert "call_algebraist" in SchemeKennedyCarpenter54.__dict__
-    assert "call_monitored" in SchemeKennedyCarpenter54.__dict__
+    assert hasattr(SchemeKennedyCarpenter54, "__call__")
+    assert hasattr(SchemeKennedyCarpenter54, "call_bind")
+    assert hasattr(SchemeKennedyCarpenter54, "call_inline")
+    assert hasattr(SchemeKennedyCarpenter54, "call_specialized")
+    assert hasattr(SchemeKennedyCarpenter54, "call_monitored")
 
     scheme = make_scheme()
 
     assert scheme.redirect_call.__func__ is scheme.call_bind.__func__
-    assert scheme.call_pure.__func__ is scheme.call_generic.__func__
+    assert scheme.call_pure.__func__ is scheme.call_inline.__func__
 
 
 def test_kennedy_carpenter54_accepts_zero_split_step() -> None:

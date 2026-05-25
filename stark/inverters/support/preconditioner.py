@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from stark.contracts import Block, InverterPreconditionerLike
+from stark.block import Block
+from stark.contracts import InverterPreconditionerLike
 from stark.block.operator import BlockOperator
 from stark.inverters.support.workspace import InverterWorkspace
 
