@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from typing import Literal, Protocol
 
-from stark.contracts.states import (
+from stark.contracts.state import (
     StateType,
     StateTypeContravariant,
 )
-from stark.contracts.translations import (
+from stark.contracts.translation import (
     TranslationType,
     TranslationTypeContravariant,
 )

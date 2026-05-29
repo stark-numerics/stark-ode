@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, TypeVar
 
-from stark.contracts.translations import Translation
+from stark.contracts.translation import Translation
 
 
 class Operator(Protocol):
@@ -21,4 +21,7 @@ class Operator(Protocol):
         ...
 
 
-__all__ = ["Operator"]
+OperatorType = TypeVar("OperatorType", bound=Operator)
+
+
+__all__ = ["Operator", "OperatorType"]

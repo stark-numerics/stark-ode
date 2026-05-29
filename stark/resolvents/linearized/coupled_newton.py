@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, cast
 from stark.block import Block, BlockAllocator, BlockOperator
 from stark.contracts import (
     AcceleratorLike,
-    InverterLike,
+    LegacyInverterLike,
     Linearizer,
     Translation,
     Allocator,
@@ -25,16 +25,16 @@ from stark.resolvents.support import (
     initialise_resolvent_runtime,
     refresh_resolvent_call,
     with_resolvent_call_methods,
-    with_resolvent_display_methods,
-    with_resolvent_monitoring_methods,
+    with_resolvent_display,
+    with_resolvent_monitoring,
 )
 from stark.resolvents.support.descriptor import ResolventDescriptor
 from stark.resolvents.support.tolerance import ResolventTolerance
 
 
-@with_resolvent_display_methods
+@with_resolvent_display
 @with_resolvent_call_methods
-@with_resolvent_monitoring_methods
+@with_resolvent_monitoring
 class ResolventCoupledNewton:
     """Newton iteration for coupled implicit RK stage systems.
 
@@ -87,7 +87,7 @@ class ResolventCoupledNewton:
         self,
         allocator: Allocator,
         linearizer: Linearizer,
-        inverter: InverterLike,
+        inverter: LegacyInverterLike,
         ExecutorTolerance: ExecutorTolerance | None = None,
         policy: ResolventPolicy | None = None,
         safety: ResolventSafety | None = None,

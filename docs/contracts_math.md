@@ -220,7 +220,7 @@ solve
 A delta = b
 ```
 
-This is the role of `InverterLike`.
+This is the role of `LegacyInverterLike`.
 
 ## Linearization and the Linearizer contract
 
@@ -359,7 +359,7 @@ The key STARK contracts can be summarized this way:
 | residual `R : T^m -> T^m` | `Residual` |
 | nonlinear implicit solver | `Resolvent` |
 | scheme-provided stage problem | `ResolventStageProblem` |
-| linear solve worker | `InverterLike` |
+| linear solve worker | `LegacyInverterLike` |
 | inner product `<.,.>` | `InnerProduct` |
 
 This is the core idea of the package: keep the mathematics honest, keep the

@@ -22,7 +22,7 @@ the Krylov support workers in `stark.inverters.legacy_support.krylov`.
 """
 
 from stark.block import Block
-from stark.contracts import AcceleratorLike, InnerProduct, InverterPreconditionerLike, Allocator
+from stark.contracts import AcceleratorLike, InnerProduct, LegacyInverterPreconditionerLike, Allocator
 from stark.block.operator import BlockOperator
 from stark.inverters.legacy_support.descriptor import InverterDescriptor
 from stark.inverters.legacy_support.policy import InverterPolicy
@@ -98,7 +98,7 @@ class InverterGMRES:
         inner_product: InnerProduct,
         ExecutorTolerance: ExecutorTolerance | None = None,
         policy: InverterPolicy | None = None,
-        preconditioner: InverterPreconditionerLike | None = None,
+        preconditioner: LegacyInverterPreconditionerLike | None = None,
         safety: InverterSafety | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:

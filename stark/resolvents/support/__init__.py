@@ -1,5 +1,5 @@
 from stark.resolvents.support.descriptor import ResolventDescriptor
-from stark.resolvents.support.failure import ResolventError
+from stark.resolvents.support.error import ResolventError
 from stark.resolvents.support.guard import ResolventTableauGuard
 from stark.resolvents.support.monitoring import MonitorResolventLike
 from stark.resolvents.support.policy import ResolventPolicy
@@ -13,8 +13,8 @@ from stark.resolvents.support.call import (
     with_resolvent_call_methods,
 )
 from stark.resolvents.support.checks import check_one_stage_block
-from stark.resolvents.support.display import with_resolvent_display_methods
-from stark.resolvents.support.monitoring_methods import with_resolvent_monitoring_methods
+from stark.resolvents.support.display import with_resolvent_display
+from stark.resolvents.support.monitoring import with_resolvent_monitoring
 from stark.resolvents.support.setup import (
     initialise_resolvent_runtime,
     refresh_resolvent_call,
@@ -69,6 +69,6 @@ __all__ = [
     "refresh_resolvent_call",
     "with_resolvent_binding_methods",
     "with_resolvent_call_methods",
-    "with_resolvent_display_methods",
-    "with_resolvent_monitoring_methods",
+    "with_resolvent_display",
+    "with_resolvent_monitoring",
 ]

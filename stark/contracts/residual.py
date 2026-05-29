@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from stark.contracts.audit_support import AuditRecorder
-from stark.contracts.blocks import Block
+from stark.contracts.contract_audit import AuditRecorder
+from stark.contracts.block import BlockLike
 
 
 class Residual(Protocol):
@@ -18,7 +18,7 @@ class Residual(Protocol):
     several coupled stage translations.
     """
 
-    def __call__(self, block: Block, out: Block) -> None:
+    def __call__(self, block: BlockLike, out: BlockLike) -> None:
         ...
 
 
@@ -33,7 +33,7 @@ class LinearResidual(Residual, Protocol):
     into the correct residual operator.
     """
 
-    def linearize(self, block: Block, out: Any) -> None:
+    def linearize(self, block: BlockLike, out: Any) -> None:
         ...
 
 

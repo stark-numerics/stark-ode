@@ -18,7 +18,7 @@ class SchemeStageProblem:
 
 
 @dataclass(frozen=True, slots=True)
-class SchemeCoupledStageProblem:
+class SchemeStageProblemCoupled:
     """Concrete coupled-stage problem supplied by an implicit RK scheme."""
 
     derivative: Derivative
@@ -30,4 +30,4 @@ class SchemeCoupledStageProblem:
     matrix: tuple[tuple[float, ...], ...]
 
 
-__all__ = ["SchemeCoupledStageProblem", "SchemeStageProblem"]
+__all__ = ["SchemeStageProblemCoupled", "SchemeStageProblem"]

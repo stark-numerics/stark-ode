@@ -21,8 +21,8 @@ from stark.resolvents.support import (
     initialise_resolvent_runtime,
     refresh_resolvent_call,
     with_resolvent_call_methods,
-    with_resolvent_display_methods,
-    with_resolvent_monitoring_methods,
+    with_resolvent_display,
+    with_resolvent_monitoring,
 )
 from stark.resolvents.support.descriptor import ResolventDescriptor
 from stark.resolvents.support.secant import BlockInnerProduct, block_inner_product
@@ -131,9 +131,9 @@ class ResolventBroydenHistory:
         return (self.head + index) % self.depth
 
 
-@with_resolvent_display_methods
+@with_resolvent_display
 @with_resolvent_call_methods
-@with_resolvent_monitoring_methods
+@with_resolvent_monitoring
 class ResolventBroyden:
     """Inverse-Broyden resolvent for one-stage shifted implicit equations.
 

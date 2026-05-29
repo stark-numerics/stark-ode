@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-def with_resolvent_display_methods(cls):
+def with_resolvent_display(cls):
     """Install standard resolvent display and metadata methods."""
 
     @property
@@ -39,4 +39,4 @@ def with_resolvent_display_methods(cls):
     return cls
 
 
-__all__ = ["with_resolvent_display_methods"]
+__all__ = ["with_resolvent_display"]

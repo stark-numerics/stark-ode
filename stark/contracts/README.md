@@ -7,24 +7,24 @@ user needs in order to supply custom objects.
 
 Prefer focused imports when writing docs or implementation code:
 
-- `stark.contracts.acceleration`: accelerator backends
-- `stark.contracts.blocks`: grouped translation containers
-- `stark.contracts.carriers`: carrier bundles
-- `stark.contracts.derivatives`: right-hand-side workers
+- `stark.contracts.accelerator`: accelerator backends
+- `stark.contracts.block`: grouped translation containers
+- `stark.contracts.carrier`: carrier bundles
+- `stark.contracts.derivative`: right-hand-side workers
 - `stark.contracts.derivative_imex`: IMEX derivative split carrier
-- `stark.contracts.inner_products`: translation-space inner products
-- `stark.contracts.integrators`: trajectory-building workers
-- `stark.contracts.intervals`: timeline cursors
+- `stark.contracts.inner_product`: translation-space inner products
+- `stark.contracts.integrator`: trajectory-building workers
+- `stark.contracts.interval`: timeline cursors
 - `stark.contracts.linear_combine`: translation algebra fast paths
-- `stark.contracts.linearizers`: Jacobian-action workers
-- `stark.contracts.marchers`: step-accepting workers
-- `stark.contracts.operators`: matrix-free linear operators
-- `stark.contracts.residuals`: residual workers for nonlinear solves
-- `stark.contracts.resolvents`: nonlinear stage solvers
-- `stark.contracts.inverters`: linear solvers and preconditioners
-- `stark.contracts.states`: unconstrained mutable state objects
-- `stark.contracts.translations`: linear update objects
-- `stark.contracts.allocators`: state and translation factories
+- `stark.contracts.linearizer`: Jacobian-action workers
+- `stark.contracts.marcher`: step-accepting workers
+- `stark.contracts.operator`: matrix-free linear operators
+- `stark.contracts.residual`: residual workers for nonlinear solves
+- `stark.contracts.resolvent`: nonlinear stage solvers
+- `stark.contracts.inverter`: linear solvers and preconditioners
+- `stark.contracts.state`: unconstrained mutable state objects
+- `stark.contracts.translation`: linear update objects
+- `stark.contracts.allocator`: state and translation factories
 
 Use the package-level `stark.contracts` imports for convenience in examples and
 interactive exploration.

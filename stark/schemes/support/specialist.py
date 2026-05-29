@@ -4,13 +4,24 @@ from collections.abc import Callable
 from typing import Protocol, TypeVar
 
 from stark.schemes.support.stencil import SchemeStencil
+from stark.contracts.state import State, StateType, StateTypeCovariant
+from stark.contracts.translation import Translation, TranslationType, TranslationTypeCovariant
 
+SchemeSpecialistKernel = Callable[..., object]
 
-StateType = TypeVar("StateType")
-TranslationType = TypeVar("TranslationType")
+class SchemeSpecialist(Protocol[StateTypeCovariant, TranslationTypeCovariant]):
+    """Provider of scheme kernels from fixed-coefficient stencils.
 
+    ``stencil.apply`` selects the produced kernel semantics:
 
-class SchemeDeltaKernel(Protocol[TranslationType]):
+    - ``False`` -> delta kernel
+    - ``True`` -> apply/update kernel
+    """
+
+    def provide(self, stencil: SchemeStencil) -> SchemeSpecialistKernel:
+        ...
+
+class SchemeSpecialistKernelDelta(Protocol[TranslationType]):
     """Kernel that writes a weighted translation delta.
 
     Semantics:
@@ -28,7 +39,7 @@ class SchemeDeltaKernel(Protocol[TranslationType]):
         ...
 
 
-class SchemeApplyKernel(Protocol[StateType, TranslationType]):
+class SchemeSpecialistKernelApply(Protocol[StateTypeCovariant, TranslationTypeCovariant]):
     """Kernel that applies a weighted translation delta to an origin state.
 
     Semantics:
@@ -43,30 +54,15 @@ class SchemeApplyKernel(Protocol[StateType, TranslationType]):
         self,
         step: float,
         origin: StateType,
-        *terms: TranslationType | StateType,
+        *terms: Translation | State,
     ) -> StateType:
         ...
 
 
-SchemeKernel = Callable[..., object]
-
-
-class SchemeSpecialist(Protocol[StateType, TranslationType]):
-    """Provider of scheme kernels from fixed-coefficient stencils.
-
-    ``stencil.apply`` selects the produced kernel semantics:
-
-    - ``False`` -> delta kernel
-    - ``True`` -> apply/update kernel
-    """
-
-    def provide(self, stencil: SchemeStencil) -> SchemeKernel:
-        ...
-
 
 __all__ = [
-    "SchemeApplyKernel",
-    "SchemeDeltaKernel",
-    "SchemeKernel",
+    "SchemeSpecialistKernelApply",
+    "SchemeSpecialistKernelDelta",
+    "SchemeSpecialistKernel",
     "SchemeSpecialist",
 ]

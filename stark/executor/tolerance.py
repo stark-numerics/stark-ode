@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from stark.contracts.audit_support import AuditRecorder
+from stark.contracts.contract_audit import AuditRecorder
 
 
 @dataclass(frozen=True, slots=True)

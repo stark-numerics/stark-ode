@@ -17,7 +17,7 @@ a slightly more general but somewhat more expensive GMRES-like scheme.
 """
 
 from stark.block import Block
-from stark.contracts import AcceleratorLike, InnerProduct, InverterPreconditionerLike, Allocator
+from stark.contracts import AcceleratorLike, InnerProduct, LegacyInverterPreconditionerLike, Allocator
 from stark.block.operator import BlockOperator
 from stark.inverters.legacy_support.descriptor import InverterDescriptor
 from stark.inverters.legacy_support.policy import InverterPolicy
@@ -43,7 +43,7 @@ class InverterFGMRES:
     Krylov window. That makes it a good fit when the "preconditioner" is itself
     an iterative or stateful worker.
 
-    In the current library the preconditioner slot accepts any `InverterPreconditionerLike`
+    In the current library the preconditioner slot accepts any `LegacyInverterPreconditionerLike`
     object. If no preconditioner is provided, FGMRES falls back to the identity
     action and behaves like an unpreconditioned flexible method.
 
@@ -85,7 +85,7 @@ class InverterFGMRES:
         inner_product: InnerProduct,
         ExecutorTolerance: ExecutorTolerance | None = None,
         policy: InverterPolicy | None = None,
-        preconditioner: InverterPreconditionerLike | None = None,
+        preconditioner: LegacyInverterPreconditionerLike | None = None,
         safety: InverterSafety | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:

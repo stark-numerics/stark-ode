@@ -11,7 +11,7 @@ variadic terms to avoid making this public docs layer unreadable.
 
 from typing import Protocol
 
-from stark.contracts.translations import Translation
+from stark.contracts.translation import Translation
 
 
 class Scale(Protocol):

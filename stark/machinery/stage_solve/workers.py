@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from stark.schemes.support.derivative import SchemeDerivative
 from stark.core.auditor import Auditor
-from stark.contracts import Block, Derivative, DerivativeIMEX, IntervalLike, Resolvent, State, Translation, Allocator
+from stark.contracts import BlockLike, Derivative, DerivativeIMEX, IntervalLike, Resolvent, State, Translation, Allocator
 from stark.resolvents.support.guard import ResolventTableauGuard
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
 
@@ -31,7 +31,7 @@ class _ImExStageSolver:
         base_state: State,
         shift: Translation | None,
         alpha: float,
-        block: Block,
+        block: BlockLike,
     ) -> State:
         if shift is None:
             self.copy_state(base_state, self.stage_state)
@@ -79,7 +79,7 @@ class ImExStepper:
         self.explicit_rates = list(workspace.allocate_translation_buffers(stage_count))
         self.implicit_rates = list(workspace.allocate_translation_buffers(stage_count))
         stage_deltas = workspace.allocate_translation_buffers(stage_count)
-        self.stage_blocks = [Block([delta]) for delta in stage_deltas]
+        self.stage_blocks = [BlockLike([delta]) for delta in stage_deltas]
         self.shift, self.trial, self.error = workspace.allocate_translation_buffers(3)
         max_term_count = 2 * stage_count
         self.shift_coefficients = [0.0] * max_term_count
@@ -261,7 +261,7 @@ class ResolventCoupledCollocationStep:
         self.tableau_guard = ResolventTableauGuard(method_name, tableau)
         self.resolvent = _require_resolvent(method_name, resolvent)
         self.tableau_guard(self.resolvent)
-        self.stage_block = Block([self.workspace.allocate_translation() for _ in range(stage_count)])
+        self.stage_block = BlockLike([self.workspace.allocate_translation() for _ in range(stage_count)])
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
         self.workspace.set_apply_delta_safety(enabled)
@@ -269,7 +269,7 @@ class ResolventCoupledCollocationStep:
     def snapshot_state(self, state: State) -> State:
         return self.workspace.snapshot_state(state)
 
-    def solve(self, interval: IntervalLike, state: State, dt: float) -> Block:
+    def solve(self, interval: IntervalLike, state: State, dt: float) -> BlockLike:
         workspace = self.workspace
         self.resolvent.bind(interval, state)
         for index, item in enumerate(self.stage_block):
@@ -299,7 +299,7 @@ class SequentialDIRKResolventStep:
         self.resolvent = _require_resolvent(method_name, resolvent)
         self.tableau_guard(self.resolvent)
         self.stage_state = self.workspace.allocate_state_buffer()
-        self.stage_blocks = tuple(Block([self.workspace.allocate_translation()]) for _ in range(implicit_stage_count))
+        self.stage_blocks = tuple(BlockLike([self.workspace.allocate_translation()]) for _ in range(implicit_stage_count))
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
         self.workspace.set_apply_delta_safety(enabled)

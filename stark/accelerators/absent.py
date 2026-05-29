@@ -4,7 +4,7 @@ from collections.abc import Callable
 from typing import Any
 
 from stark.accelerators.common import AcceleratorBase
-from stark.contracts.acceleration import AcceleratorTarget
+from stark.contracts.accelerator import AcceleratorTarget
 
 
 class AcceleratorAbsent(AcceleratorBase):

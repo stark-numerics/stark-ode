@@ -4,16 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from stark.contracts.acceleration import AcceleratorAudit
+from stark.contracts.accelerator import AcceleratorAudit
 from stark.contracts.derivative_imex import DerivativeIMEXAudit
-from stark.contracts.derivatives import DerivativeAudit
-from stark.contracts.intervals import IntervalAudit
-from stark.contracts.linearizers import LinearizerAudit
-from stark.contracts.marchers import MarcherAudit
-from stark.contracts.residuals import ResidualAudit
-from stark.contracts.schemes import SchemeAudit
-from stark.contracts.translation_audit import TranslationAudit
-from stark.contracts.allocators import AllocatorAudit
+from stark.contracts.derivative import DerivativeAudit
+from stark.contracts.interval import IntervalAudit
+from stark.contracts.linearizer import LinearizerAudit
+from stark.contracts.marcher import MarcherAudit
+from stark.contracts.residual import ResidualAudit
+from stark.contracts.scheme import SchemeAudit
+from stark.contracts.translation import TranslationAudit
+from stark.contracts.allocator import AllocatorAudit
 from stark.executor.safety import ExecutorSafetyAudit
 from stark.executor.tolerance import ExecutorToleranceAudit
 from stark.core.interval import Interval

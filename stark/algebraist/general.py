@@ -5,7 +5,7 @@ from typing import Protocol, TypeVar
 
 from stark.algebraist.algebraist import Algebraist
 from stark.algebraist.arity import AlgebraistArity
-from stark.contracts.translations import Translation
+from stark.contracts.translation import Translation
 
 TranslationType = TypeVar("TranslationType", bound=Translation)
 AlgebraistGeneralKernel = Callable[..., TranslationType]

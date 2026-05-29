@@ -9,7 +9,7 @@ integrators also require `copy()` so they can yield stable interval records.
 
 from typing import Any, Protocol, Self
 
-from stark.contracts.audit_support import AuditRecorder
+from stark.contracts.contract_audit import AuditRecorder
 
 
 class IntervalLike(Protocol):

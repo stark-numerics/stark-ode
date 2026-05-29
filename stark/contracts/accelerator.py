@@ -12,31 +12,9 @@ reason about.
 from collections.abc import Callable
 from typing import Any, Protocol, TypeVar
 
-from stark.contracts.audit_support import AuditRecorder
-
+from stark.contracts.contract_audit import AuditRecorder
 
 AcceleratorTarget = TypeVar("AcceleratorTarget", bound=Callable[..., Any])
-
-
-class AccelerationBackend(Protocol):
-    """Minimal backend protocol used by built-in accelerator workers."""
-
-    name: str
-
-    def compile(
-        self,
-        function: AcceleratorTarget | None = None,
-        /,
-        *,
-        label: str | None = None,
-        cache: bool | None = None,
-        **options: Any,
-    ) -> Callable[..., Any]:
-        ...
-
-    def compile_examples(self, function: AcceleratorTarget, *examples: Any) -> AcceleratorTarget:
-        ...
-
 
 class AcceleratorLike(Protocol):
     """Public protocol for STARK acceleration workers."""
@@ -130,7 +108,6 @@ class AcceleratorAudit:
 
 
 __all__ = [
-    "AccelerationBackend",
     "AcceleratorAudit",
     "AcceleratorLike",
     "AcceleratorTarget",

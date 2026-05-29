@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from stark.algebraist.runtime import AlgebraistRuntimeGeneral
-from stark.contracts.intervals import IntervalLike
+from stark.contracts.interval import IntervalLike
 from stark.contracts import Translation, Allocator
 
 

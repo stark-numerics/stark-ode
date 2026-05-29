@@ -9,8 +9,8 @@ from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.general import AlgebraistGeneralKernel
 from stark.algebraist.runtime.support import AlgebraistRuntimeSupport
 from stark.algebraist.allocator import AlgebraistAllocator
-from stark.contracts.acceleration import AcceleratorLike
-from stark.contracts.translations import Translation
+from stark.contracts.accelerator import AcceleratorLike
+from stark.contracts.translation import Translation
 
 try:
     from stark.algebraist.layout import AlgebraistLayout

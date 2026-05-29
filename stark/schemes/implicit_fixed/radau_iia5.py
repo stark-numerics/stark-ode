@@ -15,7 +15,7 @@ from stark.schemes.support.implicit import (
     with_implicit_workspace_methods,
 )
 from stark.schemes.support.specialist import SchemeSpecialist
-from stark.schemes.support.stage_problem import SchemeCoupledStageProblem
+from stark.schemes.support.stage_problem import SchemeStageProblemCoupled
 from stark.schemes.support.tableau import ButcherTableau
 
 
@@ -111,9 +111,9 @@ class SchemeRadauIIA5:
 
         del specialist
 
-    def _problem(self, interval: IntervalLike, state: State, dt: float) -> SchemeCoupledStageProblem:
+    def _problem(self, interval: IntervalLike, state: State, dt: float) -> SchemeStageProblemCoupled:
         tableau = self.tableau
-        return SchemeCoupledStageProblem(
+        return SchemeStageProblemCoupled(
             derivative=self.derivative,
             interval=interval,
             origin=state,

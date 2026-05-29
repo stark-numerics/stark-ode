@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.accelerators import AcceleratorAbsent
 from stark.block import Block
 from stark.block.operator import BlockOperator
-from stark.contracts import AcceleratorLike, InnerProduct, InverterPreconditionerLike, Allocator
+from stark.contracts import AcceleratorLike, InnerProduct, LegacyInverterPreconditionerLike, Allocator
 from stark.executor.tolerance import ExecutorTolerance
 from stark.inverters.legacy_support.monitoring import MonitorInverterLike
 from stark.inverters.legacy_support.policy import InverterPolicy
@@ -19,7 +19,7 @@ def initialise_inverter_runtime(
     inner_product: InnerProduct,
     tolerance: ExecutorTolerance | None = None,
     policy: InverterPolicy | None = None,
-    preconditioner: InverterPreconditionerLike | None = None,
+    preconditioner: LegacyInverterPreconditionerLike | None = None,
     safety: InverterSafety | None = None,
     accelerator: AcceleratorLike | None = None,
 ) -> None:

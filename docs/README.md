@@ -449,7 +449,7 @@ in-place use.
 Accelerators are configured workers in the same sense as schemes, resolvents,
 and inverters. STARK ships a small built-in library under `stark.accelerators`
 and audits user-defined accelerators through `AcceleratorAudit` in
-`stark.contracts.acceleration`.
+`stark.contracts.accelerator`.
 
 The built-in import path is:
 
@@ -542,7 +542,7 @@ which resolvent you choose:
 
 - `ResolventPicard` only needs the implicit derivative.
 - `ResolventAnderson` and `ResolventBroyden` also need an `InnerProduct`.
-- `ResolventNewton` needs a `Linearizer` and an `InverterLike`.
+- `ResolventNewton` needs a `Linearizer` and an `LegacyInverterLike`.
 
 The common implicit shape is:
 

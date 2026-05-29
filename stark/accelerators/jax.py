@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from stark.accelerators.common import AcceleratorBase
-from stark.contracts.acceleration import AcceleratorTarget
+from stark.contracts.accelerator import AcceleratorTarget
 
 
 @dataclass(slots=True)

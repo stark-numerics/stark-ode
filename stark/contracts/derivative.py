@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from stark.contracts.audit_support import AuditRecorder
-from stark.contracts.intervals import IntervalLike
-from stark.contracts.states import State
-from stark.contracts.translations import Translation
+from stark.contracts.contract_audit import AuditRecorder
+from stark.contracts.interval import IntervalLike
+from stark.contracts.state import State
+from stark.contracts.translation import Translation
 
 
 class Derivative(Protocol):

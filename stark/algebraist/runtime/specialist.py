@@ -8,9 +8,9 @@ from stark.accelerators.absent import AcceleratorAbsent
 from stark.algebraist.runtime.support import AlgebraistRuntimeSupport
 from stark.algebraist.stencil import AlgebraistStencil
 from stark.algebraist.allocator import AlgebraistAllocator
-from stark.contracts.acceleration import AcceleratorLike
-from stark.contracts.states import State
-from stark.contracts.translations import Translation
+from stark.contracts.accelerator import AcceleratorLike
+from stark.contracts.state import State
+from stark.contracts.translation import Translation
 
 try:
     from stark.algebraist.layout import AlgebraistLayout

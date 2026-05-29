@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import TypeVar, cast
 
 from stark.accelerators.absent import AcceleratorAbsent
-from stark.contracts.acceleration import AcceleratorLike
+from stark.contracts.accelerator import AcceleratorLike
 
 KernelType = TypeVar("KernelType", bound=Callable[..., object])
 

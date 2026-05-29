@@ -5,9 +5,9 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any, Protocol
 
-from stark.contracts.intervals import IntervalLike
-from stark.contracts.marchers import MarcherLike
-from stark.contracts.states import State
+from stark.contracts.interval import IntervalLike
+from stark.contracts.marcher import MarcherLike
+from stark.contracts.state import State
 
 
 class IntegratorLike(Protocol):

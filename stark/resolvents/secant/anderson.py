@@ -22,8 +22,8 @@ from stark.resolvents.support import (
     initialise_resolvent_runtime,
     refresh_resolvent_call,
     with_resolvent_call_methods,
-    with_resolvent_display_methods,
-    with_resolvent_monitoring_methods,
+    with_resolvent_display,
+    with_resolvent_monitoring,
 )
 from stark.resolvents.support.descriptor import ResolventDescriptor
 from stark.resolvents.support.secant import (
@@ -181,9 +181,9 @@ class ResolventAndersonHistory:
         return (self.head + index) % self.depth
 
 
-@with_resolvent_display_methods
+@with_resolvent_display
 @with_resolvent_call_methods
-@with_resolvent_monitoring_methods
+@with_resolvent_monitoring
 class ResolventAnderson:
     """Anderson-accelerated fixed-point resolvent.
 

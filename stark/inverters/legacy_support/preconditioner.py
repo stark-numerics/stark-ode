@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.block import Block
-from stark.contracts import InverterPreconditionerLike
+from stark.contracts import LegacyInverterPreconditionerLike
 from stark.block.operator import BlockOperator
 from stark.inverters.legacy_support.workspace import InverterWorkspace
 
@@ -11,7 +11,7 @@ class InverterPreconditioner:
     Optional preconditioning worker with an identity fallback.
 
     The user-facing preconditioner can be any configured worker satisfying
-    `InverterPreconditionerLike`. This support object gives the inverter layer one
+    `LegacyInverterPreconditionerLike`. This support object gives the inverter layer one
     house-style place to handle:
 
     - the no-preconditioner identity path
@@ -21,7 +21,7 @@ class InverterPreconditioner:
 
     __slots__ = ("worker", "workspace", "_apply")
 
-    def __init__(self, workspace: InverterWorkspace, worker: InverterPreconditionerLike | None = None) -> None:
+    def __init__(self, workspace: InverterWorkspace, worker: LegacyInverterPreconditionerLike | None = None) -> None:
         self.workspace = workspace
         self.worker = worker
         self._apply = self._copy if worker is None else worker

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from stark.contracts.audit_support import AuditRecorder
-from stark.contracts.blocks import Block
-from stark.contracts.intervals import IntervalLike
-from stark.contracts.states import State
+from stark.contracts.contract_audit import AuditRecorder
+from stark.contracts.block import BlockLike
+from stark.contracts.interval import IntervalLike
+from stark.contracts.state import State
 
 
 class Resolvent(Protocol):
@@ -29,7 +29,7 @@ class Resolvent(Protocol):
     def bind(self, interval: IntervalLike, state: State) -> None:
         ...
 
-    def __call__(self, problem: Any, out: Block) -> None:
+    def __call__(self, problem: Any, out: BlockLike) -> None:
         ...
 
 

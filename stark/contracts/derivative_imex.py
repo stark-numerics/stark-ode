@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from stark.contracts.audit_support import AuditRecorder
-from stark.contracts.derivatives import Derivative
+from stark.contracts.contract_audit import AuditRecorder
+from stark.contracts.derivative import Derivative
 
 
 @dataclass(frozen=True, slots=True)

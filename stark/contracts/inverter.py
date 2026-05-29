@@ -4,11 +4,52 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from stark.contracts.audit_support import AuditRecorder
-from stark.contracts.blocks import Block
+from stark.contracts.contract_audit import AuditRecorder
+from stark.contracts.block import BlockLike, BlockOperatorLike
+from stark.contracts.translation import Translation, TranslationType
 
 
-class InverterLike(Protocol):
+class InverterRequest(Protocol[TranslationType]):
+    """
+    Structural contract for a linear solve request consumed by an inverter.
+
+    An inverter request represents the block-valued equation
+
+        operator(solution) = residual
+
+    Attributes:
+        operator:
+            Linear block action to invert or approximately invert. Calling
+            `operator(solution, image)` should write the image of `solution`
+            into `image`.
+
+        residual:
+            Right-hand side block in the linear equation.
+    """
+
+    operator: BlockOperatorLike[TranslationType]
+    residual: BlockLike[TranslationType]
+
+
+class Inverter(Protocol[TranslationType]):
+    """
+    Linear problem solver used by resolvents.
+
+    An inverter receives a linear problem request and improves `output` in
+    place so that
+
+        request.operator(output) ≈ request.residual
+    """
+    def __call__(
+        self,
+        request: InverterRequest[TranslationType],
+        output: BlockLike[TranslationType],
+    ) -> None:
+        ...
+
+
+
+class LegacyInverterLike(Protocol):
     """
     Bind a linear operator and then approximately solve with it.
 
@@ -20,11 +61,11 @@ class InverterLike(Protocol):
     def bind(self, operator: Any) -> None:
         ...
 
-    def __call__(self, rhs: Block, out: Block) -> None:
+    def __call__(self, rhs: BlockLike, out: BlockLike) -> None:
         ...
 
 
-class InverterPreconditionerLike(Protocol):
+class LegacyInverterPreconditionerLike(Protocol):
     """
     Bind a linear operator and apply an approximate inverse-like action.
 
@@ -37,11 +78,11 @@ class InverterPreconditionerLike(Protocol):
     def bind(self, operator: Any) -> None:
         ...
 
-    def __call__(self, rhs: Block, out: Block) -> None:
+    def __call__(self, rhs: BlockLike, out: BlockLike) -> None:
         ...
 
 
-class InverterAudit:
+class LegacyInverterAudit:
     """Record checks for linear inverters and preconditioners."""
 
     def __call__(self, recorder: AuditRecorder, inverter: Any) -> None:
@@ -70,4 +111,8 @@ class InverterAudit:
         )
 
 
-__all__ = ["InverterAudit", "InverterLike", "InverterPreconditionerLike"]
+__all__ = ["InverterRequest", 
+           "Inverter", 
+           "LegacyInverterAudit", 
+           "LegacyInverterLike", 
+           "LegacyInverterPreconditionerLike"]
