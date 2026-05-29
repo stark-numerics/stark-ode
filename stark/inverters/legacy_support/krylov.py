@@ -21,7 +21,7 @@ from stark.accelerators import AcceleratorAbsent
 from stark.block import Block
 from stark.block.operator import BlockOperator
 from stark.contracts import AcceleratorLike
-from stark.inverters.support.workspace import InverterWorkspace
+from stark.inverters.legacy_support.workspace import InverterWorkspace
 
 
 def _givens(upper: float, lower: float) -> tuple[float, float]:

@@ -5,12 +5,12 @@ from stark.block import Block
 from stark.block.operator import BlockOperator
 from stark.contracts import AcceleratorLike, InnerProduct, InverterPreconditionerLike, Allocator
 from stark.executor.tolerance import ExecutorTolerance
-from stark.inverters.support.monitoring import MonitorInverterLike
-from stark.inverters.support.policy import InverterPolicy
-from stark.inverters.support.preconditioner import InverterPreconditioner
-from stark.inverters.support.safety import InverterSafety, InverterSafetyDefault
-from stark.inverters.support.tolerance import InverterTolerance
-from stark.inverters.support.workspace import InverterWorkspace
+from stark.inverters.legacy_support.monitoring import MonitorInverterLike
+from stark.inverters.legacy_support.policy import InverterPolicy
+from stark.inverters.legacy_support.preconditioner import InverterPreconditioner
+from stark.inverters.legacy_support.safety import InverterSafety, InverterSafetyDefault
+from stark.inverters.legacy_support.tolerance import InverterTolerance
+from stark.inverters.legacy_support.workspace import InverterWorkspace
 
 
 def initialise_inverter_runtime(

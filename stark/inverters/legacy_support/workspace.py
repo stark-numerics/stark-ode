@@ -8,7 +8,7 @@ from stark.accelerators import AcceleratorAbsent
 from stark.algebraist.runtime import AlgebraistRuntimeGeneral
 from stark.block import Block
 from stark.contracts import AcceleratorLike, InnerProduct, Translation, Allocator
-from stark.inverters.support.safety import InverterSafety, InverterSafetyDefault
+from stark.inverters.legacy_support.safety import InverterSafety, InverterSafetyDefault
 
 
 @dataclass(slots=True, init=False)

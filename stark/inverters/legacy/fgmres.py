@@ -19,16 +19,16 @@ a slightly more general but somewhat more expensive GMRES-like scheme.
 from stark.block import Block
 from stark.contracts import AcceleratorLike, InnerProduct, InverterPreconditionerLike, Allocator
 from stark.block.operator import BlockOperator
-from stark.inverters.support.descriptor import InverterDescriptor
-from stark.inverters.support.policy import InverterPolicy
-from stark.inverters.support.safety import InverterSafety
-from stark.inverters.support import (
+from stark.inverters.legacy_support.descriptor import InverterDescriptor
+from stark.inverters.legacy_support.policy import InverterPolicy
+from stark.inverters.legacy_support.safety import InverterSafety
+from stark.inverters.legacy_support import (
     initialise_inverter_runtime,
     validate_restarted_inverter_policy,
     with_inverter_binding_methods,
     with_inverter_display_methods,
 )
-from stark.inverters.support.krylov import Arnoldi, GivensRotations, HessenbergLeastSquares
+from stark.inverters.legacy_support.krylov import Arnoldi, GivensRotations, HessenbergLeastSquares
 from stark.executor.tolerance import ExecutorTolerance
 
 
@@ -89,7 +89,7 @@ class InverterFGMRES:
         safety: InverterSafety | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:
-        # Installs self.workspace; see stark.inverters.support.workspace for its operations.
+        # Installs self.workspace; see stark.inverters.legacy_support.workspace for its operations.
         initialise_inverter_runtime(
             self,
             allocator,

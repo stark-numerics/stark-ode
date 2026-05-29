@@ -17,9 +17,9 @@ from stark.comparison.models import (
 from stark.block import Block
 from stark.contracts import Resolvent
 from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
-from stark.inverters.support.descriptor import InverterDescriptor
-from stark.inverters.support.policy import InverterPolicy
-from stark.inverters.support.tolerance import InverterTolerance
+from stark.inverters.legacy_support.descriptor import InverterDescriptor
+from stark.inverters.legacy_support.policy import InverterPolicy
+from stark.inverters.legacy_support.tolerance import InverterTolerance
 from stark.resolvents import (
     ResolventAnderson,
     ResolventBroyden,

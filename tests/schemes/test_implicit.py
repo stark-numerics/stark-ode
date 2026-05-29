@@ -8,8 +8,8 @@ import pytest
 from stark import Executor, Integrator, Marcher, ExecutorTolerance
 from stark.core.interval import Interval
 from stark.inverters import InverterGMRES
-from stark.inverters.support.policy import InverterPolicy
-from stark.inverters.support.tolerance import InverterTolerance
+from stark.inverters.legacy_support.policy import InverterPolicy
+from stark.inverters.legacy_support.tolerance import InverterTolerance
 from stark.resolvents import (
     ResolventCoupledNewton,
     ResolventCoupledPicard,

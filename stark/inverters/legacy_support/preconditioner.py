@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.block import Block
 from stark.contracts import InverterPreconditionerLike
 from stark.block.operator import BlockOperator
-from stark.inverters.support.workspace import InverterWorkspace
+from stark.inverters.legacy_support.workspace import InverterWorkspace
 
 
 class InverterPreconditioner:
