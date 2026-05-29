@@ -30,7 +30,7 @@ class BlockAllocator(Generic[TranslationType]):
 
         return Block([self.allocator.allocate_translation() for _ in range(size)])
 
-    def allocate_like(self, block: Block[object]) -> Block[TranslationType]:
+    def allocate_like(self, block: Block[TranslationType]) -> Block[TranslationType]:
         return self.allocate(len(block))
 
 

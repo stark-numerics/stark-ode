@@ -57,7 +57,7 @@ class SchemeBackwardEuler:
     __slots__ = (
         "_monitor",
         "block_allocator",
-        "call_pure",
+        "call_monitorable",
         "delta",
         "derivative",
         "redirect_call",
@@ -77,8 +77,8 @@ class SchemeBackwardEuler:
         specialist: SchemeSpecialist | None = None,
     ) -> None:
         self._monitor = None
-        self.call_pure = self.call_inline
-        self.redirect_call = self.call_pure
+        self.call_monitorable = self.call_inline
+        self.redirect_call = self.call_monitorable
         self.resolvent = resolvent
 
         initialise_implicit_support(self, derivative, allocator)
@@ -88,7 +88,7 @@ class SchemeBackwardEuler:
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_pure = self.call_specialized
+            self.call_monitorable = self.call_specialized
             refresh_fixed_step_call(self)
 
     def __call__(

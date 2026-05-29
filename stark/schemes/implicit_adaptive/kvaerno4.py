@@ -93,7 +93,7 @@ class SchemeKvaerno4:
     step_control: SchemeStepControl
 
     __slots__ = (
-        "step_control", "block_allocator", "call_pure", "delta1", "delta2", "delta2_block",
+        "step_control", "block_allocator", "call_monitorable", "delta1", "delta2", "delta2_block",
         "delta3", "delta3_block", "delta4", "delta4_block", "delta5", "delta5_block",
         "derivative", "error", "error_delta_call", "high_delta_call", "implicit", "known2_call",
         "known2_block", "known3_call", "known3", "known3_block", "known4_call", "known4",
@@ -126,11 +126,11 @@ class SchemeKvaerno4:
         self.known4_block = Block([self.known4])
         self.known5_block = Block([self.known5])
         initialise_adaptive_runtime(self, adaptivity)
-        self.call_pure = self.call_inline
+        self.call_monitorable = self.call_inline
         refresh_adaptive_call(self)
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_pure = self.call_specialized
+            self.call_monitorable = self.call_specialized
             refresh_adaptive_call(self)
 
     @staticmethod

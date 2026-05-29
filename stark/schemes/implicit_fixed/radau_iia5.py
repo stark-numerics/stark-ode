@@ -69,7 +69,7 @@ class SchemeRadauIIA5:
     __slots__ = (
         "_monitor",
         "block_allocator",
-        "call_pure",
+        "call_monitorable",
         "derivative",
         "redirect_call",
         "resolvent",
@@ -89,8 +89,8 @@ class SchemeRadauIIA5:
         specialist: SchemeSpecialist | None = None,
     ) -> None:
         self._monitor = None
-        self.call_pure = self.call_inline
-        self.redirect_call = self.call_pure
+        self.call_monitorable = self.call_inline
+        self.redirect_call = self.call_monitorable
         self.resolvent = resolvent
 
         initialise_implicit_support(self, derivative, allocator)
@@ -100,7 +100,7 @@ class SchemeRadauIIA5:
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_pure = self.call_specialized
+            self.call_monitorable = self.call_specialized
             refresh_fixed_step_call(self)
 
     def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:

@@ -128,7 +128,7 @@ class SchemeTsitouras5:
         "advance_delta",
         "bound_apply_delta",
         "bound_stage_interval",
-        "call_pure",
+        "call_monitorable",
         "derivative",
         "error",
         "error_delta",
@@ -167,12 +167,12 @@ class SchemeTsitouras5:
 
         self.initialise_buffers()
 
-        self.call_pure = self.call_inline
+        self.call_monitorable = self.call_inline
         refresh_adaptive_call(self)
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_pure = self.call_specialized
+            self.call_monitorable = self.call_specialized
             refresh_adaptive_call(self)
 
     def __call__(

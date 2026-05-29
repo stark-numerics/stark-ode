@@ -141,9 +141,9 @@ def test_rk3_rk4_scheme_clips_to_remaining_interval(scheme_cls, expected) -> Non
 def test_rk3_rk4_default_call_path_is_scheme_owned_inline_call(scheme_cls) -> None:
     scheme = scheme_cls(exponential_growth, ScalarAllocator())
 
-    assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_inline
-    assert scheme.redirect_call == scheme.call_pure
+    assert scheme.call_monitorable.__self__ is scheme
+    assert scheme.call_monitorable.__func__ is scheme_cls.call_inline
+    assert scheme.redirect_call == scheme.call_monitorable
 
 
 @pytest.mark.parametrize(
@@ -161,9 +161,9 @@ def test_rk3_rk4_specialist_path_is_selected_inside_scheme(scheme_cls) -> None:
         specialist=StubSpecialist(),
     )
 
-    assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_specialized
-    assert scheme.redirect_call == scheme.call_pure
+    assert scheme.call_monitorable.__self__ is scheme
+    assert scheme.call_monitorable.__func__ is scheme_cls.call_specialized
+    assert scheme.redirect_call == scheme.call_monitorable
 
 
 @pytest.mark.parametrize(

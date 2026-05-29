@@ -92,7 +92,7 @@ def test_kennedy_carpenter43_6_owns_converted_call_surface() -> None:
     scheme = make_scheme()
 
     assert scheme.redirect_call.__func__ is scheme.call_bind.__func__
-    assert scheme.call_pure.__func__ is scheme.call_inline.__func__
+    assert scheme.call_monitorable.__func__ is scheme.call_inline.__func__
 
 
 def test_kennedy_carpenter43_6_accepts_zero_split_step() -> None:
@@ -105,7 +105,7 @@ def test_kennedy_carpenter43_6_accepts_zero_split_step() -> None:
 
     assert accepted_dt == pytest.approx(0.1)
     assert state.value == pytest.approx(2.0)
-    assert scheme.redirect_call.__func__ is scheme.call_pure.__func__
+    assert scheme.redirect_call.__func__ is scheme.call_monitorable.__func__
 
     report = scheme.step_control.report()
     assert report.accepted_dt == pytest.approx(0.1)

@@ -145,8 +145,8 @@ def test_imex_adaptive_specialist_path_is_scheme_owned_generated_call(
     scheme = make_array_scheme(scheme_cls, specialist=True)
 
     assert hasattr(scheme_cls, "call_specialized")
-    assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_specialized
+    assert scheme.call_monitorable.__self__ is scheme
+    assert scheme.call_monitorable.__func__ is scheme_cls.call_specialized
     assert scheme.redirect_call.__self__ is scheme
     assert scheme.redirect_call.__func__ is scheme.call_bind.__func__
 

@@ -76,9 +76,9 @@ def test_backward_euler_owns_its_public_call_method() -> None:
 def test_backward_euler_default_call_path_is_scheme_owned_generic_call() -> None:
     scheme = make_scheme()
 
-    assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeBackwardEuler.call_inline
-    assert scheme.redirect_call == scheme.call_pure
+    assert scheme.call_monitorable.__self__ is scheme
+    assert scheme.call_monitorable.__func__ is SchemeBackwardEuler.call_inline
+    assert scheme.redirect_call == scheme.call_monitorable
 
 
 def test_backward_euler_public_call_uses_redirect_call() -> None:

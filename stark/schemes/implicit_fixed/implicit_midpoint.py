@@ -52,7 +52,7 @@ class SchemeImplicitMidpoint:
         "_monitor",
         "advance_update",
         "block_allocator",
-        "call_pure",
+        "call_monitorable",
         "derivative",
         "midpoint",
         "redirect_call",
@@ -73,8 +73,8 @@ class SchemeImplicitMidpoint:
         specialist: SchemeSpecialist | None = None,
     ) -> None:
         self._monitor = None
-        self.call_pure = self.call_inline
-        self.redirect_call = self.call_pure
+        self.call_monitorable = self.call_inline
+        self.redirect_call = self.call_monitorable
         self.resolvent = resolvent
         self.advance_update = None
 
@@ -86,7 +86,7 @@ class SchemeImplicitMidpoint:
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_pure = self.call_specialized
+            self.call_monitorable = self.call_specialized
             refresh_fixed_step_call(self)
 
     def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:

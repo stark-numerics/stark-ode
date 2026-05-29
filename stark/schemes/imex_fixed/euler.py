@@ -63,7 +63,7 @@ class SchemeIMEXEuler:
     __slots__ = (
         "_monitor",
         "advance_call",
-        "call_pure",
+        "call_monitorable",
         "delta",
         "delta_block",
         "explicit_derivative",
@@ -102,12 +102,12 @@ class SchemeIMEXEuler:
         self.rhs_block = Block([self.rhs])
         self.delta_block = Block([self.delta])
 
-        self.call_pure = self.call_inline
+        self.call_monitorable = self.call_inline
         refresh_fixed_step_call(self)
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_pure = self.call_specialized
+            self.call_monitorable = self.call_specialized
             refresh_fixed_step_call(self)
 
     def __call__(

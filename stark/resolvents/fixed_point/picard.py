@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from stark.block import Block, BlockAllocator
 from stark.contracts import AcceleratorLike, Translation, Allocator
+from stark.accelerators import AcceleratorAbsent
 from stark.executor.tolerance import ExecutorTolerance
 from stark.resolvents.support import (
     MonitorResolventLike,
@@ -16,18 +17,15 @@ from stark.resolvents.support import (
     ResolventStageProblem,
     ResolventStageResidual,
     ResolventStencilBlock,
-    initialise_resolvent_runtime,
-    refresh_resolvent_call,
-    with_resolvent_call_methods,
     with_resolvent_display,
     with_resolvent_monitoring,
 )
 from stark.resolvents.support.descriptor import ResolventDescriptor
 from stark.resolvents.support.tolerance import ResolventTolerance
+from stark.resolvents.support.safety import ResolventSafety, ResolventSafetyDefault
 
 
 @with_resolvent_display
-@with_resolvent_call_methods
 @with_resolvent_monitoring
 class ResolventPicard:
     """Picard iteration for one-stage shifted implicit residuals.
@@ -50,7 +48,7 @@ class ResolventPicard:
         "accelerator",
         "alpha",
         "allocator",
-        "call_pure",
+        "call_monitorable",
         "picard_update",
         "policy",
         "redirect_call",
@@ -86,9 +84,11 @@ class ResolventPicard:
         specialist: ResolventSpecialist[Translation] | None = None,
         tableau: Any | None = None,
     ) -> None:
+        
         self.tableau = tableau
-        initialise_resolvent_runtime(self, safety, accelerator)
-
+        self.safety = safety if safety is not None else ResolventSafetyDefault()
+        self.alpha = 0.0
+        self._monitor = None
         self.allocator = BlockAllocator(allocator)
         self.tolerance = (
             ExecutorTolerance
@@ -96,19 +96,24 @@ class ResolventPicard:
             else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         )
         self.policy = policy if policy is not None else ResolventPolicy()
+
+        self.residual_buffer = None
+        self.picard_update = None
+        self.size = -1
+        
+        if specialist is not None:
+            self.prepare_specialized_kernels(specialist)
+            self.call_monitorable = self.call_specialized
+        else:
+            self.call_monitorable = self.call_inline
+        self.redirect_call = self.call_monitorable
+
+        self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
         self.residual = ResolventStageResidual(
             "ResolventPicard",
             allocator,
             accelerator=self.accelerator,
         )
-        self.residual_buffer = None
-        self.picard_update = None
-        self.size = -1
-
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
-            self.call_pure = self.call_specialized
-            refresh_resolvent_call(self)
 
     def prepare_specialized_kernels(
         self,
@@ -223,6 +228,9 @@ class ResolventPicard:
             f"{type(self).__name__} failed to resolve the residual within "
             f"{self.policy.max_iterations} iterations (error={error:g})."
         )
+    
+    def __call__(self, problem, delta):
+        return self.redirect_call(problem, delta)
 
 
 __all__ = ["ResolventPicard"]

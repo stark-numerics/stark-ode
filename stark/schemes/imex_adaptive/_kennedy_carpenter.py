@@ -30,7 +30,7 @@ class SchemeKennedyCarpenterAdaptive:
     __slots__ = (
         "step_control",
         "advance_delta_kernel",
-        "call_pure",
+        "call_monitorable",
         "delta",
         "delta_high",
         "error_delta",
@@ -79,12 +79,12 @@ class SchemeKennedyCarpenterAdaptive:
         self.advance_delta_kernel = unbound_scheme_call
         self.error_delta_kernel = unbound_scheme_call
 
-        self.call_pure = self.call_inline
+        self.call_monitorable = self.call_inline
         refresh_adaptive_call(self)
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_pure = self.call_specialized
+            self.call_monitorable = self.call_specialized
             refresh_adaptive_call(self)
 
     def __call__(

@@ -98,9 +98,9 @@ def test_euler_owns_its_public_call_method() -> None:
 def test_euler_default_call_path_is_scheme_owned_inline_call() -> None:
     scheme = SchemeEuler(exponential_growth, ScalarAllocator())
 
-    assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeEuler.call_inline
-    assert scheme.redirect_call == scheme.call_pure
+    assert scheme.call_monitorable.__self__ is scheme
+    assert scheme.call_monitorable.__func__ is SchemeEuler.call_inline
+    assert scheme.redirect_call == scheme.call_monitorable
 
 
 def test_euler_public_call_uses_redirect_call() -> None:
@@ -154,9 +154,9 @@ def test_euler_specialist_path_is_selected_inside_scheme() -> None:
         specialist=StubSpecialist(),
     )
 
-    assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeEuler.call_specialized
-    assert scheme.redirect_call == scheme.call_pure
+    assert scheme.call_monitorable.__self__ is scheme
+    assert scheme.call_monitorable.__func__ is SchemeEuler.call_specialized
+    assert scheme.redirect_call == scheme.call_monitorable
 
 
 def test_euler_monitoring_records_fixed_step_without_changing_pure_path() -> None:
@@ -167,7 +167,7 @@ def test_euler_monitoring_records_fixed_step_without_changing_pure_path() -> Non
 
     scheme.assign_monitor(monitor.scheme)
 
-    assert scheme.call_pure.__func__ is SchemeEuler.call_inline
+    assert scheme.call_monitorable.__func__ is SchemeEuler.call_inline
     assert scheme.redirect_call.__func__ is scheme.call_monitored.__func__
 
     accepted_dt = scheme(interval, state, Executor())
@@ -184,7 +184,7 @@ def test_euler_monitoring_records_fixed_step_without_changing_pure_path() -> Non
     assert step.accepted_dt == pytest.approx(0.125)
 
     scheme.unassign_monitor()
-    assert scheme.redirect_call == scheme.call_pure
+    assert scheme.redirect_call == scheme.call_monitorable
 
 
 def test_euler_monitoring_records_specialist_fixed_step() -> None:
@@ -199,7 +199,7 @@ def test_euler_monitoring_records_specialist_fixed_step() -> None:
 
     scheme.assign_monitor(monitor.scheme)
 
-    assert scheme.call_pure.__func__ is SchemeEuler.call_specialized
+    assert scheme.call_monitorable.__func__ is SchemeEuler.call_specialized
     assert scheme.redirect_call.__func__ is scheme.call_monitored.__func__
 
     accepted_dt = scheme(interval, state, Executor())

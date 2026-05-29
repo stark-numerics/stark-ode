@@ -121,7 +121,7 @@ def test_assigning_scheme_monitor_selects_monitored_path_and_unassign_restores_p
     scheme = SchemeEuler(constant_rhs, ScalarAllocator())
     monitor = Monitor()
 
-    assert scheme.redirect_call == scheme.call_pure
+    assert scheme.redirect_call == scheme.call_monitorable
 
     scheme.assign_monitor(monitor.scheme)
 
@@ -129,7 +129,7 @@ def test_assigning_scheme_monitor_selects_monitored_path_and_unassign_restores_p
 
     scheme.unassign_monitor()
 
-    assert scheme.redirect_call == scheme.call_pure
+    assert scheme.redirect_call == scheme.call_monitorable
 
 
 def test_unmonitored_integration_creates_no_scheme_monitor_records() -> None:
@@ -161,7 +161,7 @@ def test_monitor_is_unassigned_after_monitored_integration_exception() -> None:
         )
 
     assert marcher.monitor is None
-    assert scheme.redirect_call == scheme.call_pure
+    assert scheme.redirect_call == scheme.call_monitorable
     assert monitor.scheme.fixed_steps == []
     assert monitor.scheme.adaptive_steps == []
 
@@ -176,7 +176,7 @@ def test_specialist_fixed_path_is_monitored_only_at_scheme_boundary() -> None:
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState()
 
-    assert scheme.call_pure.__func__ is SchemeEuler.call_specialized
+    assert scheme.call_monitorable.__func__ is SchemeEuler.call_specialized
 
     scheme.assign_monitor(monitor.scheme)
 
@@ -184,7 +184,7 @@ def test_specialist_fixed_path_is_monitored_only_at_scheme_boundary() -> None:
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(0.125)
-    assert scheme.call_pure.__func__ is SchemeEuler.call_specialized
+    assert scheme.call_monitorable.__func__ is SchemeEuler.call_specialized
     assert len(monitor.scheme.fixed_steps) == 1
 
 

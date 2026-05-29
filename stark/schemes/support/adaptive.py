@@ -229,7 +229,7 @@ def refresh_adaptive_call(scheme) -> None:
     scheme.redirect_call = (
         scheme.call_monitored
         if scheme.step_control.monitor is not None
-        else scheme.call_pure
+        else scheme.call_monitorable
     )
 
 
@@ -271,7 +271,7 @@ def with_adaptive_runtime_methods(cls):
         state: State,
         executor: SchemeExecutor,
     ) -> float:
-        accepted_dt = self.call_pure(interval, state, executor)
+        accepted_dt = self.call_monitorable(interval, state, executor)
         report = self.step_control.report()
         monitor = self.step_control.monitor
 

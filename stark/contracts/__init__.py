@@ -44,7 +44,7 @@ from stark.contracts.linear_combine import (
 )
 from stark.contracts.linearizer import Linearizer, LinearizerAudit
 from stark.contracts.marcher import MarcherAudit, MarcherLike
-from stark.contracts.operator import Operator
+from stark.contracts.operator import Operator, OperatorType
 from stark.contracts.residual import LinearResidual, Residual, ResidualAudit
 from stark.contracts.resolvent import Resolvent, ResolventAudit
 from stark.contracts.scheme import Scheme, SchemeAudit, SchemeLike
@@ -103,6 +103,7 @@ __all__ = [
     "MarcherAudit",
     "MarcherLike",
     "Operator",
+    "OperatorType",
     "Residual",
     "ResidualAudit",
     "Resolvent",

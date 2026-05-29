@@ -31,7 +31,7 @@ def refresh_fixed_step_call(scheme) -> None:
     """Select the fixed-step pure or monitored call path for a scheme."""
 
     scheme.redirect_call = (
-        scheme.call_monitored if scheme._monitor is not None else scheme.call_pure
+        scheme.call_monitored if scheme._monitor is not None else scheme.call_monitorable
     )
 
 
@@ -53,7 +53,7 @@ def with_fixed_step_monitoring(cls):
         executor,
     ) -> float:
         t_start = interval.present
-        accepted_dt = self.call_pure(interval, state, executor)
+        accepted_dt = self.call_monitorable(interval, state, executor)
         monitor = self._monitor
         if monitor is not None and accepted_dt > 0.0:
             monitor.record_fixed_step(self.short_name, t_start, accepted_dt)

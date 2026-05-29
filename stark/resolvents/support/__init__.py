@@ -1,5 +1,5 @@
 from stark.resolvents.support.descriptor import ResolventDescriptor
-from stark.resolvents.support.error import ResolventError
+from stark.resolvents.support.errors import ResolventError
 from stark.resolvents.support.guard import ResolventTableauGuard
 from stark.resolvents.support.monitoring import MonitorResolventLike
 from stark.resolvents.support.policy import ResolventPolicy
@@ -8,17 +8,9 @@ from stark.resolvents.support.problem import (
     ResolventStageProblem,
 )
 from stark.resolvents.support.residual import ResolventResidual
-from stark.resolvents.support.call import (
-    with_resolvent_binding_methods,
-    with_resolvent_call_methods,
-)
 from stark.resolvents.support.checks import check_one_stage_block
 from stark.resolvents.support.display import with_resolvent_display
 from stark.resolvents.support.monitoring import with_resolvent_monitoring
-from stark.resolvents.support.setup import (
-    initialise_resolvent_runtime,
-    refresh_resolvent_call,
-)
 from stark.resolvents.support.safety import ResolventSafety, ResolventSafetyDefault
 from stark.resolvents.support.secant import (
     BlockInnerProduct,
@@ -65,10 +57,6 @@ __all__ = [
     "ResolventWorkspace",
     "block_inner_product",
     "check_one_stage_block",
-    "initialise_resolvent_runtime",
-    "refresh_resolvent_call",
-    "with_resolvent_binding_methods",
-    "with_resolvent_call_methods",
     "with_resolvent_display",
     "with_resolvent_monitoring",
 ]

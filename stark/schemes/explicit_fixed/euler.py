@@ -53,7 +53,7 @@ class SchemeEuler:
         "_monitor",
         "advance_delta_buffer",
         "advance_update",
-        "call_pure",
+        "call_monitorable",
         "derivative",
         "explicit",
         "k1",
@@ -73,8 +73,8 @@ class SchemeEuler:
         self.advance_update = unbound_scheme_call
 
         self._monitor = None
-        self.call_pure = self.call_inline
-        self.redirect_call = self.call_pure
+        self.call_monitorable = self.call_inline
+        self.redirect_call = self.call_monitorable
 
         initialise_explicit_support(self, derivative, allocator)
         self.advance_delta_buffer = self.workspace.allocate_translation()
@@ -83,7 +83,7 @@ class SchemeEuler:
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_pure = self.call_specialized
+            self.call_monitorable = self.call_specialized
             refresh_fixed_step_call(self)
 
     def __call__(

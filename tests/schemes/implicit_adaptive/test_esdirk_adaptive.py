@@ -181,8 +181,8 @@ def test_esdirk_adaptive_default_call_path_is_scheme_owned_generic_call(
 ) -> None:
     scheme = make_scheme(scheme_cls)
 
-    assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_inline
+    assert scheme.call_monitorable.__self__ is scheme
+    assert scheme.call_monitorable.__func__ is scheme_cls.call_inline
 
     # Adaptive schemes bind executor runtime lazily on first public call.
     assert scheme.redirect_call.__self__ is scheme
@@ -202,8 +202,8 @@ def test_esdirk_adaptive_specialist_path_is_scheme_owned_generated_call(
 ) -> None:
     scheme = make_array_scalar_scheme(scheme_cls, specialist=True)
 
-    assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is scheme_cls.call_specialized
+    assert scheme.call_monitorable.__self__ is scheme
+    assert scheme.call_monitorable.__func__ is scheme_cls.call_specialized
 
     # Adaptive schemes still route through executor binding first.
     assert scheme.redirect_call.__self__ is scheme

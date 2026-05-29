@@ -10,11 +10,13 @@ class StarkError(Exception):
 class StarkErrorRecoverable(StarkError):
     """
     Failure that a caller may handle by rejecting work and trying again.
+    """
 
-    Adaptive schemes catch this base class around implicit stage solves. Custom
-    resolvents should raise this, or a subclass, when the current trial step is
-    allowed to fail without aborting the whole integration.
+class StarkErrorUnrecoverable(StarkError):
+    """
+    Failure that a caller cannot handle by rejecting work and trying again.
     """
 
 
-__all__ = ["StarkError", "StarkErrorRecoverable"]
+
+__all__ = ["StarkError", "StarkErrorRecoverable", "StarkErrorUnrecoverable"]

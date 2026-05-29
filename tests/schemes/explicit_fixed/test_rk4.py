@@ -97,9 +97,9 @@ def test_rk4_owns_its_public_call_method() -> None:
 def test_rk4_default_call_path_is_scheme_owned_inline_call() -> None:
     scheme = SchemeRK4(exponential_growth, ScalarAllocator())
 
-    assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeRK4.call_inline
-    assert scheme.redirect_call == scheme.call_pure
+    assert scheme.call_monitorable.__self__ is scheme
+    assert scheme.call_monitorable.__func__ is SchemeRK4.call_inline
+    assert scheme.redirect_call == scheme.call_monitorable
 
 
 def test_rk4_public_call_uses_redirect_call() -> None:
@@ -153,9 +153,9 @@ def test_rk4_specialist_path_is_selected_inside_scheme() -> None:
         specialist=StubSpecialist(),
     )
 
-    assert scheme.call_pure.__self__ is scheme
-    assert scheme.call_pure.__func__ is SchemeRK4.call_specialized
-    assert scheme.redirect_call == scheme.call_pure
+    assert scheme.call_monitorable.__self__ is scheme
+    assert scheme.call_monitorable.__func__ is SchemeRK4.call_specialized
+    assert scheme.redirect_call == scheme.call_monitorable
 
 
 def test_rk4_inline_and_specialist_paths_match_for_one_step() -> None:

@@ -99,7 +99,7 @@ class SchemeSDIRK21:
     step_control: SchemeStepControl
 
     __slots__ = (
-        "step_control", "block_allocator", "call_pure", "delta1", "delta2",
+        "step_control", "block_allocator", "call_monitorable", "delta1", "delta2",
         "delta2_block", "delta3", "delta3_block", "derivative", "error",
         "error_delta_call", "high_delta_call", "implicit", "known2_call",
         "known2_block", "known3_call", "known3", "known3_block",
@@ -138,12 +138,12 @@ class SchemeSDIRK21:
         self.known3_block = Block([self.known3])
 
         initialise_adaptive_runtime(self, adaptivity)
-        self.call_pure = self.call_inline
+        self.call_monitorable = self.call_inline
         refresh_adaptive_call(self)
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_pure = self.call_specialized
+            self.call_monitorable = self.call_specialized
             refresh_adaptive_call(self)
 
     @staticmethod

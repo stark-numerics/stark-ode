@@ -1,5 +1,5 @@
 from stark.resolvents.support.descriptor import ResolventDescriptor
-from stark.resolvents.support.error import ResolventError
+from stark.resolvents.support.errors import ResolventError
 from stark.resolvents.support.policy import ResolventPolicy
 from stark.resolvents.support.tolerance import ResolventTolerance
 from stark.resolvents.fixed_point.coupled_picard import ResolventCoupledPicard

@@ -78,7 +78,7 @@ class SchemeCrouzeixDIRK3:
     __slots__ = (
         "_monitor",
         "block_allocator",
-        "call_pure",
+        "call_monitorable",
         "delta1",
         "delta2",
         "delta3",
@@ -109,8 +109,8 @@ class SchemeCrouzeixDIRK3:
         specialist: SchemeSpecialist | None = None,
     ) -> None:
         self._monitor = None
-        self.call_pure = self.call_inline
-        self.redirect_call = self.call_pure
+        self.call_monitorable = self.call_inline
+        self.redirect_call = self.call_monitorable
         self.resolvent = resolvent
         self.known2_kernel = None
         self.known3_kernel = None
@@ -131,7 +131,7 @@ class SchemeCrouzeixDIRK3:
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_pure = self.call_specialized
+            self.call_monitorable = self.call_specialized
             refresh_fixed_step_call(self)
 
     def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:

@@ -12,6 +12,7 @@ from stark.contracts import (
     Translation,
     Allocator,
 )
+from stark.accelerators import AcceleratorAbsent
 from stark.executor.tolerance import ExecutorTolerance
 from stark.resolvents.support import (
     MonitorResolventLike,
@@ -22,18 +23,15 @@ from stark.resolvents.support import (
     ResolventSafety,
     ResolventSpecialist,
     ResolventStencilBlock,
-    initialise_resolvent_runtime,
-    refresh_resolvent_call,
-    with_resolvent_call_methods,
     with_resolvent_display,
     with_resolvent_monitoring,
 )
 from stark.resolvents.support.descriptor import ResolventDescriptor
 from stark.resolvents.support.tolerance import ResolventTolerance
+from stark.resolvents.support.safety import ResolventSafety, ResolventSafetyDefault
 
 
 @with_resolvent_display
-@with_resolvent_call_methods
 @with_resolvent_monitoring
 class ResolventCoupledNewton:
     """Newton iteration for coupled implicit RK stage systems.
@@ -53,7 +51,7 @@ class ResolventCoupledNewton:
         "accelerator",
         "alpha",
         "allocator",
-        "call_pure",
+        "call_monitorable",
         "correction",
         "inverter",
         "newton_update",
@@ -96,7 +94,9 @@ class ResolventCoupledNewton:
         tableau: Any | None = None,
     ) -> None:
         self.tableau = tableau
-        initialise_resolvent_runtime(self, safety, accelerator)
+        self.safety = safety if safety is not None else ResolventSafetyDefault()
+        self.alpha = 0.0
+        self._monitor = None
 
         self.allocator = BlockAllocator(allocator)
         self.tolerance = (
@@ -106,6 +106,8 @@ class ResolventCoupledNewton:
         )
         self.policy = policy if policy is not None else ResolventPolicy()
         self.inverter = inverter
+
+        self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
         self.residual = ResolventCoupledStageResidual(
             "ResolventCoupledNewton",
             allocator,
@@ -121,8 +123,10 @@ class ResolventCoupledNewton:
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_pure = self.call_specialized
-            refresh_resolvent_call(self)
+            self.call_monitorable = self.call_specialized
+        else:
+            self.call_monitorable = self.call_inline
+        self.redirect_call = self.call_monitorable
 
     def prepare_specialized_kernels(
         self,
@@ -283,5 +287,7 @@ class ResolventCoupledNewton:
             f"{self.policy.max_iterations} iterations (error={error:g})."
         )
 
-
+    def __call__(self, problem, delta):
+        return self.redirect_call(problem, delta)
+    
 __all__ = ["ResolventCoupledNewton"]

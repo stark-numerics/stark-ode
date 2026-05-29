@@ -1,6 +1,6 @@
 """Support objects for built-in scheme implementations."""
 
-from stark.schemes.support.calls import unbound_scheme_call
+from stark.schemes.support.errors import unbound_scheme_call
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support.display import (
     SchemeDisplay,

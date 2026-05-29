@@ -40,7 +40,7 @@ class SchemeBDF2:
     step_control: SchemeStepControl
 
     __slots__ = (
-        "step_control", "block_allocator", "call_pure", "derivative", "error",
+        "step_control", "block_allocator", "call_monitorable", "derivative", "error",
         "has_history", "implicit", "known_shift", "known_shift_block", "low",
         "previous_delta", "previous_step", "redirect_call", "resolvent",
         "startup_rate", "trial_block", "workspace",
@@ -73,7 +73,7 @@ class SchemeBDF2:
         self.has_history = False
 
         initialise_adaptive_runtime(self, adaptivity)
-        self.call_pure = self.call_inline
+        self.call_monitorable = self.call_inline
         refresh_adaptive_call(self)
 
     @staticmethod
