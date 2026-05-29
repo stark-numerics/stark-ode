@@ -5,7 +5,7 @@ from statistics import median
 
 
 @dataclass(frozen=True, slots=True)
-class MonitorSummaryResolvent:
+class MonitorResolventSummary:
     solve_count: int
     failure_count: int
     iteration_min: int | None
@@ -65,7 +65,7 @@ class MonitorResolvent:
             )
         )
 
-    def summary(self) -> MonitorSummaryResolvent:
+    def summary(self) -> MonitorResolventSummary:
         iterations = [
             solve.iteration_count
             for solve in self.solves
@@ -76,7 +76,7 @@ class MonitorResolvent:
         ]
         iteration_min, iteration_median, iteration_max = _min_median_max_int(iterations)
         error_min, error_median, error_max = _min_median_max_float(errors)
-        return MonitorSummaryResolvent(
+        return MonitorResolventSummary(
             solve_count=len(self.solves),
             failure_count=sum(
                 1
@@ -98,5 +98,5 @@ class MonitorResolvent:
 __all__ = [
     "MonitorResolvent",
     "MonitorResolventSolve",
-    "MonitorSummaryResolvent",
+    "MonitorResolventSummary",
 ]

@@ -40,10 +40,10 @@ fast paths.
   provide their own translation class when a dense array is not the natural
   representation.
 
-- **Workbench**
+- **Allocator**
   The allocator and copier for states and translations. Schemes ask a
-  workbench for blank buffers rather than knowing how a user state is built.
-  Core users supply a workbench when they supply custom states and
+  allocator for blank buffers rather than knowing how a user state is built.
+  Core users supply a allocator when they supply custom states and
   translations.
 
 - **Scheme**
@@ -52,7 +52,7 @@ fast paths.
   if they satisfy the scheme contract.
 
 - **Executor**
-  Runtime policy: tolerances, adaptive regulation, safety checks, and selected
+  Runtime policy: tolerances, adaptive regulation, ExecutorSafety checks, and selected
   accelerator. Users may supply one when they need non-default tolerances or
   execution policy.
 
@@ -71,22 +71,20 @@ state increments, while still allowing optimized paths where the representation
 is known.
 
 - **Algebraist**
-  Generates inspectable translation-algebra kernels from field metadata.
-  Explicit schemes can receive `algebraist=` to bind scheme-specific fast
-  paths for repeated tableau combinations. Advanced users can supply one.
-  Accelerated Algebraists may have noticeable compilation cost, so they are
-  best suited to large states, long integrations, or repeated solves.
-  Implicit and IMEX scheme support is limited to scheme-owned algebra such as
-  known stage shifts, final updates, and embedded error combinations. Algebraist
-  does not generate resolvent iterations, convergence checks, inverter logic, or
-  preconditioner internals; future resolvent fast paths should receive their own
-  explicitly supplied Algebraist.
+  Provides generated or runtime translation-algebra kernels from explicit
+  layout metadata. General providers bind arity-based `linear_combine` kernels
+  to a translation type. Specialist providers give schemes fixed-coefficient
+  kernels for repeated tableau combinations. Accelerated providers may have
+  noticeable compilation cost, so they are best suited to large states, long
+  integrations, or repeated solves. Algebraist does not generate resolvent
+  iterations, convergence checks, inverter logic, or preconditioner internals.
 
-- **Algebraist field**
-  Describes how one translation field maps to one state field and which policy
-  should generate its code. Users define fields when they build an Algebraist.
+- **Algebraist layout field**
+  Describes how one translation field maps to one state field and which layout
+  policy should generate its code. Users define fields when they build an
+  Algebraist provider.
 
-- **Algebraist policy**
+- **Algebraist layout policy**
   Controls how generated code treats a field: broadcasted array operations,
   looped compiled kernels, or small fixed unrolled shapes. Advanced users
   choose policies when performance or representation details matter.
@@ -111,7 +109,7 @@ solving a nonlinear or linear problem.
   built-in inverter such as GMRES, FGMRES, or BiCGStab, but advanced users can
   supply custom inverters.
 
-- **ImExDerivative**
+- **DerivativeIMEX**
   Splits a derivative into implicit and explicit parts for IMEX schemes. Users
   supply this when choosing an IMEX scheme.
 
@@ -132,6 +130,6 @@ For ordinary scalar or array problems, supply an initial value, derivative, and
 interval through `StarkIVP`.
 
 Move to the core API when your state representation matters. Supply custom
-states, translations, and a workbench when flattening would obscure the model.
+states, translations, and a allocator when flattening would obscure the model.
 Supply resolvents, inverters, accelerators, or an Algebraist when the numerical
 method or performance path needs more control.

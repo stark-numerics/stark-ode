@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Executor, Interval
-from stark.accelerators.binding import DerivativeAccelerated
+from stark.schemes.support.derivative import SchemeDerivative
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
 from stark.schemes.explicit_fixed.rk4 import SchemeRK4
 from stark.schemes.support.explicit import SchemeSupportExplicit
@@ -33,12 +33,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -76,23 +76,23 @@ class FixedDelta:
         return FixedDelta()
 
 
-def test_explicit_support_constructs_bound_derivative_and_workspace() -> None:
+def test_explicit_support_constructs_prepared_derivative_and_workspace() -> None:
     support = SchemeSupportExplicit.from_inputs(
         exponential_growth,
-        ScalarWorkbench(),
+        ScalarAllocator(),
     )
 
-    assert isinstance(support.derivative, DerivativeAccelerated)
+    assert isinstance(support.derivative, SchemeDerivative)
     assert support.derivative.raw is exponential_growth
     assert isinstance(support.workspace, SchemeWorkspace)
     assert isinstance(support.first_translation, ScalarTranslation)
     assert support.k1 is support.first_translation
 
 
-def test_explicit_support_bound_derivative_calls_original_worker() -> None:
+def test_explicit_support_prepared_derivative_calls_original_worker() -> None:
     support = SchemeSupportExplicit.from_inputs(
         exponential_growth,
-        ScalarWorkbench(),
+        ScalarAllocator(),
     )
     interval = Interval(present=0.0, step=0.1, stop=1.0)
     state = ScalarState(3.0)
@@ -106,7 +106,7 @@ def test_explicit_support_bound_derivative_calls_original_worker() -> None:
 def test_explicit_support_snapshot_state_copies_through_workspace() -> None:
     support = SchemeSupportExplicit.from_inputs(
         exponential_growth,
-        ScalarWorkbench(),
+        ScalarAllocator(),
     )
     state = ScalarState(4.0)
 
@@ -123,7 +123,7 @@ def test_explicit_support_snapshot_state_copies_through_workspace() -> None:
 def test_explicit_support_set_apply_delta_safety_controls_workspace_update_mode() -> None:
     support = SchemeSupportExplicit.from_inputs(
         exponential_growth,
-        ScalarWorkbench(),
+        ScalarAllocator(),
     )
     state = ScalarState(2.0)
     delta = FixedDelta()
@@ -140,7 +140,7 @@ def test_explicit_support_set_apply_delta_safety_controls_workspace_update_mode(
 
 
 def test_explicit_scheme_base_delegates_to_explicit_support() -> None:
-    scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
+    scheme = SchemeRK4(exponential_growth, ScalarAllocator())
 
     assert isinstance(scheme.explicit, SchemeSupportExplicit)
     assert scheme.derivative is scheme.explicit.derivative
@@ -149,7 +149,7 @@ def test_explicit_scheme_base_delegates_to_explicit_support() -> None:
 
 
 def test_existing_explicit_scheme_still_runs_after_support_extraction() -> None:
-    scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
+    scheme = SchemeRK4(exponential_growth, ScalarAllocator())
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 

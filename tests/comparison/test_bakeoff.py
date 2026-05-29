@@ -1,6 +1,6 @@
 import pytest
 
-from stark import Executor, Interval, Marcher, Tolerance
+from stark import Executor, Interval, Marcher, ExecutorTolerance
 from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.schemes import SchemeCashKarp, SchemeEuler
 
@@ -71,12 +71,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -205,8 +205,8 @@ def test_bakeoff_uses_monitored_observation_without_monitoring_timed_repeats() -
 
 
 def test_bakeoff_monitors_built_in_fixed_and_adaptive_schemes() -> None:
-    executor = Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
-    workbench = ScalarWorkbench()
+    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
+    allocator = ScalarAllocator()
     problem = ComparisonProblem(
         name="Built-in scalar",
         build_state=lambda: ScalarState(),
@@ -216,11 +216,11 @@ def test_bakeoff_monitors_built_in_fixed_and_adaptive_schemes() -> None:
     entries = [
         ComparisonEntry(
             "Euler",
-            lambda: Marcher(SchemeEuler(unit_rhs, workbench), executor),
+            lambda: Marcher(SchemeEuler(unit_rhs, allocator), executor),
         ),
         ComparisonEntry(
             "Cash-Karp",
-            lambda: Marcher(SchemeCashKarp(unit_rhs, workbench), executor),
+            lambda: Marcher(SchemeCashKarp(unit_rhs, allocator), executor),
         ),
     ]
 

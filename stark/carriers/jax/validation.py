@@ -1,3 +1,5 @@
+"""Validation and coercion for JAX-backed carrier values."""
+
 from dataclasses import dataclass
 from typing import Protocol, cast
 
@@ -5,14 +7,20 @@ import jax.numpy as jnp  # type: ignore[import-not-found]
 
 from stark.carriers.jax.storage import CarrierJaxValue, CarrierStorageJax
 
+
 class HintJaxNumpyModule(Protocol):
+    """Subset of JAX NumPy validation APIs used by this carrier."""
+
     def asarray(self, value: CarrierJaxValue) -> CarrierJaxValue: ...
+
 
 jax_numpy = cast(HintJaxNumpyModule, jnp)
 
 
 @dataclass(frozen=True)
 class CarrierValidationJax:
+    """Validate that JAX values match the carrier template."""
+
     storage: CarrierStorageJax
 
     def validate_state(self, value: CarrierJaxValue) -> CarrierJaxValue:

@@ -21,7 +21,7 @@ interface layer uses in-place array routing where possible.
 
 - Adaptive embedded Runge-Kutta schemes, including Cash-Karp,
   Dormand-Prince, Fehlberg 4(5), Bogacki-Shampine, and Tsitouras 5.
-- Classic fixed-step schemes, including Euler, Heun, midpoint, Kutta
+- Fixed-step schemes, including Euler, Heun, midpoint, Kutta
   third-order, RK4, RK38, Ralston, and SSP RK33.
 - Implicit schemes, including backward Euler, implicit midpoint,
   Crank-Nicolson, Crouzeix DIRK3, Gauss-Legendre 4, Lobatto IIIC 4, Radau IIA 5,
@@ -34,24 +34,24 @@ interface layer uses in-place array routing where possible.
 - A public `stark.interface` layer for ordinary Python values and array-backed
   initial conditions.
 - Snapshot and live integration loops.
-- A `Comparator` helper for comparing two or more scheme setups on the same
+- A `ComparisonRunner` helper for comparing two or more scheme setups on the same
   problem, including timing and `cProfile` summaries.
 - Optional checkpoints for evenly spaced outputs or user-specified output
   times.
 - An auditor that checks whether user objects satisfy the STARK contracts.
 - Extension points for custom schemes and problem-specific fast translation
-  kernels, including `Algebraist` for inspectable generated boilerplate.
-- An `ImExDerivative` helper for splitting a right-hand side into implicit and
+  kernels, including Algebraist providers for inspectable generated stage
+  algebra.
+- A `DerivativeIMEX` helper for splitting a right-hand side into implicit and
   explicit parts ahead of IMEX schemes.
 
-Explicit schemes can also take an `algebraist=` argument. When supplied, STARK
-uses the Algebraist to generate scheme-specific state-update kernels for
-explicit Runge-Kutta stages, reducing repeated translation-combine and
-translation-apply work. This is a performance option for large states,
-long-running integrations, or repeated solves where the compiled kernels are
-reused many times. Accelerated backends may need a noticeable warmup or
-compilation pass, so tiny one-off integrations can be faster without an
-Algebraist.
+Performance-sensitive custom objects can expose Algebraist-backed
+`linear_combine` kernels on their translation type and can pass a scheme
+specialist into built-in schemes. This is a performance option for large
+states, long-running integrations, or repeated solves where the compiled
+kernels are reused many times. Accelerated backends may need a noticeable
+warmup or compilation pass, so tiny one-off integrations can be faster on the
+plain path.
 
 ## Installation
 
@@ -118,7 +118,7 @@ derivatives with `@StarkDerivative.in_place`.
 
 The interface layer chooses a carrier for the initial value, wraps the state,
 selects routing appropriate to the value semantics, builds a default scheme,
-and runs the existing STARK integration machinery. It supports:
+and runs the core STARK integration objects. It supports:
 
 - native Python `int`, `float`, `list`, and `tuple` values;
 - NumPy arrays;
@@ -145,16 +145,15 @@ python -m examples.interface.jax
 A STARK integration usually has five user-side objects:
 
 ```python
-from stark import Executor, Marcher, Integrator, Interval, Tolerance
+from stark import Executor, Marcher, Integrator, Interval, ExecutorTolerance
 from stark.accelerators import AcceleratorAbsent
 from stark.schemes import SchemeDormandPrince
 
-workbench = MyWorkbench()
+allocator = MyAllocator()
 derivative = MyDerivative()
-scheme = SchemeDormandPrince(derivative, workbench)
+scheme = SchemeDormandPrince(derivative, allocator)
 executor = Executor(
-    tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6),
-    accelerator=AcceleratorAbsent(),
+    tolerance=ExecutorTolerance(atol=1.0e-8, rtol=1.0e-6),
 )
 marcher = Marcher(scheme, executor)
 integrate = Integrator()
@@ -170,10 +169,10 @@ The user provides:
 
 - a state object;
 - a translation object that can be applied, scaled, added, and measured;
-- a workbench that allocates and copies states/translations;
+- an allocator that allocates and copies states/translations;
 - a derivative callable `derivative(interval, state, out)` that writes the
   time derivative into a translation.
-- an `Executor` that carries runtime tolerance, safety, and regulator
+- an `Executor` that carries runtime ExecutorTolerance, ExecutorSafety, and ExecutorAdaptivity
   policy.
 
 Use this explicit core shape when the interface layer is not enough: custom
@@ -181,17 +180,16 @@ state objects, custom translation types, implicit or IMEX method setup,
 problem-specific fast paths, or detailed control over schemes, resolvents, and
 inverters.
 
-`Executor` also carries the selected `Accelerator`. Built-in accelerators live
-under `stark.accelerators` as concrete configured workers, parallel to schemes,
-resolvents, and inverters. The default is `AcceleratorAbsent()`, so
-acceleration is always opt-in rather than a hidden dependency.
+Accelerators are passed directly to the objects that use them, such as
+Algebraist providers, resolvents, or inverters. `Executor` deliberately carries
+only runtime execution policy.
 
 For split problems, STARK also exposes:
 
 ```python
-from stark import ImExDerivative
+from stark import DerivativeIMEX
 
-imex = ImExDerivative(
+imex = DerivativeIMEX(
     implicit=implicit_derivative,
     explicit=explicit_derivative,
 )
@@ -203,7 +201,7 @@ inventory.
 ## Implicit shape
 
 Implicit and IMEX schemes add a few more moving parts. Alongside the
-workbench and derivative, users may provide:
+allocator and derivative, users may provide:
 
 - a stage `Resolvent`, such as `ResolventNewton` or `ResolventAnderson`;
 - for Newton-backed resolvents, a `Linearizer` that supplies the Jacobian
@@ -213,41 +211,41 @@ workbench and derivative, users may provide:
 For example:
 
 ```python
-from stark import Executor, Marcher, Tolerance
+from stark import Executor, Marcher, ExecutorTolerance
 from stark.accelerators import AcceleratorAbsent
 from stark.inverters import InverterBiCGStab
 from stark.inverters import InverterPolicy, InverterTolerance
 from stark.resolvents import ResolventNewton
 from stark.resolvents.policy import ResolventPolicy
-from stark.resolvents.tolerance import ResolventTolerance
+from stark.resolvents.ExecutorTolerance import ResolventTolerance
 from stark.schemes import SchemeKvaerno3
 
-workbench = MyWorkbench()
+allocator = MyAllocator()
 derivative = MyDerivative()
 linearizer = MyLinearizer()
 accelerator = AcceleratorAbsent()
 inverter = InverterBiCGStab(
-    workbench,
+    allocator,
     my_inner_product,
-    tolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
+    ExecutorTolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
     policy=InverterPolicy(max_iterations=24),
     accelerator=accelerator,
 )
 resolvent = ResolventNewton(
     derivative,
-    workbench,
+    allocator,
     linearizer=linearizer,
     inverter=inverter,
-    tolerance=ResolventTolerance(atol=1.0e-7, rtol=1.0e-7),
+    ExecutorTolerance=ResolventTolerance(atol=1.0e-7, rtol=1.0e-7),
     policy=ResolventPolicy(max_iterations=24),
     accelerator=accelerator,
 )
 scheme = SchemeKvaerno3(
     derivative,
-    workbench,
+    allocator,
     resolvent=resolvent,
 )
-executor = Executor(tolerance=Tolerance(atol=1.0e-6, rtol=1.0e-5), accelerator=accelerator)
+executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-6, rtol=1.0e-5))
 marcher = Marcher(scheme, executor)
 ```
 

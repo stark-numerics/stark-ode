@@ -13,7 +13,7 @@ from time import perf_counter
 from stark import Interval
 from stark.accelerators import Accelerator
 from stark.block import Block
-from stark.execution.safety import Safety
+from stark.executor.safety import ExecutorSafety
 from stark.inverters import InverterGMRES, InverterPolicy, InverterTolerance
 from stark.resolvents import (
     ResolventAnderson,
@@ -78,12 +78,12 @@ class ScalarTranslation:
     linear_combine = [scale, combine2]
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -206,13 +206,13 @@ def make_tolerance() -> ResolventTolerance:
     return ResolventTolerance(atol=ATOL, rtol=RTOL)
 
 
-def make_inverter(workbench: ScalarWorkbench) -> InverterGMRES:
+def make_inverter(allocator: ScalarAllocator) -> InverterGMRES:
     return InverterGMRES(
-        workbench,
+        allocator,
         scalar_inner_product,
-        tolerance=InverterTolerance(atol=ATOL, rtol=RTOL),
+        ExecutorTolerance=InverterTolerance(atol=ATOL, rtol=RTOL),
         policy=InverterPolicy(max_iterations=8, restart=4),
-        safety=Safety(block_sizes=False),
+        safety=ExecutorSafety(block_sizes=False),
         accelerator=Accelerator.none(),
     )
 
@@ -221,21 +221,21 @@ def build_cases() -> list[ResolventSmokeCase]:
     derivative = ScalarDerivative(RATE)
     linearizer = ScalarLinearizer(RATE)
 
-    picard_workbench = ScalarWorkbench()
-    anderson_workbench = ScalarWorkbench()
-    broyden_workbench = ScalarWorkbench()
-    newton_workbench = ScalarWorkbench()
-    coupled_picard_workbench = ScalarWorkbench()
-    coupled_newton_workbench = ScalarWorkbench()
+    picard_allocator = ScalarAllocator()
+    anderson_allocator = ScalarAllocator()
+    broyden_allocator = ScalarAllocator()
+    newton_allocator = ScalarAllocator()
+    coupled_picard_allocator = ScalarAllocator()
+    coupled_newton_allocator = ScalarAllocator()
 
     return [
         ResolventSmokeCase(
             "Picard / one-stage",
             ResolventPicard(
-                picard_workbench,
-                tolerance=make_tolerance(),
+                picard_allocator,
+                ExecutorTolerance=make_tolerance(),
                 policy=make_policy(),
-                safety=Safety(block_sizes=False),
+                safety=ExecutorSafety(block_sizes=False),
                 accelerator=Accelerator.none(),
             ),
             1,
@@ -243,12 +243,12 @@ def build_cases() -> list[ResolventSmokeCase]:
         ResolventSmokeCase(
             "Anderson / one-stage",
             ResolventAnderson(
-                anderson_workbench,
+                anderson_allocator,
                 scalar_inner_product,
-                tolerance=make_tolerance(),
+                ExecutorTolerance=make_tolerance(),
                 policy=make_policy(),
                 depth=4,
-                safety=Safety(block_sizes=False),
+                safety=ExecutorSafety(block_sizes=False),
                 accelerator=Accelerator.none(),
             ),
             1,
@@ -256,12 +256,12 @@ def build_cases() -> list[ResolventSmokeCase]:
         ResolventSmokeCase(
             "Broyden / one-stage",
             ResolventBroyden(
-                broyden_workbench,
+                broyden_allocator,
                 scalar_inner_product,
-                tolerance=make_tolerance(),
+                ExecutorTolerance=make_tolerance(),
                 policy=make_policy(),
                 depth=4,
-                safety=Safety(block_sizes=False),
+                safety=ExecutorSafety(block_sizes=False),
                 accelerator=Accelerator.none(),
             ),
             1,
@@ -269,12 +269,12 @@ def build_cases() -> list[ResolventSmokeCase]:
         ResolventSmokeCase(
             "Newton / one-stage",
             ResolventNewton(
-                newton_workbench,
+                newton_allocator,
                 linearizer,
-                make_inverter(newton_workbench),
-                tolerance=make_tolerance(),
+                make_inverter(newton_allocator),
+                ExecutorTolerance=make_tolerance(),
                 policy=make_policy(8),
-                safety=Safety(block_sizes=False),
+                safety=ExecutorSafety(block_sizes=False),
                 accelerator=Accelerator.none(),
             ),
             1,
@@ -282,11 +282,11 @@ def build_cases() -> list[ResolventSmokeCase]:
         ResolventSmokeCase(
             "Picard / coupled stages",
             ResolventCoupledPicard(
-                coupled_picard_workbench,
+                coupled_picard_allocator,
                 GAUSS_LEGENDRE4_TABLEAU,
-                tolerance=make_tolerance(),
+                ExecutorTolerance=make_tolerance(),
                 policy=make_policy(),
-                safety=Safety(block_sizes=False),
+                safety=ExecutorSafety(block_sizes=False),
                 accelerator=Accelerator.none(),
             ),
             len(GAUSS_LEGENDRE4_TABLEAU.c),
@@ -294,13 +294,13 @@ def build_cases() -> list[ResolventSmokeCase]:
         ResolventSmokeCase(
             "Newton / coupled stages",
             ResolventCoupledNewton(
-                coupled_newton_workbench,
+                coupled_newton_allocator,
                 GAUSS_LEGENDRE4_TABLEAU,
                 linearizer,
-                make_inverter(coupled_newton_workbench),
-                tolerance=make_tolerance(),
+                make_inverter(coupled_newton_allocator),
+                ExecutorTolerance=make_tolerance(),
                 policy=make_policy(8),
-                safety=Safety(block_sizes=False),
+                safety=ExecutorSafety(block_sizes=False),
                 accelerator=Accelerator.none(),
             ),
             len(GAUSS_LEGENDRE4_TABLEAU.c),

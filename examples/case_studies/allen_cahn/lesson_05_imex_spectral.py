@@ -25,14 +25,14 @@ from __future__ import annotations
 import numpy as np
 
 from stark import Executor, Integrator, Interval, Marcher
-from stark.contracts import ImExDerivative
+from stark.contracts import DerivativeIMEX
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.interface.vector import StarkVectorTranslation
 from stark.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     DIFFUSIVITY,
-    TOLERANCE,
+    EXECUTOR_TOLERANCE,
     AllenCahnRHS,
     Geometry,
     initial_profile,
@@ -145,9 +145,9 @@ if __name__ == "__main__":
     print(SchemeKennedyCarpenter43_7.display_resolvent_problem())
 
     geometry = Geometry()
-    executor = Executor(tolerance=TOLERANCE)
+    executor = Executor(tolerance=EXECUTOR_TOLERANCE)
 
-    # `StarkIVP` prepares the carrier/workbench machinery. We then replace the
+    # `StarkIVP` prepares the carrier/allocator machinery. We then replace the
     # derivative with an IMEX pair because this lesson is about the split, not
     # about reimplementing vector carriers by hand.
 
@@ -163,12 +163,12 @@ if __name__ == "__main__":
 
     implicit_derivative = AllenCahnImplicitDerivative(geometry, DIFFUSIVITY)
     explicit_derivative = AllenCahnExplicitDerivative(geometry)
-    derivative = ImExDerivative(
+    derivative = DerivativeIMEX(
         implicit=implicit_derivative,
         explicit=explicit_derivative,
     )
 
-    workbench = template.workbench
+    allocator = template.allocator
     resolvent = AllenCahnSpectralResolvent(geometry, DIFFUSIVITY)
 
     # Kennedy-Carpenter 4(3) 7-stage is an adaptive IMEX method. The explicit
@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
     scheme = SchemeKennedyCarpenter43_7(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
     )
     integrate = Integrator(executor=executor)

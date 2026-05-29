@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.contracts import IntervalLike, State
-from stark.execution.executor import Executor
+from stark.schemes.support.executor import SchemeExecutor
 from stark.schemes.support import (
     SchemeStepControl,
     with_adaptive_runtime_methods,
@@ -66,7 +66,7 @@ class SchemeKennedyCarpenter43_6(SchemeKennedyCarpenterAdaptive):
     descriptor = SchemeDescriptor("KC43-6", "Kennedy-Carpenter 4(3) 6-stage")
     tableau = KENNEDY_CARPENTER43_6_TABLEAU
 
-    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         return self.redirect_call(interval, state, executor)
 
 

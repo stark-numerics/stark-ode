@@ -30,7 +30,7 @@ class Translation:
     values: list[float]
 
 
-class Workbench:
+class Allocator:
     def allocate_translation(self) -> Translation:
         return Translation(0.0, [0.0, 0.0])
 
@@ -55,7 +55,7 @@ def layout() -> AlgebraistLayout:
 def test_generator_general_combines_scalar_and_unravel_fields():
     provider = AlgebraistGeneratorGeneral(
         translation=Translation(0.0, [0.0, 0.0]),
-        workbench=Workbench(),
+        allocator=Allocator(),
         layout=layout(),
     )
     kernel = provider.provide(AlgebraistArity(2))
@@ -74,7 +74,7 @@ def test_generator_general_combines_scalar_and_unravel_fields():
 def test_generator_specialist_bakes_delta_coefficients():
     provider = AlgebraistGeneratorSpecialist(
         translation=Translation(0.0, [0.0, 0.0]),
-        workbench=Workbench(),
+        allocator=Allocator(),
         layout=layout(),
     )
     stencil = SchemeStencil(scale=2.0, coefficients=(0.5, 0.25))
@@ -98,7 +98,7 @@ def test_generator_specialist_bakes_delta_coefficients():
 def test_generator_specialist_applies_delta_to_origin():
     provider = AlgebraistGeneratorSpecialist(
         translation=Translation(0.0, [0.0, 0.0]),
-        workbench=Workbench(),
+        allocator=Allocator(),
         layout=layout(),
     )
     stencil = SchemeStencil(scale=1.0, coefficients=(0.5, 0.25), apply=True)

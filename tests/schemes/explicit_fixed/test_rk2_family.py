@@ -33,12 +33,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -113,7 +113,7 @@ def test_rk2_scheme_owns_its_public_call_method(scheme_cls) -> None:
     ],
 )
 def test_rk2_default_call_path_is_scheme_owned_inline_call(scheme_cls) -> None:
-    scheme = scheme_cls(exponential_growth, ScalarWorkbench())
+    scheme = scheme_cls(exponential_growth, ScalarAllocator())
 
     assert scheme.call_pure.__self__ is scheme
     assert scheme.call_pure.__func__ is scheme_cls.call_inline
@@ -129,7 +129,7 @@ def test_rk2_default_call_path_is_scheme_owned_inline_call(scheme_cls) -> None:
     ],
 )
 def test_rk2_public_call_uses_redirect_call(scheme_cls) -> None:
-    scheme = scheme_cls(exponential_growth, ScalarWorkbench())
+    scheme = scheme_cls(exponential_growth, ScalarAllocator())
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 
@@ -159,7 +159,7 @@ def test_rk2_public_call_uses_redirect_call(scheme_cls) -> None:
     ],
 )
 def test_rk2_call_inline_performs_one_second_order_step(scheme_cls) -> None:
-    scheme = scheme_cls(exponential_growth, ScalarWorkbench())
+    scheme = scheme_cls(exponential_growth, ScalarAllocator())
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 
@@ -178,7 +178,7 @@ def test_rk2_call_inline_performs_one_second_order_step(scheme_cls) -> None:
     ],
 )
 def test_rk2_call_inline_clips_to_remaining_interval(scheme_cls) -> None:
-    scheme = scheme_cls(exponential_growth, ScalarWorkbench())
+    scheme = scheme_cls(exponential_growth, ScalarAllocator())
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(1.0)
 
@@ -199,7 +199,7 @@ def test_rk2_call_inline_clips_to_remaining_interval(scheme_cls) -> None:
 def test_rk2_specialist_path_is_selected_inside_scheme(scheme_cls) -> None:
     scheme = scheme_cls(
         exponential_growth,
-        ScalarWorkbench(),
+        ScalarAllocator(),
         specialist=StubSpecialist(),
     )
 
@@ -222,10 +222,10 @@ def test_rk2_inline_and_specialist_paths_match_for_one_step(scheme_cls) -> None:
     state_inline = ScalarState(1.0)
     state_specialist = ScalarState(1.0)
 
-    inline = scheme_cls(exponential_growth, ScalarWorkbench())
+    inline = scheme_cls(exponential_growth, ScalarAllocator())
     specialist = scheme_cls(
         exponential_growth,
-        ScalarWorkbench(),
+        ScalarAllocator(),
         specialist=StubSpecialist(),
     )
 

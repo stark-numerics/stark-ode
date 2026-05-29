@@ -26,13 +26,13 @@ def test_jax_interface_smoke_state_translation_and_derivative():
     def rhs(t, y):
         return t * y
 
-    bound = rhs.bind(carrier)
+    runtime = rhs.bind(carrier)
     out = StarkVectorTranslation(jnp.zeros(2), carrier)
 
     class DummyInterval:
         present = 2.0
 
-    bound(DummyInterval(), state, out)
+    runtime(DummyInterval(), state, out)
 
     assert jnp.allclose(out.value, jnp.array([2.0, 4.0]))
 

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stark import Executor, Integrator, Interval, Marcher, Tolerance
+from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
 from stark.schemes.explicit_adaptive.cash_karp import SchemeCashKarp
 from stark.schemes.explicit_fixed.rk4 import SchemeRK4
 
@@ -35,15 +35,15 @@ class ArrayTranslation:
         return ArrayTranslation(scalar * self.dy)
 
 
-class ArrayWorkbench:
+class ArrayAllocator:
     def __init__(self, size: int) -> None:
         self.size = size
 
     def allocate_state(self) -> ArrayState:
         return ArrayState(np.zeros(self.size))
 
-    def copy_state(self, dst: ArrayState, src: ArrayState) -> None:
-        dst.y[...] = src.y
+    def copy_state(self, source: ArrayState, out: ArrayState) -> None:
+        out.y[...] = source.y
 
     def allocate_translation(self) -> ArrayTranslation:
         return ArrayTranslation(np.zeros(self.size))
@@ -124,10 +124,10 @@ def test_fixed_explicit_specialist_path_matches_inline_semantics() -> None:
     inline_state = build_state()
     specialist_state = build_state()
 
-    inline = SchemeRK4(ArrayDerivative(), ArrayWorkbench(3))
+    inline = SchemeRK4(ArrayDerivative(), ArrayAllocator(3))
     specialized = SchemeRK4(
         ArrayDerivative(),
-        ArrayWorkbench(3),
+        ArrayAllocator(3),
         specialist=ArraySpecialist(),
     )
 
@@ -152,10 +152,10 @@ def test_fixed_explicit_specialist_path_matches_inline_semantics() -> None:
 
 
 def test_adaptive_explicit_specialist_path_matches_inline_semantics() -> None:
-    inline_scheme = SchemeCashKarp(ArrayDerivative(), ArrayWorkbench(3))
+    inline_scheme = SchemeCashKarp(ArrayDerivative(), ArrayAllocator(3))
     specialized_scheme = SchemeCashKarp(
         ArrayDerivative(),
-        ArrayWorkbench(3),
+        ArrayAllocator(3),
         specialist=ArraySpecialist(),
     )
 
@@ -208,7 +208,7 @@ def run_adaptive_solve(
 ) -> tuple[ArrayState, int, float]:
     state = build_state()
     interval = Interval(present=0.0, step=0.05, stop=0.25)
-    executor = Executor(tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-10))
+    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-10, rtol=1.0e-10))
     marcher = Marcher(scheme, executor)
     integrator = Integrator(executor=marcher.executor)
 
@@ -221,7 +221,7 @@ def run_adaptive_solve(
 
 
 def test_non_algebraist_scheme_does_not_carry_generated_source_state() -> None:
-    scheme = SchemeRK4(ArrayDerivative(), ArrayWorkbench(3))
+    scheme = SchemeRK4(ArrayDerivative(), ArrayAllocator(3))
 
     assert not hasattr(scheme, "sources")
     assert not hasattr(scheme, "kernel_sources")

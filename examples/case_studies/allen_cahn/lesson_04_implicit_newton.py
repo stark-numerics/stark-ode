@@ -34,7 +34,7 @@ from stark.schemes import SchemeCashKarp, SchemeSDIRK21
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     ACCELERATOR,
     DIFFUSIVITY,
-    TOLERANCE,
+    EXECUTOR_TOLERANCE,
     AllenCahnRHS,
     Geometry,
     initial_profile,
@@ -81,7 +81,7 @@ class AllenCahnJacobianOperator:
         self.u = state.value
 
     @staticmethod
-    @ACCELERATOR.decorate
+    @ACCELERATOR.compile
     def jacobian_apply(u, translation_u, laplacian_u, result_u, diffusivity):
         result_u[:] = diffusivity * laplacian_u + (1.0 - 3.0 * u * u) * translation_u
 
@@ -138,10 +138,10 @@ def allen_cahn_inner_product(
 
 if __name__ == "__main__":
     geometry = Geometry()
-    executor = Executor(tolerance=TOLERANCE)
+    executor = Executor(tolerance=EXECUTOR_TOLERANCE)
 
     # Start from the high-level interface again, then keep the prepared
-    # derivative and workbench. Fully implicit methods need those lower-level
+    # derivative and allocator. Fully implicit methods need those lower-level
     # pieces because the resolvent and inverter work in translation space.
 
     template = StarkIVP(
@@ -156,16 +156,16 @@ if __name__ == "__main__":
 
     carrier = template.initial.carrier
     derivative = template.derivative
-    workbench = template.workbench
+    allocator = template.allocator
 
     # BiCGStab is a matrix-free Krylov inverter. It needs an inner product on
     # translations; for a NumPy grid field we use the ordinary dot product.
 
     linearizer = AllenCahnLinearizer(geometry, DIFFUSIVITY)
     inverter = InverterBiCGStab(
-        workbench,
+        allocator,
         allen_cahn_inner_product,
-        tolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
+        ExecutorTolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
         policy=InverterPolicy(max_iterations=24, restart=12),
         safety=executor.safety,
     )
@@ -175,18 +175,18 @@ if __name__ == "__main__":
     # being asked to solve.
 
     resolvent = ResolventNewton(
-        workbench,
+        allocator,
         linearizer=linearizer,
         inverter=inverter,
-        tolerance=ResolventTolerance(atol=1.0e-7, rtol=1.0e-7),
+        ExecutorTolerance=ResolventTolerance(atol=1.0e-7, rtol=1.0e-7),
         policy=ResolventPolicy(max_iterations=12),
         safety=executor.safety,
-        accelerator=executor.accelerator,
+        accelerator=ACCELERATOR,
         tableau=SchemeSDIRK21.tableau,
     )
 
-    implicit_scheme = SchemeSDIRK21(derivative, workbench, resolvent)
-    explicit_scheme = SchemeCashKarp(derivative, workbench)
+    implicit_scheme = SchemeSDIRK21(derivative, allocator, resolvent)
+    explicit_scheme = SchemeCashKarp(derivative, allocator)
 
     # Compare against the explicit method rather than presenting Newton in
     # isolation. The result is usually instructive: fewer accepted time steps do

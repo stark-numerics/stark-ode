@@ -17,7 +17,7 @@ from stark.comparison.models import (
     ComparisonTiming,
     ProfileCategory,
 )
-from stark.integrate import Integrator
+from stark.core.integrate import Integrator
 from stark.monitor import Monitor, MonitorSummary
 
 
@@ -59,14 +59,6 @@ class ComparisonMarcherCounting:
                 "Use Marcher(...) or add snapshot_state(state) to the custom marcher."
             )
         return snapshot_state(state)
-
-    def set_safety(self, safety: Any) -> None:
-        if hasattr(self.marcher, "set_safety"):
-            self.marcher.set_safety(safety)
-
-    def set_apply_delta_safety(self, enabled: bool) -> None:
-        if hasattr(self.marcher, "set_apply_delta_safety"):
-            self.marcher.set_apply_delta_safety(enabled)
 
 
 class ComparisonProfileSurvey:

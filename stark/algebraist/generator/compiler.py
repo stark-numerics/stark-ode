@@ -19,6 +19,7 @@ class AlgebraistGeneratorCompiler:
     def compile(self, source: str) -> KernelType:
         namespace: dict[str, object] = {}
         exec(source, namespace)
+
         if "kernel" not in namespace:
             raise ValueError("generated source must define a function named 'kernel'.")
 
@@ -26,20 +27,23 @@ class AlgebraistGeneratorCompiler:
             flat = namespace["_kernel_flat"]
             if not callable(flat):
                 raise TypeError("generated _kernel_flat is not callable.")
-            namespace["_kernel_flat"] = self.accelerator.resolve_support(
+
+            namespace["_kernel_flat"] = self.accelerator.compile(
                 flat,
                 label="algebraist.generator.flat",
             )
+
             kernel = namespace["kernel"]
             if not callable(kernel):
                 raise TypeError("generated kernel is not callable.")
+
             return cast(KernelType, kernel)
 
         kernel = namespace["kernel"]
         if not callable(kernel):
             raise TypeError("generated kernel is not callable.")
-        accelerated = self.accelerator.resolve_support(
-            kernel,
-            label="algebraist.generator.kernel",
+
+        return cast(
+            KernelType,
+            self.accelerator.compile(kernel, label="algebraist.generator.kernel"),
         )
-        return cast(KernelType, accelerated)

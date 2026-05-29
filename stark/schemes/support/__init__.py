@@ -23,11 +23,12 @@ from stark.schemes.support.monitoring import (
     refresh_fixed_step_call,
     with_fixed_step_monitoring,
 )
+from stark.schemes.support.safety import SchemeSafety
 from stark.schemes.support.adaptive import (
     SchemeStepAdaptiveProposal,
     SchemeStepAdaptiveAdvanceReport,
     SchemeStepControl,
-    default_adaptive_regulator,
+    default_adaptivity,
     initialise_adaptive_runtime,
     refresh_adaptive_call,
     with_adaptive_runtime_methods,
@@ -46,10 +47,11 @@ __all__ = [
     "SchemeStepAdaptiveAdvanceReport",
     "SchemeDescriptor",
     "SchemeDisplay",
+    "SchemeSafety",
     "SchemeStepControl",
     "SchemeSupportExplicit",
     "MonitorSchemeLike",
-    "default_adaptive_regulator",
+    "default_adaptivity",
     "display_imex_resolvent_problem",
     "display_implicit_resolvent_problem",
     "initialise_adaptive_runtime",

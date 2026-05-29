@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from stark.contracts import Derivative, IntervalLike, State, Workbench
-from stark.execution.executor import Executor
+from stark.contracts import Derivative, IntervalLike, State, Allocator
+from stark.schemes.support.executor import SchemeExecutor
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     with_explicit_workspace_methods,
@@ -77,7 +77,7 @@ class SchemeRK38:
     def __init__(
         self,
         derivative: Derivative,
-        workbench: Workbench,
+        allocator: Allocator,
         specialist: SchemeSpecialist | None = None,
     ) -> None:
         self.advance_update = unbound_scheme_call
@@ -89,7 +89,7 @@ class SchemeRK38:
         self.call_pure = self.call_inline
         self.redirect_call = self.call_pure
 
-        initialise_explicit_support(self, derivative, workbench)
+        initialise_explicit_support(self, derivative, allocator)
 
         workspace = self.workspace
         self.stage = workspace.allocate_state_buffer()
@@ -108,7 +108,7 @@ class SchemeRK38:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
@@ -132,7 +132,7 @@ class SchemeRK38:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         del executor
 
@@ -212,7 +212,7 @@ class SchemeRK38:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         del executor
 

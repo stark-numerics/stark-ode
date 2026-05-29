@@ -23,7 +23,7 @@ class ScalarTranslation:
         return ScalarTranslation(self.value + other.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
 
@@ -43,9 +43,9 @@ def scale_by_two(translation: ScalarTranslation, out: ScalarTranslation) -> None
 def test_monitored_inverter_records_successful_solve(inverter_type) -> None:
     monitor = MonitorInverter()
     inverter = inverter_type(
-        ScalarWorkbench(),
+        ScalarAllocator(),
         scalar_inner_product,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        ExecutorTolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
     inverter.bind(BlockOperator([scale_by_two]))
@@ -69,7 +69,7 @@ def test_monitored_inverter_records_successful_solve(inverter_type) -> None:
 @pytest.mark.parametrize("inverter_type", INVERTER_TYPES)
 def test_unmonitored_inverter_creates_no_records(inverter_type) -> None:
     monitor = MonitorInverter()
-    inverter = inverter_type(ScalarWorkbench(), scalar_inner_product)
+    inverter = inverter_type(ScalarAllocator(), scalar_inner_product)
     inverter.bind(BlockOperator([scale_by_two]))
     inverter.assign_monitor(monitor)
     inverter.unassign_monitor()
@@ -89,9 +89,9 @@ def test_monitored_inverter_records_failed_solve_before_reraising() -> None:
 
     monitor = MonitorInverter()
     inverter = InverterGMRES(
-        ScalarWorkbench(),
+        ScalarAllocator(),
         scalar_inner_product,
-        tolerance=InverterTolerance(atol=1.0e-14, rtol=1.0e-14),
+        ExecutorTolerance=InverterTolerance(atol=1.0e-14, rtol=1.0e-14),
         policy=InverterPolicy(max_iterations=1, restart=1),
     )
     inverter.bind(DiagonalOperator([]))

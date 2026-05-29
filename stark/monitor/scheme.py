@@ -5,7 +5,7 @@ from statistics import median
 
 
 @dataclass(frozen=True, slots=True)
-class MonitorSummaryScheme:
+class MonitorSchemeSummary:
     step_count: int
     fixed_step_count: int
     adaptive_step_count: int
@@ -88,7 +88,7 @@ class MonitorScheme:
             )
         )
 
-    def summary(self) -> MonitorSummaryScheme:
+    def summary(self) -> MonitorSchemeSummary:
         fixed_count = len(self.fixed_steps)
         adaptive_count = len(self.adaptive_steps)
         accepted_dts = [
@@ -102,7 +102,7 @@ class MonitorScheme:
         accepted_dt_min, accepted_dt_median, accepted_dt_max = _min_median_max(accepted_dts)
 
         if adaptive_count == 0:
-            return MonitorSummaryScheme(
+            return MonitorSchemeSummary(
                 step_count=fixed_count,
                 fixed_step_count=fixed_count,
                 adaptive_step_count=0,
@@ -126,7 +126,7 @@ class MonitorScheme:
         ]
         error_ratio_min, error_ratio_median, error_ratio_max = _min_median_max(error_ratios)
 
-        return MonitorSummaryScheme(
+        return MonitorSchemeSummary(
             step_count=fixed_count + adaptive_count,
             fixed_step_count=fixed_count,
             adaptive_step_count=adaptive_count,
@@ -149,5 +149,5 @@ __all__ = [
     "MonitorScheme",
     "MonitorSchemeStepAdaptive",
     "MonitorSchemeStepFixed",
-    "MonitorSummaryScheme",
+    "MonitorSchemeSummary",
 ]

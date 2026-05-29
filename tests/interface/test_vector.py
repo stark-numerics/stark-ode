@@ -3,7 +3,7 @@ import math
 import numpy as np
 
 from stark.carriers import CarrierNative, CarrierNumpy
-from stark.interface.vector import StarkVector, StarkVectorTranslation, StarkVectorWorkbench
+from stark.interface.vector import StarkVector, StarkVectorTranslation, StarkVectorAllocator
 
 
 def test_stark_vector_creates_translation_with_same_carrier() -> None:
@@ -27,14 +27,14 @@ def test_stark_vector_zero_translation_uses_carrier_allocation() -> None:
     assert translation.carrier is carrier
 
 
-def test_stark_vector_workbench_uses_same_carrier() -> None:
+def test_stark_vector_allocator_uses_same_carrier() -> None:
     carrier = CarrierNative([1.0, 2.0])
     vector = StarkVector([1.0, 2.0], carrier)
 
-    workbench = vector.workbench()
+    allocator = vector.allocator()
 
-    assert isinstance(workbench, StarkVectorWorkbench)
-    assert workbench.carrier is carrier
+    assert isinstance(allocator, StarkVectorAllocator)
+    assert allocator.carrier is carrier
 
 
 def test_native_translation_apply_writes_return_result_to_state() -> None:
@@ -167,35 +167,35 @@ def test_numpy_combine4_writes_to_output_translation() -> None:
     np.testing.assert_allclose(out.value, [30.0, 30.0])
 
 
-def test_workbench_allocates_state() -> None:
+def test_allocator_allocates_state() -> None:
     carrier = CarrierNumpy(np.array([1.0, 2.0]))
-    workbench = StarkVectorWorkbench(carrier)
+    allocator = StarkVectorAllocator(carrier)
 
-    state = workbench.allocate_state()
+    state = allocator.allocate_state()
 
     assert isinstance(state, StarkVector)
     assert state.carrier is carrier
     np.testing.assert_allclose(state.value, [0.0, 0.0])
 
 
-def test_workbench_allocates_translation() -> None:
+def test_allocator_allocates_translation() -> None:
     carrier = CarrierNumpy(np.array([1.0, 2.0]))
-    workbench = StarkVectorWorkbench(carrier)
+    allocator = StarkVectorAllocator(carrier)
 
-    translation = workbench.allocate_translation()
+    translation = allocator.allocate_translation()
 
     assert isinstance(translation, StarkVectorTranslation)
     assert translation.carrier is carrier
     np.testing.assert_allclose(translation.value, [0.0, 0.0])
 
 
-def test_workbench_copies_state() -> None:
+def test_allocator_copies_state() -> None:
     carrier = CarrierNumpy(np.array([1.0, 2.0]))
-    workbench = StarkVectorWorkbench(carrier)
+    allocator = StarkVectorAllocator(carrier)
     source = StarkVector(np.array([3.0, 4.0]), carrier)
     result = StarkVector(np.zeros(2), carrier)
 
-    returned = workbench.copy_state(result, source)
+    returned = allocator.copy_state(source, result)
 
     assert returned is result
     np.testing.assert_allclose(result.value, [3.0, 4.0])

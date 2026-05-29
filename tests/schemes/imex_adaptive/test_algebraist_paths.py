@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from stark import Executor, Interval, Tolerance
+from stark import Executor, Interval, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.resolvents import ResolventPicard
@@ -67,12 +67,12 @@ class ArrayScalarTranslation:
         return ArrayScalarTranslation(scalar * self.value)
 
 
-class ArrayScalarWorkbench:
+class ArrayScalarAllocator:
     def allocate_state(self) -> ArrayScalarState:
         return ArrayScalarState.zero()
 
-    def copy_state(self, dst: ArrayScalarState, src: ArrayScalarState) -> None:
-        dst.value[...] = src.value
+    def copy_state(self, source: ArrayScalarState, out: ArrayScalarState) -> None:
+        out.value[...] = source.value
 
     def allocate_translation(self) -> ArrayScalarTranslation:
         return ArrayScalarTranslation.zero()
@@ -107,26 +107,26 @@ def make_array_scheme(
     *,
     specialist: bool = False,
 ) -> Any:
-    workbench = ArrayScalarWorkbench()
+    allocator = ArrayScalarAllocator()
     derivative = SplitDerivative(
         explicit=array_explicit_rhs,
         implicit=array_implicit_rhs,
     )
     resolvent = ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
         tableau=scheme_cls.tableau,
     )
     return scheme_cls(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
         specialist=(
             AlgebraistRuntimeSpecialist(
-                translation=workbench.allocate_translation(),
-                workbench=workbench,
+                translation=allocator.allocate_translation(),
+                allocator=allocator,
             )
             if specialist
             else None
@@ -135,7 +135,7 @@ def make_array_scheme(
 
 
 def tight_executor() -> Executor:
-    return Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    return Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
 @pytest.mark.parametrize("scheme_cls", IMEX_ADAPTIVE_SCHEMES)

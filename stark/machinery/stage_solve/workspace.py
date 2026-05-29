@@ -5,7 +5,7 @@ from typing import Callable
 
 from stark.algebraist.runtime import AlgebraistRuntimeGeneral
 from stark.contracts.intervals import IntervalLike
-from stark.contracts import Translation, Workbench
+from stark.contracts import Translation, Allocator
 
 
 class _StageInterval:
@@ -55,16 +55,16 @@ class SchemeWorkspace:
     combine11: Callable[..., Translation]
     combine12: Callable[..., Translation]
 
-    def __init__(self, workbench: Workbench, translation: Translation) -> None:
-        self.allocate_state = workbench.allocate_state
-        self.allocate_translation = workbench.allocate_translation
-        self.copy_state = workbench.copy_state
-        self.state_buffer = workbench.allocate_state()
+    def __init__(self, allocator: Allocator, translation: Translation) -> None:
+        self.allocate_state = allocator.allocate_state
+        self.allocate_translation = allocator.allocate_translation
+        self.copy_state = allocator.copy_state
+        self.state_buffer = allocator.allocate_state()
         self.stage_interval = _StageInterval()
         self.apply_delta = self.apply_delta_safe
         algebraist = AlgebraistRuntimeGeneral(
             translation,
-            workbench=workbench,
+            allocator=allocator,
         )
         (
             self.scale,
@@ -112,7 +112,7 @@ class SchemeWorkspace:
 
     def apply_delta_safe(self, delta: Translation, state: object) -> None:
         delta(state, self.state_buffer)
-        self.copy_state(state, self.state_buffer)
+        self.copy_state(self.state_buffer, state)
 
     @staticmethod
     def apply_delta_in_place(delta: Translation, state: object) -> None:
@@ -123,10 +123,9 @@ class SchemeWorkspace:
 
     def snapshot_state(self, state: object) -> object:
         snapshot = self.allocate_state()
-        self.copy_state(snapshot, state)
+        self.copy_state(state, snapshot)
         return snapshot
 
 
 __all__ = ["SchemeWorkspace"]
-
 

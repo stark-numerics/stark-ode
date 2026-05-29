@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Dense support workers for Krylov subspace inverters.
 
@@ -15,13 +13,16 @@ read like the iterative methods they implement rather than a tangle of dense
 bookkeeping.
 """
 
+from __future__ import annotations
+
 import numpy as np
 
 from stark.accelerators import AcceleratorAbsent
 from stark.block import Block
-from stark.contracts import AcceleratorLike
 from stark.block.operator import BlockOperator
+from stark.contracts import AcceleratorLike
 from stark.inverters.support.workspace import InverterWorkspace
+
 
 def _givens(upper: float, lower: float) -> tuple[float, float]:
     """Return the cosine and sine of the Givens rotation that zeroes `lower`."""
@@ -79,7 +80,7 @@ class GivensRotations:
         self.cosines = np.zeros(restart, dtype=np.float64)
         self.sines = np.zeros(restart, dtype=np.float64)
         resolved_accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
-        self._apply_previous = resolved_accelerator.decorate(_apply_previous_rotations)
+        self._apply_previous = resolved_accelerator.compile(_apply_previous_rotations)
         self._apply_new = _apply_new_rotation
         hessenberg = np.zeros((restart + 1, restart), dtype=np.float64)
         residual_vector = np.zeros(restart + 1, dtype=np.float64)
@@ -117,7 +118,7 @@ class HessenbergLeastSquares:
         self.residual_vector = np.zeros(restart + 1, dtype=np.float64)
         self.coefficients = np.zeros(restart, dtype=np.float64)
         resolved_accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
-        self._back_substitute = resolved_accelerator.decorate(_back_substitute)
+        self._back_substitute = resolved_accelerator.compile(_back_substitute)
         resolved_accelerator.compile_examples(
             self._back_substitute,
             (self.hessenberg, self.residual_vector, self.coefficients, 1),
@@ -219,8 +220,6 @@ __all__ = [
     "GivensRotations",
     "HessenbergLeastSquares",
 ]
-
-
 
 
 

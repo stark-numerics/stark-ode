@@ -18,7 +18,7 @@ from __future__ import annotations
 # - start from the user's existing dataclass model and inverse-square force code
 # - try the user's fixed-step Euler integrator at two different time steps
 # - use Moore's equal-mass figure-eight orbit as a qualitative check
-# - add the small STARK adapter layer: `Translation`, `Workbench`, and derivative
+# - add the small STARK adapter layer: `Translation`, `Allocator`, and derivative
 # - audit the adapter
 # - integrate adaptively while asking STARK for evenly spaced plot checkpoints
 
@@ -49,7 +49,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray
 
-from stark import Auditor, Executor, Integrator, Interval, Marcher, Tolerance
+from stark import Auditor, Executor, Integrator, Interval, Marcher, ExecutorTolerance
 from stark.schemes import SchemeDormandPrince
 
 
@@ -62,7 +62,7 @@ CHECKPOINTS = RUN_PERIODS * CHECKPOINTS_PER_PERIOD
 EULER_COARSE_DT = 0.01
 EULER_FINE_DT = 0.001
 STARK_INITIAL_STEP = 0.02
-STARK_TOLERANCE = Tolerance(atol=1.0e-9, rtol=1.0e-9)
+STARK_TOLERANCE = ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9)
 HERE = Path(__file__).resolve().parent
 
 
@@ -305,7 +305,7 @@ print(f"Saved {euler_plot_path}")
 # The STARK pieces below have separate jobs:
 #
 # - `ThreeBodyTranslation` describes linear updates to the state.
-# - `ThreeBodyWorkbench` allocates and copies states and translations.
+# - `ThreeBodyAllocator` allocates and copies states and translations.
 # - `ThreeBodyDerivative` fills a translation with the current derivative.
 # - `SchemeDormandPrince` owns the numerical Runge-Kutta formula.
 # - `Executor`, `Marcher`, and `Integrator` carry runtime policy and drive time.
@@ -380,16 +380,16 @@ class ThreeBodyTranslation:
         )
 
 
-# 6. The STARK workbench
+# 6. The STARK allocator
 #
-# The workbench tells STARK how to allocate and copy the user's objects. This is
+# The allocator tells STARK how to allocate and copy the user's objects. This is
 # deliberately explicit: STARK should not guess how to construct a valid
 # `ThreeBodySystem` or how to copy its arrays.
 
 
-class ThreeBodyWorkbench:
+class ThreeBodyAllocator:
     def __repr__(self) -> str:
-        return "ThreeBodyWorkbench(bodies=3, dimensions=2)"
+        return "ThreeBodyAllocator(bodies=3, dimensions=2)"
 
     __str__ = __repr__
 
@@ -400,8 +400,8 @@ class ThreeBodyWorkbench:
             third=Body(np.zeros(2, dtype=np.float64), np.zeros(2, dtype=np.float64), 1.0),
         )
 
-    def copy_state(self, dst: ThreeBodySystem, src: ThreeBodySystem) -> None:
-        for dst_body, src_body in zip(dst.bodies(), src.bodies(), strict=True):
+    def copy_state(self, source: ThreeBodySystem, out: ThreeBodySystem) -> None:
+        for dst_body, src_body in zip(out.bodies(), source.bodies(), strict=True):
             dst_body.position[:] = src_body.position
             dst_body.velocity[:] = src_body.velocity
             dst_body.mass = src_body.mass
@@ -455,7 +455,7 @@ class ThreeBodyDerivative:
 # 8. Audit the interface
 #
 # Before running a real solve, ask STARK to audit the objects we just wrote. The
-# audit is a checklist: does the derivative look callable, can the workbench
+# audit is a checklist: does the derivative look callable, can the allocator
 # allocate and copy, can the translation be applied and measured?
 #
 # The audit is optional at runtime, but it is useful while building a custom
@@ -464,19 +464,19 @@ class ThreeBodyDerivative:
 
 dynamics = ThreeBodyDynamics()
 derivative = ThreeBodyDerivative(dynamics)
-workbench = ThreeBodyWorkbench()
-audit_scheme = SchemeDormandPrince(derivative, workbench)
+allocator = ThreeBodyAllocator()
+audit_scheme = SchemeDormandPrince(derivative, allocator)
 audit_state = deepcopy(figure_eight_initial)
 audit_interval = Interval(present=0.0, step=STARK_INITIAL_STEP, stop=STOP_TIME)
 
 audit = Auditor(
     state=audit_state,
     derivative=derivative,
-    translation=workbench.allocate_translation(),
-    workbench=workbench,
+    translation=allocator.allocate_translation(),
+    allocator=allocator,
     interval=audit_interval,
     scheme=audit_scheme,
-    tolerance=STARK_TOLERANCE,
+    ExecutorTolerance=STARK_TOLERANCE,
 )
 print(audit)
 audit.raise_if_invalid()
@@ -490,8 +490,8 @@ audit.raise_if_invalid()
 # contracts also let users provide their own schemes. For this example we will
 # use Dormand-Prince, a common embedded 5(4) method.
 #
-# The `Executor` carries runtime policy such as tolerance, so the marcher now
-# owns a scheme together with an executor rather than a bare tolerance object.
+# The `Executor` carries runtime policy such as ExecutorTolerance, so the marcher now
+# owns a scheme together with an executor rather than a bare ExecutorTolerance object.
 #
 # The `checkpoints` argument asks STARK to pass through evenly spaced output
 # times. This is ideal for plots and animations: the solver can adapt
@@ -500,11 +500,11 @@ audit.raise_if_invalid()
 
 dynamics = ThreeBodyDynamics()
 derivative = ThreeBodyDerivative(dynamics)
-workbench = ThreeBodyWorkbench()
+allocator = ThreeBodyAllocator()
 state = deepcopy(figure_eight_initial)
 interval = Interval(present=0.0, step=STARK_INITIAL_STEP, stop=STOP_TIME)
 
-scheme = SchemeDormandPrince(derivative, workbench)
+scheme = SchemeDormandPrince(derivative, allocator)
 executor = Executor(tolerance=STARK_TOLERANCE)
 marcher = Marcher(scheme, executor)
 integrate = Integrator(executor=executor)
@@ -601,7 +601,7 @@ print(f"Saved {comparison_plot_path}")
 # The new code is a thin interface layer:
 #
 # - `ThreeBodyTranslation` tells STARK what a linear update looks like.
-# - `ThreeBodyWorkbench` tells STARK how to allocate and copy user objects.
+# - `ThreeBodyAllocator` tells STARK how to allocate and copy user objects.
 # - `ThreeBodyDerivative` adapts existing acceleration code to the STARK
 #   derivative contract.
 # - `Executor` carries the runtime policy used by `Marcher` and `Integrator`.

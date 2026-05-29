@@ -8,15 +8,18 @@ from stark.resolvents.support.problem import (
     ResolventStageProblem,
 )
 from stark.resolvents.support.residual import ResolventResidual
-from stark.resolvents.support.runtime import (
-    check_one_stage_block,
-    initialise_resolvent_runtime,
-    refresh_resolvent_call,
+from stark.resolvents.support.call import (
     with_resolvent_binding_methods,
     with_resolvent_call_methods,
-    with_resolvent_display_methods,
-    with_resolvent_monitoring_methods,
 )
+from stark.resolvents.support.checks import check_one_stage_block
+from stark.resolvents.support.display import with_resolvent_display_methods
+from stark.resolvents.support.monitoring_methods import with_resolvent_monitoring_methods
+from stark.resolvents.support.setup import (
+    initialise_resolvent_runtime,
+    refresh_resolvent_call,
+)
+from stark.resolvents.support.safety import ResolventSafety, ResolventSafetyDefault
 from stark.resolvents.support.secant import (
     BlockInnerProduct,
     ResolventSecantLeastSquares,
@@ -48,6 +51,8 @@ __all__ = [
     "ResolventError",
     "ResolventPolicy",
     "ResolventResidual",
+    "ResolventSafety",
+    "ResolventSafetyDefault",
     "ResolventSecantLeastSquares",
     "ResolventSpecialist",
     "ResolventStageJacobianOperator",

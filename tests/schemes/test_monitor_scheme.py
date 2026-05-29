@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from stark import Executor, Integrator, Interval, Marcher, Monitor, Tolerance
+from stark import Executor, Integrator, Interval, Marcher, Monitor, ExecutorTolerance
 from stark.schemes.explicit_adaptive.cash_karp import SchemeCashKarp
 from stark.schemes.explicit_fixed.euler import SchemeEuler
 from stark.schemes.support.stencil import SchemeStencil
@@ -36,12 +36,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -114,11 +114,11 @@ def failing_rhs(
 
 
 def tight_executor() -> Executor:
-    return Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    return Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
 def test_assigning_scheme_monitor_selects_monitored_path_and_unassign_restores_pure_path() -> None:
-    scheme = SchemeEuler(constant_rhs, ScalarWorkbench())
+    scheme = SchemeEuler(constant_rhs, ScalarAllocator())
     monitor = Monitor()
 
     assert scheme.redirect_call == scheme.call_pure
@@ -133,7 +133,7 @@ def test_assigning_scheme_monitor_selects_monitored_path_and_unassign_restores_p
 
 
 def test_unmonitored_integration_creates_no_scheme_monitor_records() -> None:
-    scheme = SchemeCashKarp(zero_rhs, ScalarWorkbench())
+    scheme = SchemeCashKarp(zero_rhs, ScalarAllocator())
     marcher = Marcher(scheme, tight_executor())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     monitor = Monitor()
@@ -146,7 +146,7 @@ def test_unmonitored_integration_creates_no_scheme_monitor_records() -> None:
 
 
 def test_monitor_is_unassigned_after_monitored_integration_exception() -> None:
-    scheme = SchemeEuler(failing_rhs, ScalarWorkbench())
+    scheme = SchemeEuler(failing_rhs, ScalarAllocator())
     marcher = Marcher(scheme, Executor())
     monitor = Monitor()
 
@@ -169,7 +169,7 @@ def test_monitor_is_unassigned_after_monitored_integration_exception() -> None:
 def test_specialist_fixed_path_is_monitored_only_at_scheme_boundary() -> None:
     scheme = SchemeEuler(
         constant_rhs,
-        ScalarWorkbench(),
+        ScalarAllocator(),
         specialist=StubSpecialist(),
     )
     monitor = Monitor()

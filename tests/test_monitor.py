@@ -8,9 +8,9 @@ from stark.monitor import (
     MonitorResolvent,
     MonitorScheme,
     MonitorSummary,
-    MonitorSummaryInverter,
-    MonitorSummaryResolvent,
-    MonitorSummaryScheme,
+    MonitorInverterSummary,
+    MonitorResolventSummary,
+    MonitorSchemeSummary,
 )
 
 
@@ -111,7 +111,7 @@ def test_monitor_scheme_summary_reports_fixed_step_ranges() -> None:
 
     summary = monitor.summary()
 
-    assert isinstance(summary, MonitorSummaryScheme)
+    assert isinstance(summary, MonitorSchemeSummary)
     assert summary.step_count == 2
     assert summary.fixed_step_count == 2
     assert summary.adaptive_step_count == 0
@@ -152,8 +152,8 @@ def test_empty_monitor_summary_uses_none_for_unavailable_ranges() -> None:
     summary = monitor.summary()
 
     assert isinstance(summary, MonitorSummary)
-    assert isinstance(summary.resolvent, MonitorSummaryResolvent)
-    assert isinstance(summary.inverter, MonitorSummaryInverter)
+    assert isinstance(summary.resolvent, MonitorResolventSummary)
+    assert isinstance(summary.inverter, MonitorInverterSummary)
     assert summary.scheme.step_count == 0
     assert summary.scheme.fixed_step_count == 0
     assert summary.scheme.adaptive_step_count == 0

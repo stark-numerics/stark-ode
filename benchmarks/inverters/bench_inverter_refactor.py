@@ -13,7 +13,7 @@ from time import perf_counter
 from stark.accelerators import Accelerator
 from stark.block.operator import BlockOperator
 from stark.block import Block
-from stark.execution.safety import Safety
+from stark.executor.safety import ExecutorSafety
 from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES, InverterPolicy, InverterTolerance
 
 
@@ -44,12 +44,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> object:
         return object()
 
-    def copy_state(self, dst: object, src: object) -> None:
-        del dst, src
+    def copy_state(self, source: object, out: object) -> None:
+        del out, source
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -175,11 +175,11 @@ def make_tolerance() -> InverterTolerance:
 
 def make_inverter(inverter_type):
     return inverter_type(
-        ScalarWorkbench(),
+        ScalarAllocator(),
         scalar_inner_product,
-        tolerance=make_tolerance(),
+        ExecutorTolerance=make_tolerance(),
         policy=make_policy(),
-        safety=Safety(block_sizes=False),
+        safety=ExecutorSafety(block_sizes=False),
         accelerator=Accelerator.none(),
     )
 

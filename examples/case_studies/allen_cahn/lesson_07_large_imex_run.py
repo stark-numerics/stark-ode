@@ -29,8 +29,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from stark import Executor, Integrator, Interval, Marcher, Tolerance
-from stark.contracts import ImExDerivative
+from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
+from stark.contracts import DerivativeIMEX
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7
 
@@ -52,13 +52,13 @@ HERE = Path(__file__).resolve().parent
 
 if __name__ == "__main__":
     geometry = Geometry(grid_size=1024)
-    tolerance = Tolerance(atol=1.0e-6, rtol=1.0e-3)
+    executor_tolerance = ExecutorTolerance(atol=1.0e-6, rtol=1.0e-3)
     start_time = 0.0
     stop_time = 5.0
     initial_step = 1.5e-3
-    executor = Executor(tolerance=tolerance)
+    executor = Executor(tolerance=executor_tolerance)
 
-    # We still let `StarkIVP` prepare the vector carrier and workbench, even
+    # We still let `StarkIVP` prepare the vector carrier and allocator, even
     # though the solve itself uses a hand-assembled IMEX scheme.
 
     template = StarkIVP(
@@ -73,17 +73,17 @@ if __name__ == "__main__":
 
     implicit_derivative = AllenCahnImplicitDerivative(geometry, DIFFUSIVITY)
     explicit_derivative = AllenCahnExplicitDerivative(geometry)
-    derivative = ImExDerivative(
+    derivative = DerivativeIMEX(
         implicit=implicit_derivative,
         explicit=explicit_derivative,
     )
 
-    workbench = template.workbench
+    allocator = template.allocator
     resolvent = AllenCahnSpectralResolvent(geometry, DIFFUSIVITY)
 
     scheme = SchemeKennedyCarpenter43_7(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
     )
     integrate = Integrator(executor=executor)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark import Executor, Interval, Tolerance
+from stark import Executor, Interval, ExecutorTolerance
 
 
 @dataclass(slots=True)
@@ -27,12 +27,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -108,7 +108,7 @@ def exponential_growth(
 
 
 def tight_executor() -> Executor:
-    return Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    return Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
 import pytest
@@ -137,10 +137,10 @@ def test_explicit_adaptive_specialist_path_matches_inline_path(scheme_cls) -> No
     state_inline = ScalarState(1.0)
     state_specialist = ScalarState(1.0)
 
-    inline = scheme_cls(exponential_growth, ScalarWorkbench())
+    inline = scheme_cls(exponential_growth, ScalarAllocator())
     specialized = scheme_cls(
         exponential_growth,
-        ScalarWorkbench(),
+        ScalarAllocator(),
         specialist=StubSpecialist(),
     )
 

@@ -18,18 +18,18 @@ contrast inside the STARK inverter library.
 """
 
 from stark.block import Block
-from stark.contracts import AcceleratorLike, InnerProduct, InverterPreconditionerLike, Workbench
+from stark.contracts import AcceleratorLike, InnerProduct, InverterPreconditionerLike, Allocator
 from stark.block.operator import BlockOperator
-from stark.execution.safety import Safety
 from stark.inverters.support.descriptor import InverterDescriptor
 from stark.inverters.support.policy import InverterPolicy
+from stark.inverters.support.safety import InverterSafety
 from stark.inverters.support import (
     initialise_inverter_runtime,
     validate_inverter_policy,
     with_inverter_binding_methods,
     with_inverter_display_methods,
 )
-from stark.execution.tolerance import Tolerance
+from stark.executor.tolerance import ExecutorTolerance
 
 
 @with_inverter_display_methods
@@ -78,20 +78,20 @@ class InverterBiCGStab:
 
     def __init__(
         self,
-        workbench: Workbench,
+        allocator: Allocator,
         inner_product: InnerProduct,
-        tolerance: Tolerance | None = None,
+        ExecutorTolerance: ExecutorTolerance | None = None,
         policy: InverterPolicy | None = None,
         preconditioner: InverterPreconditionerLike | None = None,
-        safety: Safety | None = None,
+        safety: InverterSafety | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:
         # Installs self.workspace; see stark.inverters.support.workspace for its operations.
         initialise_inverter_runtime(
             self,
-            workbench,
+            allocator,
             inner_product,
-            tolerance=tolerance,
+            tolerance=ExecutorTolerance,
             policy=policy,
             preconditioner=preconditioner,
             safety=safety,
@@ -131,7 +131,7 @@ class InverterBiCGStab:
         operator = self.operator
         if operator is None:
             raise RuntimeError("BiCGStab inverter must be bound to an operator before use.")
-        tolerance = self.tolerance
+        ExecutorTolerance = self.tolerance
         policy = self.policy
         workspace = self.workspace
         rhs_norm = workspace.norm(rhs)
@@ -139,13 +139,13 @@ class InverterBiCGStab:
         self._monitor_initial_residual = residual_norm
         self._monitor_final_residual = residual_norm
         self._monitor_iteration_count = 0
-        if tolerance.accepts(residual_norm, rhs_norm):
+        if ExecutorTolerance.accepts(residual_norm, rhs_norm):
             return
 
         iterations, residual_norm = self.iterate(out, operator, rhs_norm)
         self._monitor_iteration_count = iterations
         self._monitor_final_residual = residual_norm
-        if tolerance.accepts(residual_norm, rhs_norm):
+        if ExecutorTolerance.accepts(residual_norm, rhs_norm):
             return
 
         raise RuntimeError(
@@ -173,7 +173,7 @@ class InverterBiCGStab:
         The method alternates between a BiCG-style search update and a local
         stabilization step based on the auxiliary vectors `s` and `t`.
         """
-        tolerance = self.tolerance
+        ExecutorTolerance = self.tolerance
         policy = self.policy
         workspace = self.workspace
         rho_previous = 1.0
@@ -206,7 +206,7 @@ class InverterBiCGStab:
             alpha = rho / denominator
 
             workspace.combine2_block(1.0, self.residual, -alpha, self.velocity, self.s_buffer)
-            if tolerance.accepts(workspace.norm(self.s_buffer), rhs_norm):
+            if ExecutorTolerance.accepts(workspace.norm(self.s_buffer), rhs_norm):
                 workspace.combine2_block(1.0, out, alpha, self.preconditioned_direction, self.temporary)
                 workspace.copy_block(out, self.temporary)
                 residual_norm = workspace.norm(self.s_buffer)
@@ -235,7 +235,7 @@ class InverterBiCGStab:
             workspace.combine2_block(1.0, self.s_buffer, -omega, self.t_buffer, self.residual)
             residual_norm = workspace.norm(self.residual)
             self._monitor_final_residual = residual_norm
-            if tolerance.accepts(residual_norm, rhs_norm):
+            if ExecutorTolerance.accepts(residual_norm, rhs_norm):
                 return iteration, residual_norm
 
             rho_previous = rho

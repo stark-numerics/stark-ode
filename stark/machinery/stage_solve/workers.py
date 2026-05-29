@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from stark.accelerators.binding import DerivativeAccelerated
-from stark.auditor import Auditor
-from stark.contracts import Block, Derivative, ImExDerivative, IntervalLike, Resolvent, State, Translation, Workbench
+from stark.schemes.support.derivative import SchemeDerivative
+from stark.core.auditor import Auditor
+from stark.contracts import Block, Derivative, DerivativeIMEX, IntervalLike, Resolvent, State, Translation, Allocator
 from stark.resolvents.support.guard import ResolventTableauGuard
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
 
@@ -34,7 +34,7 @@ class _ImExStageSolver:
         block: Block,
     ) -> State:
         if shift is None:
-            self.copy_state(self.stage_state, base_state)
+            self.copy_state(base_state, self.stage_state)
         else:
             shift(base_state, self.stage_state)
 
@@ -69,10 +69,10 @@ class ImExStepper:
         "implicit_low_weights",
     )
 
-    def __init__(self, derivative: ImExDerivative, workspace: SchemeWorkspace, resolvent: Resolvent, tableau) -> None:
+    def __init__(self, derivative: DerivativeIMEX, workspace: SchemeWorkspace, resolvent: Resolvent, tableau) -> None:
         self.tableau = tableau
-        self.explicit_derivative = DerivativeAccelerated(derivative.explicit)
-        self.implicit_derivative = DerivativeAccelerated(derivative.implicit)
+        self.explicit_derivative = SchemeDerivative(derivative.explicit)
+        self.implicit_derivative = SchemeDerivative(derivative.implicit)
         self.workspace = workspace
         self.stage_solver = _ImExStageSolver(workspace, resolvent)
         stage_count = len(tableau.c)
@@ -209,10 +209,10 @@ class ShiftedOneStageResolventStep:
 
     __slots__ = ("workspace", "tableau_guard", "resolvent", "trial_block")
 
-    def __init__(self, method_name: str, tableau, derivative: Derivative, workbench: Workbench, resolvent: Resolvent) -> None:
-        translation_probe = workbench.allocate_translation()
-        Auditor.require_scheme_inputs(derivative, workbench, translation_probe)
-        self.workspace = SchemeWorkspace(workbench, translation_probe)
+    def __init__(self, method_name: str, tableau, derivative: Derivative, allocator: Allocator, resolvent: Resolvent) -> None:
+        translation_probe = allocator.allocate_translation()
+        Auditor.require_scheme_inputs(derivative, allocator, translation_probe)
+        self.workspace = SchemeWorkspace(allocator, translation_probe)
         self.tableau_guard = ResolventTableauGuard(method_name, tableau)
         self.resolvent = _require_resolvent(method_name, resolvent)
         self.tableau_guard(self.resolvent)
@@ -251,13 +251,13 @@ class ResolventCoupledCollocationStep:
         method_name: str,
         tableau,
         derivative: Derivative,
-        workbench: Workbench,
+        allocator: Allocator,
         stage_count: int,
         resolvent: Resolvent,
     ) -> None:
-        translation_probe = workbench.allocate_translation()
-        Auditor.require_scheme_inputs(derivative, workbench, translation_probe)
-        self.workspace = SchemeWorkspace(workbench, translation_probe)
+        translation_probe = allocator.allocate_translation()
+        Auditor.require_scheme_inputs(derivative, allocator, translation_probe)
+        self.workspace = SchemeWorkspace(allocator, translation_probe)
         self.tableau_guard = ResolventTableauGuard(method_name, tableau)
         self.resolvent = _require_resolvent(method_name, resolvent)
         self.tableau_guard(self.resolvent)
@@ -288,13 +288,13 @@ class SequentialDIRKResolventStep:
         method_name: str,
         tableau,
         derivative: Derivative,
-        workbench: Workbench,
+        allocator: Allocator,
         implicit_stage_count: int,
         resolvent: Resolvent,
     ) -> None:
-        translation_probe = workbench.allocate_translation()
-        Auditor.require_scheme_inputs(derivative, workbench, translation_probe)
-        self.workspace = SchemeWorkspace(workbench, translation_probe)
+        translation_probe = allocator.allocate_translation()
+        Auditor.require_scheme_inputs(derivative, allocator, translation_probe)
+        self.workspace = SchemeWorkspace(allocator, translation_probe)
         self.tableau_guard = ResolventTableauGuard(method_name, tableau)
         self.resolvent = _require_resolvent(method_name, resolvent)
         self.tableau_guard(self.resolvent)
@@ -338,5 +338,4 @@ __all__ = [
     "SequentialDIRKResolventStep",
     "ShiftedOneStageResolventStep",
 ]
-
 

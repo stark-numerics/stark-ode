@@ -10,7 +10,7 @@ from typing import Callable
 
 import numpy as np
 
-from stark import Executor, Integrator, Interval, Marcher, Tolerance
+from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
@@ -70,7 +70,7 @@ class ArrayTranslation:
         return ArrayTranslation(scalar * self.value, self.linear_combine)
 
 
-class ArrayWorkbench:
+class ArrayAllocator:
     __slots__ = ("count", "linear_combine")
 
     def __init__(self, count: int) -> None:
@@ -80,8 +80,8 @@ class ArrayWorkbench:
     def allocate_state(self) -> ArrayState:
         return ArrayState(np.zeros(self.count, dtype=np.float64))
 
-    def copy_state(self, dst: ArrayState, src: ArrayState) -> None:
-        np.copyto(dst.value, src.value)
+    def copy_state(self, source: ArrayState, out: ArrayState) -> None:
+        np.copyto(out.value, source.value)
 
     def allocate_translation(self) -> ArrayTranslation:
         return ArrayTranslation(
@@ -110,22 +110,22 @@ class ArrayAlgebraist:
     specialist: AlgebraistGeneratorSpecialist
 
 
-def make_algebraist(policy, workbench: ArrayWorkbench, accelerator=None) -> ArrayAlgebraist:
+def make_algebraist(policy, allocator: ArrayAllocator, accelerator=None) -> ArrayAlgebraist:
     active_accelerator = accelerator if accelerator is not None else Accelerator.none()
     layout = AlgebraistLayout(
         fields=(AlgebraistLayoutField("value", "value", policy=policy),),
     )
     general = AlgebraistGeneratorGeneral(
-        translation=workbench.allocate_translation(),
-        workbench=workbench,
+        translation=allocator.allocate_translation(),
+        allocator=allocator,
         layout=layout,
         accelerator=active_accelerator,
     )
     linear_combine = tuple(general.provide(AlgebraistArity(arity)) for arity in range(1, 13))
-    workbench.linear_combine = linear_combine
+    allocator.linear_combine = linear_combine
     specialist = AlgebraistGeneratorSpecialist(
-        translation=workbench.allocate_translation(),
-        workbench=workbench,
+        translation=allocator.allocate_translation(),
+        allocator=allocator,
         layout=layout,
         accelerator=active_accelerator,
     )
@@ -139,17 +139,17 @@ def numba_accelerator():
         return None
 
 
-def make_resolvent(scheme_cls, workbench: ArrayWorkbench, kind: str):
+def make_resolvent(scheme_cls, allocator: ArrayAllocator, kind: str):
     kwargs = dict(
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=16),
         accelerator=Accelerator.none(),
         tableau=scheme_cls.tableau,
     )
     if kind == "picard":
-        return ResolventPicard(workbench, **kwargs)
+        return ResolventPicard(allocator, **kwargs)
     if kind == "coupled-picard":
-        return ResolventCoupledPicard(workbench, **kwargs)
+        return ResolventCoupledPicard(allocator, **kwargs)
     raise ValueError(f"Unknown resolvent kind {kind!r}.")
 
 
@@ -213,13 +213,13 @@ def make_case(
     policy=None,
     accelerator=None,
 ) -> BenchmarkCase:
-    workbench = ArrayWorkbench(count)
-    algebraist = make_algebraist(policy, workbench, accelerator) if policy is not None else None
+    allocator = ArrayAllocator(count)
+    algebraist = make_algebraist(policy, allocator, accelerator) if policy is not None else None
     specialist = algebraist.specialist if algebraist is not None else None
-    resolvent = make_resolvent(scheme_cls, workbench, resolvent_kind)
+    resolvent = make_resolvent(scheme_cls, allocator, resolvent_kind)
     scheme = scheme_cls(
         decay_rhs,
-        workbench,
+        allocator,
         resolvent=resolvent,
         specialist=specialist,
     )

@@ -91,7 +91,7 @@ That means:
 - keep the main numerical routine readable as mathematics;
 - use jitted kernels where they buy something real.
 
-Safety checks are welcome at the boundary. They should not be smeared across
+ExecutorSafety checks are welcome at the boundary. They should not be smeared across
 the core loop unless they are essential to correctness.
 
 ## Naming
@@ -107,7 +107,7 @@ STARK generally prefers:
 
 - `marcher.py`
 - `integrate.py`
-- `regulator.py`
+- `ExecutorAdaptivity.py`
 - `butcher_tableau.py`
 
 over names that feel temporary or apologetic.
@@ -175,7 +175,7 @@ STARK expects problem-specific code to be able to provide:
 - jitted derivative kernels;
 - jitted Jacobian actions;
 - auditable custom accelerators;
-- specialized workbench allocation behavior;
+- specialized allocator allocation behavior;
 - custom resolvers and inverters where the problem demands it.
 
 The generic path should stay clean and correct. The optimized path should have

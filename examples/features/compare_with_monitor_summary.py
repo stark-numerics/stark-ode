@@ -48,11 +48,11 @@ problem = ComparisonProblem(
 entries = [
     ComparisonEntry(
         "Cash-Karp",
-        lambda: Marcher(SchemeCashKarp(template.derivative, template.workbench), executor),
+        lambda: Marcher(SchemeCashKarp(template.derivative, template.allocator), executor),
     ),
     ComparisonEntry(
         "Dormand-Prince",
-        lambda: Marcher(SchemeDormandPrince(template.derivative, template.workbench), executor),
+        lambda: Marcher(SchemeDormandPrince(template.derivative, template.allocator), executor),
     ),
 ]
 

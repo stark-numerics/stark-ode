@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark import Executor, Interval, Tolerance
+from stark import Executor, Interval, ExecutorTolerance
 
 
 @dataclass(slots=True)
@@ -27,12 +27,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -108,7 +108,7 @@ def exponential_growth(
 
 
 def tight_executor() -> Executor:
-    return Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    return Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
 import pytest
@@ -126,7 +126,7 @@ def test_dopri_tsit5_scheme_owns_its_public_call_method(scheme_cls) -> None:
 
 @pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])
 def test_dopri_tsit5_default_call_path_is_scheme_owned_inline_call(scheme_cls) -> None:
-    scheme = scheme_cls(zero_rhs, ScalarWorkbench())
+    scheme = scheme_cls(zero_rhs, ScalarAllocator())
 
     assert scheme.call_pure.__self__ is scheme
     assert scheme.call_pure.__func__ is scheme_cls.call_inline
@@ -134,7 +134,7 @@ def test_dopri_tsit5_default_call_path_is_scheme_owned_inline_call(scheme_cls) -
 
 @pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])
 def test_dopri_tsit5_public_call_uses_redirect_call(scheme_cls) -> None:
-    scheme = scheme_cls(zero_rhs, ScalarWorkbench())
+    scheme = scheme_cls(zero_rhs, ScalarAllocator())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
 
@@ -157,7 +157,7 @@ def test_dopri_tsit5_public_call_uses_redirect_call(scheme_cls) -> None:
 
 @pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])
 def test_dopri_tsit5_call_returns_accepted_dt_and_updates_next_step(scheme_cls) -> None:
-    scheme = scheme_cls(zero_rhs, ScalarWorkbench())
+    scheme = scheme_cls(zero_rhs, ScalarAllocator())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
 
@@ -170,7 +170,7 @@ def test_dopri_tsit5_call_returns_accepted_dt_and_updates_next_step(scheme_cls) 
 
 @pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])
 def test_dopri_tsit5_call_clips_to_remaining_interval(scheme_cls) -> None:
-    scheme = scheme_cls(zero_rhs, ScalarWorkbench())
+    scheme = scheme_cls(zero_rhs, ScalarAllocator())
     interval = Interval(present=0.1, step=1.0, stop=0.3)
     state = ScalarState(2.0)
 
@@ -185,7 +185,7 @@ def test_dopri_tsit5_call_clips_to_remaining_interval(scheme_cls) -> None:
 def test_dopri_tsit5_specialist_path_is_selected_inside_scheme(scheme_cls) -> None:
     scheme = scheme_cls(
         exponential_growth,
-        ScalarWorkbench(),
+        ScalarAllocator(),
         specialist=StubSpecialist(),
     )
 
@@ -200,10 +200,10 @@ def test_dopri_tsit5_inline_and_specialist_paths_match_for_one_step(scheme_cls) 
     state_inline = ScalarState(1.0)
     state_specialist = ScalarState(1.0)
 
-    inline = scheme_cls(exponential_growth, ScalarWorkbench())
+    inline = scheme_cls(exponential_growth, ScalarAllocator())
     specialist = scheme_cls(
         exponential_growth,
-        ScalarWorkbench(),
+        ScalarAllocator(),
         specialist=StubSpecialist(),
     )
 
@@ -227,7 +227,7 @@ def test_dopri_tsit5_monitoring_records_existing_adaptive_fields(
     scheme_cls,
     scheme_name: str,
 ) -> None:
-    scheme = scheme_cls(zero_rhs, ScalarWorkbench())
+    scheme = scheme_cls(zero_rhs, ScalarAllocator())
     marcher = Marcher(scheme, tight_executor())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)

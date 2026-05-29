@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Integrator, Interval, Marcher, Tolerance
+from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
@@ -34,12 +34,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -58,24 +58,24 @@ def make_scheme(
     *,
     specialist: object | None = None,
 ) -> SchemeBDF2:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     resolvent = ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
         tableau=None,
     )
     return SchemeBDF2(
         constant_rhs,
-        workbench,
+        allocator,
         resolvent=resolvent,
         specialist=specialist,
     )
 
 
 def tight_executor() -> Executor:
-    return Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    return Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
 def test_bdf2_owns_its_public_call_method() -> None:

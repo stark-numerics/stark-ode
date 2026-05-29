@@ -4,7 +4,7 @@ from __future__ import annotations
 #
 # This script is the foundation for the Allen-Cahn example series. The problem
 # state is a NumPy array, so the modern STARK entry point is the interface layer:
-# `StarkIVP` prepares the matching `StarkVector` state, workbench, derivative
+# `StarkIVP` prepares the matching `StarkVector` state, allocator, derivative
 # adapter, and carrier routing for us.
 #
 # We solve the one-dimensional periodic Allen-Cahn equation
@@ -23,7 +23,7 @@ from __future__ import annotations
 #
 # The point of this first run is not to claim Cash-Karp is the right Allen-Cahn
 # solver. It is to establish a baseline: with `StarkIVP`, an array-valued PDE
-# can be integrated without hand-writing STARK state, translation, and workbench
+# can be integrated without hand-writing STARK state, translation, and allocator
 # classes.
 #
 # In a source checkout, run from the `stark-ode` directory with:
@@ -41,7 +41,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from stark import Executor, Interval, Tolerance
+from stark import Executor, Interval, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp
@@ -55,7 +55,7 @@ from stark.schemes import SchemeCashKarp
 HERE = Path(__file__).resolve().parent
 
 DIFFUSIVITY: float = 0.08
-TOLERANCE = Tolerance(atol=1.0e-6, rtol=1.0e-3)
+EXECUTOR_TOLERANCE = ExecutorTolerance(atol=1.0e-6, rtol=1.0e-3)
 START_TIME = 0.0
 STOP_TIME = 1.0
 INITIAL_STEP = 1.0e-3
@@ -144,7 +144,7 @@ def state_diagnostics(state: StarkVector) -> dict[str, float]:
 # The derivative is written in the in-place convention used by `StarkIVP`.
 # STARK passes raw carrier values to this function: time, current NumPy array,
 # and output NumPy array. That keeps the PDE formula visible while avoiding the
-# hand-written state/translation/workbench classes the old notebook needed.
+# hand-written state/translation/allocator classes the old notebook needed.
 
 
 class AllenCahnRHS:
@@ -174,7 +174,7 @@ class AllenCahnRHS:
         self.full_rhs(u, self.laplacian_u, out, self.diffusivity)
 
     @staticmethod
-    @ACCELERATOR.decorate
+    @ACCELERATOR.compile
     def laplacian_periodic(field, out, inv_dx2):
         size = field.size
         for index in range(size):
@@ -184,17 +184,17 @@ class AllenCahnRHS:
             out[index] = (left - 2.0 * centre + right) * inv_dx2
 
     @staticmethod
-    @ACCELERATOR.decorate
+    @ACCELERATOR.compile
     def full_rhs(u, laplacian_u, out_u, diffusivity):
         out_u[:] = diffusivity * laplacian_u + u - u * u * u
 
     @staticmethod
-    @ACCELERATOR.decorate
+    @ACCELERATOR.compile
     def reaction_rhs(u, out_u):
         out_u[:] = u - u * u * u
 
     @staticmethod
-    @ACCELERATOR.decorate
+    @ACCELERATOR.compile
     def diffusion_rhs(laplacian_u, out_u, diffusivity):
         out_u[:] = diffusivity * laplacian_u
 
@@ -223,7 +223,7 @@ if __name__ == "__main__":
 
     # `StarkIVP` is the high-level path for vector-space states. Given a raw
     # NumPy array, it chooses a carrier, wraps the value as a `StarkVector`,
-    # builds a matching workbench, and binds the derivative convention.
+    # builds a matching allocator, and binds the derivative convention.
     #
     # `StarkDerivative.in_place(...)` says that our RHS writes into the output
     # array it receives. That avoids allocating a new array on every derivative
@@ -236,7 +236,7 @@ if __name__ == "__main__":
         initial=initial,
         interval=make_interval(),
         scheme=SchemeCashKarp,
-        executor=Executor(tolerance=TOLERANCE),
+        executor=Executor(tolerance=EXECUTOR_TOLERANCE),
     )
     build = ivp.build()
 

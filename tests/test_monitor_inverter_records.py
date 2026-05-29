@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from stark.monitor import MonitorInverter, MonitorSummaryInverter
+from stark.monitor import MonitorInverter, MonitorInverterSummary
 
 
 def test_monitor_inverter_records_successful_solve() -> None:
@@ -55,7 +55,7 @@ def test_monitor_inverter_summary_reports_iteration_and_residual_ranges() -> Non
 
     summary = monitor.summary()
 
-    assert isinstance(summary, MonitorSummaryInverter)
+    assert isinstance(summary, MonitorInverterSummary)
     assert summary.solve_count == 3
     assert summary.failure_count == 1
     assert summary.iteration_min == 2

@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from math import sqrt
 from time import perf_counter
+from typing import Any
 
 import numpy as np
 
-from stark import Executor, ImExDerivative, Integrator, Interval, Marcher, Safety, Tolerance
+from stark import Executor, DerivativeIMEX, Integrator, Interval, Marcher, ExecutorSafety, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorGeneral
+from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
-from stark.execution.regulator import Regulator
+from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.inverters import InverterPolicy, InverterTolerance
 from stark.resolvents import ResolventAnderson, ResolventNewton, ResolventPolicy, ResolventTolerance
 from stark.schemes import SchemeKennedyCarpenter43_7, SchemeKvaerno3
@@ -24,6 +25,10 @@ except ModuleNotFoundError:
     ACCELERATOR = Accelerator.none()
     USE_NUMBA_ACCELERATION = False
 
+
+Array = Any
+
+
 ALGEBRAIST_LAYOUT = AlgebraistLayout(
     fields=(
         AlgebraistLayoutField("du", "u", policy=AlgebraistLayoutLooped(rank=1)),
@@ -32,8 +37,8 @@ ALGEBRAIST_LAYOUT = AlgebraistLayout(
 )
 
 
-@ACCELERATOR.decorate
-def _laplacian_periodic(field, out, inv_dx2):
+@ACCELERATOR.compile
+def _laplacian_periodic(field: Array, out: Array, inv_dx2: float) -> None:
     size = field.size
     for index in range(size):
         left = field[index - 1 if index > 0 else size - 1]
@@ -42,25 +47,80 @@ def _laplacian_periodic(field, out, inv_dx2):
         out[index] = (left - 2.0 * centre + right) * inv_dx2
 
 
-@ACCELERATOR.decorate
-def _rhs_kernel(u, v, laplacian_u, out_u, out_v, diffusivity_u, epsilon, a, b):
+@ACCELERATOR.compile
+def _rhs_kernel(
+    u: Array,
+    v: Array,
+    laplacian_u: Array,
+    out_u: Array,
+    out_v: Array,
+    diffusivity_u: float,
+    epsilon: float,
+    a: float,
+    b: float,
+) -> None:
     out_u[:] = diffusivity_u * laplacian_u + u - (u * u * u) / 3.0 - v
     out_v[:] = epsilon * (u + a - b * v)
 
 
-@ACCELERATOR.decorate
-def _explicit_rhs_kernel(u, v, out_u, out_v, epsilon, a, b):
+@ACCELERATOR.compile
+def _explicit_rhs_kernel(u: Array, v: Array, out_u: Array, out_v: Array, epsilon: float, a: float, b: float) -> None:
     out_u[:] = u - (u * u * u) / 3.0 - v
     out_v[:] = epsilon * (u + a - b * v)
 
 
-@ACCELERATOR.decorate
-def _implicit_rhs_kernel(laplacian_u, out_u, out_v, diffusivity_u):
+@ACCELERATOR.compile
+def _implicit_rhs_kernel(laplacian_u: Array, out_u: Array, out_v: Array, diffusivity_u: float) -> None:
     out_u[:] = diffusivity_u * laplacian_u
     out_v[:] = 0.0
 
+
+@ACCELERATOR.compile
+def _apply_kernel(
+    du: Array,
+    dv: Array,
+    origin_u: Array,
+    origin_v: Array,
+    result_u: Array,
+    result_v: Array,
+) -> None:
+    size = du.size
+    for index in range(size):
+        result_u[index] = origin_u[index] + du[index]
+        result_v[index] = origin_v[index] + dv[index]
+
+
+@ACCELERATOR.compile
+def _norm_kernel(du: Array, dv: Array) -> float:
+    size = du.size
+    total = 0.0
+    for index in range(size):
+        total += du[index] * du[index] + dv[index] * dv[index]
+    return (total / size) ** 0.5
+
+
+@ACCELERATOR.compile
+def _inner_product_kernel(left_du: Array, left_dv: Array, right_du: Array, right_dv: Array) -> float:
+    size = left_du.size
+    total = 0.0
+    for index in range(size):
+        total += left_du[index] * right_du[index] + left_dv[index] * right_dv[index]
+    return total
+
+
+@ACCELERATOR.compile
+def _state_error_kernel(u: Array, v: Array, reference_u: Array, reference_v: Array) -> float:
+    size = u.size
+    total = 0.0
+    for index in range(size):
+        u_error = u[index] - reference_u[index]
+        v_error = v[index] - reference_v[index]
+        total += u_error * u_error + v_error * v_error
+    return (total / (size + size)) ** 0.5
+
+
 def _translation_inner_product(left, right):
-    return float(np.dot(left.du, right.du) + np.dot(left.dv, right.dv))
+    return float(_inner_product_kernel(left.du, left.dv, right.du, right.dv))
 
 
 @dataclass(slots=True)
@@ -132,6 +192,8 @@ class FitzHughNagumoState:
 class FitzHughNagumoTranslation:
     __slots__ = ("du", "dv")
 
+    linear_combine: tuple[Callable[..., Any], ...] = ()
+
     def __init__(self, du: np.ndarray, dv: np.ndarray) -> None:
         self.du = du
         self.dv = dv
@@ -147,29 +209,38 @@ class FitzHughNagumoTranslation:
     def __rmul__(self, scalar: float) -> FitzHughNagumoTranslation:
         return FitzHughNagumoTranslation(scalar * self.du, scalar * self.dv)
 
+    def __mul__(self, scalar: float) -> FitzHughNagumoTranslation:
+        return self.__rmul__(scalar)
+
     def __call__(self, origin: FitzHughNagumoState, result: FitzHughNagumoState) -> None:
-        result.u[...] = origin.u + self.du
-        result.v[...] = origin.v + self.dv
+        _apply_kernel(
+            self.du,
+            self.dv,
+            origin.u,
+            origin.v,
+            result.u,
+            result.v,
+        )
 
     def norm(self) -> float:
-        energy = np.dot(self.du.ravel(), self.du.ravel()) + np.dot(self.dv.ravel(), self.dv.ravel())
-        return sqrt(float(energy) / self.du.size)
+        return float(_norm_kernel(self.du, self.dv))
 
 
-class FitzHughNagumoWorkbench:
+class FitzHughNagumoAllocator:
     __slots__ = ("grid_size",)
-    _compiled = False
+
+    _algebraist_installed = False
+    _specialist: AlgebraistGeneratorSpecialist | None = None
 
     def __init__(self, grid_size: int) -> None:
         self.grid_size = grid_size
-        if not self.__class__._compiled:
+        if not self.__class__._algebraist_installed:
             probe = np.zeros(grid_size, dtype=np.float64)
             ACCELERATOR.compile_examples(_laplacian_periodic, (probe, probe, 1.0))
-            FitzHughNagumoTranslation.linear_combine = _generated_linear_combine(self)
-            self.__class__._compiled = True
+            self._install_algebraist()
 
     def __repr__(self) -> str:
-        return f"FitzHughNagumoWorkbench(grid_size={self.grid_size!r})"
+        return f"FitzHughNagumoAllocator(grid_size={self.grid_size!r})"
 
     __str__ = __repr__
 
@@ -179,9 +250,9 @@ class FitzHughNagumoWorkbench:
             np.zeros(self.grid_size, dtype=np.float64),
         )
 
-    def copy_state(self, dst: FitzHughNagumoState, src: FitzHughNagumoState) -> None:
-        np.copyto(dst.u, src.u)
-        np.copyto(dst.v, src.v)
+    def copy_state(self, source: FitzHughNagumoState, out: FitzHughNagumoState) -> None:
+        np.copyto(out.u, source.u)
+        np.copyto(out.v, source.v)
 
     def allocate_translation(self) -> FitzHughNagumoTranslation:
         return FitzHughNagumoTranslation(
@@ -189,15 +260,31 @@ class FitzHughNagumoWorkbench:
             np.zeros(self.grid_size, dtype=np.float64),
         )
 
+    @property
+    def specialist(self):
+        specialist = self.__class__._specialist
+        if specialist is None:
+            raise RuntimeError("FitzHughNagumoAllocator Algebraist support was not installed.")
+        return specialist
 
-def _generated_linear_combine(workbench):
-    provider = AlgebraistGeneratorGeneral(
-        translation=workbench.allocate_translation(),
-        workbench=workbench,
-        layout=ALGEBRAIST_LAYOUT,
-        accelerator=ACCELERATOR,
-    )
-    return tuple(provider.provide(AlgebraistArity(arity)) for arity in range(1, 13))
+    def _install_algebraist(self) -> None:
+        general = AlgebraistGeneratorGeneral(
+            translation=self.allocate_translation(),
+            allocator=self,
+            layout=ALGEBRAIST_LAYOUT,
+            accelerator=ACCELERATOR,
+        )
+        FitzHughNagumoTranslation.linear_combine = tuple(
+            general.provide(AlgebraistArity(arity))
+            for arity in range(1, 13)
+        )
+        self.__class__._specialist = AlgebraistGeneratorSpecialist(
+            translation=self.allocate_translation(),
+            allocator=self,
+            layout=ALGEBRAIST_LAYOUT,
+            accelerator=ACCELERATOR,
+        )
+        self.__class__._algebraist_installed = True
 
 
 class FitzHughNagumoDerivative:
@@ -365,12 +452,6 @@ class ComparisonMarcherCounting:
     def snapshot_state(self, state):
         return self.marcher.snapshot_state(state)
 
-    def set_safety(self, safety: Safety) -> None:
-        self.marcher.set_safety(safety)
-
-    def set_apply_delta_safety(self, enabled: bool) -> None:
-        self.marcher.set_apply_delta_safety(enabled)
-
 
 @dataclass(slots=True)
 class FitzHughNagumoTrajectory:
@@ -381,21 +462,19 @@ class FitzHughNagumoTrajectory:
 
 
 def _error_against_reference(state: FitzHughNagumoState, reference) -> float:
-    du = state.u - reference["u"]
-    dv = state.v - reference["v"]
-    return float(np.sqrt((np.dot(du, du) + np.dot(dv, dv)) / (du.size + dv.size)))
+    return float(_state_error_kernel(state.u, state.v, reference["u"], reference["v"]))
 
 
-def _scheme_regulator(scheme_type):
+def _scheme_adaptivity(scheme_type):
     if scheme_type is SchemeKennedyCarpenter43_7:
-        return Regulator(safety=0.95, error_exponent=0.25)
+        return ExecutorAdaptivity(safety=0.95, error_exponent=0.25)
     if scheme_type is SchemeKvaerno3:
-        return Regulator(safety=0.95, error_exponent=1.0 / 3.0)
-    return Regulator(safety=0.95, error_exponent=0.45)
+        return ExecutorAdaptivity(safety=0.95, error_exponent=1.0 / 3.0)
+    return ExecutorAdaptivity(safety=0.95, error_exponent=0.45)
 
 
-def _imex_derivative(parameters: FitzHughNagumoParameters) -> ImExDerivative:
-    return ImExDerivative(
+def _imex_derivative(parameters: FitzHughNagumoParameters) -> DerivativeIMEX:
+    return DerivativeIMEX(
         implicit=FitzHughNagumoImplicitDerivative(parameters),
         explicit=FitzHughNagumoExplicitDerivative(parameters),
     )
@@ -423,12 +502,16 @@ class FitzHughNagumoSpectralResolvent:
         alpha = problem.alpha
         rhs = problem.rhs
         delta = out[0]
+        if rhs is None:
+            delta.dv.fill(0.0)
+        else:
+            np.copyto(delta.dv, rhs[0].dv)
+
         if alpha == 0.0:
             if rhs is None:
                 delta.du.fill(0.0)
             else:
                 np.copyto(delta.du, rhs[0].du)
-            delta.dv.fill(0.0)
             return
 
         if rhs is None:
@@ -439,74 +522,73 @@ class FitzHughNagumoSpectralResolvent:
         self.u_hat /= denominator
         resolved_u = np.fft.ifft(self.u_hat).real
         delta.du[:] = resolved_u - state.u
-        delta.dv.fill(0.0)
 
 
 def _build_anderson_solver(label, scheme_type, parameters: FitzHughNagumoParameters):
-    safety = Safety.fast()
-    workbench = FitzHughNagumoWorkbench(parameters.grid_size)
+    executor_safety = ExecutorSafety.fast()
+    allocator = FitzHughNagumoAllocator(parameters.grid_size)
     derivative = FitzHughNagumoDerivative(parameters)
     resolvent = ResolventAnderson(
-        workbench,
+        allocator,
         _translation_inner_product,
-        tolerance=ResolventTolerance(
+        ExecutorTolerance=ResolventTolerance(
             atol=parameters.resolution_atol,
             rtol=parameters.resolution_rtol,
         ),
         policy=ResolventPolicy(max_iterations=parameters.resolution_max_iterations),
         depth=4,
-        safety=safety,
+        safety=executor_safety,
         accelerator=ACCELERATOR,
         tableau=scheme_type.tableau,
     )
     scheme = scheme_type(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
-        regulator=_scheme_regulator(scheme_type),
+        adaptivity=_scheme_adaptivity(scheme_type),
+        specialist=allocator.specialist,
     )
     marcher = ComparisonMarcherCounting(
         Marcher(
             scheme,
             Executor(
-                tolerance=Tolerance(
+                tolerance=ExecutorTolerance(
                     atol=parameters.tolerance_atol,
                     rtol=parameters.tolerance_rtol,
                 ),
-                safety=safety,
-                accelerator=ACCELERATOR,
+                safety=executor_safety,
             ),
         )
     )
-    integrator = Integrator(executor=Executor(safety=safety, accelerator=ACCELERATOR))
+    integrator = Integrator(executor=Executor(safety=executor_safety))
     return label, integrator, marcher
 
 
 def _build_imex_spectral_solver(label, scheme_type, parameters: FitzHughNagumoParameters):
-    safety = Safety.fast()
-    workbench = FitzHughNagumoWorkbench(parameters.grid_size)
+    executor_safety = ExecutorSafety.fast()
+    allocator = FitzHughNagumoAllocator(parameters.grid_size)
     derivative = _imex_derivative(parameters)
     resolvent = FitzHughNagumoSpectralResolvent(parameters, tableau=scheme_type.tableau)
     scheme = scheme_type(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
-        regulator=_scheme_regulator(scheme_type),
+        adaptivity=_scheme_adaptivity(scheme_type),
+        specialist=allocator.specialist,
     )
     marcher = ComparisonMarcherCounting(
         Marcher(
             scheme,
             Executor(
-                tolerance=Tolerance(
+                tolerance=ExecutorTolerance(
                     atol=parameters.tolerance_atol,
                     rtol=parameters.tolerance_rtol,
                 ),
-                safety=safety,
-                accelerator=ACCELERATOR,
+                safety=executor_safety,
             ),
         )
     )
-    integrator = Integrator(executor=Executor(safety=safety, accelerator=ACCELERATOR))
+    integrator = Integrator(executor=Executor(safety=executor_safety))
     return label, integrator, marcher
 
 
@@ -548,14 +630,14 @@ def prepare_kc43_imex_spectral(problem_parameters, stark_parameters, initial_con
 
 def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParameters) -> FitzHughNagumoTrajectory:
     del name
-    safety = Safety.fast()
-    workbench = FitzHughNagumoWorkbench(parameters.grid_size)
+    executor_safety = ExecutorSafety.fast()
+    allocator = FitzHughNagumoAllocator(parameters.grid_size)
     derivative = FitzHughNagumoDerivative(parameters)
     linearizer = FitzHughNagumoLinearizer(parameters)
     inverter = inverter_class(
-        workbench,
+        allocator,
         _translation_inner_product,
-        tolerance=InverterTolerance(
+        ExecutorTolerance=InverterTolerance(
             atol=parameters.inversion_atol,
             rtol=parameters.inversion_rtol,
         ),
@@ -563,35 +645,34 @@ def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParamet
             max_iterations=parameters.inversion_max_iterations,
             restart=parameters.inversion_restart,
         ),
-        safety=safety,
-        accelerator=ACCELERATOR,
+        safety=executor_safety,
     )
     resolvent = ResolventNewton(
-        workbench,
+        allocator,
         linearizer=linearizer,
         inverter=inverter,
-        tolerance=ResolventTolerance(
+        ExecutorTolerance=ResolventTolerance(
             atol=parameters.resolution_atol,
             rtol=parameters.resolution_rtol,
         ),
         policy=ResolventPolicy(max_iterations=parameters.resolution_max_iterations),
-        safety=safety,
+        safety=executor_safety,
         accelerator=ACCELERATOR,
         tableau=SchemeKvaerno3.tableau,
     )
     scheme = SchemeKvaerno3(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
-        regulator=_scheme_regulator(SchemeKvaerno3),
+        adaptivity=_scheme_adaptivity(SchemeKvaerno3),
+        specialist=allocator.specialist,
     )
     executor = Executor(
-        tolerance=Tolerance(
+        tolerance=ExecutorTolerance(
             atol=parameters.tolerance_atol,
             rtol=parameters.tolerance_rtol,
         ),
-        safety=safety,
-        accelerator=ACCELERATOR,
+        safety=executor_safety,
     )
     integrate = Integrator(executor=executor)
     marcher = ComparisonMarcherCounting(Marcher(scheme, executor))
@@ -617,10 +698,6 @@ def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParamet
         steps=marcher.steps,
         runtime=runtime,
     )
-
-
-
-
 
 
 

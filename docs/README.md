@@ -50,7 +50,7 @@ The main pieces are:
   applied to a state.
 - `Derivative`: a callable `derivative(interval, state, out)` that writes the
   time derivative into a translation object.
-- `Workbench`: an object that allocates blank states/translations and copies
+- `Allocator`: an object that allocates blank states/translations and copies
   states.
 - `Scheme`: a one-step integration method.
 - `Marcher`: couples a scheme to tolerances and performs one accepted step.
@@ -62,7 +62,7 @@ The main pieces are:
 The standard import path is:
 
 ```python
-from stark import Executor, Marcher, Auditor, Integrator, Interval, Tolerance
+from stark import Executor, Marcher, Auditor, Integrator, Interval, ExecutorTolerance
 from stark.accelerators import AcceleratorAbsent
 ```
 
@@ -85,7 +85,7 @@ Create a `Marcher` object from a scheme and an `Executor`:
 
 ```python
 executor = Executor(
-    tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6),
+    ExecutorTolerance=ExecutorTolerance(atol=1.0e-8, rtol=1.0e-6),
     accelerator=AcceleratorAbsent(),
 )
 marcher = Marcher(scheme, executor)
@@ -123,10 +123,9 @@ for output_interval, output_state in integrate.live(
     ...
 ```
 
-`Executor` also carries the selected `Accelerator`. Accelerators live under
-`stark.accelerators`, with contracts in `stark.contracts`, so the extension
-point is explicit and auditable rather than hidden behind backend checks. The
-default is `AcceleratorAbsent()`, so acceleration remains opt-in.
+Acceleration is configured on the objects that use it, such as Algebraist
+providers, resolvents, and inverters. `Executor` deliberately carries only
+execution policy for a run.
 
 Checkpoints are useful for plots and animations: the solver may adapt internally
 while the user only observes chosen output times.
@@ -273,10 +272,10 @@ translation must provide:
 - `__add__(other)`: generic translation addition.
 - `__rmul__(scalar)`: generic scalar multiplication.
 
-The `Workbench` must provide:
+The `Allocator` must provide:
 
 - `allocate_state()`: return a blank state object.
-- `copy_state(dst, src)`: overwrite `dst` with `src`.
+- `copy_state(source, out)`: overwrite `out` with `source`.
 - `allocate_translation()`: return a blank translation object.
 
 The `Derivative` is usually the thinnest adapter:
@@ -291,9 +290,9 @@ def derivative(interval, state, out):
 For IMEX work, STARK provides a small split carrier:
 
 ```python
-from stark import ImExDerivative
+from stark import DerivativeIMEX
 
-imex = ImExDerivative(
+imex = DerivativeIMEX(
     implicit=implicit_derivative,
     explicit=explicit_derivative,
 )
@@ -309,11 +308,11 @@ Use `Auditor` before a long solve:
 audit = Auditor(
     state=state,
     derivative=derivative,
-    translation=workbench.allocate_translation(),
-    workbench=workbench,
+    translation=allocator.allocate_translation(),
+    allocator=allocator,
     interval=interval,
     scheme=scheme,
-    tolerance=tolerance,
+    ExecutorTolerance=ExecutorTolerance,
 )
 print(audit)
 audit.raise_if_invalid()
@@ -322,34 +321,48 @@ audit.raise_if_invalid()
 Or, for an IMEX split:
 
 ```python
-Auditor.require_imex_scheme_inputs(imex, workbench, workbench.allocate_translation())
+Auditor.require_imex_scheme_inputs(imex, allocator, allocator.allocate_translation())
 ```
 
 ## Fast translation paths
 
 The generic translation fallback uses `__add__` and `__rmul__`. That is simple
-and expressive, but it may allocate many temporary objects. For array-backed
-or performance-sensitive problems, translations can expose optimized
+and expressive, but it may allocate many temporary objects. For array-backed or
+performance-sensitive problems, translations can expose optimized
 linear-combination kernels.
 
-The easiest way to do that is with `Algebraist`, which generates inspectable
-fast paths from field metadata:
+Algebraist is STARK's generated-algebra layer. It has two common roles:
+
+- `AlgebraistGeneratorGeneral` provides arity-based translation combinations
+  such as `out = a0 * x0 + a1 * x1`.
+- `AlgebraistGeneratorSpecialist` provides fixed-coefficient scheme kernels
+  for stages, accepted increments, and embedded error estimates.
+
+Both providers are explicit objects. The allocator installs them when the
+problem wants generated kernels:
 
 ```python
-from stark.algebraist.classic import Algebraist, AlgebraistField, AlgebraistLooped
+from stark.algebraist import (
+    AlgebraistArity,
+    AlgebraistGeneratorGeneral,
+    AlgebraistGeneratorSpecialist,
+    AlgebraistLayout,
+    AlgebraistLayoutField,
+    AlgebraistLayoutLooped,
+)
 
-ALGEBRAIST = Algebraist(
+LAYOUT = AlgebraistLayout(
     fields=(
-        AlgebraistField("du", "u", policy=AlgebraistLooped(rank=2)),
-        AlgebraistField("dv", "v", policy=AlgebraistLooped(rank=2)),
+        AlgebraistLayoutField("du", "u", policy=AlgebraistLayoutLooped(rank=2)),
+        AlgebraistLayoutField("dv", "v", policy=AlgebraistLayoutLooped(rank=2)),
     ),
-    accelerator=ACCELERATOR,
-    generate_norm="rms",
 )
 
 
 class ArrayTranslation:
     __slots__ = ("du", "dv")
+
+    linear_combine = ()
 
     def __init__(self, du, dv):
         self.du = du
@@ -360,76 +373,72 @@ class ArrayTranslation:
 
     def __rmul__(self, scalar):
         return ArrayTranslation(scalar * self.du, scalar * self.dv)
-
-    linear_combine = ALGEBRAIST.linear_combine
-    __call__ = ALGEBRAIST.apply
-    norm = ALGEBRAIST.norm
 ```
 
-The workbench still returns ordinary translation objects:
+The allocator still returns ordinary translation objects. It can also attach
+generated combination kernels to the translation class and keep a specialist
+provider for schemes:
 
 ```python
-class ArrayWorkbench:
-    def allocate_translation(self):
-        return ArrayTranslation(np.zeros_like(self.prototype))
-```
+class ArrayAllocator:
+    _specialist = None
 
-If you are using an accelerator, the workbench can also precompile the emitted
-kernels on probe data:
-
-```python
-class ArrayWorkbench:
-    def __init__(self, prototype):
-        self.prototype = prototype
-        probe = np.zeros_like(prototype)
-        ALGEBRAIST.compile_examples(probe, probe)
+    def __init__(self, shape, accelerator):
+        self.shape = shape
+        self.accelerator = accelerator
+        self._install_algebraist()
 
     def allocate_translation(self):
         return ArrayTranslation(
-            np.zeros_like(self.prototype),
-            np.zeros_like(self.prototype),
+            np.zeros(self.shape),
+            np.zeros(self.shape),
+        )
+
+    @property
+    def specialist(self):
+        return self.__class__._specialist
+
+    def _install_algebraist(self):
+        general = AlgebraistGeneratorGeneral(
+            translation=self.allocate_translation(),
+            allocator=self,
+            layout=LAYOUT,
+            accelerator=self.accelerator,
+        )
+        ArrayTranslation.linear_combine = tuple(
+            general.provide(AlgebraistArity(arity))
+            for arity in range(1, 13)
+        )
+        self.__class__._specialist = AlgebraistGeneratorSpecialist(
+            translation=self.allocate_translation(),
+            allocator=self,
+            layout=LAYOUT,
+            accelerator=self.accelerator,
         )
 ```
 
-When a scheme is constructed, STARK asks the workbench for a translation,
-inspects that translation for `linear_combine`, and stores the resolved kernels
-inside the scheme. The rest of the integration code does not need to pass the
-fast paths around explicitly.
+Pass the specialist to schemes that can use generated fixed-coefficient stage
+algebra:
 
-`Algebraist` keeps the generated source on `sources`, `kernel_sources`, and
-`wrapper_sources`, so users can inspect exactly what it emitted before trusting
-it. If a problem is better served by handwritten code, users can override the
-generated `linear_combine`, `__call__`, or `norm` methods directly.
+```python
+scheme = SchemeDormandPrince(
+    derivative,
+    allocator,
+    specialist=allocator.specialist,
+)
+```
 
-Explicit schemes can also receive the same object with `algebraist=ALGEBRAIST`.
-That asks STARK to generate scheme-specific state-update kernels for explicit
-Runge-Kutta stages and final updates. It is useful when the problem is large
-enough, or repeated often enough, to offset accelerator warmup and compilation
-costs. For small one-off solves, constructing the scheme without `algebraist=`
-may still be faster.
+Generated scheme algebra does not generate nonlinear solver loops,
+convergence checks, resolvent logic, inverter internals, or preconditioners.
+Implicit and IMEX schemes use it for scheme-owned algebra such as known stage
+shifts, final increments, and embedded error combinations.
 
-For implicit and IMEX schemes, Algebraist support is intentionally narrower:
-it may generate scheme-owned algebra such as known stage shifts, final updates,
-and embedded error combinations. It does not generate nonlinear solver loops,
-convergence checks, resolvent logic, inverter internals, or preconditioners. If
-resolvents gain generated fast paths later, they should receive an Algebraist
-directly instead of inheriting scheme-level generated code.
+The general `linear_combine` tuple is one-based by arity:
 
-The entries are:
-
-- `linear_combine[0]`: `scale(out, a, x)`
-- `linear_combine[1]`: `combine2(out, a0, x0, a1, x1)`
-- `linear_combine[2]`: `combine3(out, a0, x0, a1, x1, a2, x2)`
+- `linear_combine[0]`: one-source combination, `out = a0 * x0`
+- `linear_combine[1]`: two-source combination, `out = a0 * x0 + a1 * x1`
+- `linear_combine[2]`: three-source combination
 - and so on through the fused arity supplied by the translation.
-
-If only `scale` and `combine2` are supplied, STARK builds the higher-arity
-combinations from `combine2` and scratch translations allocated by the
-workbench. The generic scheme workspace has named combination slots through
-`combine12`, which covers the current built-in explicit, implicit, and IMEX
-schemes. For best performance, provide fused `combine3`, `combine4`, ...
-kernels directly. `Algebraist` can generate fused kernels according to its
-configured `fused_up_to`, and users can still attach handwritten kernels when
-that is a better fit.
 
 Fast paths should obey the same aliasing rule as translation application: the
 output buffer may be one of the input buffers, so kernels should be correct for
@@ -449,22 +458,21 @@ from stark.accelerators import AcceleratorAbsent, AcceleratorJax, AcceleratorNum
 ```
 
 Users who want a custom accelerator implement the public accelerator protocol
-and, when a worker has an accelerated form, expose it with an
-`accelerated(accelerator, request)` hook:
+and use `compile(...)` for plain callable kernels:
 
 ```python
-from stark.contracts.acceleration import AccelerationRequest, AccelerationRole
+from stark.accelerators import AcceleratorNumba
 
+accelerator = AcceleratorNumba()
 
-class MyDerivative:
-    def __call__(self, interval, state, out):
-        ...
-
-    def accelerated(self, accelerator, request: AccelerationRequest):
-        if request.role is AccelerationRole.DERIVATIVE and accelerator.name == "numba":
-            return MyNumbaDerivative(...)
-        return self
+@accelerator.compile
+def rhs_kernel(values, out):
+    ...
 ```
+
+Higher-level STARK entry points should remain the usual starting point. Custom
+compiled kernels and custom worker objects are available when a problem needs a
+performance-specific implementation.
 
 `Auditor(..., accelerator=my_accelerator)` checks that a custom accelerator is
 conformant before a solve, just as `Auditor(..., scheme=...)` and
@@ -499,18 +507,22 @@ The `__call__` method should:
 
 `Marcher` will then increment `interval.present` by the returned step size.
 
-For built-in-style schemes, the common pattern is to own a `SchemeWorkspace`
-instance. `SchemeWorkspace` resolves the workbench, scratch states, scratch
-translations, translation application, and linear-combination fast paths:
+For built-in-style schemes, the common pattern is to use the helpers under
+`stark.schemes.support`. They install the non-algorithmic parts that would
+otherwise clutter a scheme body: workspace construction, state snapshots,
+apply-delta ExecutorSafety, adaptive step control, monitoring hooks, and display
+metadata.
 
 ```python
-from stark.machinery.stage_solve.workspace import SchemeWorkspace
+from stark.schemes.support import initialise_explicit_support
 
 
 class MyScheme:
-    def __init__(self, derivative, workbench):
-        self.derivative = derivative
-        self.workspace = SchemeWorkspace(workbench, workbench.allocate_translation())
+    def __init__(self, derivative, allocator):
+        initialise_explicit_support(self, derivative, allocator)
+
+    def __call__(self, interval, state, executor):
+        ...
 ```
 
 The richer `Scheme` protocol also exposes readable metadata, tableaus, and
@@ -518,7 +530,7 @@ string formatting. That is useful for library-quality schemes, but not required
 for `Marcher`.
 
 Run `Auditor(..., scheme=my_scheme)` to check a custom scheme alongside the
-state, translation, workbench, interval, and tolerance objects.
+state, translation, allocator, interval, and ExecutorTolerance objects.
 
 ## Implicit and IMEX schemes
 
@@ -535,7 +547,7 @@ which resolvent you choose:
 The common implicit shape is:
 
 ```python
-from stark import Executor, Marcher, Tolerance
+from stark import Executor, Marcher, ExecutorTolerance
 from stark.accelerators import AcceleratorAbsent
 from stark.inverters import InverterBiCGStab
 from stark.inverters import InverterPolicy, InverterTolerance
@@ -543,32 +555,31 @@ from stark.resolvents import ResolventNewton
 from stark.resolvents import ResolventPolicy, ResolventTolerance
 from stark.schemes import SchemeKvaerno3
 
-workbench = MyWorkbench()
+allocator = MyAllocator()
 derivative = MyDerivative()
 linearizer = MyLinearizer()
 accelerator = AcceleratorAbsent()
 inverter = InverterBiCGStab(
-    workbench,
+    allocator,
     my_inner_product,
-    tolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
+    ExecutorTolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
     policy=InverterPolicy(max_iterations=24),
     accelerator=accelerator,
 )
 resolvent = ResolventNewton(
-    derivative,
-    workbench,
+    allocator,
     linearizer=linearizer,
     inverter=inverter,
-    tolerance=ResolventTolerance(atol=1.0e-7, rtol=1.0e-7),
+    ExecutorTolerance=ResolventTolerance(atol=1.0e-7, rtol=1.0e-7),
     policy=ResolventPolicy(max_iterations=24),
     accelerator=accelerator,
 )
 scheme = SchemeKvaerno3(
     derivative,
-    workbench,
+    allocator,
     resolvent=resolvent,
 )
-executor = Executor(tolerance=Tolerance(atol=1.0e-6, rtol=1.0e-5), accelerator=accelerator)
+executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-6, rtol=1.0e-5))
 marcher = Marcher(scheme, executor)
 ```
 
@@ -586,7 +597,7 @@ The current package layout mirrors that structure directly:
 - `stark.schemes`
 - `stark.resolvents`
 - `stark.inverters`
-- `stark.execution`
+- `stark.executor`
 - `stark.comparison`
 - `stark.contracts`
 
@@ -629,12 +640,6 @@ performance-oriented extension point.
 
 Formal performance-regression tracking belongs in an ASV suite, not in these
 comparison reports. See [`docs/benchmarking.md`](benchmarking.md).
-
-
-
-
-
-
 
 
 

@@ -1,3 +1,11 @@
+"""Generated and runtime algebra providers for STARK hot paths.
+
+Algebraist objects provide explicit kernels for vector-space operations used
+inside schemes and related workers. General providers supply arity-based
+translation combinations; specialist providers supply fixed-coefficient
+stencils for scheme stages, accepted increments, and embedded error estimates.
+"""
+
 from stark.algebraist.algebraist import Algebraist, AlgebraistKernel, AlgebraistRequest
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.general import AlgebraistGeneral, AlgebraistGeneralKernel
@@ -21,7 +29,7 @@ from stark.algebraist.layout import (
 from stark.algebraist.runtime import AlgebraistRuntimeGeneral, AlgebraistRuntimeSpecialist
 from stark.algebraist.specialist import AlgebraistSpecialist
 from stark.algebraist.stencil import AlgebraistStencil
-from stark.algebraist.workbench import AlgebraistWorkbench
+from stark.algebraist.allocator import AlgebraistAllocator
 
 __all__ = [
     "MAX_UNRAVEL_SIZE",
@@ -47,5 +55,5 @@ __all__ = [
     "AlgebraistRuntimeSpecialist",
     "AlgebraistSpecialist",
     "AlgebraistStencil",
-    "AlgebraistWorkbench",
+    "AlgebraistAllocator",
 ]

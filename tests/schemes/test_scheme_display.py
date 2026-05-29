@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import ImExDerivative
+from stark import DerivativeIMEX
 from stark.accelerators import Accelerator
 from stark.resolvents import ResolventPicard
 from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
@@ -33,12 +33,12 @@ class DummyTranslation:
         return DummyTranslation(scalar * self.value)
 
 
-class DummyWorkbench:
+class DummyAllocator:
     def allocate_state(self) -> object:
         return object()
 
-    def copy_state(self, dst: object, src: object) -> None:
-        del dst, src
+    def copy_state(self, source: object, out: object) -> None:
+        del out, source
 
     def allocate_translation(self) -> DummyTranslation:
         return DummyTranslation()
@@ -49,36 +49,36 @@ def dummy_derivative(interval, state, out: DummyTranslation) -> None:
 
 
 def make_imex_euler() -> SchemeIMEXEuler:
-    split = ImExDerivative(
+    split = DerivativeIMEX(
         implicit=dummy_derivative,
         explicit=dummy_derivative,
     )
-    workbench = DummyWorkbench()
+    allocator = DummyAllocator()
     resolvent = ResolventPicard(
-        workbench,
+        allocator,
         accelerator=Accelerator.none(),
         tableau=SchemeIMEXEuler.tableau,
     )
-    return SchemeIMEXEuler(split, workbench, resolvent=resolvent)
+    return SchemeIMEXEuler(split, allocator, resolvent=resolvent)
 
 
 @pytest.mark.parametrize(
     ("scheme", "short_name", "full_name", "tableau_text"),
     [
         (
-            SchemeEuler(dummy_derivative, DummyWorkbench()),
+            SchemeEuler(dummy_derivative, DummyAllocator()),
             "Euler",
             "Forward Euler",
             "Butcher tableau",
         ),
         (
-            SchemeRK4(dummy_derivative, DummyWorkbench()),
+            SchemeRK4(dummy_derivative, DummyAllocator()),
             "RK4",
             "Classical Runge-Kutta",
             "Butcher tableau",
         ),
         (
-            SchemeBogackiShampine(dummy_derivative, DummyWorkbench()),
+            SchemeBogackiShampine(dummy_derivative, DummyAllocator()),
             "BS23",
             "Bogacki-Shampine",
             "Butcher tableau",
@@ -131,7 +131,7 @@ def test_with_scheme_display_object_matches_descriptor_behaviour() -> None:
 
 
 def test_with_scheme_display_keeps_repr_exactly_equivalent_to_descriptor() -> None:
-    scheme = SchemeRK4(dummy_derivative, DummyWorkbench())
+    scheme = SchemeRK4(dummy_derivative, DummyAllocator())
 
     assert repr(scheme) == SchemeRK4.descriptor.repr_for(
         "SchemeRK4",

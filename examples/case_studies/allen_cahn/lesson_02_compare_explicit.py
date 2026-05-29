@@ -23,7 +23,7 @@ from stark.schemes import SchemeCashKarp, SchemeDormandPrince
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     DIFFUSIVITY,
-    TOLERANCE,
+    EXECUTOR_TOLERANCE,
     AllenCahnRHS,
     Geometry,
     initial_profile,
@@ -35,10 +35,10 @@ from examples.case_studies.allen_cahn.lesson_01_problem import (
 
 if __name__ == "__main__":
     geometry = Geometry()
-    executor = Executor(tolerance=TOLERANCE)
+    executor = Executor(tolerance=EXECUTOR_TOLERANCE)
 
     # We ask `StarkIVP` to prepare the vector-space boundary once, then reuse
-    # the prepared derivative/workbench with two different schemes. This keeps
+    # the prepared derivative/allocator with two different schemes. This keeps
     # the comparison focused on method behaviour rather than interface setup.
 
     template = StarkIVP(
@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
     carrier = template.initial.carrier
     derivative = template.derivative
-    workbench = template.workbench
+    allocator = template.allocator
 
     # ComparisonRunner needs fresh states and intervals for each warmup, timed repeat,
     # and profiling pass. The carrier prepared by `StarkIVP` knows how to treat
@@ -67,18 +67,18 @@ if __name__ == "__main__":
         diagnostics=state_diagnostics,
     )
 
-    # Both entries share the same prepared derivative and workbench. That is
+    # Both entries share the same prepared derivative and allocator. That is
     # acceptable here because the derivative owns only reusable scratch storage
     # for one sequential comparison run.
 
     entries = [
         ComparisonEntry(
             "Cash-Karp",
-            Marcher(SchemeCashKarp(derivative, workbench), executor),
+            Marcher(SchemeCashKarp(derivative, allocator), executor),
         ),
         ComparisonEntry(
             "Dormand-Prince",
-            Marcher(SchemeDormandPrince(derivative, workbench), executor),
+            Marcher(SchemeDormandPrince(derivative, allocator), executor),
         ),
     ]
 

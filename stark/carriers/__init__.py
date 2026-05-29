@@ -26,7 +26,6 @@ from stark.carriers.native import (
     CarrierNative,
     CarrierAllocationNative,
     CarrierArithmeticNative,
-    CarrierNative,
     CarrierNativeValue,
     CarrierNormNativeMax,
     CarrierNormNativeRMS,
@@ -47,7 +46,7 @@ __all__ += [
     "CarrierValidationNative",
 ]
 
-# New NumPy carrier parts
+# NumPy carrier parts
 
 from stark.carriers.numpy import (
     CarrierNumpy,
@@ -96,10 +95,10 @@ else:
         "CarrierValidationCupy",
     ]
 
-# New optional JAX carrier parts
+# Optional JAX carrier parts
 
 try:
-   from stark.carriers.jax import (
+    from stark.carriers.jax import (
         CarrierAllocationJax,
         CarrierArithmeticJax,
         CarrierJax,

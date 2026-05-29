@@ -45,13 +45,13 @@ class ParticleDelta:
         )
 
 
-class ParticleWorkbench:
+class ParticleAllocator:
     def allocate_state(self) -> Particle:
         return Particle(0.0, 0.0)
 
-    def copy_state(self, dst: Particle, src: Particle) -> None:
-        dst.position = src.position
-        dst.velocity = src.velocity
+    def copy_state(self, source: Particle, out: Particle) -> None:
+        out.position = source.position
+        out.velocity = source.velocity
 
     def allocate_translation(self) -> ParticleDelta:
         return ParticleDelta()
@@ -67,8 +67,8 @@ def harmonic_motion(
     out.velocity = -state.position
 
 
-workbench = ParticleWorkbench()
-scheme = SchemeRK4(harmonic_motion, workbench)
+allocator = ParticleAllocator()
+scheme = SchemeRK4(harmonic_motion, allocator)
 marcher = Marcher(scheme, Executor())
 interval = Interval(present=0.0, step=0.1, stop=0.5)
 state = Particle(position=1.0, velocity=0.0)

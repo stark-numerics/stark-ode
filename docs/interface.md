@@ -5,7 +5,7 @@ array-valued initial-value problems.
 
 It accepts ordinary Python values, array values, and carrier-backed values,
 then prepares the derivative, state, carrier, routing, scheme, executor,
-marcher, and integrator needed by the core machinery.
+marcher, and integrator needed by the core STARK objects.
 
 The explicit core API remains available for custom state objects, implicit
 resolvents, inverters, accelerators, and problem-specific fast paths. The
@@ -157,8 +157,8 @@ ivp = StarkIVP(
 - Raw initial values are prepared through a carrier.
 - Plain derivative callables are treated as return-style callables.
 - Use `StarkDerivative.in_place` for explicit in-place derivative callables.
-- `StarkIVP.integrate()` returns the existing STARK integration result directly.
-- The interface layer assembles the existing STARK core machinery; it does not replace the core API.
+- `StarkIVP.integrate()` returns the core STARK integration result directly.
+- The interface layer assembles the core STARK objects; it does not replace the core API.
 
 ## Runnable examples
 

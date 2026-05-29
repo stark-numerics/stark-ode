@@ -1,10 +1,10 @@
+"""Single-step orchestration for schemes, executors, and monitors."""
+
 from __future__ import annotations
 
-from stark.accelerators.binding import bind_worker_tree
-from stark.auditor import Auditor
-from stark.execution.executor import Executor
+from stark.core.auditor import Auditor
+from stark.executor.executor import Executor
 from stark.contracts import IntervalLike, SchemeLike, State
-from stark.execution.safety import Safety
 from stark.monitor import Monitor
 
 
@@ -58,11 +58,10 @@ class Marcher:
     ) -> None:
         if not isinstance(executor, Executor):
             raise TypeError("Marcher requires an Executor.")
-        Auditor.require_marcher_inputs(scheme, executor.tolerance, executor.safety, executor.accelerator)
+        Auditor.require_marcher_inputs(scheme, executor.tolerance, executor.safety)
         self.scheme = scheme
         self.executor = executor
         self.monitor: Monitor | None = None
-        bind_worker_tree(self.scheme, self.executor.accelerator)
         assign_executor = getattr(self.scheme, "assign_executor", None)
         if callable(assign_executor):
             assign_executor(self.executor)
@@ -85,7 +84,6 @@ class Marcher:
         if remaining <= 0.0:
             return
 
-        self.scheme.set_apply_delta_safety(self.executor.safety.apply_delta)
         accepted_dt = self.scheme(interval, state, self.executor)
         interval.increment(accepted_dt)
 
@@ -96,19 +94,10 @@ class Marcher:
         if not isinstance(executor, Executor):
             raise TypeError("Marcher.set_executor(...) requires an Executor.")
         self.executor = executor
-        bind_worker_tree(self.scheme, self.executor.accelerator)
         assign_executor = getattr(self.scheme, "assign_executor", None)
         if callable(assign_executor):
             assign_executor(self.executor)
         self.scheme.set_apply_delta_safety(self.executor.safety.apply_delta)
-
-    def set_safety(self, safety: Safety) -> None:
-        self.executor = self.executor.with_updates(safety=safety)
-        self.scheme.set_apply_delta_safety(safety.apply_delta)
-
-    def set_apply_delta_safety(self, enabled: bool) -> None:
-        safety = self.executor.safety
-        self.set_safety(Safety(progress=safety.progress, block_sizes=safety.block_sizes, apply_delta=enabled))
 
     def assign_monitor(self, monitor: Monitor) -> None:
         assign_monitor = getattr(self.scheme, "assign_monitor", None)

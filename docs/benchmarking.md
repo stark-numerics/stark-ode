@@ -136,8 +136,9 @@ overhead. Larger cases show whether generated translation kernels scale.
 
 The benchmark suite measures:
 
-- explicit schemes without `algebraist=`;
-- the same explicit schemes with `algebraist=`;
+- explicit schemes on the plain translation path;
+- the same explicit schemes with Algebraist-backed translation and specialist
+  kernels;
 - construction/setup cost;
 - steady repeated solve cost;
 - interface-layer solves versus direct core-object solves.
@@ -157,9 +158,9 @@ performance history.
 
 ## Interpreting Results
 
-Before optimizing `stark.algebraist.classic.codegen`, record an ASV baseline from the
-current implementation. Future optimization work should be judged against that
-baseline.
+Before optimizing generated Algebraist kernels, record an ASV baseline from
+the current implementation. Future optimization work should be judged against
+that baseline.
 
 Local benchmark results are machine-specific. Treat them as a performance
 history for that machine, not as universal speed claims and not as user-facing

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from stark.block import Block
-from stark.contracts import ImExDerivative, IntervalLike, Resolvent, State, Workbench
-from stark.execution.executor import Executor
-from stark.execution.regulator import Regulator
+from stark.contracts import DerivativeIMEX, IntervalLike, Resolvent, State, Allocator
+from stark.schemes.support.executor import SchemeExecutor
+from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     initialise_imex_support,
@@ -81,19 +81,19 @@ class SchemeIMEXEuler:
 
     def __init__(
         self,
-        derivative: ImExDerivative,
-        workbench: Workbench,
+        derivative: DerivativeIMEX,
+        allocator: Allocator,
         resolvent: Resolvent,
-        regulator: Regulator | None = None,
+        adaptivity: ExecutorAdaptivity | None = None,
         *,
         specialist: SchemeSpecialist | None = None,
     ) -> None:
-        del regulator
+        del adaptivity
         self._monitor = None
         self.advance_call = unbound_scheme_call
         self.resolvent = resolvent
 
-        initialise_imex_support(self, derivative, workbench)
+        initialise_imex_support(self, derivative, allocator)
         self.explicit_derivative = derivative.explicit
         self.implicit_derivative = derivative.implicit
 
@@ -114,7 +114,7 @@ class SchemeIMEXEuler:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
@@ -127,7 +127,7 @@ class SchemeIMEXEuler:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         del executor
         return self._call(interval, state, specialized=False)
@@ -136,7 +136,7 @@ class SchemeIMEXEuler:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         del executor
         return self._call(interval, state, specialized=True)

@@ -1,14 +1,16 @@
+"""Contracts for one-step integration schemes."""
+
 from __future__ import annotations
 
-from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, Protocol
 
 from stark.contracts.audit_support import AuditRecorder
 from stark.contracts.intervals import IntervalLike
-from stark.contracts.translations import State
+from stark.contracts.states import State
+
 if TYPE_CHECKING:
-    from stark.execution.executor import Executor
     from stark.schemes.support.descriptor import SchemeDescriptor
+    from stark.schemes.support.executor import SchemeExecutor
 
 
 class SchemeLike(Protocol):
@@ -23,7 +25,7 @@ class SchemeLike(Protocol):
     also update `interval.step` to propose the next step size.
     """
 
-    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         ...
 
     def snapshot_state(self, state: State) -> State:
@@ -58,53 +60,11 @@ class Scheme(SchemeLike, Protocol):
         ...
 
 
-class MarcherLike(Protocol):
-    """
-    Minimal protocol for step-accepting marchers.
+class SchemeAudit:
+    """Audit a one-step scheme object."""
 
-    A marcher owns a scheme together with an executor and mutates a bound
-    `(interval, state)` pair forward by one accepted step. Snapshot integration
-    also asks the marcher for cloned state objects via `snapshot_state(...)`.
-    """
-
-    def __call__(self, interval: IntervalLike, state: State) -> None:
-        ...
-
-    def snapshot_state(self, state: State) -> State:
-        ...
-
-
-class IntegratorLike(Protocol):
-    """
-    Protocol for trajectory-building workers built on top of a marcher.
-
-    Integrators repeatedly call a marcher until the interval reaches its stop
-    time, yielding either snapshot copies or live mutable objects along the
-    way.
-    """
-
-    def __call__(
-        self,
-        marcher: MarcherLike,
-        interval: IntervalLike,
-        state: State,
-        checkpoints: Any | None = None,
-    ) -> Iterator[tuple[IntervalLike, State]]:
-        ...
-
-    def live(
-        self,
-        marcher: MarcherLike,
-        interval: IntervalLike,
-        state: State,
-        checkpoints: Any | None = None,
-    ) -> Iterator[tuple[IntervalLike, State]]:
-        ...
-
-
-class IntegrationAudit:
     @staticmethod
-    def scheme(recorder: AuditRecorder, scheme: Any) -> None:
+    def __call__(recorder: AuditRecorder, scheme: Any) -> None:
         recorder.check(
             callable(scheme),
             "Scheme provides __call__(interval, state, executor).",
@@ -121,27 +81,5 @@ class IntegrationAudit:
             "Add set_apply_delta_safety(enabled) to control alias-safe state updates.",
         )
 
-    @staticmethod
-    def marcher(recorder: AuditRecorder, marcher: Any, *, snapshots: bool) -> None:
-        recorder.check(callable(marcher), "Marcher object is callable.", "Provide a marcher(interval, state) callable.")
-        if snapshots:
-            recorder.check(
-                callable(getattr(marcher, "snapshot_state", None)),
-                "Marcher provides snapshot_state(state) for snapshot integration.",
-                "Use Marcher(...) or add snapshot_state(state) before calling Integrator(...).",
-            )
 
-
-__all__ = [
-    "IntegrationAudit",
-    "IntegratorLike",
-    "MarcherLike",
-    "Scheme",
-    "SchemeLike",
-]
-
-
-
-
-
-
+__all__ = ["Scheme", "SchemeAudit", "SchemeLike"]

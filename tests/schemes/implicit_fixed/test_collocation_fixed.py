@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stark import Executor, Interval, Tolerance
+from stark import Executor, Interval, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.resolvents import ResolventCoupledPicard
@@ -37,12 +37,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -78,12 +78,12 @@ class ArrayScalarTranslation:
         return ArrayScalarTranslation(scalar * self.value)
 
 
-class ArrayScalarWorkbench:
+class ArrayScalarAllocator:
     def allocate_state(self) -> ArrayScalarState:
         return ArrayScalarState.zero()
 
-    def copy_state(self, dst: ArrayScalarState, src: ArrayScalarState) -> None:
-        dst.value[...] = src.value
+    def copy_state(self, source: ArrayScalarState, out: ArrayScalarState) -> None:
+        out.value[...] = source.value
 
     def allocate_translation(self) -> ArrayScalarTranslation:
         return ArrayScalarTranslation.zero()
@@ -108,38 +108,38 @@ def array_constant_rhs(
 
 
 def make_scheme(scheme_cls):
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     resolvent = ResolventCoupledPicard(
-        workbench,
+        allocator,
         tableau=scheme_cls.tableau,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
     )
     return scheme_cls(
         constant_rhs,
-        workbench,
+        allocator,
         resolvent=resolvent,
     )
 
 
 def make_array_scheme(scheme_cls, *, specialist: bool = False):
-    workbench = ArrayScalarWorkbench()
+    allocator = ArrayScalarAllocator()
     resolvent = ResolventCoupledPicard(
-        workbench,
+        allocator,
         tableau=scheme_cls.tableau,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
     )
     return scheme_cls(
         array_constant_rhs,
-        workbench,
+        allocator,
         resolvent=resolvent,
         specialist=(
             AlgebraistRuntimeSpecialist(
-                translation=workbench.allocate_translation(),
-                workbench=workbench,
+                translation=allocator.allocate_translation(),
+                allocator=allocator,
             )
             if specialist
             else None

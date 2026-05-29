@@ -7,8 +7,8 @@ from typing import Callable
 from stark.accelerators import AcceleratorAbsent
 from stark.algebraist.runtime import AlgebraistRuntimeGeneral
 from stark.block import Block
-from stark.contracts import AcceleratorLike, InnerProduct, Translation, Workbench
-from stark.execution.safety import Safety
+from stark.contracts import AcceleratorLike, InnerProduct, Translation, Allocator
+from stark.resolvents.support.safety import ResolventSafety, ResolventSafetyDefault
 
 
 @dataclass(slots=True, init=False)
@@ -22,24 +22,24 @@ class ResolventWorkspace:
     scale: Callable[..., Translation]
     combine2: Callable[..., Translation]
     combine3: Callable[..., Translation]
-    safety: Safety
+    safety: ResolventSafety
     _check: Callable[..., None]
     _inner_product_impl: Callable[[Block, Block], float]
     _norm_impl: Callable[[Block], float]
 
     def __init__(
         self,
-        workbench: Workbench,
+        allocator: Allocator,
         translation: Translation,
-        safety: Safety | None = None,
+        safety: ResolventSafety | None = None,
         inner_product: InnerProduct | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:
         self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
-        self.allocate_translation = workbench.allocate_translation
+        self.allocate_translation = allocator.allocate_translation
         self.inner_product_translation = inner_product
         self.translation = translation
-        self.safety = safety if safety is not None else Safety()
+        self.safety = safety if safety is not None else ResolventSafetyDefault()
         self._check = self._check_size if self.safety.block_sizes else self._skip_check
         self._inner_product_impl = (
             self._inner_product_configured
@@ -53,7 +53,7 @@ class ResolventWorkspace:
         self.accelerator = accelerator
         algebraist = AlgebraistRuntimeGeneral(
             translation=self.translation,
-            workbench=self,
+            allocator=self,
             accelerator=accelerator,
         )
         self.scale, self.combine2, self.combine3 = algebraist.as_tuple(3)
@@ -142,8 +142,6 @@ class ResolventWorkspace:
 
 
 __all__ = ["ResolventWorkspace"]
-
-
 
 
 

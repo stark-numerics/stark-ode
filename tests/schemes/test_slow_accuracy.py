@@ -5,7 +5,7 @@ from math import cos, sin, sqrt
 
 import pytest
 
-from stark import Executor, Marcher, Integrator, Interval, Tolerance
+from stark import Executor, Marcher, Integrator, Interval, ExecutorTolerance
 from stark.schemes import (
     SchemeBogackiShampine,
     SchemeCashKarp,
@@ -31,7 +31,7 @@ class SchemeCase:
     label: str
     scheme_type: type
     step: float
-    tolerance: Tolerance | None
+    tolerance: ExecutorTolerance | None
     max_error: float
 
 
@@ -44,11 +44,11 @@ SCHEME_CASES = [
     SchemeCase("SSPRK33", SchemeSSPRK33, 2.0e-3, None, 2.0e-7),
     SchemeCase("RK4", SchemeRK4, 5.0e-3, None, 2.0e-8),
     SchemeCase("RK38", SchemeRK38, 5.0e-3, None, 2.0e-8),
-    SchemeCase("BS23", SchemeBogackiShampine, 1.0e-2, Tolerance(atol=1.0e-8, rtol=1.0e-8), 5.0e-7),
-    SchemeCase("RKCK", SchemeCashKarp, 1.0e-2, Tolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
-    SchemeCase("RKF45", SchemeFehlberg45, 1.0e-2, Tolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
-    SchemeCase("RKDP", SchemeDormandPrince, 1.0e-2, Tolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
-    SchemeCase("TSIT5", SchemeTsitouras5, 1.0e-2, Tolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
+    SchemeCase("BS23", SchemeBogackiShampine, 1.0e-2, ExecutorTolerance(atol=1.0e-8, rtol=1.0e-8), 5.0e-7),
+    SchemeCase("RKCK", SchemeCashKarp, 1.0e-2, ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
+    SchemeCase("RKF45", SchemeFehlberg45, 1.0e-2, ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
+    SchemeCase("RKDP", SchemeDormandPrince, 1.0e-2, ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
+    SchemeCase("TSIT5", SchemeTsitouras5, 1.0e-2, ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
 ]
 
 
@@ -196,13 +196,13 @@ class RiccatiTranslation:
     linear_combine = [scale, combine2, combine3, combine4, combine5, combine6, combine7]
 
 
-class RiccatiWorkbench:
+class RiccatiAllocator:
     def allocate_state(self) -> RiccatiState:
         return RiccatiState(0.0, 0.0)
 
-    def copy_state(self, dst: RiccatiState, src: RiccatiState) -> None:
-        dst.t = src.t
-        dst.x = src.x
+    def copy_state(self, source: RiccatiState, out: RiccatiState) -> None:
+        out.t = source.t
+        out.x = source.x
 
     def allocate_translation(self) -> RiccatiTranslation:
         return RiccatiTranslation()
@@ -242,8 +242,8 @@ class RiccatiDerivative:
 def test_scheme_matches_time_dependent_riccati_solution(case: SchemeCase) -> None:
     state = RiccatiState(0.0, exact_solution(0.0))
     interval = Interval(present=0.0, step=case.step, stop=STOP)
-    scheme = case.scheme_type(RiccatiDerivative(), RiccatiWorkbench())
-    marcher = Marcher(scheme, Executor(tolerance=case.tolerance if case.tolerance is not None else Tolerance()))
+    scheme = case.scheme_type(RiccatiDerivative(), RiccatiAllocator())
+    marcher = Marcher(scheme, Executor(tolerance=case.tolerance if case.tolerance is not None else ExecutorTolerance()))
     integrate = Integrator()
 
     steps = 0

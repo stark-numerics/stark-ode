@@ -4,9 +4,8 @@ from dataclasses import dataclass
 from collections.abc import Callable
 
 from stark.contracts import IntervalLike, State
-from stark.execution.adaptive_controller import AdaptiveController
-from stark.execution.executor import Executor
-from stark.execution.regulator import Regulator
+from stark.executor.adaptivity import ExecutorAdaptivity
+from stark.schemes.support.executor import SchemeExecutor
 from stark.schemes.support.monitoring import MonitorSchemeLike
 
 ErrorRatio = Callable[[float, float], float]
@@ -42,27 +41,25 @@ class SchemeStepAdaptiveProposal:
 class SchemeStepControl:
     """Step-control support object for adaptive schemes.
 
-    This object owns adaptive-controller binding, monitor binding, step-size
-    controller delegation, and the latest typed adaptive advance report.
+    This object owns adaptivity binding, monitor binding, step-size
+    calculation delegation, and the latest typed adaptive advance report.
 
     Concrete schemes own their public call routing and their accept/reject
     algorithm.
     """
 
     __slots__ = (
-        "controller",
-        "regulator",
+        "adaptivity",
         "_bound",
-        "_controller",
+        "_adaptivity",
         "_monitor",
         "_ratio",
         "_report",
         "_runtime_bound",
     )
 
-    def __init__(self, regulator: Regulator | None = None) -> None:
-        self.regulator = regulator if regulator is not None else Regulator()
-        self.controller = AdaptiveController(self.regulator)
+    def __init__(self, adaptivity: ExecutorAdaptivity | None = None) -> None:
+        self.adaptivity = adaptivity if adaptivity is not None else ExecutorAdaptivity()
         self._report = SchemeStepAdaptiveAdvanceReport(
             accepted_dt=0.0,
             t_start=0.0,
@@ -71,15 +68,15 @@ class SchemeStepControl:
             error_ratio=0.0,
             rejection_count=0,
         )
-        self._controller = None
+        self._adaptivity = None
         self._monitor = None
         self._ratio = None
         self._bound = None
         self._runtime_bound = False
 
     @classmethod
-    def from_regulator(cls, regulator: Regulator) -> SchemeStepControl:
-        return cls(regulator)
+    def from_adaptivity(cls, adaptivity: ExecutorAdaptivity) -> SchemeStepControl:
+        return cls(adaptivity)
 
     @property
     def runtime_bound(self) -> bool:
@@ -90,8 +87,8 @@ class SchemeStepControl:
         return self._monitor
 
     @property
-    def active_controller(self):
-        return self._controller
+    def active_adaptivity(self):
+        return self._adaptivity
 
     @property
     def ratio(self) -> ErrorRatio:
@@ -101,22 +98,22 @@ class SchemeStepControl:
     def bound(self) -> ErrorBound:
         return self._bound
 
-    def assign_executor(self, executor: Executor) -> None:
+    def assign_executor(self, executor: SchemeExecutor) -> None:
         ratio = executor.ratio
         bound = executor.bound
         if not callable(ratio):
-            raise TypeError("Adaptive executor must provide ratio(error, scale).")
+            raise TypeError("Adaptive SchemeExecutor must provide ratio(error, scale).")
         if not callable(bound):
-            raise TypeError("Adaptive executor must provide bound(scale).")
+            raise TypeError("Adaptive SchemeExecutor must provide bound(scale).")
 
-        self._controller = executor.adaptive_controller(self.regulator)
+        self._adaptivity = executor.adaptivity_or(self.adaptivity)
         self._ratio = ratio
         self._bound = bound
         self._runtime_bound = True
 
     def unassign_executor(self) -> None:
         self._runtime_bound = False
-        self._controller = None
+        self._adaptivity = None
         self._ratio = None
         self._bound = None
 
@@ -151,11 +148,11 @@ class SchemeStepControl:
         remaining: float,
         label: str,
     ) -> float:
-        controller = self._controller
-        if controller is None:
-            raise RuntimeError("Adaptive executor has not been assigned.")
+        adaptivity = self._adaptivity
+        if adaptivity is None:
+            raise RuntimeError("Adaptive SchemeExecutor has not been assigned.")
 
-        return controller.rejected_step(dt, error_ratio, remaining, label)
+        return adaptivity.rejected_step(dt, error_ratio, remaining, label)
 
     def accepted_next_step(
         self,
@@ -163,11 +160,11 @@ class SchemeStepControl:
         error_ratio: float,
         remaining_after: float,
     ) -> float:
-        controller = self._controller
-        if controller is None:
-            raise RuntimeError("Adaptive executor has not been assigned.")
+        adaptivity = self._adaptivity
+        if adaptivity is None:
+            raise RuntimeError("Adaptive SchemeExecutor has not been assigned.")
 
-        return controller.accepted_next_step(accepted_dt, error_ratio, remaining_after)
+        return adaptivity.accepted_next_step(accepted_dt, error_ratio, remaining_after)
 
     def record_stopped(self, interval: IntervalLike) -> SchemeStepAdaptiveAdvanceReport:
         self._report = SchemeStepAdaptiveAdvanceReport(
@@ -204,20 +201,20 @@ class SchemeStepControl:
         return self._report
 
 
-def default_adaptive_regulator(scheme) -> Regulator:
-    default_regulator = getattr(type(scheme), "default_regulator", None)
-    if default_regulator is None:
-        return Regulator()
+def default_adaptivity(scheme) -> ExecutorAdaptivity:
+    default_adaptivity = getattr(type(scheme), "default_adaptivity", None)
+    if default_adaptivity is None:
+        return ExecutorAdaptivity()
 
-    return default_regulator()
+    return default_adaptivity()
 
 
 def initialise_adaptive_runtime(
     scheme,
-    regulator: Regulator | None = None,
+    adaptivity: ExecutorAdaptivity | None = None,
 ) -> SchemeStepControl:
     support = SchemeStepControl(
-        regulator if regulator is not None else default_adaptive_regulator(scheme)
+        adaptivity if adaptivity is not None else default_adaptivity(scheme)
     )
     scheme.step_control = support
     refresh_adaptive_call(scheme)
@@ -237,17 +234,13 @@ def refresh_adaptive_call(scheme) -> None:
 
 
 def with_adaptive_runtime_methods(cls):
-    """Install standard adaptive executor and monitor routing methods."""
+    """Install standard adaptive SchemeExecutor and monitor routing methods."""
 
     @property
-    def regulator(self) -> Regulator:
-        return self.step_control.regulator
+    def adaptivity(self):
+        return self.step_control.adaptivity
 
-    @property
-    def controller(self):
-        return self.step_control.controller
-
-    def assign_executor(self, executor: Executor) -> None:
+    def assign_executor(self, executor: SchemeExecutor) -> None:
         self.step_control.assign_executor(executor)
         refresh_adaptive_call(self)
 
@@ -267,7 +260,7 @@ def with_adaptive_runtime_methods(cls):
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         self.assign_executor(executor)
         return self.redirect_call(interval, state, executor)
@@ -276,7 +269,7 @@ def with_adaptive_runtime_methods(cls):
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         accepted_dt = self.call_pure(interval, state, executor)
         report = self.step_control.report()
@@ -295,8 +288,7 @@ def with_adaptive_runtime_methods(cls):
 
         return accepted_dt
 
-    cls.regulator = regulator
-    cls.controller = controller
+    cls.adaptivity = adaptivity
     cls.assign_executor = assign_executor
     cls.unassign_executor = unassign_executor
     cls.assign_monitor = assign_monitor
@@ -312,7 +304,7 @@ __all__ = [
     "SchemeStepAdaptiveProposal",
     "SchemeStepAdaptiveAdvanceReport",
     "SchemeStepControl",
-    "default_adaptive_regulator",
+    "default_adaptivity",
     "initialise_adaptive_runtime",
     "refresh_adaptive_call",
     "with_adaptive_runtime_methods",

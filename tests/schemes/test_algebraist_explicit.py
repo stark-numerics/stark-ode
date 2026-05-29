@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stark import Executor, Integrator, Interval, Marcher, Tolerance
+from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
 from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.schemes.explicit_adaptive.cash_karp import SchemeCashKarp
 from stark.schemes.explicit_adaptive.dormand_prince import SchemeDormandPrince
@@ -43,15 +43,15 @@ class ArrayTranslation:
         return ArrayTranslation(scalar * self.dy)
 
 
-class ArrayWorkbench:
+class ArrayAllocator:
     def __init__(self, size: int) -> None:
         self.size = size
 
     def allocate_state(self) -> ArrayState:
         return ArrayState(np.zeros(self.size))
 
-    def copy_state(self, dst: ArrayState, src: ArrayState) -> None:
-        dst.y[...] = src.y
+    def copy_state(self, source: ArrayState, out: ArrayState) -> None:
+        out.y[...] = source.y
 
     def allocate_translation(self) -> ArrayTranslation:
         return ArrayTranslation(np.zeros(self.size))
@@ -146,7 +146,7 @@ def build_state() -> ArrayState:
 def run_fixed_step(scheme_type, *, specialist=None) -> ArrayState:
     state = build_state()
     interval = Interval(0.0, 0.05, 0.05)
-    scheme = scheme_type(ArrayDerivative(), ArrayWorkbench(3), specialist=specialist)
+    scheme = scheme_type(ArrayDerivative(), ArrayAllocator(3), specialist=specialist)
 
     accepted_dt = scheme(interval, state, Executor())
 
@@ -157,8 +157,8 @@ def run_fixed_step(scheme_type, *, specialist=None) -> ArrayState:
 def run_adaptive_solve(scheme_type, *, specialist=None) -> tuple[ArrayState, int, float]:
     state = build_state()
     interval = Interval(0.0, 0.05, 0.25)
-    scheme = scheme_type(ArrayDerivative(), ArrayWorkbench(3), specialist=specialist)
-    marcher = Marcher(scheme, Executor(tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-10)))
+    scheme = scheme_type(ArrayDerivative(), ArrayAllocator(3), specialist=specialist)
+    marcher = Marcher(scheme, Executor(tolerance=ExecutorTolerance(atol=1.0e-10, rtol=1.0e-10)))
     integrator = Integrator(executor=marcher.executor)
 
     steps = 0
@@ -193,7 +193,7 @@ def test_adaptive_explicit_scheme_specialist_path_matches_inline_path(scheme_typ
 def test_adaptive_scheme_specialist_binding_selects_scheme_owned_call_specialized():
     scheme = SchemeCashKarp(
         ArrayDerivative(),
-        ArrayWorkbench(3),
+        ArrayAllocator(3),
         specialist=ArraySpecialist(),
     )
 

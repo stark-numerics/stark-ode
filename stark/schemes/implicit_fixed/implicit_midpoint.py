@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
-from stark.execution.executor import Executor
+from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
+from stark.schemes.support.executor import SchemeExecutor
 from stark.schemes.support import (
     SchemeDescriptor,
     refresh_fixed_step_call,
@@ -67,7 +67,7 @@ class SchemeImplicitMidpoint:
     def __init__(
         self,
         derivative: Derivative,
-        workbench: Workbench,
+        allocator: Allocator,
         resolvent: Resolvent,
         *,
         specialist: SchemeSpecialist | None = None,
@@ -78,7 +78,7 @@ class SchemeImplicitMidpoint:
         self.resolvent = resolvent
         self.advance_update = None
 
-        initialise_implicit_support(self, derivative, workbench)
+        initialise_implicit_support(self, derivative, allocator)
         self.midpoint = self.block_allocator.allocate(1)
         self.trial = self.workspace.allocate_translation()
 
@@ -89,14 +89,14 @@ class SchemeImplicitMidpoint:
             self.call_pure = self.call_specialized
             refresh_fixed_step_call(self)
 
-    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         return self.redirect_call(interval, state, executor)
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
         # Step 2 applies the doubled midpoint increment.
         self.advance_update = specialist.provide(SchemeStencil((2.0,), apply=True))
 
-    def call_inline(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def call_inline(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         del executor
 
         remaining = interval.stop - interval.present
@@ -126,7 +126,7 @@ class SchemeImplicitMidpoint:
         interval.step = 0.0 if remaining_after <= 0.0 else min(interval.step, remaining_after)
         return dt
 
-    def call_specialized(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def call_specialized(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         del executor
 
         remaining = interval.stop - interval.present

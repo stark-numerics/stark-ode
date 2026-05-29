@@ -44,6 +44,15 @@ class DerivativeConventionInPlace:
 
 @dataclass(slots=True)
 class StarkDerivative:
+    """
+    User-facing derivative adapter.
+
+    `bind(carrier)` prepares a core-compatible derivative runtime for one
+    carrier. The method name is still conventional STARK language for attaching
+    a runtime dependency; the returned object is the prepared worker used by
+    schemes.
+    """
+
     function: Callable[..., Any]
     convention: DerivativeConvention | None = None
 

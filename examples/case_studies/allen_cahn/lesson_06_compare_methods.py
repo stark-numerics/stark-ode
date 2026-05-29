@@ -22,15 +22,16 @@ from __future__ import annotations
 
 from stark import Executor, Marcher
 from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
-from stark.contracts import ImExDerivative
+from stark.contracts import DerivativeIMEX
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.inverters import InverterBiCGStab, InverterPolicy, InverterTolerance
 from stark.resolvents import ResolventNewton, ResolventPolicy, ResolventTolerance
 from stark.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7, SchemeSDIRK21
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
+    ACCELERATOR,
     DIFFUSIVITY,
-    TOLERANCE,
+    EXECUTOR_TOLERANCE,
     AllenCahnRHS,
     Geometry,
     initial_profile,
@@ -51,7 +52,7 @@ from examples.case_studies.allen_cahn.lesson_05_imex_spectral import (
 
 if __name__ == "__main__":
     geometry = Geometry()
-    executor = Executor(tolerance=TOLERANCE)
+    executor = Executor(tolerance=EXECUTOR_TOLERANCE)
 
     # Prepare the vector-space boundary once. All three methods below solve the
     # same semidiscrete Allen-Cahn problem on the same carrier.
@@ -68,51 +69,51 @@ if __name__ == "__main__":
 
     carrier = template.initial.carrier
     full_derivative = template.derivative
-    workbench = template.workbench
+    allocator = template.allocator
 
     # 1. Explicit baseline: simple to configure, but lesson 3 showed that it
     # may take conservative steps on this problem.
 
-    explicit_scheme = SchemeCashKarp(full_derivative, workbench)
+    explicit_scheme = SchemeCashKarp(full_derivative, allocator)
 
     # 2. Fully implicit Newton: fewer macro steps may be possible, but each
     # step carries nonlinear and Krylov linear-solve work.
 
     linearizer = AllenCahnLinearizer(geometry, DIFFUSIVITY)
     inverter = InverterBiCGStab(
-        workbench,
+        allocator,
         allen_cahn_inner_product,
-        tolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
+        ExecutorTolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
         policy=InverterPolicy(max_iterations=24, restart=12),
         safety=executor.safety,
     )
     newton_resolvent = ResolventNewton(
-        workbench,
+        allocator,
         linearizer=linearizer,
         inverter=inverter,
-        tolerance=ResolventTolerance(atol=1.0e-7, rtol=1.0e-7),
+        ExecutorTolerance=ResolventTolerance(atol=1.0e-7, rtol=1.0e-7),
         policy=ResolventPolicy(max_iterations=12),
         safety=executor.safety,
-        accelerator=executor.accelerator,
+        accelerator=ACCELERATOR,
         tableau=SchemeSDIRK21.tableau,
     )
     implicit_scheme = SchemeSDIRK21(
         full_derivative,
-        workbench,
+        allocator,
         newton_resolvent,
     )
 
     # 3. IMEX spectral: treat only linear diffusion implicitly and solve that
     # stage problem directly in Fourier space.
 
-    imex_derivative = ImExDerivative(
+    imex_derivative = DerivativeIMEX(
         implicit=AllenCahnImplicitDerivative(geometry, DIFFUSIVITY),
         explicit=AllenCahnExplicitDerivative(geometry),
     )
     spectral_resolvent = AllenCahnSpectralResolvent(geometry, DIFFUSIVITY)
     imex_scheme = SchemeKennedyCarpenter43_7(
         imex_derivative,
-        workbench,
+        allocator,
         resolvent=spectral_resolvent,
     )
 

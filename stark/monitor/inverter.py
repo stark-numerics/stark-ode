@@ -5,7 +5,7 @@ from statistics import median
 
 
 @dataclass(frozen=True, slots=True)
-class MonitorSummaryInverter:
+class MonitorInverterSummary:
     solve_count: int
     failure_count: int
     iteration_min: int | None
@@ -65,7 +65,7 @@ class MonitorInverter:
             )
         )
 
-    def summary(self) -> MonitorSummaryInverter:
+    def summary(self) -> MonitorInverterSummary:
         iterations = [
             solve.iteration_count
             for solve in self.solves
@@ -84,7 +84,7 @@ class MonitorInverter:
         iteration_min, iteration_median, iteration_max = _min_median_max_int(iterations)
         initial_min, initial_median, initial_max = _min_median_max_float(initial_residuals)
         final_min, final_median, final_max = _min_median_max_float(final_residuals)
-        return MonitorSummaryInverter(
+        return MonitorInverterSummary(
             solve_count=len(self.solves),
             failure_count=sum(
                 1
@@ -109,5 +109,5 @@ class MonitorInverter:
 __all__ = [
     "MonitorInverter",
     "MonitorInverterSolve",
-    "MonitorSummaryInverter",
+    "MonitorInverterSummary",
 ]

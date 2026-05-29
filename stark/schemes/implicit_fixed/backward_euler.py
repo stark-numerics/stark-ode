@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
-from stark.execution.executor import Executor
+from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
+from stark.schemes.support.executor import SchemeExecutor
 from stark.schemes.support import (
     SchemeDescriptor,
     refresh_fixed_step_call,
@@ -71,7 +71,7 @@ class SchemeBackwardEuler:
     def __init__(
         self,
         derivative: Derivative,
-        workbench: Workbench,
+        allocator: Allocator,
         resolvent: Resolvent,
         *,
         specialist: SchemeSpecialist | None = None,
@@ -81,7 +81,7 @@ class SchemeBackwardEuler:
         self.redirect_call = self.call_pure
         self.resolvent = resolvent
 
-        initialise_implicit_support(self, derivative, workbench)
+        initialise_implicit_support(self, derivative, allocator)
         self.delta = self.block_allocator.allocate(1)
 
         refresh_fixed_step_call(self)
@@ -95,7 +95,7 @@ class SchemeBackwardEuler:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
@@ -108,7 +108,7 @@ class SchemeBackwardEuler:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         del executor
 
@@ -146,7 +146,7 @@ class SchemeBackwardEuler:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         return self.call_inline(interval, state, executor)
 

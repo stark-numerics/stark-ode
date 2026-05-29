@@ -34,7 +34,7 @@ class Translation:
         return Translation(scalar * self.value)
 
 
-class Workbench:
+class Allocator:
     def allocate_translation(self) -> Translation:
         return Translation()
 
@@ -84,7 +84,7 @@ def test_arity_validates_value() -> None:
 def test_runtime_general_uses_return_fallback_without_linear_combine() -> None:
     general = AlgebraistRuntimeGeneral(
         translation=Translation(),
-        workbench=Workbench(),
+        allocator=Allocator(),
     )
     combine = general.provide(AlgebraistArity(3))
     out = Translation()
@@ -106,7 +106,7 @@ def test_runtime_general_uses_return_fallback_without_linear_combine() -> None:
 def test_runtime_general_synthesizes_higher_arity_from_direct_combine2() -> None:
     general = AlgebraistRuntimeGeneral(
         translation=TranslationWithLinearCombine(),
-        workbench=Workbench(),
+        allocator=Allocator(),
     )
     combine = general.provide(AlgebraistArity(4))
     out = Translation()
@@ -130,7 +130,7 @@ def test_runtime_general_synthesizes_higher_arity_from_direct_combine2() -> None
 def test_runtime_general_accepts_explicit_linear_combine_override() -> None:
     general = AlgebraistRuntimeGeneral(
         translation=Translation(),
-        workbench=Workbench(),
+        allocator=Allocator(),
         linear_combine=(scale, combine2),
     )
     combine = general.provide(AlgebraistArity(2))
@@ -145,7 +145,7 @@ def test_runtime_general_accepts_explicit_linear_combine_override() -> None:
 def test_runtime_general_as_tuple_provides_requested_arity_family() -> None:
     general = AlgebraistRuntimeGeneral(
         translation=TranslationWithLinearCombine(),
-        workbench=Workbench(),
+        allocator=Allocator(),
     )
     family = general.as_tuple(max_arity=5)
 
@@ -157,7 +157,7 @@ def test_runtime_general_as_tuple_provides_requested_arity_family() -> None:
 def test_runtime_specialist_binds_delta_coefficients() -> None:
     specialist = AlgebraistRuntimeSpecialist(
         translation=TranslationWithLinearCombine(),
-        workbench=Workbench(),
+        allocator=Allocator(),
     )
     kernel = specialist.provide(SchemeStencil(scale=0.5, coefficients=(1.0, 2.0)))
     out = Translation()
@@ -171,7 +171,7 @@ def test_runtime_specialist_binds_delta_coefficients() -> None:
 def test_runtime_specialist_applies_delta_to_origin_state() -> None:
     specialist: AlgebraistRuntimeSpecialist[State, Translation] = AlgebraistRuntimeSpecialist(
         translation=TranslationWithLinearCombine(),
-        workbench=Workbench(),
+        allocator=Allocator(),
     )
     kernel = specialist.provide(
         SchemeStencil(scale=1.0, coefficients=(0.25, 0.75), apply=True)
@@ -188,7 +188,7 @@ def test_runtime_specialist_applies_delta_to_origin_state() -> None:
 def test_runtime_specialist_binds_empty_stencil_as_zero_delta() -> None:
     specialist = AlgebraistRuntimeSpecialist(
         translation=TranslationWithLinearCombine(),
-        workbench=Workbench(),
+        allocator=Allocator(),
     )
     kernel = specialist.provide(SchemeStencil(coefficients=()))
     out = Translation(5.0)

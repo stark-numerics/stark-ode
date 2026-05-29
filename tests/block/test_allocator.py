@@ -12,7 +12,7 @@ class TranslationFixture:
     value: float = 0.0
 
 
-class WorkbenchFixture:
+class AllocatorFixture:
     def __init__(self) -> None:
         self.count = 0
 
@@ -22,18 +22,18 @@ class WorkbenchFixture:
 
 
 def test_block_allocator_allocates_translation_entries() -> None:
-    workbench = WorkbenchFixture()
-    allocator = BlockAllocator(workbench)
+    fixture = AllocatorFixture()
+    allocator = BlockAllocator(fixture)
 
     block = allocator.allocate(3)
 
     assert [entry.value for entry in block] == [1.0, 2.0, 3.0]
-    assert workbench.count == 3
+    assert fixture.count == 3
 
 
 def test_block_allocator_allocates_like_existing_block() -> None:
-    workbench = WorkbenchFixture()
-    allocator = BlockAllocator(workbench)
+    allocator = AllocatorFixture()
+    allocator = BlockAllocator(allocator)
     existing = allocator.allocate(2)
 
     result = allocator.allocate_like(existing)
@@ -44,7 +44,7 @@ def test_block_allocator_allocates_like_existing_block() -> None:
 
 @pytest.mark.parametrize("size", [-1])
 def test_block_allocator_rejects_negative_sizes(size: int) -> None:
-    allocator = BlockAllocator(WorkbenchFixture())
+    allocator = BlockAllocator(AllocatorFixture())
 
     with pytest.raises(ValueError, match="non-negative"):
         allocator.allocate(size)
@@ -52,7 +52,7 @@ def test_block_allocator_rejects_negative_sizes(size: int) -> None:
 
 @pytest.mark.parametrize("size", [1.5, True, "2"])
 def test_block_allocator_rejects_non_int_sizes(size: object) -> None:
-    allocator = BlockAllocator(WorkbenchFixture())
+    allocator = BlockAllocator(AllocatorFixture())
 
     with pytest.raises(TypeError, match="int"):
         allocator.allocate(size)  # type: ignore[arg-type]

@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""Protocols for integration intervals.
+
+Intervals are small mutable timeline cursors. Schemes read `present`, `step`,
+and `stop`, then advance the interval by the accepted step. Snapshot
+integrators also require `copy()` so they can yield stable interval records.
+"""
+
 from typing import Any, Protocol, Self
 
 from stark.contracts.audit_support import AuditRecorder

@@ -11,8 +11,7 @@ from statistics import median
 from time import perf_counter
 from typing import Callable
 
-from stark import Executor, Integrator, Interval, Marcher, Tolerance
-from stark.accelerators import Accelerator
+from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
 from stark.resolvents import ResolventPicard
 from stark.resolvents.support.policy import ResolventPolicy
 from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
@@ -56,12 +55,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -93,8 +92,7 @@ def zero_rhs(
 
 def make_executor() -> Executor:
     return Executor(
-        tolerance=Tolerance(atol=ATOL, rtol=RTOL),
-        accelerator=Accelerator.none(),
+        tolerance=ExecutorTolerance(atol=ATOL, rtol=RTOL),
     )
 
 
@@ -211,12 +209,12 @@ def current_metadata(*, repeat: int, warmup: int) -> BenchmarkMetadata:
 
 def make_resolvent(
     derivative: Callable[[Interval, ScalarState, ScalarTranslation], None],
-    workbench: ScalarWorkbench,
+    allocator: ScalarAllocator,
     tableau,
 ) -> ResolventPicard:
     return ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=16),
         accelerator=Accelerator.none(),
         tableau=tableau,
@@ -224,8 +222,8 @@ def make_resolvent(
 
 
 def make_rk4_case() -> SchemeSmokeCase:
-    workbench = ScalarWorkbench()
-    scheme = SchemeRK4(negative_decay, workbench)
+    allocator = ScalarAllocator()
+    scheme = SchemeRK4(negative_decay, allocator)
 
     return SchemeSmokeCase(
         "fixed explicit / RK4",
@@ -237,8 +235,8 @@ def make_rk4_case() -> SchemeSmokeCase:
 
 
 def make_explicit_adaptive_case() -> SchemeSmokeCase:
-    workbench = ScalarWorkbench()
-    scheme = SchemeBogackiShampine(negative_decay, workbench)
+    allocator = ScalarAllocator()
+    scheme = SchemeBogackiShampine(negative_decay, allocator)
 
     return SchemeSmokeCase(
         "adaptive explicit / Bogacki-Shampine",
@@ -250,15 +248,15 @@ def make_explicit_adaptive_case() -> SchemeSmokeCase:
 
 
 def make_implicit_fixed_case() -> SchemeSmokeCase:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     resolvent = make_resolvent(
         negative_decay,
-        workbench,
+        allocator,
         SchemeBackwardEuler.tableau,
     )
     scheme = SchemeBackwardEuler(
         negative_decay,
-        workbench,
+        allocator,
         resolvent=resolvent,
     )
 
@@ -272,15 +270,15 @@ def make_implicit_fixed_case() -> SchemeSmokeCase:
 
 
 def make_implicit_adaptive_case() -> SchemeSmokeCase:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     resolvent = make_resolvent(
         negative_decay,
-        workbench,
+        allocator,
         SchemeKvaerno3.tableau,
     )
     scheme = SchemeKvaerno3(
         negative_decay,
-        workbench,
+        allocator,
         resolvent=resolvent,
     )
 
@@ -294,19 +292,19 @@ def make_implicit_adaptive_case() -> SchemeSmokeCase:
 
 
 def make_imex_adaptive_case() -> SchemeSmokeCase:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     derivative = SplitDerivative(
         explicit=zero_rhs,
         implicit=negative_decay,
     )
     resolvent = make_resolvent(
         negative_decay,
-        workbench,
+        allocator,
         SchemeKennedyCarpenter32.tableau,
     )
     scheme = SchemeKennedyCarpenter32(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
     )
 

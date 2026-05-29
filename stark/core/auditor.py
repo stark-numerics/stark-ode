@@ -1,16 +1,22 @@
+"""Contract auditing for user-supplied STARK objects."""
+
 from __future__ import annotations
 
 from typing import Any
 
 from stark.contracts.acceleration import AcceleratorAudit
-from stark.contracts.integration import IntegrationAudit
+from stark.contracts.derivative_imex import DerivativeIMEXAudit
+from stark.contracts.derivatives import DerivativeAudit
 from stark.contracts.intervals import IntervalAudit
-from stark.contracts.problems import ProblemAudit
-from stark.contracts.solvers import SolverAudit
-from stark.contracts.translations import TranslationAudit
-from stark.execution.safety import SafetyAudit
-from stark.execution.tolerance import ToleranceAudit
-from stark.interval import Interval
+from stark.contracts.linearizers import LinearizerAudit
+from stark.contracts.marchers import MarcherAudit
+from stark.contracts.residuals import ResidualAudit
+from stark.contracts.schemes import SchemeAudit
+from stark.contracts.translation_audit import TranslationAudit
+from stark.contracts.allocators import AllocatorAudit
+from stark.executor.safety import ExecutorSafetyAudit
+from stark.executor.tolerance import ExecutorToleranceAudit
+from stark.core.interval import Interval
 
 
 class AuditError(TypeError):
@@ -29,13 +35,17 @@ class Auditor:
     __slots__ = ("checks",)
 
     translation_audit = TranslationAudit()
-    problem_audit = ProblemAudit()
+    derivative_audit = DerivativeAudit()
+    derivative_imex_audit = DerivativeIMEXAudit()
+    allocator_audit = AllocatorAudit()
+    linearizer_audit = LinearizerAudit()
     interval_audit = IntervalAudit()
-    integration_audit = IntegrationAudit()
-    solver_audit = SolverAudit()
+    scheme_audit = SchemeAudit()
+    marcher_audit = MarcherAudit()
+    residual_audit = ResidualAudit()
     acceleration_audit = AcceleratorAudit()
-    tolerance_audit = ToleranceAudit()
-    safety_audit = SafetyAudit()
+    tolerance_audit = ExecutorToleranceAudit()
+    safety_audit = ExecutorSafetyAudit()
 
     def __init__(
         self,
@@ -44,11 +54,11 @@ class Auditor:
         derivative: Any | None = None,
         imex_derivative: Any | None = None,
         translation: Any | None = None,
-        workbench: Any | None = None,
+        allocator: Any | None = None,
         interval: Any | None = None,
         marcher: Any | None = None,
         scheme: Any | None = None,
-        tolerance: Any | None = None,
+        ExecutorTolerance: Any | None = None,
         accelerator: Any | None = None,
         residual: Any | None = None,
         linear_residual: bool = False,
@@ -62,13 +72,13 @@ class Auditor:
         sample_translation = None
 
         if derivative is not None:
-            self.problem_audit.derivative(self, derivative)
+            self.derivative_audit(self, derivative)
 
         if imex_derivative is not None:
-            self.problem_audit.imex_derivative(self, imex_derivative)
+            self.derivative_imex_audit(self, imex_derivative)
 
-        if workbench is not None:
-            sample_state, second_state, sample_translation = self.problem_audit.workbench(self, workbench, exercise=exercise)
+        if allocator is not None:
+            sample_state, second_state, sample_translation = self.allocator_audit(self, allocator, exercise=exercise)
 
         if translation is not None:
             self.translation_audit(
@@ -80,39 +90,39 @@ class Auditor:
                 sample_translation=sample_translation if sample_translation is not None else translation,
             )
 
-        if tolerance is not None:
-            self.tolerance_audit(self, tolerance)
+        if ExecutorTolerance is not None:
+            self.tolerance_audit(self, ExecutorTolerance)
 
         if accelerator is not None:
             self.acceleration_audit(self, accelerator, exercise=exercise)
 
         if residual is not None:
-            self.solver_audit.residual(self, residual, linear=linear_residual)
+            self.residual_audit(self, residual, linear=linear_residual)
 
         if scheme is not None:
-            self.integration_audit.scheme(self, scheme)
+            self.scheme_audit(self, scheme)
 
         if marcher is not None:
-            self.integration_audit.marcher(self, marcher, snapshots=snapshots)
+            self.marcher_audit(self, marcher, snapshots=snapshots)
 
         if interval is not None:
             self.interval_audit(self, interval, exercise=exercise)
 
-        if exercise and workbench is not None and derivative is not None and state is not None and interval is not None:
+        if exercise and allocator is not None and derivative is not None and state is not None and interval is not None:
             candidate_translation = sample_translation if sample_translation is not None else translation
             if candidate_translation is not None:
-                self.problem_audit.exercise_derivative(self, derivative, interval, state, candidate_translation)
+                self.derivative_audit.exercise(self, derivative, interval, state, candidate_translation)
 
-        if exercise and workbench is not None and imex_derivative is not None and state is not None and interval is not None:
+        if exercise and allocator is not None and imex_derivative is not None and state is not None and interval is not None:
             candidate_translation = sample_translation if sample_translation is not None else translation
             if candidate_translation is not None:
-                self.problem_audit.exercise_imex_derivative(self, imex_derivative, interval, state, candidate_translation)
+                self.derivative_imex_audit.exercise(self, imex_derivative, interval, state, candidate_translation)
 
-        if exercise and workbench is not None and state is not None and sample_state is not None:
-            self.problem_audit.exercise_copy_state(self, workbench, sample_state, state)
+        if exercise and allocator is not None and state is not None and sample_state is not None:
+            self.allocator_audit.exercise_copy_state(self, allocator, state, sample_state)
 
-        if exercise and sample_state is not None and second_state is not None and workbench is not None:
-            self.problem_audit.exercise_workbench_copy(self, workbench, sample_state, second_state)
+        if exercise and sample_state is not None and second_state is not None and allocator is not None:
+            self.allocator_audit.exercise_allocator_copy(self, allocator, second_state, sample_state)
 
     @property
     def ok(self) -> bool:
@@ -136,23 +146,22 @@ class Auditor:
         self.check(False, summary, message)
 
     @classmethod
-    def require_scheme_inputs(cls, derivative: Any, workbench: Any, translation: Any) -> None:
-        cls(derivative=derivative, workbench=workbench, translation=translation, exercise=False).raise_if_invalid()
+    def require_scheme_inputs(cls, derivative: Any, allocator: Any, translation: Any) -> None:
+        cls(derivative=derivative, allocator=allocator, translation=translation, exercise=False).raise_if_invalid()
 
     @classmethod
-    def require_imex_scheme_inputs(cls, imex_derivative: Any, workbench: Any, translation: Any) -> None:
-        cls(imex_derivative=imex_derivative, workbench=workbench, translation=translation, exercise=False).raise_if_invalid()
+    def require_imex_scheme_inputs(cls, imex_derivative: Any, allocator: Any, translation: Any) -> None:
+        cls(imex_derivative=imex_derivative, allocator=allocator, translation=translation, exercise=False).raise_if_invalid()
 
     @classmethod
-    def require_marcher_inputs(cls, scheme: Any, tolerance: Any, safety: Any, accelerator: Any) -> None:
+    def require_marcher_inputs(cls, scheme: Any, ExecutorTolerance: Any, ExecutorSafety: Any) -> None:
         auditor = cls(
             scheme=scheme,
-            tolerance=tolerance,
-            accelerator=accelerator,
+            ExecutorTolerance=ExecutorTolerance,
             snapshots=True,
             exercise=False,
         )
-        auditor.safety_audit(auditor, safety)
+        auditor.safety_audit(auditor, ExecutorSafety)
         auditor.raise_if_invalid()
 
     @classmethod
@@ -165,9 +174,9 @@ class Auditor:
         cls(residual=residual, linear_residual=True, exercise=False).raise_if_invalid()
 
     @classmethod
-    def require_linearizer_inputs(cls, linearizer: Any, workbench: Any, translation: Any) -> None:
-        auditor = cls(workbench=workbench, translation=translation, exercise=False)
-        auditor.problem_audit.linearizer(auditor, linearizer)
+    def require_linearizer_inputs(cls, linearizer: Any, allocator: Any, translation: Any) -> None:
+        auditor = cls(allocator=allocator, translation=translation, exercise=False)
+        auditor.linearizer_audit(auditor, linearizer)
         linear_combine = getattr(translation, "linear_combine", None)
         auditor.check(
             isinstance(linear_combine, (list, tuple))
@@ -181,12 +190,12 @@ class Auditor:
             auditor.raise_if_invalid()
 
         try:
-            sample_state = workbench.allocate_state()
+            sample_state = allocator.allocate_state()
         except Exception as exc:
-            auditor.record_exception("Workbench.allocate_state() succeeds for linearizer audit.", exc)
+            auditor.record_exception("Allocator.allocate_state() succeeds for linearizer audit.", exc)
         else:
-            auditor.check(True, "Workbench.allocate_state() succeeds for linearizer audit.")
-            auditor.problem_audit.exercise_linearizer(auditor, linearizer, Interval(0.0, 1.0, 1.0), sample_state, translation)
+            auditor.check(True, "Allocator.allocate_state() succeeds for linearizer audit.")
+            auditor.linearizer_audit.exercise(auditor, linearizer, Interval(0.0, 1.0, 1.0), sample_state, translation)
         auditor.raise_if_invalid()
 
     def __str__(self) -> str:
@@ -226,14 +235,14 @@ class Auditor:
     def _object_name(summary: str) -> str:
         if summary.startswith("Derivative"):
             return "Derivative"
-        if summary.startswith("ImExDerivative"):
+        if summary.startswith("DerivativeIMEX"):
             return "Derivative"
         if summary.startswith("Translation"):
             return "Translation"
-        if summary.startswith("Workbench"):
-            return "Workbench"
-        if summary.startswith("Tolerance"):
-            return "Tolerance"
+        if summary.startswith("Allocator"):
+            return "Allocator"
+        if summary.startswith("ExecutorTolerance"):
+            return "ExecutorTolerance"
         if summary.startswith("Accelerator"):
             return "Accelerator"
         if summary.startswith("Residual"):
@@ -244,7 +253,7 @@ class Auditor:
             return "Marcher"
         if summary.startswith("Scheme"):
             return "Scheme"
-        if summary.startswith("safety"):
+        if summary.startswith("ExecutorSafety"):
             return "Marcher"
         return "Interface"
 
@@ -254,10 +263,10 @@ class Auditor:
             "Interval": 0,
             "Derivative": 1,
             "Translation": 2,
-            "Workbench": 3,
+            "Allocator": 3,
             "Accelerator": 4,
             "Scheme": 5,
-            "Tolerance": 6,
+            "ExecutorTolerance": 6,
             "Residual": 7,
             "Marcher": 8,
             "Interface": 9,

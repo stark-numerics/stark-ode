@@ -5,13 +5,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, cast
 
 from stark.block import Block, BlockAllocator
-from stark.contracts import AcceleratorLike, Translation, Workbench
-from stark.execution.safety import Safety
-from stark.execution.tolerance import Tolerance
+from stark.contracts import AcceleratorLike, Translation, Allocator
+from stark.executor.tolerance import ExecutorTolerance
 from stark.resolvents.support import (
     MonitorResolventLike,
     ResolventError,
     ResolventPolicy,
+    ResolventSafety,
     ResolventSpecialist,
     ResolventStageProblem,
     ResolventStageResidual,
@@ -40,7 +40,7 @@ class ResolventPicard:
 
         1. Start from the current stage increment delta.
         2. Compute F(delta).
-        3. Accept if ||F(delta)|| is within tolerance.
+        3. Accept if ||F(delta)|| is within ExecutorTolerance.
         4. Otherwise apply the Picard correction delta <- delta - F(delta).
         5. Recheck once after the final correction.
     """
@@ -78,10 +78,10 @@ class ResolventPicard:
 
     def __init__(
         self,
-        workbench: Workbench,
-        tolerance: Tolerance | None = None,
+        allocator: Allocator,
+        ExecutorTolerance: ExecutorTolerance | None = None,
         policy: ResolventPolicy | None = None,
-        safety: Safety | None = None,
+        safety: ResolventSafety | None = None,
         accelerator: AcceleratorLike | None = None,
         specialist: ResolventSpecialist[Translation] | None = None,
         tableau: Any | None = None,
@@ -89,16 +89,16 @@ class ResolventPicard:
         self.tableau = tableau
         initialise_resolvent_runtime(self, safety, accelerator)
 
-        self.allocator = BlockAllocator(workbench)
+        self.allocator = BlockAllocator(allocator)
         self.tolerance = (
-            tolerance
-            if tolerance is not None
+            ExecutorTolerance
+            if ExecutorTolerance is not None
             else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         )
         self.policy = policy if policy is not None else ResolventPolicy()
         self.residual = ResolventStageResidual(
             "ResolventPicard",
-            workbench,
+            allocator,
             accelerator=self.accelerator,
         )
         self.residual_buffer = None
@@ -150,7 +150,7 @@ class ResolventPicard:
             # 2. Compute F(delta).
             F(delta, residual)
 
-            # 3. Accept if ||F(delta)|| is within tolerance.
+            # 3. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
             scale = delta.norm()
             if self.tolerance.accepts(error, scale):
@@ -198,7 +198,7 @@ class ResolventPicard:
             # 2. Compute F(delta).
             F(delta, residual)
 
-            # 3. Accept if ||F(delta)|| is within tolerance.
+            # 3. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
             scale = delta.norm()
             if self.tolerance.accepts(error, scale):

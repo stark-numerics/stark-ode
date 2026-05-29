@@ -61,12 +61,12 @@ class ScalarTranslation:
     linear_combine = [scale, combine2, combine3]
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -87,9 +87,9 @@ def inner_product(left: ScalarTranslation, right: ScalarTranslation) -> float:
 
 def test_anderson_resolvent_solves_rhs_shift_without_reversing_residual_arguments() -> None:
     resolvent = ResolventAnderson(
-        ScalarWorkbench(),
+        ScalarAllocator(),
         inner_product,
-        tolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
+        ExecutorTolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=4),
     )
     interval = Interval(present=0.0, step=0.1, stop=1.0)

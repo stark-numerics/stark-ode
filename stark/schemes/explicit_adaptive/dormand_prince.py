@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from stark.contracts import Derivative, IntervalLike, State, Workbench
-from stark.execution.executor import Executor
-from stark.execution.regulator import Regulator
+from stark.contracts import Derivative, IntervalLike, State, Allocator
+from stark.schemes.support.executor import SchemeExecutor
+from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     SchemeStepControl,
@@ -149,12 +149,12 @@ class SchemeDormandPrince:
     def __init__(
         self,
         derivative: Derivative,
-        workbench: Workbench,
-        regulator: Regulator | None = None,
+        allocator: Allocator,
+        adaptivity: ExecutorAdaptivity | None = None,
         specialist: SchemeSpecialist | None = None,
     ) -> None:
-        initialise_explicit_support(self, derivative, workbench)
-        initialise_adaptive_runtime(self, regulator)
+        initialise_explicit_support(self, derivative, allocator)
+        initialise_adaptive_runtime(self, adaptivity)
 
         self.initialise_buffers()
 
@@ -170,7 +170,7 @@ class SchemeDormandPrince:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
@@ -218,7 +218,7 @@ class SchemeDormandPrince:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         del executor
 
@@ -399,7 +399,7 @@ class SchemeDormandPrince:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         del executor
 

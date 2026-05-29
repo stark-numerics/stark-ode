@@ -256,7 +256,7 @@ def benchmark_size(size: int) -> None:
 
 def main() -> None:
     print("STARK scheme comparison against SciPy RK45")
-    print(f"Tolerance: rtol={RTOL}, atol={ATOL}")
+    print(f"ExecutorTolerance: rtol={RTOL}, atol={ATOL}")
     print(f"Interval:  present={START}, step={STEP}, stop={STOP}")
     print()
 

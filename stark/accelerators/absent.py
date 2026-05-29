@@ -12,15 +12,23 @@ class AcceleratorAbsent(AcceleratorBase):
 
     name = "none"
 
-    def decorate(self, function: AcceleratorTarget | None = None, /, **kwargs: Any) -> Callable[..., Any]:
-        del kwargs
+    def compile(
+        self,
+        function: AcceleratorTarget | None = None,
+        /,
+        *,
+        label: str | None = None,
+        cache: bool | None = None,
+        **options: Any,
+    ) -> Callable[..., Any]:
+        del label, cache, options
 
-        def decorate_function(target: AcceleratorTarget) -> AcceleratorTarget:
+        def compile_function(target: AcceleratorTarget) -> AcceleratorTarget:
             return target
 
         if function is None:
-            return decorate_function
-        return decorate_function(function)
+            return compile_function
+        return compile_function(function)
 
 
 __all__ = ["AcceleratorAbsent"]

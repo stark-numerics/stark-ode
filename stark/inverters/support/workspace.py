@@ -7,8 +7,8 @@ from typing import Callable
 from stark.accelerators import AcceleratorAbsent
 from stark.algebraist.runtime import AlgebraistRuntimeGeneral
 from stark.block import Block
-from stark.contracts import AcceleratorLike, InnerProduct, Translation, Workbench
-from stark.execution.safety import Safety
+from stark.contracts import AcceleratorLike, InnerProduct, Translation, Allocator
+from stark.inverters.support.safety import InverterSafety, InverterSafetyDefault
 
 
 @dataclass(slots=True, init=False)
@@ -22,22 +22,22 @@ class InverterWorkspace:
     scale: Callable[..., Translation]
     combine2: Callable[..., Translation]
     combine3: Callable[..., Translation]
-    safety: Safety
+    safety: InverterSafety
     _check: Callable[..., None]
 
     def __init__(
         self,
-        workbench: Workbench,
+        allocator: Allocator,
         translation: Translation,
         inner_product: InnerProduct,
-        safety: Safety | None = None,
+        safety: InverterSafety | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:
         self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
-        self.allocate_translation = workbench.allocate_translation
+        self.allocate_translation = allocator.allocate_translation
         self.inner_product_translation = inner_product
         self.translation = translation
-        self.safety = safety if safety is not None else Safety()
+        self.safety = safety if safety is not None else InverterSafetyDefault()
         self._check = self._check_size if self.safety.block_sizes else self._skip_check
         self.bind_accelerator(self.accelerator)
 
@@ -45,7 +45,7 @@ class InverterWorkspace:
         self.accelerator = accelerator
         algebraist = AlgebraistRuntimeGeneral(
             translation=self.translation,
-            workbench=self,
+            allocator=self,
             accelerator=accelerator,
         )
         self.scale, self.combine2, self.combine3 = algebraist.as_tuple(3)
@@ -133,8 +133,6 @@ class InverterWorkspace:
 
 
 __all__ = ["InverterWorkspace"]
-
-
 
 
 

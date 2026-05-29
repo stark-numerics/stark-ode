@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from math import sqrt
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
-from stark import Executor, Marcher, Integrator, Interval, Safety, Tolerance
+from stark import Executor, Marcher, Integrator, Interval, ExecutorSafety, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorGeneral
+from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
 from stark.schemes.explicit_adaptive import SchemeCashKarp, SchemeDormandPrince
 
@@ -19,8 +20,12 @@ except ModuleNotFoundError:
     ACCELERATOR = Accelerator.none()
     USE_NUMBA_ACCELERATION = False
 
-@ACCELERATOR.decorate
-def _rhs_kernel(u, v, du, dv, alpha, a, b, inv_dx2):
+
+Array = Any
+
+
+@ACCELERATOR.compile
+def _rhs_kernel(u: Array, v: Array, du: Array, dv: Array, alpha: float, a: float, b: float, inv_dx2: float) -> None:
     rows, cols = u.shape
     for i in range(rows):
         im1 = rows - 1 if i == 0 else i - 1
@@ -35,6 +40,49 @@ def _rhs_kernel(u, v, du, dv, alpha, a, b, inv_dx2):
             lap_v = (v[im1, j] + v[ip1, j] + v[i, jm1] + v[i, jp1] - 4.0 * v_ij) * inv_dx2
             du[i, j] = alpha * lap_u + a + reaction - (b + 1.0) * u_ij
             dv[i, j] = alpha * lap_v + b * u_ij - reaction
+
+
+@ACCELERATOR.compile
+def _apply_kernel(
+    du: Array,
+    dv: Array,
+    origin_u: Array,
+    origin_v: Array,
+    result_u: Array,
+    result_v: Array,
+) -> None:
+    rows, cols = du.shape
+    for i in range(rows):
+        for j in range(cols):
+            result_u[i, j] = origin_u[i, j] + du[i, j]
+            result_v[i, j] = origin_v[i, j] + dv[i, j]
+
+
+@ACCELERATOR.compile
+def _norm_kernel(du: Array, dv: Array) -> float:
+    rows, cols = du.shape
+    total = 0.0
+    for i in range(rows):
+        for j in range(cols):
+            total += du[i, j] * du[i, j] + dv[i, j] * dv[i, j]
+    return (total / du.size) ** 0.5
+
+
+@ACCELERATOR.compile
+def _state_error_kernel(
+    u: Array,
+    v: Array,
+    reference_u: Array,
+    reference_v: Array,
+) -> float:
+    rows, cols = u.shape
+    total = 0.0
+    for i in range(rows):
+        for j in range(cols):
+            u_error = u[i, j] - reference_u[i, j]
+            v_error = v[i, j] - reference_v[i, j]
+            total += u_error * u_error + v_error * v_error
+    return (total / u.size) ** 0.5
 
 
 ALGEBRAIST_LAYOUT = AlgebraistLayout(
@@ -58,14 +106,20 @@ class BrusselatorState:
     __str__ = __repr__
 
     def error_against(self, reference):
-        du = self.u - reference["u"]
-        dv = self.v - reference["v"]
-        energy = np.dot(du.ravel(), du.ravel()) + np.dot(dv.ravel(), dv.ravel())
-        return sqrt(float(energy) / self.u.size)
+        return float(
+            _state_error_kernel(
+                self.u,
+                self.v,
+                reference["u"],
+                reference["v"],
+            )
+        )
 
 
 class BrusselatorTranslation:
     __slots__ = ("du", "dv")
+
+    linear_combine: tuple[Callable[..., Any], ...] = ()
 
     def __init__(self, du, dv):
         self.du = du
@@ -82,28 +136,36 @@ class BrusselatorTranslation:
     def __rmul__(self, scalar):
         return BrusselatorTranslation(scalar * self.du, scalar * self.dv)
 
+    def __mul__(self, scalar):
+        return self.__rmul__(scalar)
+
     def __call__(self, origin, result):
-        result.u[...] = origin.u + self.du
-        result.v[...] = origin.v + self.dv
+        _apply_kernel(
+            self.du,
+            self.dv,
+            origin.u,
+            origin.v,
+            result.u,
+            result.v,
+        )
 
     def norm(self):
-        energy = np.dot(self.du.ravel(), self.du.ravel()) + np.dot(self.dv.ravel(), self.dv.ravel())
-        return sqrt(float(energy) / self.du.size)
+        return float(_norm_kernel(self.du, self.dv))
 
 
-class BrusselatorWorkbench:
+class BrusselatorAllocator:
     __slots__ = ("grid_shape",)
-    _compiled = False
+
+    _algebraist_installed = False
+    _specialist: AlgebraistGeneratorSpecialist | None = None
 
     def __init__(self, problem_parameters):
         grid_size = problem_parameters["grid_size"]
         self.grid_shape = (grid_size, grid_size)
-        if not self.__class__._compiled:
-            BrusselatorTranslation.linear_combine = _generated_linear_combine(self)
-            self.__class__._compiled = True
+        self._install_algebraist()
 
     def __repr__(self) -> str:
-        return f"BrusselatorWorkbench(grid_shape={self.grid_shape!r})"
+        return f"BrusselatorAllocator(grid_shape={self.grid_shape!r})"
 
     __str__ = __repr__
 
@@ -113,9 +175,9 @@ class BrusselatorWorkbench:
             np.zeros(self.grid_shape, dtype=np.float64),
         )
 
-    def copy_state(self, dst, src):
-        np.copyto(dst.u, src.u)
-        np.copyto(dst.v, src.v)
+    def copy_state(self, source, out):
+        np.copyto(out.u, source.u)
+        np.copyto(out.v, source.v)
 
     def allocate_translation(self):
         return BrusselatorTranslation(
@@ -123,15 +185,34 @@ class BrusselatorWorkbench:
             np.zeros(self.grid_shape, dtype=np.float64),
         )
 
+    @property
+    def specialist(self):
+        specialist = self.__class__._specialist
+        if specialist is None:
+            raise RuntimeError("BrusselatorAllocator Algebraist support was not installed.")
+        return specialist
 
-def _generated_linear_combine(workbench):
-    provider = AlgebraistGeneratorGeneral(
-        translation=workbench.allocate_translation(),
-        workbench=workbench,
-        layout=ALGEBRAIST_LAYOUT,
-        accelerator=ACCELERATOR,
-    )
-    return tuple(provider.provide(AlgebraistArity(arity)) for arity in range(1, 13))
+    def _install_algebraist(self) -> None:
+        if self.__class__._algebraist_installed:
+            return
+
+        general = AlgebraistGeneratorGeneral(
+            translation=self.allocate_translation(),
+            allocator=self,
+            layout=ALGEBRAIST_LAYOUT,
+            accelerator=ACCELERATOR,
+        )
+        BrusselatorTranslation.linear_combine = tuple(
+            general.provide(AlgebraistArity(arity))
+            for arity in range(1, 13)
+        )
+        self.__class__._specialist = AlgebraistGeneratorSpecialist(
+            translation=self.allocate_translation(),
+            allocator=self,
+            layout=ALGEBRAIST_LAYOUT,
+            accelerator=ACCELERATOR,
+        )
+        self.__class__._algebraist_installed = True
 
 
 class BrusselatorDerivative:
@@ -187,19 +268,18 @@ class BrusselatorDerivative:
 
 
 def prepare_rkck(problem_parameters, tolerance_parameters, initial_conditions, reference):
-    safety = Safety.fast()
-    workbench = BrusselatorWorkbench(problem_parameters)
+    executor_safety = ExecutorSafety.fast()
+    allocator = BrusselatorAllocator(problem_parameters)
     derivative = BrusselatorDerivative(problem_parameters)
-    scheme = SchemeCashKarp(derivative, workbench)
+    scheme = SchemeCashKarp(derivative, allocator, specialist=allocator.specialist)
     marcher = Marcher(
         scheme,
         Executor(
-            tolerance=Tolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
-            safety=safety,
-            accelerator=ACCELERATOR,
+            tolerance=ExecutorTolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
+            safety=executor_safety,
         ),
     )
-    integrate = Integrator(executor=Executor(safety=safety, accelerator=ACCELERATOR))
+    integrate = Integrator(executor=Executor(safety=executor_safety))
 
     def solve_once():
         interval = Interval(
@@ -228,19 +308,18 @@ def run_rkck(problem_parameters, tolerance_parameters, initial_conditions, refer
 
 
 def prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, reference):
-    safety = Safety.fast()
-    workbench = BrusselatorWorkbench(problem_parameters)
+    executor_safety = ExecutorSafety.fast()
+    allocator = BrusselatorAllocator(problem_parameters)
     derivative = BrusselatorDerivative(problem_parameters)
-    scheme = SchemeDormandPrince(derivative, workbench)
+    scheme = SchemeDormandPrince(derivative, allocator, specialist=allocator.specialist)
     marcher = Marcher(
         scheme,
         Executor(
-            tolerance=Tolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
-            safety=safety,
-            accelerator=ACCELERATOR,
+            tolerance=ExecutorTolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
+            safety=executor_safety,
         ),
     )
-    integrate = Integrator(executor=Executor(safety=safety, accelerator=ACCELERATOR))
+    integrate = Integrator(executor=Executor(safety=executor_safety))
 
     def solve_once():
         interval = Interval(
@@ -266,8 +345,6 @@ def prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, r
 
 def run_rkdp(problem_parameters, tolerance_parameters, initial_conditions, reference):
     return prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, reference)()
-
-
 
 
 

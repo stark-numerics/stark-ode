@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from stark.block import Block
-from stark.contracts import ImExDerivative, IntervalLike, Resolvent, State, Workbench
-from stark.execution.executor import Executor
-from stark.execution.regulator import Regulator
-from stark.resolvents.support.failure import ResolventError
+from stark.contracts import DerivativeIMEX, IntervalLike, Resolvent, State, Allocator
+from stark.schemes.support.executor import SchemeExecutor
+from stark.executor.adaptivity import ExecutorAdaptivity
+from stark.contracts.errors import StarkErrorRecoverable
 from stark.schemes.support import (
     SchemeStepControl,
     initialise_adaptive_runtime,
@@ -49,15 +49,15 @@ class SchemeKennedyCarpenterAdaptive:
 
     def __init__(
         self,
-        derivative: ImExDerivative,
-        workbench: Workbench,
+        derivative: DerivativeIMEX,
+        allocator: Allocator,
         resolvent: Resolvent,
-        regulator: Regulator | None = None,
+        adaptivity: ExecutorAdaptivity | None = None,
         *,
         specialist: SchemeSpecialist | None = None,
     ) -> None:
-        initialise_imex_support(self, derivative, workbench)
-        initialise_adaptive_runtime(self, regulator)
+        initialise_imex_support(self, derivative, allocator)
+        initialise_adaptive_runtime(self, adaptivity)
 
         self.explicit_derivative = derivative.explicit
         self.implicit_derivative = derivative.implicit
@@ -91,7 +91,7 @@ class SchemeKennedyCarpenterAdaptive:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         return self.redirect_call(interval, state, executor)
 
@@ -118,7 +118,7 @@ class SchemeKennedyCarpenterAdaptive:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         del executor
         return self._call(interval, state, specialized=False)
@@ -127,7 +127,7 @@ class SchemeKennedyCarpenterAdaptive:
         self,
         interval: IntervalLike,
         state: State,
-        executor: Executor,
+        executor: SchemeExecutor,
     ) -> float:
         del executor
         return self._call(interval, state, specialized=True)
@@ -155,7 +155,7 @@ class SchemeKennedyCarpenterAdaptive:
         while True:
             try:
                 self._trial_step(interval, state, dt, specialized=specialized)
-            except ResolventError:
+            except StarkErrorRecoverable:
                 rejection_count += 1
                 dt = self.step_control.rejected_step(dt, 1.0, remaining, scheme_name)
                 continue

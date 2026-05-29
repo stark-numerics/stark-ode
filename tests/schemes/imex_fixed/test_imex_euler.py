@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Interval, Tolerance
+from stark import Executor, Interval, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.resolvents import ResolventPicard
 from stark.resolvents.support.policy import ResolventPolicy
@@ -33,12 +33,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -96,11 +96,11 @@ class StubSpecialist:
 
 def make_resolvent(
     implicit_derivative,
-    workbench: ScalarWorkbench,
+    allocator: ScalarAllocator,
 ) -> ResolventPicard:
     return ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=32),
         accelerator=Accelerator.none(),
         tableau=SchemeIMEXEuler.tableau,
@@ -113,7 +113,7 @@ def make_constant_scheme(
     *,
     specialist: object | None = None,
 ) -> SchemeIMEXEuler:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     implicit = ConstantDerivative(implicit_value)
     derivative = SplitDerivative(
         explicit=ConstantDerivative(explicit_value),
@@ -121,8 +121,8 @@ def make_constant_scheme(
     )
     return SchemeIMEXEuler(
         derivative,
-        workbench,
-        resolvent=make_resolvent(implicit, workbench),
+        allocator,
+        resolvent=make_resolvent(implicit, allocator),
         specialist=specialist,
     )
 
@@ -220,7 +220,7 @@ def test_imex_euler_returns_zero_when_interval_is_complete() -> None:
 
 
 def test_imex_euler_solves_linear_implicit_split() -> None:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     implicit = LinearDerivative(rate=-1.0)
     derivative = SplitDerivative(
         explicit=ConstantDerivative(0.0),
@@ -228,8 +228,8 @@ def test_imex_euler_solves_linear_implicit_split() -> None:
     )
     scheme = SchemeIMEXEuler(
         derivative,
-        workbench,
-        resolvent=make_resolvent(implicit, workbench),
+        allocator,
+        resolvent=make_resolvent(implicit, allocator),
     )
     interval = Interval(present=0.0, step=0.1, stop=1.0)
     state = ScalarState(1.0)

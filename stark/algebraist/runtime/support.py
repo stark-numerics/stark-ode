@@ -7,9 +7,10 @@ from typing import Generic, TypeVar, cast
 from stark.accelerators.absent import AcceleratorAbsent
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.stencil import AlgebraistStencil
-from stark.algebraist.workbench import AlgebraistWorkbench
+from stark.algebraist.allocator import AlgebraistAllocator
 from stark.contracts.acceleration import AcceleratorLike
-from stark.contracts.translations import State, Translation
+from stark.contracts.states import State
+from stark.contracts.translations import Translation
 
 try:  # layout is optional context for runtime, but accepted for generator symmetry.
     from stark.algebraist.layout import AlgebraistLayout
@@ -189,7 +190,7 @@ class AlgebraistRuntimeSupport(Generic[TranslationType]):
     """Shared implementation support for runtime Algebraist providers."""
 
     translation: TranslationType
-    workbench: AlgebraistWorkbench[TranslationType]
+    allocator: AlgebraistAllocator[TranslationType]
     layout: AlgebraistLayout | None = None
     linear_combine: Sequence[Callable[..., TranslationType]] | None = None
     accelerator: AcceleratorLike = field(default_factory=AcceleratorAbsent)
@@ -198,8 +199,8 @@ class AlgebraistRuntimeSupport(Generic[TranslationType]):
     _has_direct_combine2: bool = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        if not callable(getattr(self.workbench, "allocate_translation", None)):
-            raise TypeError("AlgebraistRuntimeSupport.workbench must provide allocate_translation().")
+        if not callable(getattr(self.allocator, "allocate_translation", None)):
+            raise TypeError("AlgebraistRuntimeSupport.allocator must provide allocate_translation().")
 
         self._fallback = AlgebraistRuntimeFallbackCombine[TranslationType]()
         direct = self._validated_linear_combine()
@@ -214,7 +215,7 @@ class AlgebraistRuntimeSupport(Generic[TranslationType]):
             )
 
     def allocate_translation(self) -> TranslationType:
-        return self.workbench.allocate_translation()
+        return self.allocator.allocate_translation()
 
     def provide_general(self, request: AlgebraistArity) -> RuntimeKernel[TranslationType]:
         if request.value not in self._kernels:
@@ -278,8 +279,8 @@ class AlgebraistRuntimeSupport(Generic[TranslationType]):
         label: str,
         **values: object,
     ) -> AnyRuntimeKernel:
-        accelerated = self.accelerator.resolve_support(kernel, label=label, **values)
-        return cast(AnyRuntimeKernel, accelerated)
+        del label, values
+        return kernel
 
     def _validated_linear_combine(self) -> tuple[RuntimeKernel[TranslationType], ...]:
         raw = self.linear_combine

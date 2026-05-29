@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from stark.accelerators.binding import DerivativeAccelerated
+from stark.schemes.support.derivative import SchemeDerivative
 from stark.block import Block
-from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
-from stark.execution.executor import Executor
-from stark.execution.regulator import Regulator
-from stark.resolvents.support.failure import ResolventError
+from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
+from stark.schemes.support.executor import SchemeExecutor
+from stark.executor.adaptivity import ExecutorAdaptivity
+from stark.contracts.errors import StarkErrorRecoverable
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     SchemeStepControl,
@@ -51,16 +51,16 @@ class SchemeBDF2:
     def __init__(
         self,
         derivative: Derivative,
-        workbench: Workbench,
+        allocator: Allocator,
         resolvent: Resolvent,
-        regulator: Regulator | None = None,
+        adaptivity: ExecutorAdaptivity | None = None,
         *,
         specialist: SchemeSpecialist | None = None,
     ) -> None:
         del specialist
         self.resolvent = resolvent
-        initialise_implicit_support(self, derivative, workbench)
-        self.derivative = DerivativeAccelerated(derivative)
+        initialise_implicit_support(self, derivative, allocator)
+        self.derivative = SchemeDerivative(derivative)
 
         workspace = self.workspace
         self.startup_rate = workspace.allocate_translation()
@@ -72,13 +72,13 @@ class SchemeBDF2:
         self.previous_step = 0.0
         self.has_history = False
 
-        initialise_adaptive_runtime(self, regulator)
+        initialise_adaptive_runtime(self, adaptivity)
         self.call_pure = self.call_inline
         refresh_adaptive_call(self)
 
     @staticmethod
-    def default_regulator() -> Regulator:
-        return Regulator(error_exponent=0.5)
+    def default_adaptivity() -> ExecutorAdaptivity:
+        return ExecutorAdaptivity(error_exponent=0.5)
 
     @property
     def short_name(self) -> str:
@@ -130,13 +130,13 @@ class SchemeBDF2:
     def __format__(self, format_spec: str) -> str:
         return format(str(self), format_spec)
 
-    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         return self.redirect_call(interval, state, executor)
 
-    def call_specialized(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def call_specialized(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         return self.call_inline(interval, state, executor)
 
-    def call_inline(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def call_inline(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         del executor
         proposal = self.step_control.propose_step(interval)
         if proposal.remaining <= 0.0:
@@ -167,7 +167,7 @@ class SchemeBDF2:
                 else:
                     # 1. Use a backward-Euler startup solve.
                     delta_high, error_ratio = self.solve_startup_step(interval, state, dt, ratio_fn)
-            except ResolventError:
+            except StarkErrorRecoverable:
                 rejection_count += 1
                 dt = self.step_control.rejected_step(dt, 1.0, remaining, self.short_name)
                 continue

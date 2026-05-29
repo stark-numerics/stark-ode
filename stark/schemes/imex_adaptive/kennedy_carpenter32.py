@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from stark.contracts import IntervalLike, State
-from stark.execution.executor import Executor
-from stark.execution.regulator import Regulator
+from stark.schemes.support.executor import SchemeExecutor
+from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.schemes.support import (
     SchemeStepControl,
     with_adaptive_runtime_methods,
@@ -106,12 +106,12 @@ class SchemeKennedyCarpenter32(SchemeKennedyCarpenterAdaptive):
     descriptor = SchemeDescriptor("KC32", "Kennedy-Carpenter 3(2)")
     tableau = KENNEDY_CARPENTER32_TABLEAU
 
-    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         return self.redirect_call(interval, state, executor)
 
     @staticmethod
-    def default_regulator() -> Regulator:
-        return Regulator(error_exponent=1.0 / 3.0)
+    def default_adaptivity() -> ExecutorAdaptivity:
+        return ExecutorAdaptivity(error_exponent=1.0 / 3.0)
 
 
 __all__ = [

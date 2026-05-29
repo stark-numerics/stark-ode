@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stark import Executor, Interval, Tolerance
+from stark import Executor, Interval, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.monitor import Monitor
@@ -36,12 +36,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -77,12 +77,12 @@ class ArrayScalarTranslation:
         return ArrayScalarTranslation(scalar * self.value)
 
 
-class ArrayScalarWorkbench:
+class ArrayScalarAllocator:
     def allocate_state(self) -> ArrayScalarState:
         return ArrayScalarState.zero()
 
-    def copy_state(self, dst: ArrayScalarState, src: ArrayScalarState) -> None:
-        dst.value[...] = src.value
+    def copy_state(self, source: ArrayScalarState, out: ArrayScalarState) -> None:
+        out.value[...] = source.value
 
     def allocate_translation(self) -> ArrayScalarTranslation:
         return ArrayScalarTranslation.zero()
@@ -122,21 +122,21 @@ def array_implicit_rhs(
 
 
 def make_scheme() -> SchemeKennedyCarpenter32:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     derivative = SplitDerivative(
         explicit=zero_rhs,
         implicit=zero_rhs,
     )
     resolvent = ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
         tableau=SchemeKennedyCarpenter32.tableau,
     )
     return SchemeKennedyCarpenter32(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
     )
 
@@ -145,26 +145,26 @@ def make_array_scheme(
     *,
     specialist: bool = False,
 ) -> SchemeKennedyCarpenter32:
-    workbench = ArrayScalarWorkbench()
+    allocator = ArrayScalarAllocator()
     derivative = SplitDerivative(
         explicit=array_explicit_rhs,
         implicit=array_implicit_rhs,
     )
     resolvent = ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
         tableau=SchemeKennedyCarpenter32.tableau,
     )
     return SchemeKennedyCarpenter32(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
         specialist=(
             AlgebraistRuntimeSpecialist(
-                translation=workbench.allocate_translation(),
-                workbench=workbench,
+                translation=allocator.allocate_translation(),
+                allocator=allocator,
             )
             if specialist
             else None
@@ -173,7 +173,7 @@ def make_array_scheme(
 
 
 def tight_executor() -> Executor:
-    return Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    return Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
 def test_kennedy_carpenter32_owns_converted_call_surface() -> None:
@@ -202,7 +202,7 @@ def test_kennedy_carpenter32_accepts_zero_split_step() -> None:
     scheme = make_scheme()
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
-    executor = Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
     accepted_dt = scheme(interval, state, executor)
 
@@ -245,7 +245,7 @@ def test_kennedy_carpenter32_clips_to_remaining_interval() -> None:
     scheme = make_scheme()
     interval = Interval(present=0.25, step=0.1, stop=0.3)
     state = ScalarState(2.0)
-    executor = Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
     accepted_dt = scheme(interval, state, executor)
 
@@ -262,7 +262,7 @@ def test_kennedy_carpenter32_monitoring_uses_scheme_owned_boundary() -> None:
     monitor = Monitor()
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
-    executor = Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
     scheme.assign_executor(executor)
     scheme.assign_monitor(monitor.scheme)

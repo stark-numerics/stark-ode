@@ -40,10 +40,10 @@ def accelerated_layout() -> AlgebraistLayout:
 def accelerated_context(size: int) -> tuple:
     linear_combine = _ACCELERATED_CONTEXTS.get(size)
     if linear_combine is None:
-        workbench = AcceleratedWorkbench(size)
+        allocator = AcceleratedAllocator(size)
         provider = AlgebraistGeneratorGeneral(
-            translation=workbench.allocate_translation(),
-            workbench=workbench,
+            translation=allocator.allocate_translation(),
+            allocator=allocator,
             layout=accelerated_layout(),
             accelerator=Accelerator.numba(cache=False),
         )
@@ -73,7 +73,7 @@ class AcceleratedTranslation:
         self.linear_combine = linear_combine
 
 
-class AcceleratedWorkbench:
+class AcceleratedAllocator:
     __slots__ = ("linear_combine", "size")
 
     def __init__(self, size: int) -> None:
@@ -156,10 +156,10 @@ if numba_available():
         param_names = ("chain_size",)
 
         def time_accelerated_algebraist_compile(self, chain_size: int) -> None:
-            workbench = AcceleratedWorkbench(chain_size)
+            allocator = AcceleratedAllocator(chain_size)
             provider = AlgebraistGeneratorGeneral(
-                translation=workbench.allocate_translation(),
-                workbench=workbench,
+                translation=allocator.allocate_translation(),
+                allocator=allocator,
                 layout=accelerated_layout(),
                 accelerator=Accelerator.numba(cache=False),
             )

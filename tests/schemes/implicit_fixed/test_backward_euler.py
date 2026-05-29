@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Interval, Tolerance
+from stark import Executor, Interval, ExecutorTolerance
 from stark.accelerators import AcceleratorAbsent
 from stark.resolvents import ResolventPicard
 from stark.resolvents.support.policy import ResolventPolicy
@@ -33,12 +33,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -54,17 +54,17 @@ def constant_rhs(
 
 
 def make_scheme() -> SchemeBackwardEuler:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     resolvent = ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=AcceleratorAbsent(),
         tableau=SchemeBackwardEuler.tableau,
     )
     return SchemeBackwardEuler(
         constant_rhs,
-        workbench,
+        allocator,
         resolvent=resolvent,
     )
 

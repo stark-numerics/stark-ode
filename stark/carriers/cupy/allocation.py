@@ -1,3 +1,5 @@
+"""Allocation helpers for CuPy-backed carrier values."""
+
 from dataclasses import dataclass
 from typing import Protocol, cast
 
@@ -7,6 +9,8 @@ from stark.carriers.cupy.storage import CarrierCupyValue, CarrierStorageCupy
 
 
 class HintCupyModule(Protocol):
+    """Subset of CuPy allocation APIs used by this carrier."""
+
     def zeros(self, shape: tuple[int, ...], dtype: object) -> CarrierCupyValue: ...
     def array(self, value: CarrierCupyValue, *, copy: bool = ...) -> CarrierCupyValue: ...
 
@@ -16,6 +20,8 @@ cupy = cast(HintCupyModule, cp)
 
 @dataclass(frozen=True)
 class CarrierAllocationCupy:
+    """Allocate and copy CuPy state/translation arrays."""
+
     storage: CarrierStorageCupy
 
     def zero_state(self) -> CarrierCupyValue:

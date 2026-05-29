@@ -6,14 +6,14 @@ from typing import Any
 from stark.contracts.audit_support import AuditRecorder
 
 
-@dataclass(slots=True)
-class Tolerance:
+@dataclass(frozen=True, slots=True)
+class ExecutorTolerance:
     """
-    General STARK tolerance object for normalized error control.
+    Executor-owned tolerance object for normalized error control.
 
     Any object providing `bound(scale)`, `ratio(error, scale)`, and
-    `accepts(error, scale)` can be used in its place, but this class is the
-    common duck-typed default for scheme, resolver, and inverter tolerances.
+    `accepts(error, scale)` can be used in its place. Schemes see this through
+    their local `SchemeTolerance` protocol.
     """
 
     atol: float = 1.0e-6
@@ -35,23 +35,18 @@ class Tolerance:
         return self.ratio(error, scale) <= 1.0
 
 
-@dataclass(slots=True)
-class SchemeTolerance(Tolerance):
-    """Scheme-facing tolerance object for adaptive step acceptance."""
-
-
-class ToleranceAudit:
+class ExecutorToleranceAudit:
     def __call__(self, recorder: AuditRecorder, tolerance: Any) -> None:
-        recorder.check(callable(getattr(tolerance, "bound", None)), "Tolerance provides bound(scale).", "Pass stark.Tolerance(...) or add bound(scale).")
-        recorder.check(callable(getattr(tolerance, "ratio", None)), "Tolerance provides ratio(error, scale).", "Add ratio(error, scale) for adaptive schemes.")
+        recorder.check(callable(getattr(tolerance, "bound", None)), "ExecutorTolerance provides bound(scale).", "Pass stark.ExecutorTolerance(...) or add bound(scale).")
+        recorder.check(callable(getattr(tolerance, "ratio", None)), "ExecutorTolerance provides ratio(error, scale).", "Add ratio(error, scale) for adaptive schemes.")
         recorder.check(
             callable(getattr(tolerance, "accepts", None)),
-            "Tolerance provides accepts(error, scale).",
-            "Add accepts(error, scale) if you want compatibility with STARK's tolerance interface.",
+            "ExecutorTolerance provides accepts(error, scale).",
+            "Add accepts(error, scale) if you want compatibility with STARK's ExecutorTolerance interface.",
         )
 
 
-__all__ = ["SchemeTolerance", "Tolerance", "ToleranceAudit"]
+__all__ = ["ExecutorTolerance", "ExecutorToleranceAudit"]
 
 
 

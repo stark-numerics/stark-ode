@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from stark import Executor, Integrator, Interval, Marcher, Safety, Tolerance
+from stark import Executor, Integrator, Interval, Marcher, ExecutorSafety, ExecutorTolerance
 from stark.carriers import CarrierNumpy
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.interface.derivative import StarkDerivative as InterfaceDerivative
-from stark.interface.vector import StarkVectorWorkbench
+from stark.interface.vector import StarkVectorAllocator
 from stark.schemes.explicit_adaptive import SchemeCashKarp
 
 from benchmarks.common import (
@@ -15,7 +15,7 @@ from benchmarks.common import (
     FPUTParameters,
     FPUTVectorDerivative,
     FPUTVectorReturnDerivative,
-    FPUTWorkbench,
+    FPUTAllocator,
     initial_fput_matrix,
     initial_fput_state,
     initial_fput_vector,
@@ -38,8 +38,8 @@ def parameters(chain_size: int) -> FPUTParameters:
 
 def executor() -> Executor:
     return Executor(
-        tolerance=Tolerance(atol=ATOL, rtol=RTOL),
-        safety=Safety.fast(),
+        tolerance=ExecutorTolerance(atol=ATOL, rtol=RTOL),
+        safety=ExecutorSafety.fast(),
     )
 
 
@@ -48,9 +48,9 @@ class CoreFPUTCase:
 
     def __init__(self, problem: FPUTParameters) -> None:
         derivative = FPUTDerivative(problem)
-        workbench = FPUTWorkbench(problem)
+        allocator = FPUTAllocator(problem)
         run_executor = executor()
-        scheme = SchemeCashKarp(derivative, workbench)
+        scheme = SchemeCashKarp(derivative, allocator)
         self.marcher = Marcher(scheme, run_executor)
         self.integrator = Integrator(executor=run_executor)
         self.interval = Interval(problem.t0, problem.initial_step, problem.t1)
@@ -68,10 +68,10 @@ class VectorCoreFPUTCase:
 
     def __init__(self, problem: FPUTParameters, initial: object, derivative: object) -> None:
         carrier = CarrierNumpy(initial)
-        workbench = StarkVectorWorkbench(carrier)
+        allocator = StarkVectorAllocator(carrier)
         bound_derivative = InterfaceDerivative.in_place(derivative).bind(carrier)
         run_executor = executor()
-        scheme = SchemeCashKarp(bound_derivative, workbench)
+        scheme = SchemeCashKarp(bound_derivative, allocator)
         self.marcher = Marcher(scheme, run_executor)
         self.integrator = Integrator(executor=run_executor)
         self.interval = Interval(problem.t0, problem.initial_step, problem.t1)

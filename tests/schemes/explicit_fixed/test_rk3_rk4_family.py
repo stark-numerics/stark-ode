@@ -33,12 +33,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -101,7 +101,7 @@ def exponential_growth(
     ],
 )
 def test_rk3_rk4_scheme_performs_one_step(scheme_cls, expected) -> None:
-    scheme = scheme_cls(exponential_growth, ScalarWorkbench())
+    scheme = scheme_cls(exponential_growth, ScalarAllocator())
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 
@@ -120,7 +120,7 @@ def test_rk3_rk4_scheme_performs_one_step(scheme_cls, expected) -> None:
     ],
 )
 def test_rk3_rk4_scheme_clips_to_remaining_interval(scheme_cls, expected) -> None:
-    scheme = scheme_cls(exponential_growth, ScalarWorkbench())
+    scheme = scheme_cls(exponential_growth, ScalarAllocator())
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(1.0)
 
@@ -139,7 +139,7 @@ def test_rk3_rk4_scheme_clips_to_remaining_interval(scheme_cls, expected) -> Non
     ],
 )
 def test_rk3_rk4_default_call_path_is_scheme_owned_inline_call(scheme_cls) -> None:
-    scheme = scheme_cls(exponential_growth, ScalarWorkbench())
+    scheme = scheme_cls(exponential_growth, ScalarAllocator())
 
     assert scheme.call_pure.__self__ is scheme
     assert scheme.call_pure.__func__ is scheme_cls.call_inline
@@ -157,7 +157,7 @@ def test_rk3_rk4_default_call_path_is_scheme_owned_inline_call(scheme_cls) -> No
 def test_rk3_rk4_specialist_path_is_selected_inside_scheme(scheme_cls) -> None:
     scheme = scheme_cls(
         exponential_growth,
-        ScalarWorkbench(),
+        ScalarAllocator(),
         specialist=StubSpecialist(),
     )
 
@@ -180,10 +180,10 @@ def test_rk3_rk4_inline_and_specialist_paths_match_for_one_step(scheme_cls) -> N
     state_inline = ScalarState(1.0)
     state_specialist = ScalarState(1.0)
 
-    inline = scheme_cls(exponential_growth, ScalarWorkbench())
+    inline = scheme_cls(exponential_growth, ScalarAllocator())
     specialist = scheme_cls(
         exponential_growth,
-        ScalarWorkbench(),
+        ScalarAllocator(),
         specialist=StubSpecialist(),
     )
 

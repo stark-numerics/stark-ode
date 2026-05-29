@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 
 from stark.block import Block, BlockAllocator
-from stark.contracts import AcceleratorLike, InnerProduct, Translation, Workbench
-from stark.execution.safety import Safety
-from stark.execution.tolerance import Tolerance
+from stark.contracts import AcceleratorLike, InnerProduct, Translation, Allocator
+from stark.executor.tolerance import ExecutorTolerance
 from stark.resolvents.support import (
     MonitorResolventLike,
     ResolventError,
     ResolventPolicy,
+    ResolventSafety,
     ResolventSpecialist,
     ResolventStageProblem,
     ResolventStageResidual,
@@ -147,7 +147,7 @@ class ResolventBroyden:
     Algorithm sketch:
 
         1. Compute F(delta).
-        2. Accept if ||F(delta)|| is within tolerance.
+        2. Accept if ||F(delta)|| is within ExecutorTolerance.
         3. Apply the inverse approximation to propose a correction.
         4. Trial the correction and compute the residual change.
         5. Store a new inverse-Broyden secant pair when informative.
@@ -198,12 +198,12 @@ class ResolventBroyden:
 
     def __init__(
         self,
-        workbench: Workbench,
+        allocator: Allocator,
         inner_product: InnerProduct,
-        tolerance: Tolerance | None = None,
+        ExecutorTolerance: ExecutorTolerance | None = None,
         policy: ResolventPolicy | None = None,
         depth: int = 8,
-        safety: Safety | None = None,
+        safety: ResolventSafety | None = None,
         accelerator: AcceleratorLike | None = None,
         specialist: ResolventSpecialist[Translation] | None = None,
         tableau: Any | None = None,
@@ -211,16 +211,16 @@ class ResolventBroyden:
         self.tableau = tableau
         initialise_resolvent_runtime(self, safety, accelerator)
 
-        self.allocator = BlockAllocator(workbench)
+        self.allocator = BlockAllocator(allocator)
         self.tolerance = (
-            tolerance
-            if tolerance is not None
+            ExecutorTolerance
+            if ExecutorTolerance is not None
             else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         )
         self.policy = policy if policy is not None else ResolventPolicy()
         self.residual = ResolventStageResidual(
             "ResolventBroyden",
-            workbench,
+            allocator,
             accelerator=self.accelerator,
         )
         self.residual_buffer = None
@@ -308,7 +308,7 @@ class ResolventBroyden:
             # 1. Compute F(delta).
             F(delta, residual)
 
-            # 2. Accept if ||F(delta)|| is within tolerance.
+            # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
             scale = delta.norm()
             if self.tolerance.accepts(error, scale):
@@ -389,7 +389,7 @@ class ResolventBroyden:
             # 1. Compute F(delta).
             F(delta, residual)
 
-            # 2. Accept if ||F(delta)|| is within tolerance.
+            # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
             scale = delta.norm()
             if self.tolerance.accepts(error, scale):

@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+"""Protocols for translation linear-combination fast paths.
+
+These contracts document the optional generic algebra kernels a translation can
+provide through `translation.linear_combine`. They are deliberately explicit up
+to arity seven because those signatures are readable and useful to type
+checkers. Higher arities are still documented as callable protocols, but use
+variadic terms to avoid making this public docs layer unreadable.
+"""
+
 from typing import Protocol
 
 from stark.contracts.translations import Translation

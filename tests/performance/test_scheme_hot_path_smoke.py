@@ -31,12 +31,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -48,7 +48,7 @@ def exponential_growth(interval: Interval, state: ScalarState, out: ScalarTransl
 
 
 def run_rk4_steps(n_steps: int) -> float:
-    scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
+    scheme = SchemeRK4(exponential_growth, ScalarAllocator())
     marcher = Marcher(scheme, Executor())
     interval = Interval(present=0.0, step=1.0 / n_steps, stop=1.0)
     state = ScalarState(1.0)

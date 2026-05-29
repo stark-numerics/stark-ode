@@ -63,12 +63,12 @@ class ScalarTranslation:
     linear_combine = [scale, combine2, combine3]
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -85,7 +85,7 @@ def zero_rhs(
 
 def test_picard_records_resolvent_solve_when_monitor_assigned() -> None:
     monitor = Monitor()
-    resolvent = ResolventPicard(ScalarWorkbench())
+    resolvent = ResolventPicard(ScalarAllocator())
     interval = Interval(present=0.0, step=0.1, stop=1.0)
     state = ScalarState()
     out = Block([ScalarTranslation()])
@@ -108,7 +108,7 @@ def test_picard_records_resolvent_solve_when_monitor_assigned() -> None:
 
 def test_picard_unassign_monitor_restores_unmonitored_solves() -> None:
     monitor = Monitor()
-    resolvent = ResolventPicard(ScalarWorkbench())
+    resolvent = ResolventPicard(ScalarAllocator())
     interval = Interval(present=0.0, step=0.1, stop=1.0)
     state = ScalarState()
     out = Block([ScalarTranslation()])

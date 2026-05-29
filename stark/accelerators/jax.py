@@ -25,15 +25,29 @@ class AcceleratorJax(AcceleratorBase):
         self.values = {} if values is None else dict(values)
         self._jax = jax
 
-    def decorate(self, function: AcceleratorTarget | None = None, /, **kwargs: Any) -> Callable[..., Any]:
-        options = dict(kwargs)
+    def compile(
+        self,
+        function: AcceleratorTarget | None = None,
+        /,
+        *,
+        label: str | None = None,
+        cache: bool | None = None,
+        **options: Any,
+    ) -> Callable[..., Any]:
+        del label, cache
+        jit_options = {**self.values, **options}
 
-        def decorate_function(target: AcceleratorTarget) -> AcceleratorTarget:
-            return self._jax.jit(target, **options)
+        def compile_function(target: AcceleratorTarget) -> AcceleratorTarget:
+            if getattr(target, "__code__", None) is None:
+                if self.strict:
+                    raise RuntimeError("jax backend can only compile plain Python functions.")
+                return target
+
+            return self._jax.jit(target, **jit_options)
 
         if function is None:
-            return decorate_function
-        return decorate_function(function)
+            return compile_function
+        return compile_function(function)
 
     def _compile_examples(self, function: AcceleratorTarget, *signatures: Any) -> AcceleratorTarget:
         if not signatures or not callable(function):

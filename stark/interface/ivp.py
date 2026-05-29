@@ -7,7 +7,7 @@ from stark import Executor, Integrator, Marcher
 from stark.carriers import CarrierNative, CarrierNumpy
 from stark.contracts import Carrier
 from stark.interface.derivative import StarkDerivative
-from stark.interface.vector import StarkVector, StarkVectorTranslation, StarkVectorWorkbench
+from stark.interface.vector import StarkVector, StarkVectorTranslation, StarkVectorAllocator
 from stark.schemes import SchemeCashKarp
 
 
@@ -21,12 +21,12 @@ class IntervalLike(Protocol):
 
 
 DerivativeRuntime = Callable[[IntervalLike, StarkVector, StarkVectorTranslation], None]
-SchemeFactory = Callable[[DerivativeRuntime, StarkVectorWorkbench], Any]
+SchemeFactory = Callable[[DerivativeRuntime, StarkVectorAllocator], Any]
 
 
 @dataclass(slots=True)
 class StarkIVPBuild:
-    workbench: StarkVectorWorkbench
+    allocator: StarkVectorAllocator
     derivative: DerivativeRuntime
     scheme: Any
     executor: Executor
@@ -130,13 +130,13 @@ class StarkIVP:
         return stark_derivative.bind(self.prepared_carrier)
 
     def build(self) -> StarkIVPBuild:
-        workbench = StarkVectorWorkbench(self.prepared_carrier)
+        allocator = StarkVectorAllocator(self.prepared_carrier)
         derivative = self.prepared_derivative
 
         if self.scheme is None:
-            scheme = SchemeCashKarp(derivative, workbench)
+            scheme = SchemeCashKarp(derivative, allocator)
         elif isinstance(self.scheme, type):
-            scheme = self.scheme(derivative, workbench)
+            scheme = self.scheme(derivative, allocator)
         else:
             scheme = self.scheme
 
@@ -145,7 +145,7 @@ class StarkIVP:
         integrator = Integrator(executor=executor)
 
         return StarkIVPBuild(
-            workbench=workbench,
+            allocator=allocator,
             derivative=derivative,
             scheme=scheme,
             executor=executor,

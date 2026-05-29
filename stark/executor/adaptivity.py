@@ -1,18 +1,24 @@
 from __future__ import annotations
 
-from stark.execution.regulator import Regulator
+from dataclasses import dataclass
 
 
-class AdaptiveController:
-    """Reusable adaptive step-size control driven by a `Regulator`."""
+@dataclass(frozen=True, slots=True)
+class ExecutorAdaptivity:
+    """Adaptive step-size policy carried by an `Executor`."""
 
-    __slots__ = ("safety", "min_factor", "max_factor", "error_exponent")
+    safety: float = 0.8
+    min_factor: float = 0.1
+    max_factor: float = 5.0
+    error_exponent: float = 0.2
 
-    def __init__(self, regulator: Regulator) -> None:
-        self.safety = regulator.safety
-        self.min_factor = regulator.min_factor
-        self.max_factor = regulator.max_factor
-        self.error_exponent = regulator.error_exponent
+    def __str__(self) -> str:
+        return (
+            f"safety={self.safety:g}, "
+            f"min_factor={self.min_factor:g}, "
+            f"max_factor={self.max_factor:g}, "
+            f"error_exponent={self.error_exponent:g}"
+        )
 
     def factor(self, error_ratio: float) -> float:
         if error_ratio == 0.0:
@@ -33,4 +39,4 @@ class AdaptiveController:
         return remaining_after if next_step > remaining_after else next_step
 
 
-__all__ = ["AdaptiveController"]
+__all__ = ["ExecutorAdaptivity"]

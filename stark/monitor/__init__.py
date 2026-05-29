@@ -2,18 +2,18 @@ from stark.monitor.monitor import Monitor, MonitorSummary
 from stark.monitor.inverter import (
     MonitorInverter,
     MonitorInverterSolve,
-    MonitorSummaryInverter,
+    MonitorInverterSummary,
 )
 from stark.monitor.resolvent import (
     MonitorResolvent,
     MonitorResolventSolve,
-    MonitorSummaryResolvent,
+    MonitorResolventSummary,
 )
 from stark.monitor.scheme import (
     MonitorScheme,
     MonitorSchemeStepAdaptive,
     MonitorSchemeStepFixed,
-    MonitorSummaryScheme,
+    MonitorSchemeSummary,
 )
 
 
@@ -27,7 +27,7 @@ __all__ = [
     "MonitorSchemeStepAdaptive",
     "MonitorSchemeStepFixed",
     "MonitorSummary",
-    "MonitorSummaryInverter",
-    "MonitorSummaryResolvent",
-    "MonitorSummaryScheme",
+    "MonitorInverterSummary",
+    "MonitorResolventSummary",
+    "MonitorSchemeSummary",
 ]

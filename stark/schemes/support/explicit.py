@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark.accelerators.binding import DerivativeAccelerated
-from stark.auditor import Auditor
-from stark.contracts import Derivative, State, Translation, Workbench
+from stark.schemes.support.derivative import SchemeDerivative
+from stark.core.auditor import Auditor
+from stark.contracts import Derivative, State, Translation, Allocator
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
 
 
@@ -19,7 +19,7 @@ class SchemeSupportExplicit:
     Concrete schemes should still own their actual step algorithm.
     """
 
-    derivative: DerivativeAccelerated
+    derivative: SchemeDerivative
     workspace: SchemeWorkspace
     first_translation: Translation
 
@@ -27,14 +27,14 @@ class SchemeSupportExplicit:
     def from_inputs(
         cls,
         derivative: Derivative,
-        workbench: Workbench,
+        allocator: Allocator,
     ) -> SchemeSupportExplicit:
-        first_translation = workbench.allocate_translation()
-        Auditor.require_scheme_inputs(derivative, workbench, first_translation)
+        first_translation = allocator.allocate_translation()
+        Auditor.require_scheme_inputs(derivative, allocator, first_translation)
 
         return cls(
-            derivative=DerivativeAccelerated(derivative),
-            workspace=SchemeWorkspace(workbench, first_translation),
+            derivative=SchemeDerivative(derivative),
+            workspace=SchemeWorkspace(allocator, first_translation),
             first_translation=first_translation,
         )
 
@@ -52,11 +52,11 @@ class SchemeSupportExplicit:
 def initialise_explicit_support(
     scheme,
     derivative: Derivative,
-    workbench: Workbench,
+    allocator: Allocator,
 ) -> SchemeSupportExplicit:
     """Attach the standard explicit scheme support object to a scheme."""
 
-    support = SchemeSupportExplicit.from_inputs(derivative, workbench)
+    support = SchemeSupportExplicit.from_inputs(derivative, allocator)
     scheme.explicit = support
     scheme.derivative = support.derivative
     scheme.workspace = support.workspace

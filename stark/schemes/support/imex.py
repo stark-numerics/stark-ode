@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-from stark.auditor import Auditor
-from stark.contracts import ImExDerivative, State, Workbench
+from stark.core.auditor import Auditor
+from stark.contracts import DerivativeIMEX, State, Allocator
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
 from stark.schemes.support.display import display_imex_resolvent_problem
 
 
 def initialise_imex_support(
     scheme,
-    derivative: ImExDerivative,
-    workbench: Workbench,
+    derivative: DerivativeIMEX,
+    allocator: Allocator,
 ) -> SchemeWorkspace:
-    translation_probe = workbench.allocate_translation()
-    Auditor.require_imex_scheme_inputs(derivative, workbench, translation_probe)
-    scheme.workspace = SchemeWorkspace(workbench, translation_probe)
+    translation_probe = allocator.allocate_translation()
+    Auditor.require_imex_scheme_inputs(derivative, allocator, translation_probe)
+    scheme.workspace = SchemeWorkspace(allocator, translation_probe)
     return scheme.workspace
 
 

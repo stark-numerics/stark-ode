@@ -4,7 +4,7 @@ import pytest
 from stark import Interval
 from stark.carriers import CarrierNative, CarrierNumpy
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
-from stark.interface.vector import StarkVectorWorkbench
+from stark.interface.vector import StarkVectorAllocator
 
 
 def test_ivp_prepares_native_initial_by_default() -> None:
@@ -164,8 +164,8 @@ def test_ivp_build_creates_runtime_components() -> None:
 
     runtime = ivp.build()
 
-    assert isinstance(runtime.workbench, StarkVectorWorkbench)
-    assert runtime.workbench.carrier is ivp.prepared_carrier
+    assert isinstance(runtime.allocator, StarkVectorAllocator)
+    assert runtime.allocator.carrier is ivp.prepared_carrier
     assert runtime.derivative is ivp.prepared_derivative
     assert runtime.initial is ivp.prepared_initial
     assert runtime.interval is ivp.interval

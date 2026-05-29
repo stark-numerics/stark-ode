@@ -1,21 +1,32 @@
+"""Storage checks for JAX-backed carrier values."""
+
 from dataclasses import dataclass
 from typing import Protocol, TypeAlias, cast
 
-import jax.numpy as jnp # type: ignore[import-not-found]
+import jax.numpy as jnp  # type: ignore[import-not-found]
 
 
 class HintJaxArray(Protocol):
+    """Small structural type for the JAX array attributes STARK uses."""
+
     shape: tuple[int, ...]
     dtype: object
 
+
 class HintJaxNumpyModule(Protocol):
+    """Subset of the JAX NumPy module used by carrier storage."""
+
     def asarray(self, value: HintJaxArray) -> HintJaxArray: ...
+
 
 jax_numpy = cast(HintJaxNumpyModule, jnp)
 CarrierJaxValue: TypeAlias = HintJaxArray
 
+
 @dataclass(frozen=True)
 class CarrierStorageJax:
+    """Template metadata for JAX states and translations."""
+
     shape: tuple[int, ...]
     dtype: object
 

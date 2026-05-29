@@ -1,13 +1,15 @@
+"""Repeated integration loops over a configured marcher."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 
-from stark.auditor import Auditor
-from stark.execution.executor import Executor
-from stark.marcher import Marcher
+from stark.core.auditor import Auditor
+from stark.executor.executor import Executor
+from stark.core.marcher import Marcher
 from stark.contracts import IntervalLike, State
-from stark.execution.safety import Safety
+from stark.executor.safety import ExecutorSafety
 from stark.monitor import Monitor
 
 
@@ -36,7 +38,7 @@ class Integrator:
 
     Snapshot mode relies on explicit copy support: intervals must implement
     `copy()`, and `Marcher` provides state snapshots through its scheme
-    workbench rather than falling back to `deepcopy`.
+    allocator rather than falling back to `deepcopy`.
 
     When progress safety is enabled, both modes check that time advances after
     every accepted step and raise a helpful error if a scheme stalls.
@@ -48,9 +50,11 @@ class Integrator:
         self,
         executor: Executor | None = None,
         *,
-        safety: Safety | None = None,
+        safety: ExecutorSafety | None = None,
     ) -> None:
-        self.executor = Executor.resolve(executor, safety=safety)
+        if executor is not None and safety is not None:
+            raise TypeError("Pass safety through Executor(safety=...), not alongside an executor.")
+        self.executor = executor if executor is not None else Executor(safety=safety if safety is not None else ExecutorSafety())
         self.redirect_call_snapshot = self.call_snapshot_safe if self.executor.safety.progress else self.call_snapshot_fast
         self.redirect_call_live = self.call_live_safe if self.executor.safety.progress else self.call_live_fast
 

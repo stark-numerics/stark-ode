@@ -1,3 +1,5 @@
+"""In-place arithmetic for CuPy-backed carrier values."""
+
 from typing import Literal, Protocol, cast
 
 import cupy as cp
@@ -6,6 +8,8 @@ from stark.carriers.cupy.storage import CarrierCupyValue, CarrierStorageCupy
 
 
 class HintCupyModule(Protocol):
+    """Subset of CuPy elementwise APIs used by carrier arithmetic."""
+
     def empty(self, shape: tuple[int, ...], dtype: object) -> CarrierCupyValue: ...
     def multiply(self, left: CarrierCupyValue, right: float, *, out: CarrierCupyValue) -> object: ...
     def add(self, left: CarrierCupyValue, right: CarrierCupyValue, *, out: CarrierCupyValue) -> object: ...
@@ -15,6 +19,8 @@ cupy = cast(HintCupyModule, cp)
 
 
 class CarrierArithmeticCupy:
+    """Perform carrier algebra by mutating CuPy output arrays in place."""
+
     storage: CarrierStorageCupy
     scratch: CarrierCupyValue
 
@@ -346,4 +352,3 @@ class CarrierArithmeticCupy:
         self.add_scaled(result, a9, x9)
         self.add_scaled(result, a10, x10)
         self.add_scaled(result, a11, x11)
-

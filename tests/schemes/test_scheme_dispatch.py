@@ -5,7 +5,7 @@ import warnings
 
 import pytest
 
-from stark import Executor, Interval, Tolerance
+from stark import Executor, Interval, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.resolvents import ResolventCoupledPicard, ResolventPicard
 from stark.resolvents.support.policy import ResolventPolicy
@@ -53,12 +53,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -95,20 +95,20 @@ def zero_rhs(
     out.value = 0.0
 
 
-def make_one_stage_resolvent(scheme_cls, workbench: ScalarWorkbench) -> ResolventPicard:
+def make_one_stage_resolvent(scheme_cls, allocator: ScalarAllocator) -> ResolventPicard:
     return ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
         tableau=scheme_cls.tableau,
     )
 
 
-def make_bdf2_resolvent(workbench: ScalarWorkbench) -> ResolventPicard:
+def make_bdf2_resolvent(allocator: ScalarAllocator) -> ResolventPicard:
     return ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
         tableau=None,
@@ -117,11 +117,11 @@ def make_bdf2_resolvent(workbench: ScalarWorkbench) -> ResolventPicard:
 
 def make_coupled_resolvent(
     scheme_cls,
-    workbench: ScalarWorkbench,
+    allocator: ScalarAllocator,
 ) -> ResolventCoupledPicard:
     return ResolventCoupledPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
         tableau=scheme_cls.tableau,
@@ -129,140 +129,140 @@ def make_coupled_resolvent(
 
 
 def make_implicit_fixed_scheme(scheme_cls):
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     return scheme_cls(
         constant_rhs,
-        workbench,
-        resolvent=make_one_stage_resolvent(scheme_cls, workbench),
+        allocator,
+        resolvent=make_one_stage_resolvent(scheme_cls, allocator),
     )
 
 
 def make_coupled_implicit_fixed_scheme(scheme_cls):
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     return scheme_cls(
         constant_rhs,
-        workbench,
-        resolvent=make_coupled_resolvent(scheme_cls, workbench),
+        allocator,
+        resolvent=make_coupled_resolvent(scheme_cls, allocator),
     )
 
 
 def make_implicit_adaptive_scheme(scheme_cls):
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     return scheme_cls(
         constant_rhs,
-        workbench,
-        resolvent=make_one_stage_resolvent(scheme_cls, workbench),
+        allocator,
+        resolvent=make_one_stage_resolvent(scheme_cls, allocator),
     )
 
 
 def make_bdf2_scheme() -> SchemeBDF2:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     return SchemeBDF2(
         constant_rhs,
-        workbench,
-        resolvent=make_bdf2_resolvent(workbench),
+        allocator,
+        resolvent=make_bdf2_resolvent(allocator),
     )
 
 def make_imex_fixed_scheme() -> SchemeIMEXEuler:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     implicit = constant_rhs
     derivative = SplitDerivative(
         explicit=zero_rhs,
         implicit=implicit,
     )
     resolvent = ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
         tableau=SchemeIMEXEuler.tableau,
     )
     return SchemeIMEXEuler(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
     )
 
 def make_kennedy_carpenter32_scheme():
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     derivative = SplitDerivative(
         explicit=zero_rhs,
         implicit=zero_rhs,
     )
     resolvent = ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
         tableau=SchemeKennedyCarpenter32.tableau,
     )
     return SchemeKennedyCarpenter32(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
     )
 
 def make_kennedy_carpenter43_6_scheme():
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     derivative = SplitDerivative(
         explicit=zero_rhs,
         implicit=zero_rhs,
     )
     resolvent = ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
         tableau=SchemeKennedyCarpenter43_6.tableau,
     )
     return SchemeKennedyCarpenter43_6(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
     )
 
 def make_kennedy_carpenter43_7_scheme():
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     derivative = SplitDerivative(
         explicit=zero_rhs,
         implicit=zero_rhs,
     )
     resolvent = ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
         tableau=SchemeKennedyCarpenter43_7.tableau,
     )
     return SchemeKennedyCarpenter43_7(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
     )
 
 def make_kennedy_carpenter54_scheme():
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     derivative = SplitDerivative(
         explicit=zero_rhs,
         implicit=zero_rhs,
     )
     resolvent = ResolventPicard(
-        workbench,
-        tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+        allocator,
+        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=8),
         accelerator=Accelerator.none(),
         tableau=SchemeKennedyCarpenter54.tableau,
     )
     return SchemeKennedyCarpenter54(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
     )
 
 def public_contract_schemes():
     return [
-        SchemeRK4(exponential_growth, ScalarWorkbench()),
-        SchemeBogackiShampine(zero_rhs, ScalarWorkbench()),
+        SchemeRK4(exponential_growth, ScalarAllocator()),
+        SchemeBogackiShampine(zero_rhs, ScalarAllocator()),
         make_implicit_fixed_scheme(SchemeBackwardEuler),
         make_implicit_fixed_scheme(SchemeImplicitMidpoint),
         make_implicit_fixed_scheme(SchemeCrankNicolson),
@@ -283,7 +283,7 @@ def public_contract_schemes():
 
 
 def test_fixed_scheme_call_returns_accepted_dt() -> None:
-    scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
+    scheme = SchemeRK4(exponential_growth, ScalarAllocator())
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 
@@ -294,7 +294,7 @@ def test_fixed_scheme_call_returns_accepted_dt() -> None:
 
 
 def test_fixed_scheme_call_clips_to_remaining_interval() -> None:
-    scheme = SchemeRK4(exponential_growth, ScalarWorkbench())
+    scheme = SchemeRK4(exponential_growth, ScalarAllocator())
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(1.0)
 
@@ -305,10 +305,10 @@ def test_fixed_scheme_call_clips_to_remaining_interval() -> None:
 
 
 def test_adaptive_scheme_call_returns_accepted_dt() -> None:
-    scheme = SchemeBogackiShampine(zero_rhs, ScalarWorkbench())
+    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
-    executor = Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
     accepted_dt = scheme(interval, state, executor)
 
@@ -317,10 +317,10 @@ def test_adaptive_scheme_call_returns_accepted_dt() -> None:
 
 
 def test_adaptive_scheme_call_clips_next_accepted_dt_to_remaining_interval() -> None:
-    scheme = SchemeBogackiShampine(zero_rhs, ScalarWorkbench())
+    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
     interval = Interval(present=0.1, step=1.0, stop=0.3)
     state = ScalarState(2.0)
-    executor = Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
     accepted_dt = scheme(interval, state, executor)
 
@@ -346,7 +346,7 @@ def test_snapshot_state_works_through_scheme_object(scheme) -> None:
 def test_set_apply_delta_safety_works_through_scheme_object(scheme) -> None:
     # This is a public contract guard. It deliberately avoids asserting private
     # workspace/stepper internals; the important point for the refactor is that
-    # schemes continue to expose the safety switch directly.
+    # schemes continue to expose the ExecutorSafety switch directly.
     scheme.set_apply_delta_safety(False)
     scheme.set_apply_delta_safety(True)
 
@@ -378,7 +378,7 @@ def test_self_contained_scheme_exemplars_own_public_call_method() -> None:
 
 
 def test_converted_fixed_explicit_scheme_still_works_without_warning() -> None:
-    scheme = SchemeHeun(exponential_growth, ScalarWorkbench())
+    scheme = SchemeHeun(exponential_growth, ScalarAllocator())
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 

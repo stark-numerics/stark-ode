@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark import Executor, Integrator, Interval, Marcher, Safety, Tolerance
+from stark import Executor, Integrator, Interval, Marcher, ExecutorSafety, ExecutorTolerance
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.schemes.explicit_adaptive import SchemeCashKarp, SchemeDormandPrince
 from stark.schemes.explicit_fixed import SchemeEuler, SchemeRK4
@@ -10,7 +10,7 @@ from benchmarks.common import (
     FPUT_SIZES,
     FPUTDerivative,
     FPUTParameters,
-    FPUTWorkbench,
+    FPUTAllocator,
     initial_fput_state,
 )
 
@@ -44,16 +44,16 @@ def adaptive_parameters(chain_size: int) -> FPUTParameters:
 
 def executor() -> Executor:
     return Executor(
-        tolerance=Tolerance(atol=ATOL, rtol=RTOL),
-        safety=Safety.fast(),
+        tolerance=ExecutorTolerance(atol=ATOL, rtol=RTOL),
+        safety=ExecutorSafety.fast(),
     )
 
 
 def specialist(parameters: FPUTParameters) -> AlgebraistRuntimeSpecialist:
-    workbench = FPUTWorkbench(parameters)
+    allocator = FPUTAllocator(parameters)
     return AlgebraistRuntimeSpecialist(
-        translation=workbench.allocate_translation(),
-        workbench=workbench,
+        translation=allocator.allocate_translation(),
+        allocator=allocator,
         linear_combine=FPUT_ALGEBRAIST.linear_combine,
     )
 
@@ -69,8 +69,8 @@ class FPUTExplicitCase:
         specialist: object | None = None,
     ) -> None:
         derivative = FPUTDerivative(parameters)
-        workbench = FPUTWorkbench(parameters)
-        scheme = scheme_type(derivative, workbench, specialist=specialist)
+        allocator = FPUTAllocator(parameters)
+        scheme = scheme_type(derivative, allocator, specialist=specialist)
         run_executor = executor()
         self.marcher = Marcher(scheme, run_executor)
         self.integrator = Integrator(executor=run_executor)
@@ -91,16 +91,16 @@ class TimeFPUTExplicit:
     def setup(self, chain_size: int) -> None:
         fixed = fixed_parameters(chain_size)
         adaptive = adaptive_parameters(chain_size)
-        fixed_workbench = FPUTWorkbench(fixed)
-        adaptive_workbench = FPUTWorkbench(adaptive)
+        fixed_allocator = FPUTAllocator(fixed)
+        adaptive_allocator = FPUTAllocator(adaptive)
         fixed_specialist = AlgebraistRuntimeSpecialist(
-            translation=fixed_workbench.allocate_translation(),
-            workbench=fixed_workbench,
+            translation=fixed_allocator.allocate_translation(),
+            allocator=fixed_allocator,
             linear_combine=FPUT_ALGEBRAIST.linear_combine,
         )
         adaptive_specialist = AlgebraistRuntimeSpecialist(
-            translation=adaptive_workbench.allocate_translation(),
-            workbench=adaptive_workbench,
+            translation=adaptive_allocator.allocate_translation(),
+            allocator=adaptive_allocator,
             linear_combine=FPUT_ALGEBRAIST.linear_combine,
         )
         self.euler = FPUTExplicitCase(SchemeEuler, fixed)

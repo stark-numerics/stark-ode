@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from math import acos, copysign, cos, pi, sqrt
+from typing import Any
 
 import numpy as np
 
-from stark import Executor, Integrator, Interval, Marcher, Safety, Tolerance
+from stark import Executor, Integrator, Interval, Marcher, ExecutorSafety, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorGeneral
+from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutUnravel
 from stark.schemes import SchemeKvaerno4
 
@@ -20,13 +22,15 @@ except ModuleNotFoundError:
     ACCELERATOR = Accelerator.none()
     USE_NUMBA_ACCELERATION = False
 
+Array = Any
+
 ALGEBRAIST_LAYOUT = AlgebraistLayout(
     fields=(AlgebraistLayoutField("dy", "y", policy=AlgebraistLayoutUnravel(shape=(3,))),),
 )
 
 
-@ACCELERATOR.decorate
-def _full_rhs_kernel(state_y, out_y):
+@ACCELERATOR.compile
+def _full_rhs_kernel(state_y: Array, out_y: Array) -> None:
     y1 = state_y[0]
     y2 = state_y[1]
     y3 = state_y[2]
@@ -35,6 +39,27 @@ def _full_rhs_kernel(state_y, out_y):
     out_y[0] = -0.04 * y1 + coupling
     out_y[1] = 0.04 * y1 - coupling - quadratic
     out_y[2] = quadratic
+
+
+@ACCELERATOR.compile
+def _apply_kernel(dy: Array, origin_y: Array, result_y: Array) -> None:
+    result_y[0] = origin_y[0] + dy[0]
+    result_y[1] = origin_y[1] + dy[1]
+    result_y[2] = origin_y[2] + dy[2]
+
+
+@ACCELERATOR.compile
+def _norm_kernel(dy: Array) -> float:
+    return ((dy[0] * dy[0] + dy[1] * dy[1] + dy[2] * dy[2]) / 3.0) ** 0.5
+
+
+@ACCELERATOR.compile
+def _state_error_kernel(y: Array, reference_y: Array) -> float:
+    dy0 = y[0] - reference_y[0]
+    dy1 = y[1] - reference_y[1]
+    dy2 = y[2] - reference_y[2]
+    return ((dy0 * dy0 + dy1 * dy1 + dy2 * dy2) / 3.0) ** 0.5
+
 
 @dataclass(slots=True)
 class RobertsonState:
@@ -46,12 +71,13 @@ class RobertsonState:
     __str__ = __repr__
 
     def error_against(self, reference):
-        diff = self.y - reference["y"]
-        return sqrt(float(np.dot(diff, diff)) / diff.size)
+        return float(_state_error_kernel(self.y, reference["y"]))
 
 
 class RobertsonTranslation:
     __slots__ = ("dy",)
+
+    linear_combine: tuple[Callable[..., Any], ...] = ()
 
     def __init__(self, dy):
         self.dy = dy
@@ -67,45 +93,67 @@ class RobertsonTranslation:
     def __rmul__(self, scalar):
         return RobertsonTranslation(scalar * self.dy)
 
+    def __mul__(self, scalar):
+        return self.__rmul__(scalar)
+
     def __call__(self, origin: RobertsonState, result: RobertsonState) -> None:
-        result.y[...] = origin.y + self.dy
+        _apply_kernel(self.dy, origin.y, result.y)
 
     def norm(self) -> float:
-        return sqrt(float(np.dot(self.dy, self.dy)) / self.dy.size)
+        return float(_norm_kernel(self.dy))
 
 
-class RobertsonWorkbench:
+class RobertsonAllocator:
     __slots__ = ()
-    _compiled = False
+
+    _algebraist_installed = False
+    _specialist: AlgebraistGeneratorSpecialist | None = None
 
     def __init__(self) -> None:
-        if not self.__class__._compiled:
-            RobertsonTranslation.linear_combine = _generated_linear_combine(self)
-            self.__class__._compiled = True
+        self._install_algebraist()
 
     def __repr__(self) -> str:
-        return "RobertsonWorkbench()"
+        return "RobertsonAllocator()"
 
     __str__ = __repr__
 
     def allocate_state(self):
         return RobertsonState(np.zeros(3, dtype=np.float64))
 
-    def copy_state(self, dst, src):
-        np.copyto(dst.y, src.y)
+    def copy_state(self, source, out):
+        np.copyto(out.y, source.y)
 
     def allocate_translation(self):
         return RobertsonTranslation(np.zeros(3, dtype=np.float64))
 
+    @property
+    def specialist(self):
+        specialist = self.__class__._specialist
+        if specialist is None:
+            raise RuntimeError("RobertsonAllocator Algebraist support was not installed.")
+        return specialist
 
-def _generated_linear_combine(workbench):
-    provider = AlgebraistGeneratorGeneral(
-        translation=workbench.allocate_translation(),
-        workbench=workbench,
-        layout=ALGEBRAIST_LAYOUT,
-        accelerator=ACCELERATOR,
-    )
-    return tuple(provider.provide(AlgebraistArity(arity)) for arity in range(1, 13))
+    def _install_algebraist(self) -> None:
+        if self.__class__._algebraist_installed:
+            return
+
+        general = AlgebraistGeneratorGeneral(
+            translation=self.allocate_translation(),
+            allocator=self,
+            layout=ALGEBRAIST_LAYOUT,
+            accelerator=ACCELERATOR,
+        )
+        RobertsonTranslation.linear_combine = tuple(
+            general.provide(AlgebraistArity(arity))
+            for arity in range(1, 13)
+        )
+        self.__class__._specialist = AlgebraistGeneratorSpecialist(
+            translation=self.allocate_translation(),
+            allocator=self,
+            layout=ALGEBRAIST_LAYOUT,
+            accelerator=ACCELERATOR,
+        )
+        self.__class__._algebraist_installed = True
 
 
 class RobertsonFullDerivative:
@@ -149,24 +197,24 @@ def _full_derivative():
     return RobertsonFullDerivative()
 
 
-def _build_implicit_solver(scheme_type, derivative, workbench, resolvent, stark_parameters, safety):
+def _build_implicit_solver(scheme_type, derivative, allocator, resolvent, stark_parameters, executor_safety):
     scheme = scheme_type(
         derivative,
-        workbench,
+        allocator,
         resolvent=resolvent,
+        specialist=allocator.specialist,
     )
     marcher = Marcher(
         scheme,
         Executor(
-            tolerance=Tolerance(
+            tolerance=ExecutorTolerance(
                 atol=stark_parameters["tolerance_atol"],
                 rtol=stark_parameters["tolerance_rtol"],
             ),
-            safety=safety,
-            accelerator=ACCELERATOR,
+            safety=executor_safety,
         ),
     )
-    integrate = Integrator(executor=Executor(safety=safety, accelerator=ACCELERATOR))
+    integrate = Integrator(executor=Executor(safety=executor_safety))
     return marcher, integrate
 
 
@@ -298,16 +346,16 @@ class RobertsonCubicRoot:
             return min(bounded, key=lambda root: abs(root - target))
         return min(roots, key=lambda root: abs(root - target))
 def prepare_implicit_custom(name, scheme_type, problem_parameters, stark_parameters, initial_conditions, reference):
-    safety = Safety.fast()
-    workbench = RobertsonWorkbench()
+    executor_safety = ExecutorSafety.fast()
+    allocator = RobertsonAllocator()
     derivative = _full_derivative()
     marcher, integrate = _build_implicit_solver(
         scheme_type,
         derivative,
-        workbench,
+        allocator,
         RobertsonFullCubicResolvent(tableau=scheme_type.tableau),
         stark_parameters,
-        safety,
+        executor_safety,
     )
     return _prepare_solver(name, marcher, integrate, problem_parameters, stark_parameters, initial_conditions, reference)
 def prepare_kvaerno4_full_custom(problem_parameters, stark_parameters, initial_conditions, reference):
@@ -319,8 +367,6 @@ def prepare_kvaerno4_full_custom(problem_parameters, stark_parameters, initial_c
         initial_conditions,
         reference,
     )
-
-
 
 
 

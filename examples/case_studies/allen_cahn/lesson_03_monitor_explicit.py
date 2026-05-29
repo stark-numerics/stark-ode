@@ -39,7 +39,7 @@ from stark.schemes import SchemeCashKarp
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     DIFFUSIVITY,
-    TOLERANCE,
+    EXECUTOR_TOLERANCE,
     AllenCahnRHS,
     Geometry,
     initial_profile,
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         initial=initial_profile(geometry),
         interval=make_interval(),
         scheme=SchemeCashKarp,
-        executor=Executor(tolerance=TOLERANCE),
+        executor=Executor(tolerance=EXECUTOR_TOLERANCE),
     ).build()
 
     list(

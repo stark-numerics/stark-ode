@@ -1,3 +1,5 @@
+"""Allocation helpers for JAX-backed carrier values."""
+
 from dataclasses import dataclass
 from typing import Protocol, cast
 
@@ -7,6 +9,8 @@ from stark.carriers.jax.storage import CarrierJaxValue, CarrierStorageJax
 
 
 class HintJaxNumpyModule(Protocol):
+    """Subset of JAX NumPy allocation APIs used by this carrier."""
+
     def zeros(self, shape: tuple[int, ...], dtype: object) -> CarrierJaxValue: ...
     def array(self, value: CarrierJaxValue) -> CarrierJaxValue: ...
 
@@ -16,6 +20,8 @@ jax_numpy = cast(HintJaxNumpyModule, jnp)
 
 @dataclass(frozen=True)
 class CarrierAllocationJax:
+    """Allocate and copy JAX state/translation arrays."""
+
     storage: CarrierStorageJax
 
     def zero_state(self) -> CarrierJaxValue:

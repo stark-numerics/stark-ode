@@ -10,7 +10,7 @@ from typing import Callable
 
 import numpy as np
 
-from stark import Executor, Integrator, Interval, Marcher, Safety, Tolerance
+from stark import Executor, Integrator, Interval, Marcher, ExecutorSafety, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
@@ -69,7 +69,7 @@ class PairTranslation:
         )
 
 
-class PairWorkbench:
+class PairAllocator:
     __slots__ = ("count", "linear_combine")
 
     def __init__(self, count: int) -> None:
@@ -82,9 +82,9 @@ class PairWorkbench:
             np.zeros(self.count, dtype=np.float64),
         )
 
-    def copy_state(self, dst: PairState, src: PairState) -> None:
-        np.copyto(dst.q, src.q)
-        np.copyto(dst.p, src.p)
+    def copy_state(self, source: PairState, out: PairState) -> None:
+        np.copyto(out.q, source.q)
+        np.copyto(out.p, source.p)
 
     def allocate_translation(self) -> PairTranslation:
         return PairTranslation(
@@ -126,7 +126,7 @@ class PairAlgebraist:
     specialist: AlgebraistGeneratorSpecialist
 
 
-def make_algebraist(policy, workbench: PairWorkbench, accelerator=None) -> PairAlgebraist:
+def make_algebraist(policy, allocator: PairAllocator, accelerator=None) -> PairAlgebraist:
     active_accelerator = accelerator if accelerator is not None else Accelerator.none()
     layout = AlgebraistLayout(
         fields=(
@@ -135,16 +135,16 @@ def make_algebraist(policy, workbench: PairWorkbench, accelerator=None) -> PairA
         ),
     )
     general = AlgebraistGeneratorGeneral(
-        translation=workbench.allocate_translation(),
-        workbench=workbench,
+        translation=allocator.allocate_translation(),
+        allocator=allocator,
         layout=layout,
         accelerator=active_accelerator,
     )
     linear_combine = tuple(general.provide(AlgebraistArity(arity)) for arity in range(1, 13))
-    workbench.linear_combine = linear_combine
+    allocator.linear_combine = linear_combine
     specialist = AlgebraistGeneratorSpecialist(
-        translation=workbench.allocate_translation(),
-        workbench=workbench,
+        translation=allocator.allocate_translation(),
+        allocator=allocator,
         layout=layout,
         accelerator=active_accelerator,
     )
@@ -160,8 +160,8 @@ def numba_accelerator():
 
 def make_executor() -> Executor:
     return Executor(
-        tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6),
-        safety=Safety.fast(),
+        tolerance=ExecutorTolerance(atol=1.0e-8, rtol=1.0e-6),
+        safety=ExecutorSafety.fast(),
     )
 
 
@@ -225,10 +225,10 @@ def make_case(
     policy=None,
     accelerator=None,
 ) -> BenchmarkCase:
-    workbench = PairWorkbench(count)
-    algebraist = make_algebraist(policy, workbench, accelerator) if policy is not None else None
+    allocator = PairAllocator(count)
+    algebraist = make_algebraist(policy, allocator, accelerator) if policy is not None else None
     specialist = algebraist.specialist if algebraist is not None else None
-    scheme = scheme_cls(PairDerivative(count), workbench, specialist=specialist)
+    scheme = scheme_cls(PairDerivative(count), allocator, specialist=specialist)
     return BenchmarkCase(
         name=label,
         scheme=scheme,

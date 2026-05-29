@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
-from stark.execution.executor import Executor
+from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
+from stark.schemes.support.executor import SchemeExecutor
 from stark.schemes.support import (
     SchemeDescriptor,
     refresh_fixed_step_call,
@@ -69,7 +69,7 @@ class SchemeCrankNicolson:
     def __init__(
         self,
         derivative: Derivative,
-        workbench: Workbench,
+        allocator: Allocator,
         resolvent: Resolvent,
         *,
         specialist: SchemeSpecialist | None = None,
@@ -80,7 +80,7 @@ class SchemeCrankNicolson:
         self.resolvent = resolvent
         self.known_rhs_kernel = None
 
-        initialise_implicit_support(self, derivative, workbench)
+        initialise_implicit_support(self, derivative, allocator)
         self.k1 = self.workspace.allocate_translation()
         self.known_rhs = self.block_allocator.allocate(1)
         self.stage_delta = self.block_allocator.allocate(1)
@@ -92,14 +92,14 @@ class SchemeCrankNicolson:
             self.call_pure = self.call_specialized
             refresh_fixed_step_call(self)
 
-    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         return self.redirect_call(interval, state, executor)
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
         # Step 2 builds the known explicit contribution h/2 * k1.
         self.known_rhs_kernel = specialist.provide(SchemeStencil((0.5,)))
 
-    def call_inline(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def call_inline(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         del executor
 
         remaining = interval.stop - interval.present
@@ -132,7 +132,7 @@ class SchemeCrankNicolson:
         interval.step = 0.0 if remaining_after <= 0.0 else min(interval.step, remaining_after)
         return dt
 
-    def call_specialized(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def call_specialized(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         del executor
 
         remaining = interval.stop - interval.present

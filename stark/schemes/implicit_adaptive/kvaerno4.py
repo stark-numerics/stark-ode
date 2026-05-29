@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from stark.accelerators.binding import DerivativeAccelerated
+from stark.schemes.support.derivative import SchemeDerivative
 from stark.block import Block
-from stark.contracts import Derivative, IntervalLike, Resolvent, State, Workbench
-from stark.execution.executor import Executor
-from stark.execution.regulator import Regulator
-from stark.resolvents.support.failure import ResolventError
+from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
+from stark.schemes.support.executor import SchemeExecutor
+from stark.executor.adaptivity import ExecutorAdaptivity
+from stark.contracts.errors import StarkErrorRecoverable
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
     SchemeStepControl,
@@ -104,7 +104,7 @@ class SchemeKvaerno4:
     descriptor = SchemeDescriptor("Kvaerno4", "Kvaerno 4(3)")
     tableau = KVAERNO4_TABLEAU
 
-    def __init__(self, derivative: Derivative, workbench: Workbench, resolvent: Resolvent, regulator: Regulator | None = None, *, specialist: SchemeSpecialist | None = None) -> None:
+    def __init__(self, derivative: Derivative, allocator: Allocator, resolvent: Resolvent, adaptivity: ExecutorAdaptivity | None = None, *, specialist: SchemeSpecialist | None = None) -> None:
         self.error_delta_call = unbound_scheme_call
         self.high_delta_call = unbound_scheme_call
         self.known2_call = unbound_scheme_call
@@ -112,8 +112,8 @@ class SchemeKvaerno4:
         self.known4_call = unbound_scheme_call
         self.known5_call = unbound_scheme_call
         self.resolvent = resolvent
-        initialise_implicit_support(self, derivative, workbench)
-        self.derivative = DerivativeAccelerated(derivative)
+        initialise_implicit_support(self, derivative, allocator)
+        self.derivative = SchemeDerivative(derivative)
         workspace = self.workspace
         self.stage1_rate = workspace.allocate_translation()
         (self.delta1, self.delta2, self.delta3, self.delta4, self.delta5, self.known3, self.known4, self.known5, self.trial, self.error) = workspace.allocate_translation_buffers(10)
@@ -125,7 +125,7 @@ class SchemeKvaerno4:
         self.known3_block = Block([self.known3])
         self.known4_block = Block([self.known4])
         self.known5_block = Block([self.known5])
-        initialise_adaptive_runtime(self, regulator)
+        initialise_adaptive_runtime(self, adaptivity)
         self.call_pure = self.call_inline
         refresh_adaptive_call(self)
         if specialist is not None:
@@ -134,10 +134,10 @@ class SchemeKvaerno4:
             refresh_adaptive_call(self)
 
     @staticmethod
-    def default_regulator() -> Regulator:
-        return Regulator(error_exponent=1.0 / 4.0)
+    def default_adaptivity() -> ExecutorAdaptivity:
+        return ExecutorAdaptivity(error_exponent=1.0 / 4.0)
 
-    def __call__(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         return self.redirect_call(interval, state, executor)
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
@@ -154,7 +154,7 @@ class SchemeKvaerno4:
         self.resolvent(problem, delta_block)
         return delta_block[0]
 
-    def call_inline(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def call_inline(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         del executor
         proposal = self.step_control.propose_step(interval)
         if proposal.remaining <= 0.0:
@@ -210,7 +210,7 @@ class SchemeKvaerno4:
                     self.known5,
                 )
                 delta5 = self._solve_stage(interval, state, dt, dt, dt * KVAERNO4_GAMMA, known5, self.known5_block, self.delta5_block)
-            except ResolventError:
+            except StarkErrorRecoverable:
                 rejection_count += 1
                 dt = self.step_control.rejected_step(dt, 1.0, remaining, scheme_name)
                 continue
@@ -229,7 +229,7 @@ class SchemeKvaerno4:
         report = self.step_control.record_accepted(accepted_dt=accepted_dt, t_start=t_start, proposed_dt=proposed_dt, next_dt=next_dt, error_ratio=error_ratio, rejection_count=rejection_count)
         return report.accepted_dt
 
-    def call_specialized(self, interval: IntervalLike, state: State, executor: Executor) -> float:
+    def call_specialized(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         del executor
         proposal = self.step_control.propose_step(interval)
         if proposal.remaining <= 0.0:
@@ -256,7 +256,7 @@ class SchemeKvaerno4:
                 delta4 = self._solve_stage(interval, state, dt, dt, dt * KVAERNO4_GAMMA, known4, self.known4_block, self.delta4_block)
                 known5 = self.known5_call(1.0, delta1, delta2, delta3, delta4, self.known5)
                 delta5 = self._solve_stage(interval, state, dt, dt, dt * KVAERNO4_GAMMA, known5, self.known5_block, self.delta5_block)
-            except ResolventError:
+            except StarkErrorRecoverable:
                 rejection_count += 1
                 dt = self.step_control.rejected_step(dt, 1.0, remaining, scheme_name)
                 continue

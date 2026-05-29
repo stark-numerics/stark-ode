@@ -1,11 +1,10 @@
 from dataclasses import dataclass
 
 from stark.accelerators import Accelerator
-from stark.contracts import AccelerationRequest, AccelerationRole
-from stark import Executor, ImExDerivative
-from stark.auditor import AuditError, Auditor
-from stark.execution.tolerance import Tolerance
-from stark.interval import Interval
+from stark import Executor, DerivativeIMEX
+from stark.core.auditor import AuditError, Auditor
+from stark.executor.tolerance import ExecutorTolerance
+from stark.core.interval import Interval
 
 
 @dataclass(slots=True)
@@ -43,18 +42,18 @@ class DummyTranslation:
     linear_combine = [scale, combine2]
 
 
-class DummyWorkbench:
+class DummyAllocator:
     def allocate_state(self) -> dict[str, float]:
         return {"x": 0.0}
 
-    def copy_state(self, dst: dict[str, float], src: dict[str, float]) -> None:
-        dst["x"] = src["x"]
+    def copy_state(self, source: dict[str, float], out: dict[str, float]) -> None:
+        out["x"] = source["x"]
 
     def allocate_translation(self) -> DummyTranslation:
         return DummyTranslation()
 
 
-class BadWorkbench:
+class BadAllocator:
     def allocate_state(self) -> dict[str, float]:
         return {"x": 0.0}
 
@@ -88,8 +87,8 @@ class UserAccelerator:
     strict = False
 
     @staticmethod
-    def decorate(function=None, /, **kwargs):
-        del kwargs
+    def compile(function=None, /, **options):
+        del options
         if function is None:
             return lambda target: target
         return function
@@ -99,72 +98,16 @@ class UserAccelerator:
         del signatures
         return function
 
-    @staticmethod
-    def resolve(target, request):
-        del request
-        return target
-
-    def resolve_derivative(self, derivative):
-        return self.resolve(derivative, AccelerationRequest(AccelerationRole.DERIVATIVE))
-
-    def resolve_linearizer(self, linearizer):
-        return self.resolve(linearizer, AccelerationRequest(AccelerationRole.LINEARIZER))
-
-    def resolve_support(self, worker, *, label=None, **values):
-        return self.resolve(worker, AccelerationRequest(AccelerationRole.SUPPORT, label=label, values=values))
-
-
-class AcceleratedDerivative:
-    def __call__(self, interval: Interval, state: dict[str, float], out: DummyTranslation) -> None:
-        del interval
-        out.value = 2.0 * state["x"]
-
-
-class DerivativeWithAcceleration:
-    def __call__(self, interval: Interval, state: dict[str, float], out: DummyTranslation) -> None:
-        del interval
-        out.value = state["x"]
-
-    def accelerated(self, accelerator: Accelerator, request: AccelerationRequest):
-        if request.role is AccelerationRole.DERIVATIVE and accelerator.name == "none":
-            return AcceleratedDerivative()
-        return self
-
-
-class AcceleratedLinearizer:
-    def __call__(self, interval: Interval, state: dict[str, float], out: object) -> None:
-        del interval, state
-
-        def apply(translation: DummyTranslation, result: DummyTranslation) -> None:
-            result.value = 3.0 * translation.value
-
-        setattr(out, "apply", apply)
-
-
-class LinearizerWithAcceleration:
-    def __call__(self, interval: Interval, state: dict[str, float], out: object) -> None:
-        del interval, state
-
-        def apply(translation: DummyTranslation, result: DummyTranslation) -> None:
-            result.value = translation.value
-
-        setattr(out, "apply", apply)
-
-    def accelerated(self, accelerator: Accelerator, request: AccelerationRequest):
-        if request.role is AccelerationRole.LINEARIZER and accelerator.name == "none":
-            return AcceleratedLinearizer()
-        return self
-
 
 def test_auditor_reports_ready_configuration() -> None:
     auditor = Auditor(
         state={"x": 1.0},
         derivative=derivative,
         translation=DummyTranslation(),
-        workbench=DummyWorkbench(),
+        allocator=DummyAllocator(),
         interval=Interval(0.0, 0.1, 1.0),
         scheme=DummyScheme(),
-        tolerance=Tolerance(),
+        ExecutorTolerance=ExecutorTolerance(),
         accelerator=Accelerator.none(),
     )
 
@@ -177,8 +120,8 @@ def test_auditor_reports_ready_configuration() -> None:
     assert "yes" in report
     assert report.index("Interval") < report.index("Derivative")
     assert report.index("Derivative") < report.index("Translation")
-    assert report.index("Translation") < report.index("Workbench")
-    assert report.index("Workbench") < report.index("Accelerator")
+    assert report.index("Translation") < report.index("Allocator")
+    assert report.index("Allocator") < report.index("Accelerator")
     assert report.index("Accelerator") < report.index("Scheme")
     assert "Overall: ready." in report
 
@@ -188,7 +131,7 @@ def test_auditor_reports_missing_requirements() -> None:
         state={"x": 1.0},
         derivative=derivative,
         translation=DummyTranslation(),
-        workbench=BadWorkbench(),
+        allocator=BadAllocator(),
         interval=Interval(0.0, 0.1, 1.0),
     )
 
@@ -200,13 +143,13 @@ def test_auditor_reports_missing_requirements() -> None:
 
 def test_require_scheme_inputs_raises_helpful_error() -> None:
     try:
-        Auditor.require_scheme_inputs(derivative, BadWorkbench(), DummyTranslation())
+        Auditor.require_scheme_inputs(derivative, BadAllocator(), DummyTranslation())
     except AuditError as exc:
         message = str(exc)
-        assert "Workbench provides copy_state" in message
+        assert "Allocator provides copy_state" in message
         assert "Overall: incomplete." in message
     else:  # pragma: no cover - defensive failure branch
-        raise AssertionError("Expected the audit to reject a bad workbench.")
+        raise AssertionError("Expected the audit to reject a bad allocator.")
 
 
 def test_require_linear_residual_rejects_missing_linearize() -> None:
@@ -225,20 +168,20 @@ def test_require_linear_residual_rejects_missing_linearize() -> None:
 
 
 def test_auditor_reports_ready_imex_derivative() -> None:
-    imex = ImExDerivative(implicit=derivative, explicit=derivative)
+    imex = DerivativeIMEX(implicit=derivative, explicit=derivative)
 
     auditor = Auditor(
         state={"x": 1.0},
         imex_derivative=imex,
         translation=DummyTranslation(),
-        workbench=DummyWorkbench(),
+        allocator=DummyAllocator(),
         interval=Interval(0.0, 0.1, 1.0),
     )
 
     assert auditor.ok
     report = str(auditor)
-    assert "ImExDerivative provides implicit(interval, state, translation)" in report
-    assert "ImExDerivative provides explicit(interval, state, translation)" in report
+    assert "DerivativeIMEX provides implicit(interval, state, translation)" in report
+    assert "DerivativeIMEX provides explicit(interval, state, translation)" in report
 
 
 def test_require_imex_scheme_inputs_rejects_missing_explicit_part() -> None:
@@ -247,10 +190,10 @@ def test_require_imex_scheme_inputs_rejects_missing_explicit_part() -> None:
         explicit = None
 
     try:
-        Auditor.require_imex_scheme_inputs(BadImEx(), DummyWorkbench(), DummyTranslation())
+        Auditor.require_imex_scheme_inputs(BadImEx(), DummyAllocator(), DummyTranslation())
     except AuditError as exc:
         message = str(exc)
-        assert "ImExDerivative provides explicit" in message
+        assert "DerivativeIMEX provides explicit" in message
         assert "Overall: incomplete." in message
     else:  # pragma: no cover - defensive failure branch
         raise AssertionError("Expected the audit to reject an IMEX split without an explicit part.")
@@ -261,16 +204,15 @@ def test_auditor_reports_missing_accelerator_requirements() -> None:
 
     assert not auditor.ok
     report = str(auditor)
-    assert "Accelerator provides decorate(function=None, **kwargs)" in report
+    assert "Accelerator provides compile(function=None, **options)" in report
     assert "Accelerator provides compile_examples(function, *signatures)" in report
-    assert "Accelerator provides resolve(target, request)" in report
 
 
 def test_auditor_reports_ready_built_in_accelerator() -> None:
     auditor = Auditor(accelerator=Accelerator.none(), exercise=False)
 
     assert auditor.ok
-    assert "Accelerator provides resolve(target, request)" in str(auditor)
+    assert "Accelerator provides compile(function=None, **options)" in str(auditor)
 
 
 def test_auditor_reports_ready_user_defined_accelerator() -> None:
@@ -280,46 +222,23 @@ def test_auditor_reports_ready_user_defined_accelerator() -> None:
     assert "Overall: ready." in str(auditor)
 
 
-def test_accelerator_can_resolve_a_typed_derivative_variant() -> None:
+def test_accelerator_compile_accepts_decorator_form() -> None:
     accelerator = Accelerator.none()
-    derivative = accelerator.resolve_derivative(DerivativeWithAcceleration())
-    out = DummyTranslation()
 
-    derivative(Interval(0.0, 0.1, 1.0), {"x": 3.0}, out)
+    @accelerator.compile
+    def worker(value: float) -> float:
+        return 2.0 * value
 
-    assert out.value == 6.0
+    assert worker(3.0) == 6.0
 
 
-def test_accelerated_linearizer_resolution_still_satisfies_linearizer_contract() -> None:
+def test_accelerator_compile_accepts_configured_decorator_form() -> None:
     accelerator = Accelerator.none()
-    linearizer = accelerator.resolve_linearizer(LinearizerWithAcceleration())
-    result = DummyTranslation()
 
-    Auditor.require_linearizer_inputs(linearizer, DummyWorkbench(), DummyTranslation())
-    linearizer(Interval(0.0, 0.1, 1.0), {"x": 2.0}, operator := type("OperatorProbe", (), {})())
-    operator.apply(DummyTranslation(4.0), result)
+    @accelerator.compile(label="audit")
+    def worker(value: float) -> float:
+        return 3.0 * value
 
-    assert result.value == 12.0
-
-
-def test_executor_rejects_non_conformant_accelerator_early_and_clearly() -> None:
-    try:
-        Executor(accelerator=BadAccelerator())
-    except AuditError as exc:
-        message = str(exc)
-        assert "Accelerator provides decorate(function=None, **kwargs)" in message
-        assert "Overall: incomplete." in message
-    else:  # pragma: no cover - defensive failure branch
-        raise AssertionError("Expected Executor(...) to reject a non-conformant accelerator.")
-
-
-
-
-
-
-
-
-
-
+    assert worker(4.0) == 12.0
 
 

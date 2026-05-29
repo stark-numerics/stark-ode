@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark import Executor, Interval, Tolerance
+from stark import Executor, Interval, ExecutorTolerance
 
 
 @dataclass(slots=True)
@@ -27,12 +27,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -108,7 +108,7 @@ def exponential_growth(
 
 
 def tight_executor() -> Executor:
-    return Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    return Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
 import pytest
@@ -123,7 +123,7 @@ def test_bogacki_shampine_owns_its_public_call_method() -> None:
 
 
 def test_bogacki_shampine_default_advance_path_is_scheme_owned_inline_advance() -> None:
-    scheme = SchemeBogackiShampine(zero_rhs, ScalarWorkbench())
+    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
 
     assert scheme.call_pure.__self__ is scheme
     assert scheme.call_pure.__func__ is SchemeBogackiShampine.call_inline
@@ -132,7 +132,7 @@ def test_bogacki_shampine_default_advance_path_is_scheme_owned_inline_advance() 
 
 
 def test_bogacki_shampine_public_call_uses_redirect_call() -> None:
-    scheme = SchemeBogackiShampine(zero_rhs, ScalarWorkbench())
+    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
 
@@ -154,7 +154,7 @@ def test_bogacki_shampine_public_call_uses_redirect_call() -> None:
 
 
 def test_bogacki_shampine_call_returns_accepted_dt_and_updates_next_step() -> None:
-    scheme = SchemeBogackiShampine(zero_rhs, ScalarWorkbench())
+    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
 
@@ -166,7 +166,7 @@ def test_bogacki_shampine_call_returns_accepted_dt_and_updates_next_step() -> No
 
 
 def test_bogacki_shampine_call_clips_to_remaining_interval() -> None:
-    scheme = SchemeBogackiShampine(zero_rhs, ScalarWorkbench())
+    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
     interval = Interval(present=0.1, step=1.0, stop=0.3)
     state = ScalarState(2.0)
 
@@ -180,7 +180,7 @@ def test_bogacki_shampine_call_clips_to_remaining_interval() -> None:
 def test_bogacki_shampine_specialist_path_is_selected_inside_scheme() -> None:
     scheme = SchemeBogackiShampine(
         exponential_growth,
-        ScalarWorkbench(),
+        ScalarAllocator(),
         specialist=StubSpecialist(),
     )
 
@@ -194,10 +194,10 @@ def test_bogacki_shampine_inline_and_specialist_paths_match_for_one_step() -> No
     state_inline = ScalarState(1.0)
     state_specialist = ScalarState(1.0)
 
-    inline = SchemeBogackiShampine(exponential_growth, ScalarWorkbench())
+    inline = SchemeBogackiShampine(exponential_growth, ScalarAllocator())
     specialist = SchemeBogackiShampine(
         exponential_growth,
-        ScalarWorkbench(),
+        ScalarAllocator(),
         specialist=StubSpecialist(),
     )
 
@@ -214,7 +214,7 @@ def test_bogacki_shampine_inline_and_specialist_paths_match_for_one_step() -> No
 
 
 def test_bogacki_shampine_integration_matches_characterized_step_count() -> None:
-    scheme = SchemeBogackiShampine(zero_rhs, ScalarWorkbench())
+    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
     marcher = Marcher(scheme, tight_executor())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
@@ -228,7 +228,7 @@ def test_bogacki_shampine_integration_matches_characterized_step_count() -> None
 
 
 def test_bogacki_shampine_monitoring_records_existing_adaptive_fields() -> None:
-    scheme = SchemeBogackiShampine(zero_rhs, ScalarWorkbench())
+    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
     marcher = Marcher(scheme, tight_executor())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)

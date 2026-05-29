@@ -10,14 +10,14 @@ from stark.contracts import (
     InverterLike,
     Linearizer,
     Translation,
-    Workbench,
+    Allocator,
 )
-from stark.execution.safety import Safety
-from stark.execution.tolerance import Tolerance
+from stark.executor.tolerance import ExecutorTolerance
 from stark.resolvents.support import (
     MonitorResolventLike,
     ResolventError,
     ResolventPolicy,
+    ResolventSafety,
     ResolventSpecialist,
     ResolventStageProblem,
     ResolventStageResidual,
@@ -45,7 +45,7 @@ class ResolventNewton:
     Algorithm sketch:
 
         1. Compute F(delta).
-        2. Accept if ||F(delta)|| is within tolerance.
+        2. Accept if ||F(delta)|| is within ExecutorTolerance.
         3. Build the differential DF(delta).
         4. Solve DF(delta) correction = -F(delta).
         5. Apply the Newton update delta <- delta + correction.
@@ -89,12 +89,12 @@ class ResolventNewton:
 
     def __init__(
         self,
-        workbench: Workbench,
+        allocator: Allocator,
         linearizer: Linearizer,
         inverter: InverterLike,
-        tolerance: Tolerance | None = None,
+        ExecutorTolerance: ExecutorTolerance | None = None,
         policy: ResolventPolicy | None = None,
-        safety: Safety | None = None,
+        safety: ResolventSafety | None = None,
         accelerator: AcceleratorLike | None = None,
         specialist: ResolventSpecialist[Translation] | None = None,
         tableau: Any | None = None,
@@ -102,17 +102,17 @@ class ResolventNewton:
         self.tableau = tableau
         initialise_resolvent_runtime(self, safety, accelerator)
 
-        self.allocator = BlockAllocator(workbench)
+        self.allocator = BlockAllocator(allocator)
         self.tolerance = (
-            tolerance
-            if tolerance is not None
+            ExecutorTolerance
+            if ExecutorTolerance is not None
             else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         )
         self.policy = policy if policy is not None else ResolventPolicy()
         self.inverter = inverter
         self.residual = ResolventStageResidual(
             "ResolventNewton",
-            workbench,
+            allocator,
             linearizer=linearizer,
             accelerator=self.accelerator,
         )
@@ -173,7 +173,7 @@ class ResolventNewton:
             # 1. Compute F(delta).
             F(delta, residual)
 
-            # 2. Accept if ||F(delta)|| is within tolerance.
+            # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
             scale = delta.norm()
             if self.tolerance.accepts(error, scale):
@@ -236,7 +236,7 @@ class ResolventNewton:
             # 1. Compute F(delta).
             F(delta, residual)
 
-            # 2. Accept if ||F(delta)|| is within tolerance.
+            # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
             scale = delta.norm()
             if self.tolerance.accepts(error, scale):

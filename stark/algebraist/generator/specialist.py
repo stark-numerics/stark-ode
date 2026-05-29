@@ -9,7 +9,7 @@ from stark.algebraist.generator.compiler import AlgebraistGeneratorCompiler
 from stark.algebraist.generator.emitter import AlgebraistGeneratorEmitter
 from stark.algebraist.layout import AlgebraistLayout
 from stark.algebraist.stencil import AlgebraistStencil
-from stark.algebraist.workbench import AlgebraistWorkbench
+from stark.algebraist.allocator import AlgebraistAllocator
 from stark.contracts.acceleration import AcceleratorLike
 
 StateType = TypeVar("StateType")
@@ -25,7 +25,7 @@ class AlgebraistGeneratorSpecialist(Generic[StateType, TranslationType]):
     """
 
     translation: TranslationType
-    workbench: AlgebraistWorkbench[TranslationType]
+    allocator: AlgebraistAllocator[TranslationType]
     layout: AlgebraistLayout
     linear_combine: Sequence[Callable[..., TranslationType]] | None = None
     accelerator: AcceleratorLike = field(default_factory=AcceleratorAbsent)

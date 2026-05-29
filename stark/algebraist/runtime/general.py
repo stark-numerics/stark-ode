@@ -8,7 +8,7 @@ from stark.accelerators.absent import AcceleratorAbsent
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.general import AlgebraistGeneralKernel
 from stark.algebraist.runtime.support import AlgebraistRuntimeSupport
-from stark.algebraist.workbench import AlgebraistWorkbench
+from stark.algebraist.allocator import AlgebraistAllocator
 from stark.contracts.acceleration import AcceleratorLike
 from stark.contracts.translations import Translation
 
@@ -25,7 +25,7 @@ class AlgebraistRuntimeGeneral(Generic[TranslationType]):
     """Runtime provider of general arity-based linear-combination kernels."""
 
     translation: TranslationType
-    workbench: AlgebraistWorkbench[TranslationType]
+    allocator: AlgebraistAllocator[TranslationType]
     layout: AlgebraistLayout | None = None
     linear_combine: Sequence[Callable[..., TranslationType]] | None = None
     accelerator: AcceleratorLike = field(default_factory=AcceleratorAbsent)
@@ -34,7 +34,7 @@ class AlgebraistRuntimeGeneral(Generic[TranslationType]):
     def __post_init__(self) -> None:
         self._support = AlgebraistRuntimeSupport(
             translation=self.translation,
-            workbench=self.workbench,
+            allocator=self.allocator,
             layout=self.layout,
             linear_combine=self.linear_combine,
             accelerator=self.accelerator,

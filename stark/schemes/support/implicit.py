@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-from stark.accelerators.binding import DerivativeAccelerated
+from stark.schemes.support.derivative import SchemeDerivative
 from stark.block import BlockAllocator
-from stark.contracts import Derivative, State, Workbench
+from stark.contracts import Derivative, State, Allocator
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
 from stark.schemes.support.display import display_implicit_resolvent_problem
 
 
-def initialise_implicit_support(self, derivative: Derivative, workbench: Workbench) -> None:
+def initialise_implicit_support(self, derivative: Derivative, allocator: Allocator) -> None:
     """Initialise shared support for built-in implicit schemes."""
 
     validate_implicit_resolvent_tableau(self)
-    translation_probe = workbench.allocate_translation()
-    self.derivative = DerivativeAccelerated(derivative)
-    self.workspace = SchemeWorkspace(workbench, translation_probe)
-    self.block_allocator = BlockAllocator(workbench)
+    translation_probe = allocator.allocate_translation()
+    self.derivative = SchemeDerivative(derivative)
+    self.workspace = SchemeWorkspace(allocator, translation_probe)
+    self.block_allocator = BlockAllocator(allocator)
 
 
 def validate_implicit_resolvent_tableau(self) -> None:

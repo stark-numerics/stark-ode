@@ -1,20 +1,28 @@
+"""Validation and coercion for CuPy-backed carrier values."""
+
 from dataclasses import dataclass
 from typing import Protocol, cast
+
 import cupy as cp
 
 from stark.carriers.cupy.storage import CarrierCupyValue, CarrierStorageCupy
 
 
 class HintCupyModule(Protocol):
+    """Subset of CuPy validation APIs used by this carrier."""
+
     ndarray: type[CarrierCupyValue]
 
     def asarray(self, value: CarrierCupyValue) -> CarrierCupyValue: ...
+
 
 cupy = cast(HintCupyModule, cp)
 
 
 @dataclass(frozen=True)
 class CarrierValidationCupy:
+    """Validate that CuPy values match the carrier template."""
+
     storage: CarrierStorageCupy
 
     def validate_state(self, value: CarrierCupyValue) -> CarrierCupyValue:

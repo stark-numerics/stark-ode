@@ -9,7 +9,7 @@ from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.generator.compiler import AlgebraistGeneratorCompiler
 from stark.algebraist.generator.emitter import AlgebraistGeneratorEmitter
 from stark.algebraist.layout import AlgebraistLayout
-from stark.algebraist.workbench import AlgebraistWorkbench
+from stark.algebraist.allocator import AlgebraistAllocator
 from stark.contracts.acceleration import AcceleratorLike
 
 TranslationType = TypeVar("TranslationType")
@@ -20,7 +20,7 @@ class AlgebraistGeneratorGeneral(Generic[TranslationType]):
     """Generated provider of general arity-based linear-combination kernels."""
 
     translation: TranslationType
-    workbench: AlgebraistWorkbench[TranslationType]
+    allocator: AlgebraistAllocator[TranslationType]
     layout: AlgebraistLayout
     linear_combine: Sequence[Callable[..., TranslationType]] | None = None
     accelerator: AcceleratorLike = field(default_factory=AcceleratorAbsent)

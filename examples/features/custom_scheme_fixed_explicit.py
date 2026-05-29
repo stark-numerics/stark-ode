@@ -19,7 +19,7 @@ from stark.carriers import CarrierNative
 from stark.interface.vector import (
     StarkVector,
     StarkVectorTranslation,
-    StarkVectorWorkbench,
+    StarkVectorAllocator,
 )
 
 
@@ -44,8 +44,8 @@ class ForwardEuler:
 
     def __init__(self) -> None:
         carrier = CarrierNative([1.0])
-        self.workbench = StarkVectorWorkbench(carrier)
-        self.delta = self.workbench.allocate_translation()
+        self.allocator = StarkVectorAllocator(carrier)
+        self.delta = self.allocator.allocate_translation()
         self.apply_delta_safely = True
 
     def __call__(
@@ -70,8 +70,8 @@ class ForwardEuler:
         return dt
 
     def snapshot_state(self, state: StarkVector) -> StarkVector:
-        snapshot = self.workbench.allocate_state()
-        self.workbench.copy_state(snapshot, state)
+        snapshot = self.allocator.allocate_state()
+        self.allocator.copy_state(state, snapshot)
         return snapshot
 
     def set_apply_delta_safety(self, enabled: bool) -> None:
@@ -82,7 +82,7 @@ def main() -> None:
     scheme = ForwardEuler()
     marcher = Marcher(scheme, Executor())
 
-    carrier = scheme.workbench.carrier
+    carrier = scheme.allocator.carrier
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = StarkVector([1.0], carrier)
 

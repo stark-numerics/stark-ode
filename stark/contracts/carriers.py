@@ -1,25 +1,43 @@
+"""Protocols for the carrier interface used by the newer object model.
+
+Carriers describe how STARK should store, validate, allocate, combine, and
+measure a user's state/translation pair. They are intended as the documented
+interface layer above lower-level optimized kernels: users can start from these
+small protocols and only drop into custom kernels where performance needs it.
+"""
+
+from __future__ import annotations
+
 from typing import Literal, Protocol
 
-from stark.contracts import (
+from stark.contracts.states import (
     StateType,
     StateTypeContravariant,
+)
+from stark.contracts.translations import (
     TranslationType,
     TranslationTypeContravariant,
 )
 
 
 class CarrierStorage(Protocol[StateTypeContravariant, TranslationTypeContravariant]):
+    """Recognize state and translation values for one carrier family."""
+
     def is_state(self, value: StateTypeContravariant) -> bool: ...
     def is_translation(self, value: TranslationTypeContravariant) -> bool: ...
 
 
 class CarrierValidation(Protocol[StateType, TranslationType]):
+    """Validate or coerce objects at public carrier boundaries."""
+
     def validate_state(self, value: StateType) -> StateType: ...
     def validate_translation(self, value: TranslationType) -> TranslationType: ...
     def coerce_translation(self, value: TranslationType) -> TranslationType: ...
 
 
 class CarrierAllocation(Protocol[StateType, TranslationType]):
+    """Allocate and copy state/translation objects for reusable workspaces."""
+
     def zero_state(self) -> StateType: ...
     def zero_translation(self) -> TranslationType: ...
     def copy_state(self, value: StateType) -> StateType: ...
@@ -28,6 +46,13 @@ class CarrierAllocation(Protocol[StateType, TranslationType]):
 
 
 class CarrierArithmetic(Protocol[StateType, TranslationType]):
+    """Perform carrier-aware state and translation algebra.
+
+    `preference` declares whether implementations prefer return-style algebra
+    or into-style mutation. All combination methods keep output/result last,
+    matching the package-wide optimized-kernel convention.
+    """
+
     @property
     def preference(self) -> Literal["return", "into"]: ...
 
@@ -48,10 +73,14 @@ class CarrierArithmetic(Protocol[StateType, TranslationType]):
     def combine12(self, a0: float, x0: TranslationType, a1: float, x1: TranslationType, a2: float, x2: TranslationType, a3: float, x3: TranslationType, a4: float, x4: TranslationType, a5: float, x5: TranslationType, a6: float, x6: TranslationType, a7: float, x7: TranslationType, a8: float, x8: TranslationType, a9: float, x9: TranslationType, a10: float, x10: TranslationType, a11: float, x11: TranslationType, result: TranslationType) -> TranslationType | None: ...
 
 class CarrierNorm(Protocol[TranslationTypeContravariant]):
+    """Measure translation size for error control and convergence tests."""
+
     def __call__(self, value: TranslationTypeContravariant) -> float: ...
 
 
 class Carrier(Protocol[StateType, TranslationType]):
+    """Complete carrier bundle for one state/translation representation."""
+
     @property
     def storage(self) -> CarrierStorage[StateType, TranslationType]: ...
 

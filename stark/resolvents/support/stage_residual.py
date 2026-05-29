@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import cast
 
-from stark.accelerators.binding import DerivativeAccelerated, LinearizerAccelerated
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.runtime.general import AlgebraistRuntimeGeneral
 from stark.block import Block, BlockOperator
-from stark.contracts import AcceleratorLike, Derivative, IntervalLike, Linearizer, State, Translation, Workbench
+from stark.contracts import AcceleratorLike, Derivative, IntervalLike, Linearizer, State, Translation, Allocator
 from stark.resolvents.support.problem import (
     ResolventCoupledStageProblem,
     ResolventStageProblem,
 )
+from stark.resolvents.support.workers import ResolventDerivative, ResolventLinearizer
 
 
 class ResolventStageJacobianOperator:
@@ -143,37 +143,37 @@ class ResolventStageResidual:
     def __init__(
         self,
         method_name: str,
-        workbench: Workbench,
+        allocator: Allocator,
         linearizer: Linearizer | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:
         self.method_name = method_name
-        translation_probe = workbench.allocate_translation()
+        translation_probe = allocator.allocate_translation()
         general = AlgebraistRuntimeGeneral(
             translation=translation_probe,
-            workbench=workbench,
+            allocator=allocator,
             accelerator=accelerator,
         )
         self.scale = general.provide(AlgebraistArity(1))
         self.combine2 = general.provide(AlgebraistArity(2))
         self.combine3 = general.provide(AlgebraistArity(3))
 
-        self.copy_state = workbench.copy_state
-        self.base_state = workbench.allocate_state()
+        self.copy_state = allocator.copy_state
+        self.base_state = allocator.allocate_state()
         self.interval: IntervalLike | None = None
-        self.trial_state = workbench.allocate_state()
-        self.rhs = workbench.allocate_translation()
+        self.trial_state = allocator.allocate_state()
+        self.rhs = allocator.allocate_translation()
         self.derivative: Derivative | None = None
-        self.derivative_buffer = workbench.allocate_translation()
+        self.derivative_buffer = allocator.allocate_translation()
         self.alpha = 0.0
 
         self.linearizer = (
-            LinearizerAccelerated(linearizer) if linearizer is not None else None
+            ResolventLinearizer(linearizer) if linearizer is not None else None
         )
         self.jacobian_operator = ResolventStageJacobianOperator(method_name)
         self.residual_operator = ResolventStageResidualOperator(
             self.combine2,
-            workbench.allocate_translation,
+            allocator.allocate_translation,
             self.jacobian_operator,
         )
         self._differential = (
@@ -184,9 +184,9 @@ class ResolventStageResidual:
 
     def configure(self, problem: ResolventStageProblem) -> None:
         self.interval = problem.interval
-        self.copy_state(self.base_state, problem.origin)
+        self.copy_state(problem.origin, self.base_state)
         self.alpha = problem.alpha
-        self.derivative = DerivativeAccelerated(problem.derivative)
+        self.derivative = ResolventDerivative(problem.derivative)
 
         if problem.rhs is None:
             self.rhs = self.scale(0.0, self.rhs, self.rhs)
@@ -250,7 +250,7 @@ class ResolventCoupledStageResidual:
         "scale",
         "combine2",
         "copy_state",
-        "workbench",
+        "allocator",
         "base_state",
         "stage_count",
         "stage_shifts",
@@ -271,22 +271,22 @@ class ResolventCoupledStageResidual:
     def __init__(
         self,
         method_name: str,
-        workbench: Workbench,
+        allocator: Allocator,
         linearizer: Linearizer | None = None,
         accelerator: AcceleratorLike | None = None,
     ) -> None:
         self.method_name = method_name
-        translation_probe = workbench.allocate_translation()
+        translation_probe = allocator.allocate_translation()
         general = AlgebraistRuntimeGeneral(
             translation=translation_probe,
-            workbench=workbench,
+            allocator=allocator,
             accelerator=accelerator,
         )
         self.scale = general.provide(AlgebraistArity(1))
         self.combine2 = general.provide(AlgebraistArity(2))
-        self.copy_state = workbench.copy_state
-        self.workbench = workbench
-        self.base_state = workbench.allocate_state()
+        self.copy_state = allocator.copy_state
+        self.allocator = allocator
+        self.base_state = allocator.allocate_state()
 
         self.stage_count = 0
         self.stage_shifts: tuple[float, ...] = ()
@@ -297,7 +297,7 @@ class ResolventCoupledStageResidual:
         self.derivative: Derivative | None = None
         self.derivative_buffers: list[Translation] = []
         self.linearizer = (
-            LinearizerAccelerated(linearizer) if linearizer is not None else None
+            ResolventLinearizer(linearizer) if linearizer is not None else None
         )
         self.jacobian_operators: list[ResolventStageJacobianOperator] = []
         self.residual_operator: ResolventCoupledStageResidualOperator | None = None
@@ -312,11 +312,11 @@ class ResolventCoupledStageResidual:
     def configure(self, problem: ResolventCoupledStageProblem) -> None:
         self._ensure_stage_count(len(problem.stage_shifts))
 
-        self.copy_state(self.base_state, problem.origin)
+        self.copy_state(problem.origin, self.base_state)
         self.stage_shifts = problem.stage_shifts
         self.matrix = problem.matrix
         self.step = problem.step
-        self.derivative = DerivativeAccelerated(problem.derivative)
+        self.derivative = ResolventDerivative(problem.derivative)
 
         residual_operator = self.residual_operator
         assert residual_operator is not None
@@ -430,15 +430,15 @@ class ResolventCoupledStageResidual:
         if self.stage_count == stage_count:
             return
 
-        workbench = self.workbench
+        allocator = self.allocator
         self.stage_count = stage_count
-        self.stage_states = [workbench.allocate_state() for _ in range(stage_count)]
+        self.stage_states = [allocator.allocate_state() for _ in range(stage_count)]
         self.stage_intervals = [None for _ in range(stage_count)]
         self.rhs_block = Block(
-            [workbench.allocate_translation() for _ in range(stage_count)]
+            [allocator.allocate_translation() for _ in range(stage_count)]
         )
         self.derivative_buffers = [
-            workbench.allocate_translation() for _ in range(stage_count)
+            allocator.allocate_translation() for _ in range(stage_count)
         ]
         self.jacobian_operators = [
             ResolventStageJacobianOperator(f"{self.method_name}[stage {index}]")
@@ -447,7 +447,7 @@ class ResolventCoupledStageResidual:
         self.residual_operator = ResolventCoupledStageResidualOperator(
             self.scale,
             self.combine2,
-            workbench.allocate_translation,
+            allocator.allocate_translation,
             self.jacobian_operators,
             self.matrix,
         )

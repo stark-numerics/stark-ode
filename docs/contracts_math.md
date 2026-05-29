@@ -140,10 +140,10 @@ f(t, x) = f_im(t, x) + f_ex(t, x),
 ```
 
 with both maps landing in `T`. STARK represents that split with an
-`ImExDerivative` carrying two ordinary derivative workers:
+`DerivativeIMEX` carrying two ordinary derivative workers:
 
 ```python
-ImExDerivative(
+DerivativeIMEX(
     implicit=implicit_derivative,
     explicit=explicit_derivative,
 )
@@ -152,18 +152,18 @@ ImExDerivative(
 This keeps the user-facing interface close to the mathematics: one map is the
 implicitly treated part, one map is the explicitly treated part.
 
-## The workbench contract
+## The allocator contract
 
-The `Workbench` is not a mathematical object in the same sense. It is the
+The `Allocator` is not a mathematical object in the same sense. It is the
 bridge that tells STARK how to allocate and copy elements of `S` and `T`.
 
 It provides:
 
 - `allocate_state()`
-- `copy_state(dst, src)`
+- `copy_state(source, out)`
 - `allocate_translation()`
 
-So if `S` and `T` describe the mathematics, the workbench describes the memory
+So if `S` and `T` describe the mathematics, the allocator describes the memory
 layout and scratch discipline needed to compute with them efficiently.
 
 ## Implicit methods: residuals and blocks
@@ -329,9 +329,10 @@ require:
 - Anderson and Broyden also benefit from an inner product and secant history
 - Newton needs residual linearization and an inverter
 
-Schemes do not talk to those nonlinear workers directly. They talk to
-a `Resolvent`, which binds the stage interval and stage state, then solves a
-shifted equation of the form
+Schemes do not talk to those nonlinear workers directly. They package the
+stage interval, origin state, known right-hand side, diagonal shift, and
+derivative into a small problem object, then hand that problem to a
+`Resolvent`. The resolvent solves a shifted equation of the form
 
 ```text
 delta - rhs - alpha f(t, x + delta) = 0.
@@ -357,7 +358,7 @@ The key STARK contracts can be summarized this way:
 | product space `T^m` | `Block` |
 | residual `R : T^m -> T^m` | `Residual` |
 | nonlinear implicit solver | `Resolvent` |
-| bound stage solve | `Resolvent` |
+| scheme-provided stage problem | `ResolventStageProblem` |
 | linear solve worker | `InverterLike` |
 | inner product `<.,.>` | `InnerProduct` |
 

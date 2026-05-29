@@ -3,34 +3,34 @@ from __future__ import annotations
 from stark.accelerators import AcceleratorAbsent
 from stark.block import Block
 from stark.block.operator import BlockOperator
-from stark.contracts import AcceleratorLike, InnerProduct, InverterPreconditionerLike, Workbench
-from stark.execution.safety import Safety
-from stark.execution.tolerance import Tolerance
+from stark.contracts import AcceleratorLike, InnerProduct, InverterPreconditionerLike, Allocator
+from stark.executor.tolerance import ExecutorTolerance
 from stark.inverters.support.monitoring import MonitorInverterLike
 from stark.inverters.support.policy import InverterPolicy
 from stark.inverters.support.preconditioner import InverterPreconditioner
+from stark.inverters.support.safety import InverterSafety, InverterSafetyDefault
 from stark.inverters.support.tolerance import InverterTolerance
 from stark.inverters.support.workspace import InverterWorkspace
 
 
 def initialise_inverter_runtime(
     inverter,
-    workbench: Workbench,
+    allocator: Allocator,
     inner_product: InnerProduct,
-    tolerance: Tolerance | None = None,
+    tolerance: ExecutorTolerance | None = None,
     policy: InverterPolicy | None = None,
     preconditioner: InverterPreconditionerLike | None = None,
-    safety: Safety | None = None,
+    safety: InverterSafety | None = None,
     accelerator: AcceleratorLike | None = None,
 ) -> None:
-    translation_probe = workbench.allocate_translation()
+    translation_probe = allocator.allocate_translation()
     inverter.tolerance = tolerance if tolerance is not None else InverterTolerance(atol=1.0e-9, rtol=1.0e-9)
     inverter.policy = policy if policy is not None else InverterPolicy()
     inverter.operator = None
-    inverter.safety = safety if safety is not None else Safety()
+    inverter.safety = safety if safety is not None else InverterSafetyDefault()
     inverter.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
     inverter.workspace = InverterWorkspace(
-        workbench,
+        allocator,
         translation_probe,
         inner_product,
         inverter.safety,

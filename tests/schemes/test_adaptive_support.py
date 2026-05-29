@@ -4,9 +4,8 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Interval, Tolerance
-from stark.execution.adaptive_controller import AdaptiveController
-from stark.execution.regulator import Regulator
+from stark import Executor, Interval, ExecutorTolerance
+from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.schemes.support.adaptive import (
     SchemeStepAdaptiveAdvanceReport,
@@ -36,12 +35,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
-    def copy_state(self, dst: ScalarState, src: ScalarState) -> None:
-        dst.value = src.value
+    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
+        out.value = source.value
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -56,19 +55,19 @@ def zero_rhs(
     out.value = 0.0
 
 
-def test_adaptive_support_owns_regulator_controller_and_report_state() -> None:
-    regulator = Regulator(
+def test_adaptive_support_owns_adaptivity_and_report_state() -> None:
+    adaptivity = ExecutorAdaptivity(
         safety=0.7,
         min_factor=0.2,
         max_factor=3.0,
         error_exponent=0.25,
     )
 
-    support = SchemeStepControl(regulator)
+    support = SchemeStepControl(adaptivity)
     report = support.report()
 
-    assert support.regulator is regulator
-    assert isinstance(support.controller, AdaptiveController)
+    assert support.adaptivity is adaptivity
+    assert isinstance(support.adaptivity, ExecutorAdaptivity)
 
     assert isinstance(report, SchemeStepAdaptiveAdvanceReport)
     assert report.accepted_dt == pytest.approx(0.0)
@@ -80,62 +79,62 @@ def test_adaptive_support_owns_regulator_controller_and_report_state() -> None:
     assert report.rejection_count == 0
 
     assert support.runtime_bound is False
-    assert support.active_controller is None
+    assert support.active_adaptivity is None
     assert support.ratio is None
     assert support.bound is None
 
 
 def test_adaptive_support_binds_and_unbinds_executor_runtime() -> None:
     support = SchemeStepControl()
-    executor = Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
     support.assign_executor(executor)
 
     assert support.runtime_bound is True
-    assert support.active_controller is not None
+    assert support.active_adaptivity is not None
     assert support.ratio is not None
     assert support.bound is not None
 
     support.unassign_executor()
 
     assert support.runtime_bound is False
-    assert support.active_controller is None
+    assert support.active_adaptivity is None
     assert support.ratio is None
     assert support.bound is None
 
 
-def test_adaptive_support_uses_scheme_regulator_unless_executor_overrides() -> None:
-    scheme_regulator = Regulator(
+def test_adaptive_support_uses_scheme_adaptivity_unless_executor_overrides() -> None:
+    scheme_adaptivity = ExecutorAdaptivity(
         safety=0.7,
         min_factor=0.2,
         max_factor=3.0,
         error_exponent=0.25,
     )
-    executor_regulator = Regulator(
+    executor_adaptivity = ExecutorAdaptivity(
         safety=0.9,
         min_factor=0.3,
         max_factor=4.0,
         error_exponent=0.5,
     )
-    support = SchemeStepControl(scheme_regulator)
+    support = SchemeStepControl(scheme_adaptivity)
 
     support.assign_executor(Executor())
-    controller = support.active_controller
+    adaptivity = support.active_adaptivity
 
-    assert controller is not None
-    assert controller.safety == pytest.approx(scheme_regulator.safety)
-    assert controller.min_factor == pytest.approx(scheme_regulator.min_factor)
-    assert controller.max_factor == pytest.approx(scheme_regulator.max_factor)
-    assert controller.error_exponent == pytest.approx(scheme_regulator.error_exponent)
+    assert adaptivity is not None
+    assert adaptivity.safety == pytest.approx(scheme_adaptivity.safety)
+    assert adaptivity.min_factor == pytest.approx(scheme_adaptivity.min_factor)
+    assert adaptivity.max_factor == pytest.approx(scheme_adaptivity.max_factor)
+    assert adaptivity.error_exponent == pytest.approx(scheme_adaptivity.error_exponent)
 
-    support.assign_executor(Executor(regulator=executor_regulator))
-    controller = support.active_controller
+    support.assign_executor(Executor(adaptivity=executor_adaptivity))
+    adaptivity = support.active_adaptivity
 
-    assert controller is not None
-    assert controller.safety == pytest.approx(executor_regulator.safety)
-    assert controller.min_factor == pytest.approx(executor_regulator.min_factor)
-    assert controller.max_factor == pytest.approx(executor_regulator.max_factor)
-    assert controller.error_exponent == pytest.approx(executor_regulator.error_exponent)
+    assert adaptivity is not None
+    assert adaptivity.safety == pytest.approx(executor_adaptivity.safety)
+    assert adaptivity.min_factor == pytest.approx(executor_adaptivity.min_factor)
+    assert adaptivity.max_factor == pytest.approx(executor_adaptivity.max_factor)
+    assert adaptivity.error_exponent == pytest.approx(executor_adaptivity.error_exponent)
 
 
 def test_adaptive_support_computes_proposed_step() -> None:
@@ -168,7 +167,7 @@ def test_adaptive_support_records_stopped_report() -> None:
 
 def test_adaptive_support_delegates_rejected_and_accepted_step_calculations() -> None:
     support = SchemeStepControl(
-        Regulator(
+        ExecutorAdaptivity(
             safety=0.8,
             min_factor=0.1,
             max_factor=5.0,
@@ -219,25 +218,24 @@ def test_adaptive_support_records_accepted_report() -> None:
 
 
 def test_adaptive_scheme_exposes_step_control_without_legacy_report() -> None:
-    scheme = SchemeBogackiShampine(zero_rhs, ScalarWorkbench())
+    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
 
     assert isinstance(scheme.step_control, SchemeStepControl)
     assert not hasattr(scheme, "advance_report")
 
-    assert scheme.regulator is scheme.step_control.regulator
-    assert scheme.controller is scheme.step_control.controller
+    assert scheme.adaptivity is scheme.step_control.adaptivity
 
     assert scheme.step_control.runtime_bound is False
-    assert scheme.step_control.active_controller is None
+    assert scheme.step_control.active_adaptivity is None
     assert scheme.step_control.ratio is None
     assert scheme.step_control.bound is None
 
 
 def test_existing_adaptive_scheme_still_runs_after_support_cleanup() -> None:
-    scheme = SchemeBogackiShampine(zero_rhs, ScalarWorkbench())
+    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
-    executor = Executor(tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
     accepted_dt = scheme(interval, state, executor)
 

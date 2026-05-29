@@ -18,28 +18,69 @@ class AcceleratorNumba(AcceleratorBase):
 
     name = "numba"
 
-    def __init__(self, *, cache: bool = True, strict: bool = False, values: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        cache: bool = True,
+        strict: bool = False,
+        values: dict[str, Any] | None = None,
+    ) -> None:
         try:
             from numba import njit, typeof
         except ImportError:  # pragma: no cover - optional dependency
-            raise ModuleNotFoundError("AcceleratorNumba requires Numba to be installed.") from None
+            raise ModuleNotFoundError(
+                "AcceleratorNumba requires Numba to be installed."
+            ) from None
+
         self.cache = cache
         self.strict = strict
         self.values = {} if values is None else dict(values)
         self._njit = njit
         self._typeof = typeof
 
-    def decorate(self, function: AcceleratorTarget | None = None, /, **kwargs: Any) -> Callable[..., Any]:
-        options = {"cache": self.cache, **kwargs}
+    def compile(
+        self,
+        function: AcceleratorTarget | None = None,
+        /,
+        *,
+        label: str | None = None,
+        cache: bool | None = None,
+        **options: Any,
+    ) -> Callable[..., Any]:
+        del label
+        base_options = {"cache": self.cache, **self.values, **options}
+        if cache is not None:
+            base_options["cache"] = cache
 
-        def decorate_function(target: AcceleratorTarget) -> AcceleratorTarget:
-            return self._njit(**options)(target)
+        def compile_function(target: AcceleratorTarget) -> AcceleratorTarget:
+            target_options = dict(base_options)
+
+            code = getattr(target, "__code__", None)
+            if code is None:
+                if self.strict:
+                    raise RuntimeError("numba backend can only compile plain Python functions.")
+                return target
+
+            filename = None if code is None else code.co_filename
+
+            # Functions generated with exec(source, namespace) usually report
+            # their filename as "<string>". Numba can JIT them, but cannot use
+            # its persistent disk cache because there is no file locator.
+            if filename == "<string>":
+                target_options["cache"] = False
+
+            return self._njit(**target_options)(target)
 
         if function is None:
-            return decorate_function
-        return decorate_function(function)
+            return compile_function
 
-    def _compile_examples(self, function: AcceleratorTarget, *signatures: Any) -> AcceleratorTarget:
+        return compile_function(function)
+
+    def _compile_examples(
+        self,
+        function: AcceleratorTarget,
+        *signatures: Any,
+    ) -> AcceleratorTarget:
         if not signatures or not callable(function) or not hasattr(function, "compile"):
             return function
 
@@ -49,6 +90,7 @@ class AcceleratorNumba(AcceleratorBase):
                 function.compile(tuple(self._typeof(argument) for argument in arguments))
             except Exception:
                 continue
+
         return function
 
 

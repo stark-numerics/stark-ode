@@ -29,12 +29,12 @@ class ScalarTranslation:
         return ScalarTranslation(scalar * self.value)
 
 
-class ScalarWorkbench:
+class ScalarAllocator:
     def allocate_state(self) -> object:
         return object()
 
-    def copy_state(self, dst: object, src: object) -> None:
-        del dst, src
+    def copy_state(self, source: object, out: object) -> None:
+        del out, source
 
     def allocate_translation(self) -> ScalarTranslation:
         return ScalarTranslation()
@@ -51,39 +51,24 @@ class RecordingAccelerator:
     def __init__(self) -> None:
         self.name = "recording"
         self.strict = False
-        self.decorate_calls = 0
+        self.compile_calls = 0
         self.compile_examples_calls = 0
 
-    def decorate(self, function=None, /, **kwargs):
-        del kwargs
-        self.decorate_calls += 1
+    def compile(self, function=None, /, **options):
+        del options
+        self.compile_calls += 1
 
-        def decorate_function(target):
+        def compile_function(target):
             return target
 
         if function is None:
-            return decorate_function
-        return decorate_function(function)
+            return compile_function
+        return compile_function(function)
 
     def compile_examples(self, function, *signatures):
         del signatures
         self.compile_examples_calls += 1
         return function
-
-    def resolve(self, target, request):
-        del request
-        return target
-
-    def resolve_derivative(self, derivative):
-        return derivative
-
-    def resolve_linearizer(self, linearizer):
-        return linearizer
-
-    def resolve_support(self, worker, *, label=None, **values):
-        del label, values
-        return worker
-
 
 class ExactScalarPreconditioner:
     def __init__(self) -> None:
@@ -98,20 +83,20 @@ class ExactScalarPreconditioner:
 
 
 def test_inverter_tolerance_matches_general_tolerance_contract() -> None:
-    tolerance = InverterTolerance(atol=1.0e-6, rtol=1.0e-3)
+    ExecutorTolerance = InverterTolerance(atol=1.0e-6, rtol=1.0e-3)
 
-    assert tolerance.bound(2.0) == 0.002001
-    assert tolerance.ratio(0.001, 2.0) < 1.0
-    assert tolerance.accepts(0.001, 2.0)
+    assert ExecutorTolerance.bound(2.0) == 0.002001
+    assert ExecutorTolerance.ratio(0.001, 2.0) < 1.0
+    assert ExecutorTolerance.accepts(0.001, 2.0)
 
 
 @pytest.mark.parametrize("inverter_type", INVERTER_TYPES)
 def test_inverter_solves_scalar_linear_system(inverter_type) -> None:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     inverter = inverter_type(
-        workbench,
+        allocator,
         scalar_inner_product,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        ExecutorTolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
 
@@ -129,12 +114,12 @@ def test_inverter_solves_scalar_linear_system(inverter_type) -> None:
 
 @pytest.mark.parametrize("inverter_type", INVERTER_TYPES)
 def test_inverter_accepts_preconditioner(inverter_type) -> None:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     preconditioner = ExactScalarPreconditioner()
     inverter = inverter_type(
-        workbench,
+        allocator,
         scalar_inner_product,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        ExecutorTolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=InverterPolicy(max_iterations=8, restart=4),
         preconditioner=preconditioner,
     )
@@ -154,11 +139,11 @@ def test_inverter_accepts_preconditioner(inverter_type) -> None:
 
 @pytest.mark.parametrize("inverter_type", INVERTER_TYPES)
 def test_inverter_solves_two_by_two_block_system(inverter_type) -> None:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     inverter = inverter_type(
-        workbench,
+        allocator,
         scalar_inner_product,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        ExecutorTolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=InverterPolicy(max_iterations=16, restart=4),
     )
 
@@ -195,7 +180,7 @@ def test_inverter_solves_two_by_two_block_system(inverter_type) -> None:
     ),
 )
 def test_inverter_requires_bound_operator(inverter_type, expected_message) -> None:
-    inverter = inverter_type(ScalarWorkbench(), scalar_inner_product)
+    inverter = inverter_type(ScalarAllocator(), scalar_inner_product)
 
     try:
         inverter(Block([ScalarTranslation(1.0)]), Block([ScalarTranslation()]))
@@ -206,21 +191,21 @@ def test_inverter_requires_bound_operator(inverter_type, expected_message) -> No
 
 
 def test_krylov_inverters_use_their_configured_accelerator() -> None:
-    workbench = ScalarWorkbench()
+    allocator = ScalarAllocator()
     accelerator = RecordingAccelerator()
 
-    gmres = InverterGMRES(workbench, scalar_inner_product, accelerator=accelerator)
-    fgmres = InverterFGMRES(workbench, scalar_inner_product, accelerator=accelerator)
+    gmres = InverterGMRES(allocator, scalar_inner_product, accelerator=accelerator)
+    fgmres = InverterFGMRES(allocator, scalar_inner_product, accelerator=accelerator)
 
     assert gmres.accelerator is accelerator
     assert fgmres.accelerator is accelerator
-    assert accelerator.decorate_calls >= 4
+    assert accelerator.compile_calls >= 4
     assert accelerator.compile_examples_calls >= 4
 
 
 @pytest.mark.parametrize("inverter_type", INVERTER_TYPES)
 def test_built_in_inverters_hold_an_explicit_accelerator(inverter_type) -> None:
     accelerator = Accelerator.none()
-    inverter = inverter_type(ScalarWorkbench(), scalar_inner_product, accelerator=accelerator)
+    inverter = inverter_type(ScalarAllocator(), scalar_inner_product, accelerator=accelerator)
 
     assert inverter.accelerator is accelerator

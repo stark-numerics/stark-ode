@@ -200,7 +200,7 @@ def benchmark_size(size: int) -> None:
     print()
 
     scipy = time_runs(
-        "SciPy solve_ivp RK45 matched tolerance",
+        "SciPy solve_ivp RK45 matched ExecutorTolerance",
         run_scipy_matched,
         size,
         runs,
@@ -222,7 +222,7 @@ def benchmark_size(size: int) -> None:
 
 def main() -> None:
     print("Large-vector exponential decay benchmark")
-    print(f"Tolerance: rtol={RTOL}, atol={ATOL}")
+    print(f"ExecutorTolerance: rtol={RTOL}, atol={ATOL}")
     print(f"Interval:  present={START}, step={STEP}, stop={STOP}")
     print()
 

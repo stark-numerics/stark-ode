@@ -64,7 +64,7 @@ class FPUTTranslation:
         return FPUTTranslation(scalar * self.dq, scalar * self.dp)
 
 
-class FPUTWorkbench:
+class FPUTAllocator:
     __slots__ = ("chain_size",)
 
     def __init__(self, parameters: FPUTParameters) -> None:
@@ -78,9 +78,9 @@ class FPUTWorkbench:
             np.zeros(self.chain_size, dtype=np.float64),
         )
 
-    def copy_state(self, dst: FPUTState, src: FPUTState) -> None:
-        np.copyto(dst.q, src.q)
-        np.copyto(dst.p, src.p)
+    def copy_state(self, source: FPUTState, out: FPUTState) -> None:
+        np.copyto(out.q, source.q)
+        np.copyto(out.p, source.p)
 
     def allocate_translation(self) -> FPUTTranslation:
         return FPUTTranslation(
@@ -89,10 +89,10 @@ class FPUTWorkbench:
         )
 
 
-def _generated_fput_linear_combine(workbench: FPUTWorkbench):
+def _generated_fput_linear_combine(allocator: FPUTAllocator):
     provider = AlgebraistGeneratorGeneral(
-        translation=workbench.allocate_translation(),
-        workbench=workbench,
+        translation=allocator.allocate_translation(),
+        allocator=allocator,
         layout=FPUT_ALGEBRAIST_LAYOUT,
     )
     return tuple(provider.provide(AlgebraistArity(arity)) for arity in range(1, 13))
@@ -223,13 +223,13 @@ def initial_fput_matrix(parameters: FPUTParameters) -> np.ndarray:
     return np.stack((state.q, state.p))
 
 
-def fput_problem(chain_size: int) -> tuple[FPUTParameters, FPUTState, FPUTDerivative, FPUTWorkbench]:
+def fput_problem(chain_size: int) -> tuple[FPUTParameters, FPUTState, FPUTDerivative, FPUTAllocator]:
     parameters = fput_parameters(chain_size)
     return (
         parameters,
         initial_fput_state(parameters),
         FPUTDerivative(parameters),
-        FPUTWorkbench(parameters),
+        FPUTAllocator(parameters),
     )
 
 

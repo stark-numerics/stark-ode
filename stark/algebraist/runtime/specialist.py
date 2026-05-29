@@ -7,9 +7,10 @@ from typing import Generic, TypeVar
 from stark.accelerators.absent import AcceleratorAbsent
 from stark.algebraist.runtime.support import AlgebraistRuntimeSupport
 from stark.algebraist.stencil import AlgebraistStencil
-from stark.algebraist.workbench import AlgebraistWorkbench
+from stark.algebraist.allocator import AlgebraistAllocator
 from stark.contracts.acceleration import AcceleratorLike
-from stark.contracts.translations import State, Translation
+from stark.contracts.states import State
+from stark.contracts.translations import Translation
 
 try:
     from stark.algebraist.layout import AlgebraistLayout
@@ -29,7 +30,7 @@ class AlgebraistRuntimeSpecialist(Generic[StateType, TranslationType]):
     """
 
     translation: TranslationType
-    workbench: AlgebraistWorkbench[TranslationType]
+    allocator: AlgebraistAllocator[TranslationType]
     layout: AlgebraistLayout | None = None
     linear_combine: Sequence[Callable[..., TranslationType]] | None = None
     accelerator: AcceleratorLike = field(default_factory=AcceleratorAbsent)
@@ -38,7 +39,7 @@ class AlgebraistRuntimeSpecialist(Generic[StateType, TranslationType]):
     def __post_init__(self) -> None:
         self._support = AlgebraistRuntimeSupport(
             translation=self.translation,
-            workbench=self.workbench,
+            allocator=self.allocator,
             layout=self.layout,
             linear_combine=self.linear_combine,
             accelerator=self.accelerator,

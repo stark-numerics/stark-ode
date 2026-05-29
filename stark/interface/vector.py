@@ -16,8 +16,8 @@ class StarkVector:
     def zero_translation(self) -> "StarkVectorTranslation":
         return self.translation(self.carrier.allocation.zero_translation())
 
-    def workbench(self) -> "StarkVectorWorkbench":
-        return StarkVectorWorkbench(self.carrier)
+    def allocator(self) -> "StarkVectorAllocator":
+        return StarkVectorAllocator(self.carrier)
 
 
 class StarkVectorTranslation:
@@ -207,16 +207,16 @@ class StarkVectorTranslation:
         return self.scale(scalar, self, result)
 
 
-class StarkVectorWorkbench:
+class StarkVectorAllocator:
     def __init__(self, carrier: Carrier[Any, Any]) -> None:
         self.carrier = carrier
 
     def allocate_state(self) -> StarkVector:
         return StarkVector(self.carrier.allocation.zero_state(), self.carrier)
 
-    def copy_state(self, result: StarkVector, source: StarkVector) -> StarkVector:
-        result.value = self.carrier.allocation.copy_state(source.value)
-        return result
+    def copy_state(self, source: StarkVector, out: StarkVector) -> StarkVector:
+        out.value = self.carrier.allocation.copy_state(source.value)
+        return out
 
     def allocate_translation(self) -> StarkVectorTranslation:
         return StarkVectorTranslation(self.carrier.allocation.zero_translation(), self.carrier)
