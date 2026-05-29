@@ -62,9 +62,6 @@ class Marcher:
         self.scheme = scheme
         self.executor = executor
         self.monitor: Monitor | None = None
-        assign_executor = getattr(self.scheme, "assign_executor", None)
-        if callable(assign_executor):
-            assign_executor(self.executor)
         self.scheme.set_apply_delta_safety(executor.safety.apply_delta)
 
     def __repr__(self) -> str:
@@ -94,23 +91,24 @@ class Marcher:
         if not isinstance(executor, Executor):
             raise TypeError("Marcher.set_executor(...) requires an Executor.")
         self.executor = executor
-        assign_executor = getattr(self.scheme, "assign_executor", None)
-        if callable(assign_executor):
-            assign_executor(self.executor)
         self.scheme.set_apply_delta_safety(self.executor.safety.apply_delta)
 
     def assign_monitor(self, monitor: Monitor) -> None:
-        assign_monitor = getattr(self.scheme, "assign_monitor", None)
-        if not callable(assign_monitor):
+        if not hasattr(self.scheme, "monitor") or not hasattr(self.scheme, "call_monitored"):
             raise TypeError("Marcher scheme does not support monitoring.")
+
         self.monitor = monitor
-        assign_monitor(monitor.scheme)
+        self.scheme.monitor = monitor.scheme
+        self.scheme.call_step = self.scheme.call_monitored
+        self.scheme.redirect_call = self.scheme.call_step
         _assign_descendant_monitors(self.scheme, monitor, set())
 
     def unassign_monitor(self) -> None:
-        unassign_monitor = getattr(self.scheme, "unassign_monitor", None)
-        if callable(unassign_monitor):
-            unassign_monitor()
+        if hasattr(self.scheme, "monitor"):
+            self.scheme.monitor = None
+        if hasattr(self.scheme, "call_body"):
+            self.scheme.call_step = self.scheme.call_body
+            self.scheme.redirect_call = self.scheme.call_step
         _unassign_descendant_monitors(self.scheme, set())
         self.monitor = None
 

@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+from typing import Protocol, Any, runtime_checkable
 
 
-@dataclass(slots=True)
-class SchemeDerivative:
-    """Stable callable wrapper for a scheme derivative."""
 
-    raw: Any
+@runtime_checkable
+class SchemeDerivative(Protocol):
+    """Callable derivative surface accepted by built-in schemes."""
 
-    def __call__(self, interval, state, out) -> Any:
-        return self.raw(interval, state, out)
+    def __call__(self, interval, state, out) -> Any: ...
 
 
 __all__ = ["SchemeDerivative"]

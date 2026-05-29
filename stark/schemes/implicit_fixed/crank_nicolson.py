@@ -5,14 +5,16 @@ from typing import Any, cast
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
 from stark.schemes.support.executor import SchemeExecutor
 from stark.schemes.support import (
+    MonitorSchemeLike,
     SchemeDescriptor,
-    refresh_fixed_step_call,
     with_fixed_step_monitoring,
     with_scheme_display,
 )
 from stark.schemes.support.implicit import (
     initialise_implicit_support,
-    with_implicit_workspace_methods,
+    implicit_display_resolvent_problem,
+    implicit_set_apply_delta_safety,
+    implicit_snapshot_state,
 )
 from stark.schemes.support.specialist import SchemeSpecialist
 from stark.schemes.support.stage_problem import SchemeStageProblem
@@ -32,7 +34,6 @@ CRANK_NICOLSON_TABLEAU = ButcherTableau(
 
 @with_scheme_display
 @with_fixed_step_monitoring
-@with_implicit_workspace_methods
 class SchemeCrankNicolson:
     """The fixed-step Crank-Nicolson / trapezoidal Runge-Kutta method.
 
@@ -50,9 +51,10 @@ class SchemeCrankNicolson:
     """
 
     __slots__ = (
-        "_monitor",
+        "monitor",
         "block_allocator",
-        "call_monitorable",
+        "call_body",
+        "call_step",
         "derivative",
         "known_rhs",
         "known_rhs_kernel",
@@ -64,6 +66,10 @@ class SchemeCrankNicolson:
     )
 
     descriptor = SchemeDescriptor("CN", "Crank-Nicolson")
+    display_resolvent_problem = classmethod(implicit_display_resolvent_problem)
+    set_apply_delta_safety = implicit_set_apply_delta_safety
+    snapshot_state = implicit_snapshot_state
+
     tableau = CRANK_NICOLSON_TABLEAU
 
     def __init__(
@@ -73,10 +79,12 @@ class SchemeCrankNicolson:
         resolvent: Resolvent,
         *,
         specialist: SchemeSpecialist | None = None,
+        monitor: MonitorSchemeLike | None = None,
     ) -> None:
-        self._monitor = None
-        self.call_monitorable = self.call_inline
-        self.redirect_call = self.call_monitorable
+        self.monitor = monitor
+        self.call_body = self.call_inline
+        self.call_step = self.call_monitored if monitor is not None else self.call_body
+        self.redirect_call = self.call_step
         self.resolvent = resolvent
         self.known_rhs_kernel = None
 
@@ -85,12 +93,12 @@ class SchemeCrankNicolson:
         self.known_rhs = self.block_allocator.allocate(1)
         self.stage_delta = self.block_allocator.allocate(1)
 
-        refresh_fixed_step_call(self)
-
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_monitorable = self.call_specialized
-            refresh_fixed_step_call(self)
+            self.call_body = self.call_specialized
+            if monitor is None:
+                self.call_step = self.call_body
+                self.redirect_call = self.call_step
 
     def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         return self.redirect_call(interval, state, executor)

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from stark.schemes.support.derivative import SchemeDerivative
 from stark.block import Block
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
 from stark.schemes.support.executor import SchemeExecutor
@@ -8,21 +7,23 @@ from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.contracts.errors import StarkErrorRecoverable
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
+    MonitorSchemeLike,
     SchemeStepControl,
     initialise_adaptive_runtime,
-    refresh_adaptive_call,
-    with_adaptive_runtime_methods,
+    adaptive_adaptivity,
+    with_adaptive_step_monitoring,
 )
 from stark.schemes.support.implicit import (
     initialise_implicit_support,
-    with_implicit_workspace_methods,
+    implicit_display_resolvent_problem,
+    implicit_set_apply_delta_safety,
+    implicit_snapshot_state,
 )
 from stark.schemes.support.specialist import SchemeSpecialist
 from stark.schemes.support.stage_problem import SchemeStageProblem
 
 
-@with_adaptive_runtime_methods
-@with_implicit_workspace_methods
+@with_adaptive_step_monitoring
 class SchemeBDF2:
     """Adaptive second-order backward differentiation formula.
 
@@ -40,13 +41,18 @@ class SchemeBDF2:
     step_control: SchemeStepControl
 
     __slots__ = (
-        "step_control", "block_allocator", "call_monitorable", "derivative", "error",
+        "monitor",
+        "call_body",
+        "step_control", "block_allocator", "call_step", "derivative", "error",
         "has_history", "implicit", "known_shift", "known_shift_block", "low",
         "previous_delta", "previous_step", "redirect_call", "resolvent",
         "startup_rate", "trial_block", "workspace",
     )
 
     descriptor = SchemeDescriptor("BDF2", "Backward Differentiation Formula 2")
+    set_apply_delta_safety = implicit_set_apply_delta_safety
+    snapshot_state = implicit_snapshot_state
+    adaptivity = property(adaptive_adaptivity)
 
     def __init__(
         self,
@@ -56,11 +62,12 @@ class SchemeBDF2:
         adaptivity: ExecutorAdaptivity | None = None,
         *,
         specialist: SchemeSpecialist | None = None,
+        monitor: MonitorSchemeLike | None = None,
     ) -> None:
         del specialist
         self.resolvent = resolvent
         initialise_implicit_support(self, derivative, allocator)
-        self.derivative = SchemeDerivative(derivative)
+        self.derivative = derivative
 
         workspace = self.workspace
         self.startup_rate = workspace.allocate_translation()
@@ -73,8 +80,10 @@ class SchemeBDF2:
         self.has_history = False
 
         initialise_adaptive_runtime(self, adaptivity)
-        self.call_monitorable = self.call_inline
-        refresh_adaptive_call(self)
+        self.call_body = self.call_inline
+        self.monitor = monitor
+        self.call_step = self.call_monitored if monitor is not None else self.call_body
+        self.redirect_call = self.call_step
 
     @staticmethod
     def default_adaptivity() -> ExecutorAdaptivity:
@@ -137,8 +146,9 @@ class SchemeBDF2:
         return self.call_inline(interval, state, executor)
 
     def call_inline(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
-        del executor
-        proposal = self.step_control.propose_step(interval)
+        step_control = self.step_control
+        step_control.cache_executor(executor)
+        proposal = step_control.propose_step(interval)
         if proposal.remaining <= 0.0:
             self.step_control.record_stopped(interval)
             return 0.0

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from stark.schemes.support.derivative import SchemeDerivative
 from stark.block import Block
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
 from stark.schemes.support.executor import SchemeExecutor
@@ -8,16 +7,19 @@ from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.contracts.errors import StarkErrorRecoverable
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
+    MonitorSchemeLike,
     SchemeStepControl,
     initialise_adaptive_runtime,
-    refresh_adaptive_call,
     unbound_scheme_call,
-    with_adaptive_runtime_methods,
+    adaptive_adaptivity,
+    with_adaptive_step_monitoring,
     with_scheme_display,
 )
 from stark.schemes.support.implicit import (
     initialise_implicit_support,
-    with_implicit_workspace_methods,
+    implicit_display_resolvent_problem,
+    implicit_set_apply_delta_safety,
+    implicit_snapshot_state,
 )
 from stark.schemes.support.specialist import SchemeSpecialist
 from stark.schemes.support.stage_problem import SchemeStageProblem
@@ -75,8 +77,7 @@ _STAGE_INCREMENT_WEIGHTS_ERROR = _STAGE_STENCILS.error_delta
 
 
 @with_scheme_display
-@with_adaptive_runtime_methods
-@with_implicit_workspace_methods
+@with_adaptive_step_monitoring
 class SchemeSDIRK21:
     """Adaptive ESDIRK 2(1) with sequential implicit stage solves.
 
@@ -99,7 +100,9 @@ class SchemeSDIRK21:
     step_control: SchemeStepControl
 
     __slots__ = (
-        "step_control", "block_allocator", "call_monitorable", "delta1", "delta2",
+        "monitor",
+        "call_body",
+        "step_control", "block_allocator", "call_step", "delta1", "delta2",
         "delta2_block", "delta3", "delta3_block", "derivative", "error",
         "error_delta_call", "high_delta_call", "implicit", "known2_call",
         "known2_block", "known3_call", "known3", "known3_block",
@@ -107,6 +110,12 @@ class SchemeSDIRK21:
     )
 
     descriptor = SchemeDescriptor("SDIRK21", "ESDIRK 2(1)")
+    display_resolvent_problem = classmethod(implicit_display_resolvent_problem)
+    set_apply_delta_safety = implicit_set_apply_delta_safety
+    snapshot_state = implicit_snapshot_state
+
+    adaptivity = property(adaptive_adaptivity)
+
     tableau = SDIRK21_TABLEAU
 
     def __init__(
@@ -117,6 +126,7 @@ class SchemeSDIRK21:
         adaptivity: ExecutorAdaptivity | None = None,
         *,
         specialist: SchemeSpecialist | None = None,
+        monitor: MonitorSchemeLike | None = None,
     ) -> None:
         self.error_delta_call = unbound_scheme_call
         self.high_delta_call = unbound_scheme_call
@@ -125,7 +135,7 @@ class SchemeSDIRK21:
         self.resolvent = resolvent
 
         initialise_implicit_support(self, derivative, allocator)
-        self.derivative = SchemeDerivative(derivative)
+        self.derivative = derivative
 
         workspace = self.workspace
         self.stage1_rate = workspace.allocate_translation()
@@ -138,13 +148,17 @@ class SchemeSDIRK21:
         self.known3_block = Block([self.known3])
 
         initialise_adaptive_runtime(self, adaptivity)
-        self.call_monitorable = self.call_inline
-        refresh_adaptive_call(self)
+        self.call_body = self.call_inline
+        self.monitor = monitor
+        self.call_step = self.call_monitored if monitor is not None else self.call_body
+        self.redirect_call = self.call_step
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_monitorable = self.call_specialized
-            refresh_adaptive_call(self)
+            self.call_body = self.call_specialized
+            if monitor is None:
+                self.call_step = self.call_body
+                self.redirect_call = self.call_step
 
     @staticmethod
     def default_adaptivity() -> ExecutorAdaptivity:
@@ -185,10 +199,11 @@ class SchemeSDIRK21:
         return delta_block[0]
 
     def call_inline(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
-        del executor
-        proposal = self.step_control.propose_step(interval)
+        step_control = self.step_control
+        step_control.cache_executor(executor)
+        proposal = step_control.propose_step(interval)
         if proposal.remaining <= 0.0:
-            self.step_control.record_stopped(interval)
+            step_control.record_stopped(interval)
             return 0.0
 
         workspace = self.workspace
@@ -197,7 +212,7 @@ class SchemeSDIRK21:
         combine2 = workspace.combine2
         combine3 = workspace.combine3
         apply_delta = workspace.apply_delta
-        ratio = self.step_control.ratio
+        ratio = step_control.ratio
 
         remaining = proposal.remaining
         dt = proposal.dt
@@ -272,16 +287,17 @@ class SchemeSDIRK21:
         return report.accepted_dt
 
     def call_specialized(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
-        del executor
-        proposal = self.step_control.propose_step(interval)
+        step_control = self.step_control
+        step_control.cache_executor(executor)
+        proposal = step_control.propose_step(interval)
         if proposal.remaining <= 0.0:
-            self.step_control.record_stopped(interval)
+            step_control.record_stopped(interval)
             return 0.0
 
         workspace = self.workspace
         derivative = self.derivative
         apply_delta = workspace.apply_delta
-        ratio = self.step_control.ratio
+        ratio = step_control.ratio
         known2_call = self.known2_call
         known3_call = self.known3_call
         high_delta_call = self.high_delta_call

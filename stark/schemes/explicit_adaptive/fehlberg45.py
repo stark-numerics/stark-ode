@@ -5,13 +5,15 @@ from stark.schemes.support.executor import SchemeExecutor
 from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
+    MonitorSchemeLike,
     SchemeStepControl,
     initialise_adaptive_runtime,
     initialise_explicit_support,
-    refresh_adaptive_call,
     unbound_scheme_call,
-    with_adaptive_runtime_methods,
-    with_explicit_workspace_methods,
+    adaptive_adaptivity,
+    with_adaptive_step_monitoring,
+    explicit_set_apply_delta_safety,
+    explicit_snapshot_state,
     with_scheme_display,
 )
 from stark.schemes.support.specialist import SchemeSpecialist
@@ -61,8 +63,7 @@ RKF45_ERROR_WEIGHTS = tuple(
 
 
 @with_scheme_display
-@with_adaptive_runtime_methods
-@with_explicit_workspace_methods
+@with_adaptive_step_monitoring
 class SchemeFehlberg45:
     """The adaptive Runge-Kutta-Fehlberg embedded 5(4) pair.
 
@@ -94,11 +95,13 @@ class SchemeFehlberg45:
     step_control: SchemeStepControl
 
     __slots__ = (
+        "monitor",
         "step_control",
         "advance_delta",
         "bound_apply_delta",
         "bound_stage_interval",
-        "call_monitorable",
+        "call_body",
+        "call_step",
         "derivative",
         "error",
         "error_delta",
@@ -121,6 +124,11 @@ class SchemeFehlberg45:
     )
 
     descriptor = SchemeDescriptor('RKF45', 'Fehlberg 4(5)')
+    set_apply_delta_safety = explicit_set_apply_delta_safety
+    snapshot_state = explicit_snapshot_state
+
+    adaptivity = property(adaptive_adaptivity)
+
     tableau = RKF45_TABLEAU
 
     def __init__(
@@ -129,19 +137,24 @@ class SchemeFehlberg45:
         allocator: Allocator,
         adaptivity: ExecutorAdaptivity | None = None,
         specialist: SchemeSpecialist | None = None,
+        monitor: MonitorSchemeLike | None = None,
     ) -> None:
         initialise_explicit_support(self, derivative, allocator)
         initialise_adaptive_runtime(self, adaptivity)
 
         self.initialise_buffers()
 
-        self.call_monitorable = self.call_inline
-        refresh_adaptive_call(self)
+        self.call_body = self.call_inline
+        self.monitor = monitor
+        self.call_step = self.call_monitored if monitor is not None else self.call_body
+        self.redirect_call = self.call_step
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_monitorable = self.call_specialized
-            refresh_adaptive_call(self)
+            self.call_body = self.call_specialized
+            if monitor is None:
+                self.call_step = self.call_body
+                self.redirect_call = self.call_step
 
     def __call__(
         self,
@@ -196,9 +209,8 @@ class SchemeFehlberg45:
         state: State,
         executor: SchemeExecutor,
     ) -> float:
-        del executor
-
         step_control = self.step_control
+        step_control.cache_executor(executor)
         proposal = step_control.propose_step(interval)
         record_stopped = step_control.record_stopped
 
@@ -372,9 +384,8 @@ class SchemeFehlberg45:
         state: State,
         executor: SchemeExecutor,
     ) -> float:
-        del executor
-
         step_control = self.step_control
+        step_control.cache_executor(executor)
         proposal = step_control.propose_step(interval)
         record_stopped = step_control.record_stopped
 

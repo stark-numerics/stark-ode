@@ -98,9 +98,9 @@ def test_euler_owns_its_public_call_method() -> None:
 def test_euler_default_call_path_is_scheme_owned_inline_call() -> None:
     scheme = SchemeEuler(exponential_growth, ScalarAllocator())
 
-    assert scheme.call_monitorable.__self__ is scheme
-    assert scheme.call_monitorable.__func__ is SchemeEuler.call_inline
-    assert scheme.redirect_call == scheme.call_monitorable
+    assert scheme.call_step.__self__ is scheme
+    assert scheme.call_step.__func__ is SchemeEuler.call_inline
+    assert scheme.redirect_call == scheme.call_step
 
 
 def test_euler_public_call_uses_redirect_call() -> None:
@@ -154,21 +154,21 @@ def test_euler_specialist_path_is_selected_inside_scheme() -> None:
         specialist=StubSpecialist(),
     )
 
-    assert scheme.call_monitorable.__self__ is scheme
-    assert scheme.call_monitorable.__func__ is SchemeEuler.call_specialized
-    assert scheme.redirect_call == scheme.call_monitorable
+    assert scheme.call_step.__self__ is scheme
+    assert scheme.call_step.__func__ is SchemeEuler.call_specialized
+    assert scheme.redirect_call == scheme.call_step
 
 
 def test_euler_monitoring_records_fixed_step_without_changing_pure_path() -> None:
-    scheme = SchemeEuler(exponential_growth, ScalarAllocator())
     monitor = Monitor()
+    scheme = SchemeEuler(exponential_growth, ScalarAllocator(), monitor=monitor.scheme)
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 
-    scheme.assign_monitor(monitor.scheme)
-
-    assert scheme.call_monitorable.__func__ is SchemeEuler.call_inline
-    assert scheme.redirect_call.__func__ is scheme.call_monitored.__func__
+    assert scheme.monitor is monitor.scheme
+    assert scheme.call_body.__func__ is SchemeEuler.call_inline
+    assert scheme.call_step.__func__ is scheme.call_monitored.__func__
+    assert scheme.redirect_call == scheme.call_step
 
     accepted_dt = scheme(interval, state, Executor())
 
@@ -183,24 +183,23 @@ def test_euler_monitoring_records_fixed_step_without_changing_pure_path() -> Non
     assert step.t_end == pytest.approx(0.125)
     assert step.accepted_dt == pytest.approx(0.125)
 
-    scheme.unassign_monitor()
-    assert scheme.redirect_call == scheme.call_monitorable
 
 
 def test_euler_monitoring_records_specialist_fixed_step() -> None:
+    monitor = Monitor()
     scheme = SchemeEuler(
         exponential_growth,
         ScalarAllocator(),
         specialist=StubSpecialist(),
+        monitor=monitor.scheme,
     )
-    monitor = Monitor()
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 
-    scheme.assign_monitor(monitor.scheme)
-
-    assert scheme.call_monitorable.__func__ is SchemeEuler.call_specialized
-    assert scheme.redirect_call.__func__ is scheme.call_monitored.__func__
+    assert scheme.monitor is monitor.scheme
+    assert scheme.call_body.__func__ is SchemeEuler.call_specialized
+    assert scheme.call_step.__func__ is scheme.call_monitored.__func__
+    assert scheme.redirect_call == scheme.call_step
 
     accepted_dt = scheme(interval, state, Executor())
 

@@ -4,9 +4,13 @@ from stark.contracts import IntervalLike, State
 from stark.schemes.support.executor import SchemeExecutor
 from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.schemes.support import (
+    MonitorSchemeLike,
     SchemeStepControl,
-    with_adaptive_runtime_methods,
-    with_imex_workspace_methods,
+    adaptive_adaptivity,
+    with_adaptive_step_monitoring,
+    imex_display_resolvent_problem,
+    imex_set_apply_delta_safety,
+    imex_snapshot_state,
     with_scheme_display,
 )
 from stark.schemes.support.descriptor import SchemeDescriptor
@@ -83,8 +87,7 @@ KENNEDY_CARPENTER32_TABLEAU = ARK324L2SA_TABLEAU
 
 
 @with_scheme_display
-@with_adaptive_runtime_methods
-@with_imex_workspace_methods
+@with_adaptive_step_monitoring
 class SchemeKennedyCarpenter32(SchemeKennedyCarpenterAdaptive):
     """Adaptive Kennedy-Carpenter ARK3(2)4L[2]SA IMEX method.
 
@@ -104,6 +107,12 @@ class SchemeKennedyCarpenter32(SchemeKennedyCarpenterAdaptive):
 
     step_control: SchemeStepControl
     descriptor = SchemeDescriptor("KC32", "Kennedy-Carpenter 3(2)")
+    display_resolvent_problem = classmethod(imex_display_resolvent_problem)
+    set_apply_delta_safety = imex_set_apply_delta_safety
+    snapshot_state = imex_snapshot_state
+
+    adaptivity = property(adaptive_adaptivity)
+
     tableau = KENNEDY_CARPENTER32_TABLEAU
 
     def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:

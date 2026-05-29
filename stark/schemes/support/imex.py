@@ -17,27 +17,31 @@ def initialise_imex_support(
     return scheme.workspace
 
 
-def with_imex_workspace_methods(cls):
-    """Install the standard IMEX workspace and resolvent-display methods."""
+def imex_display_resolvent_problem(cls) -> str:
+    """Return the standard display text for an IMEX resolvent problem."""
 
-    @classmethod
-    def display_resolvent_problem(inner_cls) -> str:
-        return display_imex_resolvent_problem(
-            inner_cls.tableau,
-            inner_cls.descriptor.short_name,
-            inner_cls.descriptor.full_name,
-        )
-
-    def set_apply_delta_safety(self, enabled: bool) -> None:
-        self.workspace.set_apply_delta_safety(enabled)
-
-    def snapshot_state(self, state: State) -> State:
-        return self.workspace.snapshot_state(state)
-
-    cls.display_resolvent_problem = display_resolvent_problem
-    cls.set_apply_delta_safety = set_apply_delta_safety
-    cls.snapshot_state = snapshot_state
-    return cls
+    return display_imex_resolvent_problem(
+        cls.tableau,
+        cls.descriptor.short_name,
+        cls.descriptor.full_name,
+    )
 
 
-__all__ = ["initialise_imex_support", "with_imex_workspace_methods"]
+def imex_set_apply_delta_safety(self, enabled: bool) -> None:
+    """Set IMEX workspace apply-delta safety for this scheme."""
+
+    self.workspace.set_apply_delta_safety(enabled)
+
+
+def imex_snapshot_state(self, state: State) -> State:
+    """Return an IMEX workspace-owned snapshot of *state*."""
+
+    return self.workspace.snapshot_state(state)
+
+
+__all__ = [
+    "imex_display_resolvent_problem",
+    "imex_set_apply_delta_safety",
+    "imex_snapshot_state",
+    "initialise_imex_support",
+]

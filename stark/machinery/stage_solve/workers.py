@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from stark.schemes.support.derivative import SchemeDerivative
 from stark.core.auditor import Auditor
 from stark.contracts import BlockLike, Derivative, DerivativeIMEX, IntervalLike, Resolvent, State, Translation, Allocator
 from stark.resolvents.support.guard import ResolventTableauGuard
@@ -71,8 +70,8 @@ class ImExStepper:
 
     def __init__(self, derivative: DerivativeIMEX, workspace: SchemeWorkspace, resolvent: Resolvent, tableau) -> None:
         self.tableau = tableau
-        self.explicit_derivative = SchemeDerivative(derivative.explicit)
-        self.implicit_derivative = SchemeDerivative(derivative.implicit)
+        self.explicit_derivative = derivative.explicit
+        self.implicit_derivative = derivative.implicit
         self.workspace = workspace
         self.stage_solver = _ImExStageSolver(workspace, resolvent)
         stage_count = len(tableau.c)

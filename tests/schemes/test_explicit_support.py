@@ -83,7 +83,7 @@ def test_explicit_support_constructs_prepared_derivative_and_workspace() -> None
     )
 
     assert isinstance(support.derivative, SchemeDerivative)
-    assert support.derivative.raw is exponential_growth
+    assert support.derivative is exponential_growth
     assert isinstance(support.workspace, SchemeWorkspace)
     assert isinstance(support.first_translation, ScalarTranslation)
     assert support.k1 is support.first_translation

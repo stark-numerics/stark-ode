@@ -4,10 +4,11 @@ from stark.contracts import Derivative, IntervalLike, State, Allocator
 from stark.schemes.support.executor import SchemeExecutor
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
-    with_explicit_workspace_methods,
+    MonitorSchemeLike,
+    explicit_set_apply_delta_safety,
+    explicit_snapshot_state,
     with_fixed_step_monitoring,
     initialise_explicit_support,
-    refresh_fixed_step_call,
     unbound_scheme_call,
     with_scheme_display,
 )
@@ -29,7 +30,6 @@ KUTTA3_B = KUTTA3_TABLEAU.b
 
 @with_scheme_display
 @with_fixed_step_monitoring
-@with_explicit_workspace_methods
 class SchemeKutta3:
     """The classical three-stage third-order Runge-Kutta method.
 
@@ -52,9 +52,10 @@ class SchemeKutta3:
     """
 
     __slots__ = (
-        "_monitor",
+        "monitor",
         "advance_update",
-        "call_monitorable",
+        "call_body",
+        "call_step",
         "derivative",
         "explicit",
         "k1",
@@ -69,6 +70,9 @@ class SchemeKutta3:
     )
 
     descriptor = SchemeDescriptor("Kutta3", "Kutta Third-Order")
+    set_apply_delta_safety = explicit_set_apply_delta_safety
+    snapshot_state = explicit_snapshot_state
+
     tableau = KUTTA3_TABLEAU
 
     def __init__(
@@ -76,14 +80,16 @@ class SchemeKutta3:
         derivative: Derivative,
         allocator: Allocator,
         specialist: SchemeSpecialist | None = None,
+        monitor: MonitorSchemeLike | None = None,
     ) -> None:
         self.advance_update = unbound_scheme_call
         self.stage2_update = unbound_scheme_call
         self.stage3_update = unbound_scheme_call
 
-        self._monitor = None
-        self.call_monitorable = self.call_inline
-        self.redirect_call = self.call_monitorable
+        self.monitor = monitor
+        self.call_body = self.call_inline
+        self.call_step = self.call_monitored if monitor is not None else self.call_body
+        self.redirect_call = self.call_step
 
         initialise_explicit_support(self, derivative, allocator)
 
@@ -91,12 +97,12 @@ class SchemeKutta3:
         self.stage = workspace.allocate_state_buffer()
         self.trial, self.k2, self.k3 = workspace.allocate_translation_buffers(3)
 
-        refresh_fixed_step_call(self)
-
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_monitorable = self.call_specialized
-            refresh_fixed_step_call(self)
+            self.call_body = self.call_specialized
+            if monitor is None:
+                self.call_step = self.call_body
+                self.redirect_call = self.call_step
 
     def __call__(
         self,

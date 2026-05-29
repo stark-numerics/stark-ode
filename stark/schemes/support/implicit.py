@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from stark.schemes.support.derivative import SchemeDerivative
 from stark.block import BlockAllocator
 from stark.contracts import Derivative, State, Allocator
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
@@ -12,7 +11,7 @@ def initialise_implicit_support(self, derivative: Derivative, allocator: Allocat
 
     validate_implicit_resolvent_tableau(self)
     translation_probe = allocator.allocate_translation()
-    self.derivative = SchemeDerivative(derivative)
+    self.derivative = derivative
     self.workspace = SchemeWorkspace(allocator, translation_probe)
     self.block_allocator = BlockAllocator(allocator)
 
@@ -35,36 +34,32 @@ def validate_implicit_resolvent_tableau(self) -> None:
         )
 
 
-def with_implicit_workspace_methods(cls):
-    """Install standard implicit workspace delegation methods."""
+def implicit_display_resolvent_problem(cls) -> str:
+    """Return the standard display text for an implicit resolvent problem."""
 
-    @classmethod
-    def display_resolvent_problem(inner_cls) -> str:
-        return display_implicit_resolvent_problem(
-            inner_cls.tableau,
-            inner_cls.descriptor.short_name,
-            inner_cls.descriptor.full_name,
-        )
-
-    def set_apply_delta_safety(self, enabled: bool) -> None:
-        self.workspace.set_apply_delta_safety(enabled)
-
-    def snapshot_state(self, state: State) -> State:
-        return self.workspace.snapshot_state(state)
-
-    cls.display_resolvent_problem = display_resolvent_problem
-    cls.set_apply_delta_safety = set_apply_delta_safety
-    cls.snapshot_state = snapshot_state
-    return cls
+    return display_implicit_resolvent_problem(
+        cls.tableau,
+        cls.descriptor.short_name,
+        cls.descriptor.full_name,
+    )
 
 
-# Compatibility alias while existing imports are rolled over.
-with_implicit_stepper_methods = with_implicit_workspace_methods
+def implicit_set_apply_delta_safety(self, enabled: bool) -> None:
+    """Set implicit workspace apply-delta safety for this scheme."""
+
+    self.workspace.set_apply_delta_safety(enabled)
+
+
+def implicit_snapshot_state(self, state: State) -> State:
+    """Return an implicit workspace-owned snapshot of *state*."""
+
+    return self.workspace.snapshot_state(state)
 
 
 __all__ = [
     "initialise_implicit_support",
     "validate_implicit_resolvent_tableau",
-    "with_implicit_stepper_methods",
-    "with_implicit_workspace_methods",
+    "implicit_display_resolvent_problem",
+    "implicit_set_apply_delta_safety",
+    "implicit_snapshot_state",
 ]

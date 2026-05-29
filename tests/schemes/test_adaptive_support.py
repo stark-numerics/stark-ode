@@ -78,29 +78,22 @@ def test_adaptive_support_owns_adaptivity_and_report_state() -> None:
     assert report.error_ratio == pytest.approx(0.0)
     assert report.rejection_count == 0
 
-    assert support.runtime_bound is False
-    assert support.active_adaptivity is None
-    assert support.ratio is None
-    assert support.bound is None
+    assert support.active_adaptivity is support.adaptivity
+    with pytest.raises(RuntimeError, match="has not been prepared"):
+        support.ratio
+    with pytest.raises(RuntimeError, match="has not been prepared"):
+        support.bound
 
 
-def test_adaptive_support_binds_and_unbinds_executor_runtime() -> None:
+def test_adaptive_support_caches_executor_runtime_helpers() -> None:
     support = SchemeStepControl()
     executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
-    support.assign_executor(executor)
+    support.cache_executor(executor)
 
-    assert support.runtime_bound is True
-    assert support.active_adaptivity is not None
-    assert support.ratio is not None
-    assert support.bound is not None
-
-    support.unassign_executor()
-
-    assert support.runtime_bound is False
-    assert support.active_adaptivity is None
-    assert support.ratio is None
-    assert support.bound is None
+    assert support.active_adaptivity is executor.adaptivity_or(support.adaptivity)
+    assert support.ratio(1.0, 2.0) == pytest.approx(executor.ratio(1.0, 2.0))
+    assert support.bound(2.0) == pytest.approx(executor.bound(2.0))
 
 
 def test_adaptive_support_uses_scheme_adaptivity_unless_executor_overrides() -> None:
@@ -118,7 +111,7 @@ def test_adaptive_support_uses_scheme_adaptivity_unless_executor_overrides() -> 
     )
     support = SchemeStepControl(scheme_adaptivity)
 
-    support.assign_executor(Executor())
+    support.cache_executor(Executor())
     adaptivity = support.active_adaptivity
 
     assert adaptivity is not None
@@ -127,7 +120,7 @@ def test_adaptive_support_uses_scheme_adaptivity_unless_executor_overrides() -> 
     assert adaptivity.max_factor == pytest.approx(scheme_adaptivity.max_factor)
     assert adaptivity.error_exponent == pytest.approx(scheme_adaptivity.error_exponent)
 
-    support.assign_executor(Executor(adaptivity=executor_adaptivity))
+    support.cache_executor(Executor(adaptivity=executor_adaptivity))
     adaptivity = support.active_adaptivity
 
     assert adaptivity is not None
@@ -174,7 +167,7 @@ def test_adaptive_support_delegates_rejected_and_accepted_step_calculations() ->
             error_exponent=0.2,
         )
     )
-    support.assign_executor(Executor())
+    support.cache_executor(Executor())
 
     rejected_dt = support.rejected_step(
         dt=0.1,
@@ -225,10 +218,11 @@ def test_adaptive_scheme_exposes_step_control_without_legacy_report() -> None:
 
     assert scheme.adaptivity is scheme.step_control.adaptivity
 
-    assert scheme.step_control.runtime_bound is False
-    assert scheme.step_control.active_adaptivity is None
-    assert scheme.step_control.ratio is None
-    assert scheme.step_control.bound is None
+    assert scheme.step_control.active_adaptivity is scheme.step_control.adaptivity
+    with pytest.raises(RuntimeError, match="has not been prepared"):
+        scheme.step_control.ratio
+    with pytest.raises(RuntimeError, match="has not been prepared"):
+        scheme.step_control.bound
 
 
 def test_existing_adaptive_scheme_still_runs_after_support_cleanup() -> None:

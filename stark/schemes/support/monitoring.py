@@ -27,24 +27,8 @@ class MonitorSchemeLike(Protocol):
     ) -> None: ...
 
 
-def refresh_fixed_step_call(scheme) -> None:
-    """Select the fixed-step pure or monitored call path for a scheme."""
-
-    scheme.redirect_call = (
-        scheme.call_monitored if scheme._monitor is not None else scheme.call_monitorable
-    )
-
-
 def with_fixed_step_monitoring(cls):
-    """Install the standard fixed-step monitor boundary on a scheme class."""
-
-    def assign_monitor(self, monitor: MonitorSchemeLike) -> None:
-        self._monitor = monitor
-        refresh_fixed_step_call(self)
-
-    def unassign_monitor(self) -> None:
-        self._monitor = None
-        refresh_fixed_step_call(self)
+    """Install the standard fixed-step monitor wrapper on a scheme class."""
 
     def call_monitored(
         self,
@@ -53,20 +37,48 @@ def with_fixed_step_monitoring(cls):
         executor,
     ) -> float:
         t_start = interval.present
-        accepted_dt = self.call_monitorable(interval, state, executor)
-        monitor = self._monitor
+        accepted_dt = self.call_body(interval, state, executor)
+        monitor = self.monitor
         if monitor is not None and accepted_dt > 0.0:
             monitor.record_fixed_step(self.short_name, t_start, accepted_dt)
         return accepted_dt
 
-    cls.assign_monitor = assign_monitor
-    cls.unassign_monitor = unassign_monitor
+    cls.call_monitored = call_monitored
+    return cls
+
+
+def with_adaptive_step_monitoring(cls):
+    """Install the standard adaptive-step monitor wrapper on a scheme class."""
+
+    def call_monitored(
+        self,
+        interval: IntervalLike,
+        state: State,
+        executor,
+    ) -> float:
+        accepted_dt = self.call_body(interval, state, executor)
+        report = self.step_control.report()
+        monitor = self.monitor
+
+        if monitor is not None:
+            monitor.record_adaptive_step(
+                self.short_name,
+                report.t_start,
+                report.proposed_dt,
+                report.accepted_dt,
+                report.next_dt,
+                report.error_ratio,
+                report.rejection_count,
+            )
+
+        return accepted_dt
+
     cls.call_monitored = call_monitored
     return cls
 
 
 __all__ = [
     "MonitorSchemeLike",
-    "refresh_fixed_step_call",
+    "with_adaptive_step_monitoring",
     "with_fixed_step_monitoring",
 ]

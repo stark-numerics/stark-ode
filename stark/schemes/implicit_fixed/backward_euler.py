@@ -3,14 +3,16 @@ from __future__ import annotations
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
 from stark.schemes.support.executor import SchemeExecutor
 from stark.schemes.support import (
+    MonitorSchemeLike,
     SchemeDescriptor,
-    refresh_fixed_step_call,
     with_fixed_step_monitoring,
     with_scheme_display,
 )
 from stark.schemes.support.implicit import (
     initialise_implicit_support,
-    with_implicit_workspace_methods,
+    implicit_display_resolvent_problem,
+    implicit_set_apply_delta_safety,
+    implicit_snapshot_state,
 )
 from stark.schemes.support.specialist import SchemeSpecialist
 from stark.schemes.support.stage_problem import SchemeStageProblem
@@ -27,7 +29,6 @@ BE_TABLEAU = ButcherTableau(
 
 @with_scheme_display
 @with_fixed_step_monitoring
-@with_implicit_workspace_methods
 class SchemeBackwardEuler:
     """The implicit backward Euler method.
 
@@ -55,9 +56,10 @@ class SchemeBackwardEuler:
     """
 
     __slots__ = (
-        "_monitor",
+        "monitor",
         "block_allocator",
-        "call_monitorable",
+        "call_body",
+        "call_step",
         "delta",
         "derivative",
         "redirect_call",
@@ -66,6 +68,10 @@ class SchemeBackwardEuler:
     )
 
     descriptor = SchemeDescriptor("BE", "Backward Euler")
+    display_resolvent_problem = classmethod(implicit_display_resolvent_problem)
+    set_apply_delta_safety = implicit_set_apply_delta_safety
+    snapshot_state = implicit_snapshot_state
+
     tableau = BE_TABLEAU
 
     def __init__(
@@ -75,21 +81,23 @@ class SchemeBackwardEuler:
         resolvent: Resolvent,
         *,
         specialist: SchemeSpecialist | None = None,
+        monitor: MonitorSchemeLike | None = None,
     ) -> None:
-        self._monitor = None
-        self.call_monitorable = self.call_inline
-        self.redirect_call = self.call_monitorable
+        self.monitor = monitor
+        self.call_body = self.call_inline
+        self.call_step = self.call_monitored if monitor is not None else self.call_body
+        self.redirect_call = self.call_step
         self.resolvent = resolvent
 
         initialise_implicit_support(self, derivative, allocator)
         self.delta = self.block_allocator.allocate(1)
 
-        refresh_fixed_step_call(self)
-
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_monitorable = self.call_specialized
-            refresh_fixed_step_call(self)
+            self.call_body = self.call_specialized
+            if monitor is None:
+                self.call_step = self.call_body
+                self.redirect_call = self.call_step
 
     def __call__(
         self,

@@ -62,7 +62,7 @@ def zero_rhs(
     out.value = 0.0
 
 
-def make_scheme() -> SchemeKennedyCarpenter54b:
+def make_scheme(*, monitor=None) -> SchemeKennedyCarpenter54b:
     allocator = ScalarAllocator()
     derivative = SplitDerivative(
         explicit=zero_rhs,
@@ -79,20 +79,20 @@ def make_scheme() -> SchemeKennedyCarpenter54b:
         derivative,
         allocator,
         resolvent=resolvent,
+        monitor=monitor,
     )
 
 
 def test_kennedy_carpenter54b_owns_converted_call_surface() -> None:
     assert hasattr(SchemeKennedyCarpenter54b, "__call__")
-    assert hasattr(SchemeKennedyCarpenter54b, "call_bind")
     assert hasattr(SchemeKennedyCarpenter54b, "call_inline")
     assert hasattr(SchemeKennedyCarpenter54b, "call_specialized")
     assert hasattr(SchemeKennedyCarpenter54b, "call_monitored")
 
     scheme = make_scheme()
 
-    assert scheme.redirect_call.__func__ is scheme.call_bind.__func__
-    assert scheme.call_monitorable.__func__ is scheme.call_inline.__func__
+    assert scheme.redirect_call.__func__ is scheme.call_step.__func__
+    assert scheme.call_step.__func__ is scheme.call_inline.__func__
 
 
 def test_kennedy_carpenter54b_accepts_zero_split_step() -> None:
@@ -105,7 +105,7 @@ def test_kennedy_carpenter54b_accepts_zero_split_step() -> None:
 
     assert accepted_dt == pytest.approx(0.1)
     assert state.value == pytest.approx(2.0)
-    assert scheme.redirect_call.__func__ is scheme.call_monitorable.__func__
+    assert scheme.redirect_call.__func__ is scheme.call_step.__func__
 
     report = scheme.step_control.report()
     assert report.accepted_dt == pytest.approx(0.1)
@@ -131,16 +131,15 @@ def test_kennedy_carpenter54b_clips_to_remaining_interval() -> None:
 
 
 def test_kennedy_carpenter54b_monitoring_uses_scheme_owned_boundary() -> None:
-    scheme = make_scheme()
     monitor = Monitor()
+    scheme = make_scheme(monitor=monitor.scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
     executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
-    scheme.assign_executor(executor)
-    scheme.assign_monitor(monitor.scheme)
-
-    assert scheme.redirect_call.__func__ is scheme.call_monitored.__func__
+    assert scheme.monitor is monitor.scheme
+    assert scheme.call_step.__func__ is scheme.call_monitored.__func__
+    assert scheme.redirect_call == scheme.call_step
 
     accepted_dt = scheme(interval, state, executor)
 

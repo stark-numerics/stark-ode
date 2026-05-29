@@ -5,14 +5,16 @@ from typing import Any, cast
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
 from stark.schemes.support.executor import SchemeExecutor
 from stark.schemes.support import (
+    MonitorSchemeLike,
     SchemeDescriptor,
-    refresh_fixed_step_call,
     with_fixed_step_monitoring,
     with_scheme_display,
 )
 from stark.schemes.support.implicit import (
     initialise_implicit_support,
-    with_implicit_workspace_methods,
+    implicit_display_resolvent_problem,
+    implicit_set_apply_delta_safety,
+    implicit_snapshot_state,
 )
 from stark.schemes.support.specialist import SchemeSpecialist
 from stark.schemes.support.stage_problem import SchemeStageProblem
@@ -50,7 +52,6 @@ _STAGE_INCREMENT_WEIGHTS = _STAGE_STENCILS.high_delta
 
 @with_scheme_display
 @with_fixed_step_monitoring
-@with_implicit_workspace_methods
 class SchemeCrouzeixDIRK3:
     """Crouzeix's fixed-step third-order sequential DIRK method.
 
@@ -76,9 +77,10 @@ class SchemeCrouzeixDIRK3:
     """
 
     __slots__ = (
-        "_monitor",
+        "monitor",
         "block_allocator",
-        "call_monitorable",
+        "call_body",
+        "call_step",
         "delta1",
         "delta2",
         "delta3",
@@ -98,6 +100,10 @@ class SchemeCrouzeixDIRK3:
     )
 
     descriptor = SchemeDescriptor("Crouzeix3", "Crouzeix DIRK3")
+    display_resolvent_problem = classmethod(implicit_display_resolvent_problem)
+    set_apply_delta_safety = implicit_set_apply_delta_safety
+    snapshot_state = implicit_snapshot_state
+
     tableau = CROUZEIX_DIRK3_TABLEAU
 
     def __init__(
@@ -107,10 +113,12 @@ class SchemeCrouzeixDIRK3:
         resolvent: Resolvent,
         *,
         specialist: SchemeSpecialist | None = None,
+        monitor: MonitorSchemeLike | None = None,
     ) -> None:
-        self._monitor = None
-        self.call_monitorable = self.call_inline
-        self.redirect_call = self.call_monitorable
+        self.monitor = monitor
+        self.call_body = self.call_inline
+        self.call_step = self.call_monitored if monitor is not None else self.call_body
+        self.redirect_call = self.call_step
         self.resolvent = resolvent
         self.known2_kernel = None
         self.known3_kernel = None
@@ -127,12 +135,12 @@ class SchemeCrouzeixDIRK3:
         self.known4 = self.block_allocator.allocate(1)
         self.trial = self.workspace.allocate_translation()
 
-        refresh_fixed_step_call(self)
-
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_monitorable = self.call_specialized
-            refresh_fixed_step_call(self)
+            self.call_body = self.call_specialized
+            if monitor is None:
+                self.call_step = self.call_body
+                self.redirect_call = self.call_step
 
     def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
         return self.redirect_call(interval, state, executor)

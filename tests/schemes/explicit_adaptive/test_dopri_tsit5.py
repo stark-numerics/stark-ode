@@ -128,8 +128,8 @@ def test_dopri_tsit5_scheme_owns_its_public_call_method(scheme_cls) -> None:
 def test_dopri_tsit5_default_call_path_is_scheme_owned_inline_call(scheme_cls) -> None:
     scheme = scheme_cls(zero_rhs, ScalarAllocator())
 
-    assert scheme.call_monitorable.__self__ is scheme
-    assert scheme.call_monitorable.__func__ is scheme_cls.call_inline
+    assert scheme.call_step.__self__ is scheme
+    assert scheme.call_step.__func__ is scheme_cls.call_inline
 
 
 @pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])
@@ -189,8 +189,8 @@ def test_dopri_tsit5_specialist_path_is_selected_inside_scheme(scheme_cls) -> No
         specialist=StubSpecialist(),
     )
 
-    assert scheme.call_monitorable.__self__ is scheme
-    assert scheme.call_monitorable.__func__ is scheme_cls.call_specialized
+    assert scheme.call_step.__self__ is scheme
+    assert scheme.call_step.__func__ is scheme_cls.call_specialized
 
 
 @pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])

@@ -10,17 +10,24 @@ from stark.schemes.support.display import (
 )
 from stark.schemes.support.explicit import (
     SchemeSupportExplicit,
-    with_explicit_workspace_methods,
+    explicit_set_apply_delta_safety,
+    explicit_snapshot_state,
     initialise_explicit_support,
 )
-from stark.schemes.support.implicit import with_implicit_stepper_methods
+from stark.schemes.support.implicit import (
+    implicit_display_resolvent_problem,
+    implicit_set_apply_delta_safety,
+    implicit_snapshot_state,
+)
 from stark.schemes.support.imex import (
+    imex_display_resolvent_problem,
+    imex_set_apply_delta_safety,
+    imex_snapshot_state,
     initialise_imex_support,
-    with_imex_workspace_methods,
 )
 from stark.schemes.support.monitoring import (
     MonitorSchemeLike,
-    refresh_fixed_step_call,
+    with_adaptive_step_monitoring,
     with_fixed_step_monitoring,
 )
 from stark.schemes.support.safety import SchemeSafety
@@ -29,9 +36,8 @@ from stark.schemes.support.adaptive import (
     SchemeStepAdaptiveAdvanceReport,
     SchemeStepControl,
     default_adaptivity,
+    adaptive_adaptivity,
     initialise_adaptive_runtime,
-    refresh_adaptive_call,
-    with_adaptive_runtime_methods,
 )
 from stark.schemes.support.tableau import (
     ButcherTableau,
@@ -55,15 +61,19 @@ __all__ = [
     "display_imex_resolvent_problem",
     "display_implicit_resolvent_problem",
     "initialise_adaptive_runtime",
-    "refresh_adaptive_call",
-    "refresh_fixed_step_call",
     "initialise_imex_support",
     "unbound_scheme_call",
-    "with_adaptive_runtime_methods",
-    "with_explicit_workspace_methods",
+    "adaptive_adaptivity",
+    "explicit_set_apply_delta_safety",
+    "explicit_snapshot_state",
+    "with_adaptive_step_monitoring",
     "with_fixed_step_monitoring",
-    "with_imex_workspace_methods",
-    "with_implicit_stepper_methods",
+    "imex_display_resolvent_problem",
+    "imex_set_apply_delta_safety",
+    "imex_snapshot_state",
+    "implicit_display_resolvent_problem",
+    "implicit_set_apply_delta_safety",
+    "implicit_snapshot_state",
     "initialise_explicit_support",
     "with_scheme_display",
 ]

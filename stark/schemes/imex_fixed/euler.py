@@ -6,11 +6,13 @@ from stark.schemes.support.executor import SchemeExecutor
 from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.schemes.support.descriptor import SchemeDescriptor
 from stark.schemes.support import (
+    MonitorSchemeLike,
     initialise_imex_support,
-    refresh_fixed_step_call,
     unbound_scheme_call,
     with_fixed_step_monitoring,
-    with_imex_workspace_methods,
+    imex_display_resolvent_problem,
+    imex_set_apply_delta_safety,
+    imex_snapshot_state,
     with_scheme_display,
 )
 from stark.schemes.support.imex_stencil import SchemeStencilImexTableau
@@ -41,7 +43,6 @@ IMEX_EULER_TABLEAU = ButcherTableauImex(
 
 @with_scheme_display
 @with_fixed_step_monitoring
-@with_imex_workspace_methods
 class SchemeIMEXEuler:
     """First-order IMEX Euler with explicit and implicit derivative splits.
 
@@ -61,9 +62,10 @@ class SchemeIMEXEuler:
     """
 
     __slots__ = (
-        "_monitor",
+        "monitor",
         "advance_call",
-        "call_monitorable",
+        "call_body",
+        "call_step",
         "delta",
         "delta_block",
         "explicit_derivative",
@@ -77,6 +79,10 @@ class SchemeIMEXEuler:
     )
 
     descriptor = SchemeDescriptor("IMEXEuler", "IMEX Euler")
+    display_resolvent_problem = classmethod(imex_display_resolvent_problem)
+    set_apply_delta_safety = imex_set_apply_delta_safety
+    snapshot_state = imex_snapshot_state
+
     tableau = IMEX_EULER_TABLEAU
 
     def __init__(
@@ -87,9 +93,10 @@ class SchemeIMEXEuler:
         adaptivity: ExecutorAdaptivity | None = None,
         *,
         specialist: SchemeSpecialist | None = None,
+        monitor: MonitorSchemeLike | None = None,
     ) -> None:
         del adaptivity
-        self._monitor = None
+        self.monitor = monitor
         self.advance_call = unbound_scheme_call
         self.resolvent = resolvent
 
@@ -102,13 +109,16 @@ class SchemeIMEXEuler:
         self.rhs_block = Block([self.rhs])
         self.delta_block = Block([self.delta])
 
-        self.call_monitorable = self.call_inline
-        refresh_fixed_step_call(self)
+        self.call_body = self.call_inline
+        self.call_step = self.call_monitored if monitor is not None else self.call_body
+        self.redirect_call = self.call_step
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_monitorable = self.call_specialized
-            refresh_fixed_step_call(self)
+            self.call_body = self.call_specialized
+            if monitor is None:
+                self.call_step = self.call_body
+                self.redirect_call = self.call_step
 
     def __call__(
         self,

@@ -130,8 +130,8 @@ def test_cash_karp_fehlberg_default_call_path_is_scheme_owned_inline_call(
 ) -> None:
     scheme = scheme_cls(zero_rhs, ScalarAllocator())
 
-    assert scheme.call_monitorable.__self__ is scheme
-    assert scheme.call_monitorable.__func__ is scheme_cls.call_inline
+    assert scheme.call_step.__self__ is scheme
+    assert scheme.call_step.__func__ is scheme_cls.call_inline
 
 
 @pytest.mark.parametrize("scheme_cls", [SchemeCashKarp, SchemeFehlberg45])
@@ -195,8 +195,8 @@ def test_cash_karp_fehlberg_specialist_path_is_selected_inside_scheme(
         specialist=StubSpecialist(),
     )
 
-    assert scheme.call_monitorable.__self__ is scheme
-    assert scheme.call_monitorable.__func__ is scheme_cls.call_specialized
+    assert scheme.call_step.__self__ is scheme
+    assert scheme.call_step.__func__ is scheme_cls.call_specialized
 
 
 @pytest.mark.parametrize("scheme_cls", [SchemeCashKarp, SchemeFehlberg45])

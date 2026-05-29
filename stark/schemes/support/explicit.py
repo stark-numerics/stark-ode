@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark.schemes.support.derivative import SchemeDerivative
 from stark.core.auditor import Auditor
 from stark.contracts import Derivative, State, Translation, Allocator
 from stark.machinery.stage_solve.workspace import SchemeWorkspace
@@ -19,7 +18,7 @@ class SchemeSupportExplicit:
     Concrete schemes should still own their actual step algorithm.
     """
 
-    derivative: SchemeDerivative
+    derivative: Derivative
     workspace: SchemeWorkspace
     first_translation: Translation
 
@@ -33,7 +32,7 @@ class SchemeSupportExplicit:
         Auditor.require_scheme_inputs(derivative, allocator, first_translation)
 
         return cls(
-            derivative=SchemeDerivative(derivative),
+            derivative=derivative,
             workspace=SchemeWorkspace(allocator, first_translation),
             first_translation=first_translation,
         )
@@ -64,24 +63,21 @@ def initialise_explicit_support(
     return support
 
 
-def with_explicit_workspace_methods(cls):
-    """Install snapshot and apply-delta safety methods for explicit schemes."""
+def explicit_set_apply_delta_safety(self, enabled: bool) -> None:
+    """Set explicit workspace apply-delta safety for this scheme."""
 
-    def set_apply_delta_safety(self, enabled: bool) -> None:
-        self.explicit.set_apply_delta_safety(enabled)
+    self.explicit.set_apply_delta_safety(enabled)
 
-    def snapshot_state(self, state: State) -> State:
-        return self.explicit.snapshot_state(state)
 
-    if "set_apply_delta_safety" not in cls.__dict__:
-        cls.set_apply_delta_safety = set_apply_delta_safety
-    if "snapshot_state" not in cls.__dict__:
-        cls.snapshot_state = snapshot_state
-    return cls
+def explicit_snapshot_state(self, state: State) -> State:
+    """Return an explicit workspace-owned snapshot of *state*."""
+
+    return self.explicit.snapshot_state(state)
 
 
 __all__ = [
     "SchemeSupportExplicit",
-    "with_explicit_workspace_methods",
+    "explicit_set_apply_delta_safety",
+    "explicit_snapshot_state",
     "initialise_explicit_support",
 ]

@@ -6,10 +6,10 @@ from stark.schemes.support.executor import SchemeExecutor
 from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.contracts.errors import StarkErrorRecoverable
 from stark.schemes.support import (
+    MonitorSchemeLike,
     SchemeStepControl,
     initialise_adaptive_runtime,
     initialise_imex_support,
-    refresh_adaptive_call,
     unbound_scheme_call,
 )
 from stark.schemes.support.imex_stencil import SchemeStencilImexTableau
@@ -28,9 +28,11 @@ class SchemeKennedyCarpenterAdaptive:
     step_control: SchemeStepControl
 
     __slots__ = (
+        "monitor",
         "step_control",
         "advance_delta_kernel",
-        "call_monitorable",
+        "call_body",
+        "call_step",
         "delta",
         "delta_high",
         "error_delta",
@@ -55,6 +57,7 @@ class SchemeKennedyCarpenterAdaptive:
         adaptivity: ExecutorAdaptivity | None = None,
         *,
         specialist: SchemeSpecialist | None = None,
+        monitor: MonitorSchemeLike | None = None,
     ) -> None:
         initialise_imex_support(self, derivative, allocator)
         initialise_adaptive_runtime(self, adaptivity)
@@ -79,13 +82,17 @@ class SchemeKennedyCarpenterAdaptive:
         self.advance_delta_kernel = unbound_scheme_call
         self.error_delta_kernel = unbound_scheme_call
 
-        self.call_monitorable = self.call_inline
-        refresh_adaptive_call(self)
+        self.call_body = self.call_inline
+        self.monitor = monitor
+        self.call_step = self.call_monitored if monitor is not None else self.call_body
+        self.redirect_call = self.call_step
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_monitorable = self.call_specialized
-            refresh_adaptive_call(self)
+            self.call_body = self.call_specialized
+            if monitor is None:
+                self.call_step = self.call_body
+                self.redirect_call = self.call_step
 
     def __call__(
         self,
@@ -120,7 +127,7 @@ class SchemeKennedyCarpenterAdaptive:
         state: State,
         executor: SchemeExecutor,
     ) -> float:
-        del executor
+        self.step_control.cache_executor(executor)
         return self._call(interval, state, specialized=False)
 
     def call_specialized(
@@ -129,7 +136,7 @@ class SchemeKennedyCarpenterAdaptive:
         state: State,
         executor: SchemeExecutor,
     ) -> float:
-        del executor
+        self.step_control.cache_executor(executor)
         return self._call(interval, state, specialized=True)
 
     def _call(

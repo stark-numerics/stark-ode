@@ -159,7 +159,7 @@ class ResolventBroyden:
         "add_update",
         "alpha",
         "allocator",
-        "call_monitorable",
+        "call_step",
         "correction",
         "difference_update",
         "history",
@@ -250,10 +250,10 @@ class ResolventBroyden:
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
-            self.call_monitorable = self.call_specialized
+            self.call_step = self.call_specialized
         else:
-            self.call_monitorable = self.call_inline
-        self.redirect_call = self.call_monitorable
+            self.call_step = self.call_inline
+        self.redirect_call = self.call_step
 
     def prepare_specialized_kernels(
         self,

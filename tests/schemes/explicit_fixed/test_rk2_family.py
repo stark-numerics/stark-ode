@@ -115,9 +115,9 @@ def test_rk2_scheme_owns_its_public_call_method(scheme_cls) -> None:
 def test_rk2_default_call_path_is_scheme_owned_inline_call(scheme_cls) -> None:
     scheme = scheme_cls(exponential_growth, ScalarAllocator())
 
-    assert scheme.call_monitorable.__self__ is scheme
-    assert scheme.call_monitorable.__func__ is scheme_cls.call_inline
-    assert scheme.redirect_call == scheme.call_monitorable
+    assert scheme.call_step.__self__ is scheme
+    assert scheme.call_step.__func__ is scheme_cls.call_inline
+    assert scheme.redirect_call == scheme.call_step
 
 
 @pytest.mark.parametrize(
@@ -203,9 +203,9 @@ def test_rk2_specialist_path_is_selected_inside_scheme(scheme_cls) -> None:
         specialist=StubSpecialist(),
     )
 
-    assert scheme.call_monitorable.__self__ is scheme
-    assert scheme.call_monitorable.__func__ is scheme_cls.call_specialized
-    assert scheme.redirect_call == scheme.call_monitorable
+    assert scheme.call_step.__self__ is scheme
+    assert scheme.call_step.__func__ is scheme_cls.call_specialized
+    assert scheme.redirect_call == scheme.call_step
 
 
 @pytest.mark.parametrize(
