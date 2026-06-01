@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from importlib import import_module
+from stark.executor.adaptivity import ExecutorAdaptivity
+from stark.executor.executor import Executor
+from stark.executor.safety import ExecutorSafety
+from stark.executor.tolerance import ExecutorTolerance
 
 __all__ = [
     "Executor",
@@ -10,21 +13,3 @@ __all__ = [
     "ExecutorSafety",
     "ExecutorTolerance",
 ]
-
-
-def __getattr__(name: str):
-    if name == "ExecutorAdaptivity":
-        module = import_module("stark.executor.adaptivity")
-        return getattr(module, name)
-    if name == "Executor":
-        module = import_module("stark.executor.executor")
-        return getattr(module, name)
-    if name == "ExecutorSafety":
-        module = import_module("stark.executor.safety")
-        return getattr(module, name)
-    if name == "ExecutorTolerance":
-        module = import_module("stark.executor.tolerance")
-        return getattr(module, name)
-    raise AttributeError(name)
-
-

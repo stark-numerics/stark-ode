@@ -231,10 +231,10 @@ Implicit schemes:
 For clarity, the physical subpackages are also importable:
 
 ```python
-from stark.schemes.explicit_adaptive import SchemeDormandPrince
-from stark.schemes.explicit_fixed import SchemeRK4
-from stark.schemes.implicit_adaptive import SchemeKvaerno3
-from stark.schemes.imex_adaptive import SchemeKennedyCarpenter43_7
+from stark.schemes.explicit.adaptive import SchemeDormandPrince
+from stark.schemes.explicit.fixed import SchemeRK4
+from stark.schemes.implicit.adaptive import SchemeKvaerno3
+from stark.schemes.imex.adaptive import SchemeKennedyCarpenter43_7
 ```
 
 ## Built-in resolvents and inverters
@@ -493,9 +493,6 @@ class MyScheme:
 
     def snapshot_state(self, state):
         ...
-
-    def set_apply_delta_safety(self, enabled):
-        ...
 ```
 
 The `__call__` method should:
@@ -507,14 +504,13 @@ The `__call__` method should:
 
 `Marcher` will then increment `interval.present` by the returned step size.
 
-For built-in-style schemes, the common pattern is to use the helpers under
-`stark.schemes.support`. They install the non-algorithmic parts that would
+For built-in-style explicit schemes, the common pattern is to use the helpers under
+`stark.schemes.explicit._support`. They install the non-algorithmic parts that would
 otherwise clutter a scheme body: workspace construction, state snapshots,
-apply-delta ExecutorSafety, adaptive step control, monitoring hooks, and display
-metadata.
+adaptive step control, monitoring hooks, and display metadata.
 
 ```python
-from stark.schemes.support import initialise_explicit_support
+from stark.schemes.explicit._support import initialise_explicit_support
 
 
 class MyScheme:
@@ -640,8 +636,5 @@ performance-oriented extension point.
 
 Formal performance-regression tracking belongs in an ASV suite, not in these
 comparison reports. See [`docs/benchmarking.md`](benchmarking.md).
-
-
-
 
 

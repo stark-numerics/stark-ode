@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 
 from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
-from stark.schemes.explicit_adaptive.cash_karp import SchemeCashKarp
-from stark.schemes.explicit_fixed.rk4 import SchemeRK4
+from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
+from stark.schemes.explicit.fixed.rk4 import SchemeRK4
 
 
 @dataclass(slots=True)

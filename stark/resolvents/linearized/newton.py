@@ -4,41 +4,43 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
-from stark.block import Block, BlockAllocator, BlockOperator
+from stark.block import Block, BlockAllocator, BlockOperatorDiagonal
 from stark.contracts import (
     AcceleratorLike,
-    LegacyInverterLike,
+    Inverter,
     Linearizer,
     Translation,
     Allocator,
 )
 from stark.accelerators import AcceleratorAbsent
 from stark.executor.tolerance import ExecutorTolerance
-from stark.resolvents.support import (
-    MonitorResolventLike,
-    ResolventError,
-    ResolventPolicy,
-    ResolventSafety,
-    ResolventSpecialist,
-    ResolventStageProblem,
-    ResolventStageResidual,
-    ResolventStencilBlock,
-    with_resolvent_display,
-    with_resolvent_monitoring,
-)
-from stark.resolvents.support.descriptor import ResolventDescriptor
-from stark.resolvents.support.tolerance import ResolventTolerance
-from stark.resolvents.support.safety import ResolventSafety, ResolventSafetyDefault
+from stark.resolvents.method.descriptor import ResolventDescriptor
+from stark.resolvents.method.errors import ResolventError
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.resolvents.monitoring.monitor import MonitorResolventLike
+from stark.resolvents.monitoring.decorators import with_resolvent_monitoring
+from stark.resolvents.display.decorators import with_resolvent_display
+from stark.resolvents.requests.inverter import ResolventInverterRequest
+from stark.resolvents.requests.resolvent import ResolventRequest
+from stark.resolvents.equations.implicit import ResolventImplicitEquation
+from stark.resolvents.specialization.specialist import ResolventSpecialist
+from stark.resolvents.specialization.stencil import ResolventStencilBlock
+from stark.resolvents.method.tolerance import ResolventTolerance
+from stark.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 
+# Optional extension: adds human-readable resolvent metadata and formatting helpers.
+# Provides: short_name, __repr__, and __str__.
 @with_resolvent_display
+# Optional extension: records resolvent monitor events.
+# Provides: assign_monitor, unassign_monitor, and record_solve.
 @with_resolvent_monitoring
 class ResolventNewton:
     """Newton iteration for one-stage shifted implicit residuals.
 
     Residual equation:
 
-        F(delta) = delta - rhs - alpha * f(t, origin + delta)
+        equation(delta) = delta - rhs - alpha * f(t, origin + delta)
 
     Algorithm sketch:
 
@@ -62,7 +64,7 @@ class ResolventNewton:
         "operator",
         "policy",
         "redirect_call",
-        "residual",
+        "equation",
         "residual_buffer",
         "rhs_buffer",
         "safety",
@@ -89,7 +91,7 @@ class ResolventNewton:
         self,
         allocator: Allocator,
         linearizer: Linearizer,
-        inverter: LegacyInverterLike,
+        inverter: Inverter[Translation],
         ExecutorTolerance: ExecutorTolerance | None = None,
         policy: ResolventPolicy | None = None,
         safety: ResolventSafety | None = None,
@@ -112,7 +114,7 @@ class ResolventNewton:
         self.inverter = inverter
 
         self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
-        self.residual = ResolventStageResidual(
+        self.equation = ResolventImplicitEquation(
             "ResolventNewton",
             allocator,
             linearizer=linearizer,
@@ -150,11 +152,11 @@ class ResolventNewton:
         self.correction = self.allocator.allocate_like(delta)
         self.residual_buffer = self.allocator.allocate_like(delta)
         self.rhs_buffer = self.allocator.allocate_like(delta)
-        self.operator = BlockOperator(None for _ in range(size))
+        self.operator = BlockOperatorDiagonal(None for _ in range(size))
 
     def call_inline(
         self,
-        problem: ResolventStageProblem,
+        problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
@@ -163,19 +165,18 @@ class ResolventNewton:
         self.alpha = problem.alpha
         self.prepare_buffers(delta)
 
-        F = self.residual
-        F.configure(problem)
+        equation = self.equation.prepare(problem)
         correction = cast(Block[Translation], self.correction)
         residual = cast(Block[Translation], self.residual_buffer)
         rhs = cast(Block[Translation], self.rhs_buffer)
-        operator = cast(BlockOperator[Translation], self.operator)
+        operator = cast(BlockOperatorDiagonal[Translation], self.operator)
 
         block_size = len(delta)
         iteration_count = 0
 
         for _ in range(self.policy.max_iterations):
             # 1. Compute F(delta).
-            F(delta, residual)
+            equation(delta, residual)
 
             # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
@@ -186,20 +187,20 @@ class ResolventNewton:
 
             # 3. Build the differential DF(delta).
             operator.reset()
-            F.differential(delta, operator)
+            equation.differential(delta, operator)
 
             # 4. Solve DF(delta) correction = -F(delta).
             rhs.replace(-1.0 * residual)
             correction.replace(0.0 * correction)
-            self.inverter.bind(operator)
-            self.inverter(rhs, correction)
+            request = ResolventInverterRequest(operator=operator, residual=rhs)
+            self.inverter(request, correction)
 
             # 5. Newton update: delta <- delta + correction.
             delta += correction
             iteration_count += 1
 
         # 6. Recheck once after the final correction.
-        F(delta, residual)
+        equation(delta, residual)
 
         error = residual.norm()
         scale = delta.norm()
@@ -215,7 +216,7 @@ class ResolventNewton:
 
     def call_specialized(
         self,
-        problem: ResolventStageProblem,
+        problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
@@ -224,12 +225,11 @@ class ResolventNewton:
         self.alpha = problem.alpha
         self.prepare_buffers(delta)
 
-        F = self.residual
-        F.configure(problem)
+        equation = self.equation.prepare(problem)
         correction = cast(Block[Translation], self.correction)
         residual = cast(Block[Translation], self.residual_buffer)
         rhs = cast(Block[Translation], self.rhs_buffer)
-        operator = cast(BlockOperator[Translation], self.operator)
+        operator = cast(BlockOperatorDiagonal[Translation], self.operator)
         newton_update = self.newton_update
         assert newton_update is not None
 
@@ -238,7 +238,7 @@ class ResolventNewton:
 
         for _ in range(self.policy.max_iterations):
             # 1. Compute F(delta).
-            F(delta, residual)
+            equation(delta, residual)
 
             # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
@@ -249,20 +249,20 @@ class ResolventNewton:
 
             # 3. Build the differential DF(delta).
             operator.reset()
-            F.differential(delta, operator)
+            equation.differential(delta, operator)
 
             # 4. Solve DF(delta) correction = -F(delta).
             rhs.replace(-1.0 * residual)
             correction.replace(0.0 * correction)
-            self.inverter.bind(operator)
-            self.inverter(rhs, correction)
+            request = ResolventInverterRequest(operator=operator, residual=rhs)
+            self.inverter(request, correction)
 
             # 5. Newton update: delta <- delta + correction.
-            newton_update(1.0, delta, delta, correction)
+            newton_update(1.0, delta, correction, delta)
             iteration_count += 1
 
         # 6. Recheck once after the final correction.
-        F(delta, residual)
+        equation(delta, residual)
 
         error = residual.norm()
         scale = delta.norm()

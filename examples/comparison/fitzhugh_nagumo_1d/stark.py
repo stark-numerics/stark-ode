@@ -13,7 +13,8 @@ from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
 from stark.executor.adaptivity import ExecutorAdaptivity
-from stark.inverters import InverterPolicy, InverterTolerance
+from stark.inverters.relaxation import InverterRelaxationRichardson
+from stark.inverters.support import InverterBudget, InverterTolerance
 from stark.resolvents import ResolventAnderson, ResolventNewton, ResolventPolicy, ResolventTolerance
 from stark.schemes import SchemeKennedyCarpenter43_7, SchemeKvaerno3
 
@@ -634,18 +635,20 @@ def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParamet
     allocator = FitzHughNagumoAllocator(parameters.grid_size)
     derivative = FitzHughNagumoDerivative(parameters)
     linearizer = FitzHughNagumoLinearizer(parameters)
+    if inverter_class is not InverterRelaxationRichardson:
+        raise TypeError(
+            "FitzHugh-Nagumo inverter comparison now expects a new-style inverter; "
+            "use InverterRelaxationRichardson until projection/recurrence inverters are rebuilt."
+        )
     inverter = inverter_class(
-        allocator,
-        _translation_inner_product,
-        ExecutorTolerance=InverterTolerance(
+        damping=1.0,
+        tolerance=InverterTolerance(
             atol=parameters.inversion_atol,
             rtol=parameters.inversion_rtol,
         ),
-        policy=InverterPolicy(
-            max_iterations=parameters.inversion_max_iterations,
-            restart=parameters.inversion_restart,
+        budget=InverterBudget(
+            maximum_steps=parameters.inversion_max_iterations,
         ),
-        safety=executor_safety,
     )
     resolvent = ResolventNewton(
         allocator,

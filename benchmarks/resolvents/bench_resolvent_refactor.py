@@ -25,7 +25,7 @@ from stark.resolvents import (
     ResolventPolicy,
     ResolventTolerance,
 )
-from stark.schemes import GAUSS_LEGENDRE4_TABLEAU
+from stark.schemes.implicit.fixed import GAUSS_LEGENDRE4_TABLEAU
 
 
 ROOT = Path(__file__).resolve().parents[2]

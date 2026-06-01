@@ -12,26 +12,23 @@ class ExecutorSafety:
 
     progress: bool = True
     block_sizes: bool = True
-    apply_delta: bool = True
 
     def __repr__(self) -> str:
         return (
             "ExecutorSafety("
             f"progress={self.progress!r}, "
-            f"block_sizes={self.block_sizes!r}, "
-            f"apply_delta={self.apply_delta!r})"
+            f"block_sizes={self.block_sizes!r})"
         )
 
     def __str__(self) -> str:
         return (
             f"progress={self.progress!r}, "
-            f"block_sizes={self.block_sizes!r}, "
-            f"apply_delta={self.apply_delta!r}"
+            f"block_sizes={self.block_sizes!r}"
         )
 
     @classmethod
     def fast(cls) -> "ExecutorSafety":
-        return cls(progress=False, block_sizes=False, apply_delta=False)
+        return cls(progress=False, block_sizes=False)
 
 
 class ExecutorSafetyAudit:

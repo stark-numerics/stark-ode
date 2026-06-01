@@ -16,14 +16,14 @@ standard matrix setting this is the method introduced by Saad and Schultz:
     SIAM Journal on Scientific and Statistical Computing 7(3), 1986.
 
 STARK uses the same algorithmic structure, but replaces vectors by `Block`
-objects and matrix-vector products by `BlockOperator` applications. The dense
+objects and matrix-vector products by `BlockOperatorDiagonal` applications. The dense
 small linear algebra that lives inside one GMRES restart window is handled by
 the Krylov support workers in `stark.inverters.legacy_support.krylov`.
 """
 
 from stark.block import Block
 from stark.contracts import AcceleratorLike, InnerProduct, LegacyInverterPreconditionerLike, Allocator
-from stark.block.operator import BlockOperator
+from stark.block.operator import BlockOperatorDiagonal
 from stark.inverters.legacy_support.descriptor import InverterDescriptor
 from stark.inverters.legacy_support.policy import InverterPolicy
 from stark.inverters.legacy_support.safety import InverterSafety
@@ -37,6 +37,8 @@ from stark.inverters.legacy_support.krylov import Arnoldi, GivensRotations, Hess
 from stark.executor.tolerance import ExecutorTolerance
 
 
+# Optional extension: adds human-readable inverter metadata and formatting helpers.
+# Provides: short_name, full_name, __repr__, and __str__.
 @with_inverter_display_methods
 @with_inverter_binding_methods
 class InverterGMRES:
@@ -50,7 +52,7 @@ class InverterGMRES:
     with the following STARK substitutions:
 
     - `x` and `b` are `Block` objects rather than flat arrays
-    - `A` is supplied as a `BlockOperator`
+    - `A` is supplied as a `BlockOperatorDiagonal`
     - all vector-space mechanics are delegated to `InverterWorkspace`
 
     A fixed right preconditioner can also be supplied. The preconditioner is
@@ -174,7 +176,7 @@ class InverterGMRES:
             f"{policy.max_iterations} iterations (residual={residual_norm:g})."
         )
 
-    def initial_residual(self, rhs: Block, out: Block, operator: BlockOperator) -> float:
+    def initial_residual(self, rhs: Block, out: Block, operator: BlockOperatorDiagonal) -> float:
         """
         Compute `r = rhs - A out` in cached storage and return its norm.
 
@@ -189,7 +191,7 @@ class InverterGMRES:
         self,
         rhs: Block,
         out: Block,
-        operator: BlockOperator,
+        operator: BlockOperatorDiagonal,
         rhs_norm: float,
         remaining_iterations: int,
     ) -> tuple[int, float]:

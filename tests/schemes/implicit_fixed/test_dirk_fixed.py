@@ -9,8 +9,8 @@ from stark import Executor, Interval, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.resolvents import ResolventPicard
-from stark.resolvents.support.policy import ResolventPolicy
-from stark.schemes.implicit_fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.schemes.implicit.fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
 
 
 @dataclass(slots=True)
@@ -250,7 +250,7 @@ def test_crouzeix_dirk3_returns_zero_when_interval_is_complete() -> None:
     assert state.value == pytest.approx(0.0)
 
 
-def test_crouzeix_dirk3_snapshot_and_safety_are_exposed_through_scheme() -> None:
+def test_crouzeix_dirk3_snapshot_is_exposed_through_scheme() -> None:
     scheme = make_scheme()
     state = ScalarState(3.0)
 
@@ -262,6 +262,3 @@ def test_crouzeix_dirk3_snapshot_and_safety_are_exposed_through_scheme() -> None
     state.value = 9.0
 
     assert snapshot.value == pytest.approx(3.0)
-
-    scheme.set_apply_delta_safety(False)
-    scheme.set_apply_delta_safety(True)

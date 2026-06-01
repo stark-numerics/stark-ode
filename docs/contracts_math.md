@@ -358,7 +358,7 @@ The key STARK contracts can be summarized this way:
 | product space `T^m` | `Block` |
 | residual `R : T^m -> T^m` | `Residual` |
 | nonlinear implicit solver | `Resolvent` |
-| scheme-provided stage problem | `ResolventStageProblem` |
+| scheme-provided stage problem | `ResolventRequest` |
 | linear solve worker | `LegacyInverterLike` |
 | inner product `<.,.>` | `InnerProduct` |
 

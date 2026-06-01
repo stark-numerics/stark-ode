@@ -6,8 +6,8 @@ import pytest
 
 from stark import Executor, Interval, ExecutorTolerance
 from stark.executor.adaptivity import ExecutorAdaptivity
-from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
-from stark.schemes.support.adaptive import (
+from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.schemes.adaptivity import (
     SchemeStepAdaptiveAdvanceReport,
     SchemeStepControl,
 )

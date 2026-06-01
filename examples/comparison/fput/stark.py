@@ -14,7 +14,7 @@ from stark.algebraist.layout import (
     AlgebraistLayoutField,
     AlgebraistLayoutLooped,
 )
-from stark.schemes.explicit_adaptive import SchemeCashKarp, SchemeDormandPrince
+from stark.schemes.explicit.adaptive import SchemeCashKarp, SchemeDormandPrince
 
 
 try:

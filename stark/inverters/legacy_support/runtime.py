@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from stark.accelerators import AcceleratorAbsent
 from stark.block import Block
-from stark.block.operator import BlockOperator
+from stark.block.operator import BlockOperatorDiagonal
 from stark.contracts import AcceleratorLike, InnerProduct, LegacyInverterPreconditionerLike, Allocator
 from stark.executor.tolerance import ExecutorTolerance
 from stark.inverters.legacy_support.monitoring import MonitorInverterLike
@@ -96,7 +96,7 @@ def with_inverter_binding_methods(cls):
             return
         self.redirect_call = self.call_monitored if self._monitor is not None else self._bound_call
 
-    def bind(self, operator: BlockOperator) -> None:
+    def bind(self, operator: BlockOperatorDiagonal) -> None:
         self.operator = operator
         self.preconditioner.bind(operator)
         self._bound_call = self.call_checked if self.safety.block_sizes else self.call_unchecked

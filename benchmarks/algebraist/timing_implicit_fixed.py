@@ -21,14 +21,14 @@ from stark.algebraist.layout import (
     AlgebraistLayoutLooped,
 )
 from stark.resolvents import ResolventCoupledPicard, ResolventPicard
-from stark.resolvents.support.policy import ResolventPolicy
-from stark.schemes.implicit_fixed.backward_euler import SchemeBackwardEuler
-from stark.schemes.implicit_fixed.crank_nicolson import SchemeCrankNicolson
-from stark.schemes.implicit_fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
-from stark.schemes.implicit_fixed.gauss_legendre4 import SchemeGaussLegendre4
-from stark.schemes.implicit_fixed.implicit_midpoint import SchemeImplicitMidpoint
-from stark.schemes.implicit_fixed.lobatto_iiic4 import SchemeLobattoIIIC4
-from stark.schemes.implicit_fixed.radau_iia5 import SchemeRadauIIA5
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
+from stark.schemes.implicit.fixed.crank_nicolson import SchemeCrankNicolson
+from stark.schemes.implicit.fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
+from stark.schemes.implicit.fixed.gauss_legendre4 import SchemeGaussLegendre4
+from stark.schemes.implicit.fixed.implicit_midpoint import SchemeImplicitMidpoint
+from stark.schemes.implicit.fixed.lobatto_iiic4 import SchemeLobattoIIIC4
+from stark.schemes.implicit.fixed.radau_iia5 import SchemeRadauIIA5
 
 
 GENERATED_CASES = (

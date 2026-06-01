@@ -116,7 +116,7 @@ class StarkIVP:
         value = carrier.validation.validate_state(initial)
 
         self.prepared_carrier = carrier
-        return StarkVector(value, carrier)
+        return StarkVector(carrier.allocation.copy_state(value), carrier)
 
     def prepare_derivative(
         self,

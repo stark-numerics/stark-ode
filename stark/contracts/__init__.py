@@ -6,7 +6,12 @@ Prefer focused submodule imports in implementation code.
 """
 
 from stark.contracts.accelerator import AcceleratorLike
-from stark.contracts.block import BlockLike, BlockOperatorLike
+from stark.contracts.block import (
+    BlockLike,
+    BlockOperatorDiagonalLike,
+    BlockOperatorEntryLike,
+    BlockOperatorLike,
+)
 from stark.contracts.carrier import (
     Carrier,
     CarrierAllocation,
@@ -22,6 +27,8 @@ from stark.contracts.inner_product import InnerProduct
 from stark.contracts.integrator import IntegratorLike
 from stark.contracts.interval import IntervalLike
 from stark.contracts.inverter import (
+    Inverter,
+    InverterRequest,
     LegacyInverterAudit,
     LegacyInverterLike,
     LegacyInverterPreconditionerLike,
@@ -55,6 +62,7 @@ from stark.contracts.state import (
     StateTypeContravariant,
 )
 from stark.contracts.translation import TranslationAudit
+from stark.contracts.translation_basis import TranslationBasis
 from stark.contracts.translation import (
     Translation,
     TranslationType,
@@ -66,7 +74,9 @@ from stark.contracts.allocator import Allocator, AllocatorAudit
 __all__ = [
     "AcceleratorLike",
     "BlockLike",
+    "BlockOperatorEntryLike",
     "BlockOperatorLike",
+    "BlockOperatorDiagonalLike",
     "Carrier",
     "CarrierAllocation",
     "CarrierArithmetic",
@@ -93,6 +103,8 @@ __all__ = [
     "InnerProduct",
     "IntegratorLike",
     "IntervalLike",
+    "Inverter",
+    "InverterRequest",
     "LegacyInverterAudit",
     "LegacyInverterLike",
     "LegacyInverterPreconditionerLike",
@@ -119,6 +131,7 @@ __all__ = [
     "SupportsLinearCombine",
     "Translation",
     "TranslationAudit",
+    "TranslationBasis",
     "TranslationType",
     "TranslationTypeCovariant",
     "TranslationTypeContravariant",

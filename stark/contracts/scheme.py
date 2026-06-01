@@ -9,8 +9,8 @@ from stark.contracts.interval import IntervalLike
 from stark.contracts.state import State
 
 if TYPE_CHECKING:
-    from stark.schemes.support.descriptor import SchemeDescriptor
-    from stark.schemes.support.executor import SchemeExecutor
+    from stark.schemes.method.descriptor import SchemeDescriptor
+    from stark.schemes.execution.executor import SchemeExecutor
 
 
 class SchemeLike(Protocol):
@@ -29,9 +29,6 @@ class SchemeLike(Protocol):
         ...
 
     def snapshot_state(self, state: State) -> State:
-        ...
-
-    def set_apply_delta_safety(self, enabled: bool) -> None:
         ...
 
 
@@ -74,11 +71,6 @@ class SchemeAudit:
             callable(getattr(scheme, "snapshot_state", None)),
             "Scheme provides snapshot_state(state).",
             "Add snapshot_state(state) so snapshot integration can clone the state.",
-        )
-        recorder.check(
-            callable(getattr(scheme, "set_apply_delta_safety", None)),
-            "Scheme provides set_apply_delta_safety(enabled).",
-            "Add set_apply_delta_safety(enabled) to control alias-safe state updates.",
         )
 
 

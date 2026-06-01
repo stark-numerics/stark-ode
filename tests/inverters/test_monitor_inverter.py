@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark.block.operator import BlockOperator
+from stark.block.operator import BlockOperatorDiagonal
 from stark.block import Block
 from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
 from stark.inverters.legacy_support.policy import InverterPolicy
@@ -48,7 +48,7 @@ def test_monitored_inverter_records_successful_solve(inverter_type) -> None:
         ExecutorTolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
-    inverter.bind(BlockOperator([scale_by_two]))
+    inverter.bind(BlockOperatorDiagonal([scale_by_two]))
     inverter.assign_monitor(monitor)
 
     solution = Block([ScalarTranslation(0.0)])
@@ -70,7 +70,7 @@ def test_monitored_inverter_records_successful_solve(inverter_type) -> None:
 def test_unmonitored_inverter_creates_no_records(inverter_type) -> None:
     monitor = MonitorInverter()
     inverter = inverter_type(ScalarAllocator(), scalar_inner_product)
-    inverter.bind(BlockOperator([scale_by_two]))
+    inverter.bind(BlockOperatorDiagonal([scale_by_two]))
     inverter.assign_monitor(monitor)
     inverter.unassign_monitor()
 
@@ -82,7 +82,7 @@ def test_unmonitored_inverter_creates_no_records(inverter_type) -> None:
 
 
 def test_monitored_inverter_records_failed_solve_before_reraising() -> None:
-    class DiagonalOperator(BlockOperator):
+    class DiagonalOperator(BlockOperatorDiagonal):
         def __call__(self, block: Block, out: Block) -> None:
             out.items[0].value = 2.0 * block[0].value
             out.items[1].value = 3.0 * block[1].value

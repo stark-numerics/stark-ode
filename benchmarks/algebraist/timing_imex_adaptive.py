@@ -21,8 +21,8 @@ from stark.algebraist.layout import (
     AlgebraistLayoutLooped,
 )
 from stark.resolvents import ResolventPicard
-from stark.resolvents.support.policy import ResolventPolicy
-from stark.schemes.imex_adaptive import SchemeKennedyCarpenter32
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.schemes.imex.adaptive import SchemeKennedyCarpenter32
 
 
 IMEX_ADAPTIVE_CASES = (

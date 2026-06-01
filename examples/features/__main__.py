@@ -10,6 +10,10 @@ EXAMPLES = (
     "compare_two_schemes",
     "monitor_scheme_steps",
     "compare_with_monitor_summary",
+    "inverter_request_and_defect",
+    "inverter_relaxation_richardson",
+    "inverter_relaxation_jacobi",
+    "inverter_relaxation_specialist",
 )
 
 

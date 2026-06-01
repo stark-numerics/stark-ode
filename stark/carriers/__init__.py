@@ -24,6 +24,7 @@ __all__ += [
 
 from stark.carriers.native import (
     CarrierNative,
+    CarrierBasisNative,
     CarrierAllocationNative,
     CarrierArithmeticNative,
     CarrierNativeValue,
@@ -36,6 +37,7 @@ from stark.carriers.native import (
 
 __all__ += [
     "CarrierAllocationNative",
+    "CarrierBasisNative",
     "CarrierArithmeticNative",
     "CarrierNative",
     "CarrierNativeValue",
@@ -50,6 +52,7 @@ __all__ += [
 
 from stark.carriers.numpy import (
     CarrierNumpy,
+    CarrierBasisNumpy,
     CarrierAllocationNumpy,
     CarrierArithmeticNumpy,
     CarrierNormNumpyMax,
@@ -61,6 +64,7 @@ from stark.carriers.numpy import (
 
 __all__ += [
     "CarrierAllocationNumpy",
+    "CarrierBasisNumpy",
     "CarrierArithmeticNumpy",
     "CarrierNormNumpyMax",
     "CarrierNormNumpyRMS",
@@ -75,6 +79,7 @@ try:
         CarrierAllocationCupy,
         CarrierArithmeticCupy,
         CarrierCupy,
+        CarrierBasisCupy,
         CarrierCupyValue,
         CarrierNormCupyMax,
         CarrierNormCupyRMS,
@@ -86,6 +91,7 @@ except ImportError:
 else:
     __all__ += [
         "CarrierAllocationCupy",
+        "CarrierBasisCupy",
         "CarrierArithmeticCupy",
         "CarrierCupy",
         "CarrierCupyValue",
@@ -102,6 +108,7 @@ try:
         CarrierAllocationJax,
         CarrierArithmeticJax,
         CarrierJax,
+        CarrierBasisJax,
         CarrierJaxValue,
         CarrierNormJaxMax,
         CarrierNormJaxRMS,
@@ -113,6 +120,7 @@ except ImportError:
 else:
     __all__ += [
         "CarrierAllocationJax",
+        "CarrierBasisJax",
         "CarrierArithmeticJax",
         "CarrierJax",
         "CarrierJaxValue",

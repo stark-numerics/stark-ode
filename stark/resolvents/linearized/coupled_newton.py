@@ -4,34 +4,36 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
-from stark.block import Block, BlockAllocator, BlockOperator
+from stark.block import Block, BlockAllocator, BlockOperatorDiagonal
 from stark.contracts import (
     AcceleratorLike,
-    LegacyInverterLike,
+    Inverter,
     Linearizer,
     Translation,
     Allocator,
 )
 from stark.accelerators import AcceleratorAbsent
 from stark.executor.tolerance import ExecutorTolerance
-from stark.resolvents.support import (
-    MonitorResolventLike,
-    ResolventCoupledStageProblem,
-    ResolventCoupledStageResidual,
-    ResolventError,
-    ResolventPolicy,
-    ResolventSafety,
-    ResolventSpecialist,
-    ResolventStencilBlock,
-    with_resolvent_display,
-    with_resolvent_monitoring,
-)
-from stark.resolvents.support.descriptor import ResolventDescriptor
-from stark.resolvents.support.tolerance import ResolventTolerance
-from stark.resolvents.support.safety import ResolventSafety, ResolventSafetyDefault
+from stark.resolvents.method.descriptor import ResolventDescriptor
+from stark.resolvents.method.errors import ResolventError
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.resolvents.monitoring.monitor import MonitorResolventLike
+from stark.resolvents.monitoring.decorators import with_resolvent_monitoring
+from stark.resolvents.display.decorators import with_resolvent_display
+from stark.resolvents.requests.inverter import ResolventInverterRequest
+from stark.resolvents.requests.resolvent import ResolventRequestCoupled
+from stark.resolvents.equations.implicit import ResolventImplicitEquationCoupled
+from stark.resolvents.specialization.specialist import ResolventSpecialist
+from stark.resolvents.specialization.stencil import ResolventStencilBlock
+from stark.resolvents.method.tolerance import ResolventTolerance
+from stark.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 
+# Optional extension: adds human-readable resolvent metadata and formatting helpers.
+# Provides: short_name, __repr__, and __str__.
 @with_resolvent_display
+# Optional extension: records resolvent monitor events.
+# Provides: assign_monitor, unassign_monitor, and record_solve.
 @with_resolvent_monitoring
 class ResolventCoupledNewton:
     """Newton iteration for coupled implicit RK stage systems.
@@ -58,7 +60,7 @@ class ResolventCoupledNewton:
         "operator",
         "policy",
         "redirect_call",
-        "residual",
+        "equation",
         "residual_buffer",
         "rhs_buffer",
         "safety",
@@ -85,7 +87,7 @@ class ResolventCoupledNewton:
         self,
         allocator: Allocator,
         linearizer: Linearizer,
-        inverter: LegacyInverterLike,
+        inverter: Inverter[Translation],
         ExecutorTolerance: ExecutorTolerance | None = None,
         policy: ResolventPolicy | None = None,
         safety: ResolventSafety | None = None,
@@ -108,7 +110,7 @@ class ResolventCoupledNewton:
         self.inverter = inverter
 
         self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
-        self.residual = ResolventCoupledStageResidual(
+        self.equation = ResolventImplicitEquationCoupled(
             "ResolventCoupledNewton",
             allocator,
             linearizer=linearizer,
@@ -146,26 +148,26 @@ class ResolventCoupledNewton:
         self.correction = self.allocator.allocate_like(delta)
         self.residual_buffer = self.allocator.allocate_like(delta)
         self.rhs_buffer = self.allocator.allocate_like(delta)
-        self.operator = BlockOperator(None for _ in range(size))
+        self.operator = BlockOperatorDiagonal(None for _ in range(size))
 
-    def operator_for(self, delta: Block[Translation]) -> BlockOperator[Translation]:
+    def operator_for(self, delta: Block[Translation]) -> BlockOperatorDiagonal[Translation]:
         """Return the operator object that will receive the coupled Jacobian.
 
-        A coupled stage residual owns a block operator when the Jacobian action
+        A coupled implicit equation owns a block operator when the Jacobian action
         is naturally expressed as one coupled matrix action. Other residual
-        workers can fall back to the ordinary per-stage BlockOperator buffer.
+        workers can fall back to the ordinary per-entry BlockOperatorDiagonal buffer.
         """
 
-        residual_owned_operator = self.residual.block_operator
+        residual_owned_operator = self.equation.block_operator
         if residual_owned_operator is not None:
             return residual_owned_operator
 
         self.prepare_buffers(delta)
-        return cast(BlockOperator[Translation], self.operator)
+        return cast(BlockOperatorDiagonal[Translation], self.operator)
 
     def call_inline(
         self,
-        problem: ResolventCoupledStageProblem,
+        problem: ResolventRequestCoupled,
         delta: Block[Translation],
     ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
@@ -174,8 +176,7 @@ class ResolventCoupledNewton:
         self.alpha = problem.step
         self.prepare_buffers(delta)
 
-        F = self.residual
-        F.configure(problem)
+        equation = self.equation.prepare(problem)
         correction = cast(Block[Translation], self.correction)
         residual = cast(Block[Translation], self.residual_buffer)
         rhs = cast(Block[Translation], self.rhs_buffer)
@@ -185,7 +186,7 @@ class ResolventCoupledNewton:
 
         for _ in range(self.policy.max_iterations):
             # 1. Compute the coupled residual F(delta).
-            F(delta, residual)
+            equation(delta, residual)
 
             # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
@@ -197,20 +198,20 @@ class ResolventCoupledNewton:
             # 3. Build the coupled differential DF(delta).
             operator = self.operator_for(delta)
             operator.reset()
-            F.differential(delta, operator)
+            equation.differential(delta, operator)
 
             # 4. Solve DF(delta) correction = -F(delta).
             rhs.replace(-1.0 * residual)
             correction.replace(0.0 * correction)
-            self.inverter.bind(operator)
-            self.inverter(rhs, correction)
+            request = ResolventInverterRequest(operator=operator, residual=rhs)
+            self.inverter(request, correction)
 
             # 5. Newton update: delta <- delta + correction.
             delta += correction
             iteration_count += 1
 
         # 6. Recheck once after the final correction.
-        F(delta, residual)
+        equation(delta, residual)
 
         error = residual.norm()
         scale = delta.norm()
@@ -226,7 +227,7 @@ class ResolventCoupledNewton:
 
     def call_specialized(
         self,
-        problem: ResolventCoupledStageProblem,
+        problem: ResolventRequestCoupled,
         delta: Block[Translation],
     ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
@@ -235,8 +236,7 @@ class ResolventCoupledNewton:
         self.alpha = problem.step
         self.prepare_buffers(delta)
 
-        F = self.residual
-        F.configure(problem)
+        equation = self.equation.prepare(problem)
         correction = cast(Block[Translation], self.correction)
         residual = cast(Block[Translation], self.residual_buffer)
         rhs = cast(Block[Translation], self.rhs_buffer)
@@ -248,7 +248,7 @@ class ResolventCoupledNewton:
 
         for _ in range(self.policy.max_iterations):
             # 1. Compute the coupled residual F(delta).
-            F(delta, residual)
+            equation(delta, residual)
 
             # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
@@ -260,20 +260,20 @@ class ResolventCoupledNewton:
             # 3. Build the coupled differential DF(delta).
             operator = self.operator_for(delta)
             operator.reset()
-            F.differential(delta, operator)
+            equation.differential(delta, operator)
 
             # 4. Solve DF(delta) correction = -F(delta).
             rhs.replace(-1.0 * residual)
             correction.replace(0.0 * correction)
-            self.inverter.bind(operator)
-            self.inverter(rhs, correction)
+            request = ResolventInverterRequest(operator=operator, residual=rhs)
+            self.inverter(request, correction)
 
             # 5. Newton update: delta <- delta + correction.
-            newton_update(1.0, delta, delta, correction)
+            newton_update(1.0, delta, correction, delta)
             iteration_count += 1
 
         # 6. Recheck once after the final correction.
-        F(delta, residual)
+        equation(delta, residual)
 
         error = residual.norm()
         scale = delta.norm()
@@ -289,5 +289,5 @@ class ResolventCoupledNewton:
 
     def __call__(self, problem, delta):
         return self.redirect_call(problem, delta)
-    
+
 __all__ = ["ResolventCoupledNewton"]

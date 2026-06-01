@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
-from contextlib import contextmanager
 
 from stark.core.auditor import Auditor
 from stark.executor.executor import Executor
 from stark.core.marcher import Marcher
 from stark.contracts import IntervalLike, State
 from stark.executor.safety import ExecutorSafety
-from stark.monitor import Monitor
 
 
 Checkpoints = int | Iterable[float]
@@ -94,28 +92,6 @@ class Integrator:
         if checkpoints is not None:
             return self.call_live_checkpoints(marcher, interval, state, checkpoints)
         return self.redirect_call_live(marcher, interval, state)
-
-    def monitored(
-        self,
-        marcher: Marcher,
-        interval: IntervalLike,
-        state: State,
-        monitor: Monitor,
-        checkpoints: Checkpoints | None = None,
-    ) -> Iterator[tuple[IntervalLike, State]]:
-        with self.monitoring(marcher, monitor):
-            yield from self(marcher, interval, state, checkpoints=checkpoints)
-
-    def live_monitored(
-        self,
-        marcher: Marcher,
-        interval: IntervalLike,
-        state: State,
-        monitor: Monitor,
-        checkpoints: Checkpoints | None = None,
-    ) -> Iterator[tuple[IntervalLike, State]]:
-        with self.monitoring(marcher, monitor):
-            yield from self.live(marcher, interval, state, checkpoints=checkpoints)
 
     def snapshot(
         self,
@@ -209,15 +185,6 @@ class Integrator:
     @staticmethod
     def advances_time(present: float, step: float) -> bool:
         return step > 0.0 and present + step > present
-
-    @staticmethod
-    @contextmanager
-    def monitoring(marcher: Marcher, monitor: Monitor) -> Iterator[None]:
-        marcher.assign_monitor(monitor)
-        try:
-            yield
-        finally:
-            marcher.unassign_monitor()
 
     def call_live_fast(
         self,

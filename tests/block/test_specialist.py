@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from stark.block import Block, BlockSpecialist
-from stark.schemes.support.stencil import SchemeStencil
+from stark.schemes.specialization.stencil import SchemeStencil
 
 
 @dataclass
@@ -26,12 +26,14 @@ class SpecialistFixture:
         fixed_scale = stencil.scale
 
         if stencil.apply:
+
             def apply_kernel(
                 step: float,
-                result: TranslationFixture,
                 origin: TranslationFixture,
-                *sources: TranslationFixture,
+                *terms: TranslationFixture,
             ) -> TranslationFixture:
+                sources = terms[:-1]
+                result = terms[-1]
                 result.value = origin.value + step * fixed_scale * sum(
                     coefficient * source.value
                     for coefficient, source in zip(coefficients, sources, strict=True)
@@ -42,9 +44,10 @@ class SpecialistFixture:
 
         def delta_kernel(
             step: float,
-            out: TranslationFixture,
-            *sources: TranslationFixture,
+            *terms: TranslationFixture,
         ) -> TranslationFixture:
+            sources = terms[:-1]
+            out = terms[-1]
             out.value = step * fixed_scale * sum(
                 coefficient * source.value
                 for coefficient, source in zip(coefficients, sources, strict=True)
@@ -59,7 +62,7 @@ def test_block_specialist_lifts_delta_kernel_entrywise() -> None:
     kernel = specialist.provide(SchemeStencil((2.0, -1.0)))
     out = block(0.0, 0.0)
 
-    result = kernel(0.5, out, block(10.0, 20.0), block(3.0, 4.0))
+    result = kernel(0.5, block(10.0, 20.0), block(3.0, 4.0), out)
 
     assert result is out
     assert values(out) == (8.5, 18.0)
@@ -72,10 +75,10 @@ def test_block_specialist_lifts_apply_kernel_entrywise() -> None:
 
     returned = kernel(
         0.5,
-        result,
         block(100.0, 200.0),
         block(10.0, 20.0),
         block(3.0, 4.0),
+        result,
     )
 
     assert returned is result

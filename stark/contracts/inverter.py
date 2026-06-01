@@ -20,7 +20,7 @@ class InverterRequest(Protocol[TranslationType]):
     Attributes:
         operator:
             Linear block action to invert or approximately invert. Calling
-            `operator(solution, image)` should write the image of `solution`
+            `operator(output, image)` should write the image of `output`
             into `image`.
 
         residual:

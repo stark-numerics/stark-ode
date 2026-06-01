@@ -13,12 +13,12 @@ from typing import Callable
 
 from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
 from stark.resolvents import ResolventPicard
-from stark.resolvents.support.policy import ResolventPolicy
-from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
-from stark.schemes.explicit_fixed.rk4 import SchemeRK4
-from stark.schemes.imex_adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
-from stark.schemes.implicit_adaptive.kvaerno3 import SchemeKvaerno3
-from stark.schemes.implicit_fixed.backward_euler import SchemeBackwardEuler
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
+from stark.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
+from stark.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
 
 
 ROOT = Path(__file__).resolve().parents[2]

@@ -10,10 +10,10 @@ from stark.accelerators import Accelerator
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
-from stark.resolvents.support.policy import ResolventPolicy
-from stark.schemes.implicit_adaptive.kvaerno3 import SchemeKvaerno3
-from stark.schemes.implicit_adaptive.kvaerno4 import SchemeKvaerno4
-from stark.schemes.implicit_adaptive.sdirk21 import SchemeSDIRK21
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
+from stark.schemes.implicit.adaptive.kvaerno4 import SchemeKvaerno4
+from stark.schemes.implicit.adaptive.sdirk21 import SchemeSDIRK21
 
 
 @dataclass(slots=True)
@@ -108,7 +108,7 @@ def array_constant_rhs(
     out.value[...] = 1.0
 
 
-def make_scheme(scheme_cls):
+def make_scheme(scheme_cls, *, monitor=None):
     allocator = ScalarAllocator()
     resolvent = ResolventPicard(
         allocator,
@@ -121,6 +121,7 @@ def make_scheme(scheme_cls):
         constant_rhs,
         allocator,
         resolvent=resolvent,
+        monitor=monitor,
     )
 
 
@@ -335,7 +336,7 @@ def test_esdirk_adaptive_specialist_path_prepares_expected_kernel_family(
         SchemeKvaerno4,
     ],
 )
-def test_esdirk_adaptive_snapshot_and_safety_are_exposed_through_scheme(
+def test_esdirk_adaptive_snapshot_is_exposed_through_scheme(
     scheme_cls,
 ) -> None:
     scheme = make_scheme(scheme_cls)
@@ -350,10 +351,6 @@ def test_esdirk_adaptive_snapshot_and_safety_are_exposed_through_scheme(
 
     assert snapshot.value == pytest.approx(3.0)
 
-    scheme.set_apply_delta_safety(False)
-    scheme.set_apply_delta_safety(True)
-
-
 @pytest.mark.parametrize(
     ("scheme_cls", "scheme_name"),
     [
@@ -366,13 +363,13 @@ def test_esdirk_adaptive_monitoring_records_existing_adaptive_fields(
     scheme_cls,
     scheme_name: str,
 ) -> None:
-    scheme = make_scheme(scheme_cls)
+    monitor = Monitor()
+    scheme = make_scheme(scheme_cls, monitor=monitor.scheme)
     marcher = Marcher(scheme, tight_executor())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(0.0)
-    monitor = Monitor()
 
-    list(Integrator().live_monitored(marcher, interval, state, monitor))
+    list(Integrator().live(marcher, interval, state))
 
     assert len(monitor.scheme.adaptive_steps) == 2
 

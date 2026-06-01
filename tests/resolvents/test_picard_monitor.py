@@ -7,7 +7,7 @@ import pytest
 from stark import Interval, Monitor
 from stark.block import Block
 from stark.resolvents import ResolventPicard
-from stark.schemes.support.stage_problem import SchemeStageProblem
+from stark.schemes.requests.resolvent import SchemeResolventRequest
 
 
 @dataclass(slots=True)
@@ -89,7 +89,7 @@ def test_picard_records_resolvent_solve_when_monitor_assigned() -> None:
     interval = Interval(present=0.0, step=0.1, stop=1.0)
     state = ScalarState()
     out = Block([ScalarTranslation()])
-    problem = SchemeStageProblem(zero_rhs, interval, state, None, 0.1)
+    problem = SchemeResolventRequest(zero_rhs, interval, state, None, 0.1)
 
     resolvent.assign_monitor(monitor.resolvent)
     resolvent(problem, out)
@@ -112,7 +112,7 @@ def test_picard_unassign_monitor_restores_unmonitored_solves() -> None:
     interval = Interval(present=0.0, step=0.1, stop=1.0)
     state = ScalarState()
     out = Block([ScalarTranslation()])
-    problem = SchemeStageProblem(zero_rhs, interval, state, None, 0.1)
+    problem = SchemeResolventRequest(zero_rhs, interval, state, None, 0.1)
 
     resolvent.assign_monitor(monitor.resolvent)
     resolvent.unassign_monitor()

@@ -5,7 +5,7 @@ from stark.carriers import CarrierNumpy
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.interface.derivative import StarkDerivative as InterfaceDerivative
 from stark.interface.vector import StarkVectorAllocator
-from stark.schemes.explicit_adaptive import SchemeCashKarp
+from stark.schemes.explicit.adaptive import SchemeCashKarp
 
 from benchmarks.common import (
     FPUT_SIZES,

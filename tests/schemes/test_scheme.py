@@ -13,27 +13,26 @@ from stark.monitor import Monitor
 from stark.executor.tolerance import ExecutorTolerance
 from stark.core.interval import Interval
 from stark.resolvents import ResolventPicard
-from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
-from stark.schemes.explicit_adaptive.cash_karp import SchemeCashKarp
-from stark.schemes.explicit_adaptive.dormand_prince import SchemeDormandPrince
-from stark.schemes.explicit_adaptive.fehlberg45 import SchemeFehlberg45
-from stark.schemes.explicit_adaptive.tsitouras5 import SchemeTsitouras5
-from stark.schemes.imex_adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
-from stark.schemes.imex_adaptive.kennedy_carpenter43_6 import SchemeKennedyCarpenter43_6
-from stark.schemes.imex_adaptive.kennedy_carpenter43_7 import SchemeKennedyCarpenter43_7
-from stark.schemes.imex_adaptive.kennedy_carpenter54 import SchemeKennedyCarpenter54
-from stark.schemes.imex_adaptive.kennedy_carpenter54b import SchemeKennedyCarpenter54b
-from stark.schemes.imex_fixed.euler import SchemeIMEXEuler
-from stark.schemes.explicit_fixed.euler import SchemeEuler
-from stark.schemes.explicit_fixed.heun import SchemeHeun
-from stark.schemes.explicit_fixed.kutta3 import SchemeKutta3
-from stark.schemes.explicit_fixed.midpoint import SchemeMidpoint
-from stark.schemes.explicit_fixed.ralston import SchemeRalston
-from stark.schemes.explicit_fixed.rk4 import SchemeRK4
-from stark.schemes.explicit_fixed.rk38 import SchemeRK38
-from stark.schemes.explicit_fixed.ssprk33 import SchemeSSPRK33
-from stark.machinery.stage_solve.workspace import SchemeWorkspace
-from stark.machinery.stage_solve.workers import ImExStepper
+from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
+from stark.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
+from stark.schemes.explicit.adaptive.fehlberg45 import SchemeFehlberg45
+from stark.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
+from stark.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
+from stark.schemes.imex.adaptive.kennedy_carpenter43_6 import SchemeKennedyCarpenter43_6
+from stark.schemes.imex.adaptive.kennedy_carpenter43_7 import SchemeKennedyCarpenter43_7
+from stark.schemes.imex.adaptive.kennedy_carpenter54 import SchemeKennedyCarpenter54
+from stark.schemes.imex.adaptive.kennedy_carpenter54b import SchemeKennedyCarpenter54b
+from stark.schemes.imex.fixed.euler import SchemeIMEXEuler
+from stark.schemes.explicit.fixed.euler import SchemeEuler
+from stark.schemes.explicit.fixed.heun import SchemeHeun
+from stark.schemes.explicit.fixed.kutta3 import SchemeKutta3
+from stark.schemes.explicit.fixed.midpoint import SchemeMidpoint
+from stark.schemes.explicit.fixed.ralston import SchemeRalston
+from stark.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.schemes.explicit.fixed.rk38 import SchemeRK38
+from stark.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
+from stark.schemes.execution.support import SchemeStepSupport
 from stark import DerivativeIMEX
 
 
@@ -112,16 +111,13 @@ class DummyScheme:
     def __init__(self, derivative, allocator, translation) -> None:
         Auditor.require_scheme_inputs(derivative, allocator, translation)
         self.derivative = derivative
-        self.workspace = SchemeWorkspace(allocator, translation)
+        self.workspace = SchemeStepSupport(allocator, translation)
 
     def scale(self, a, x, y):
         return self.workspace.scale(a, x, y)
 
     def combine2(self, a0, x0, a1, x1, y):
         return self.workspace.combine2(a0, x0, a1, x1, y)
-
-    def set_apply_delta_safety(self, enabled: bool) -> None:
-        self.workspace.set_apply_delta_safety(enabled)
 
     def snapshot_state(self, state):
         return self.workspace.snapshot_state(state)
@@ -145,37 +141,6 @@ class DummyAllocator:
 class PairwiseOnlyAllocator(DummyAllocator):
     def allocate_translation(self) -> PairwiseOnlyTranslation:
         return PairwiseOnlyTranslation()
-
-
-@dataclass(slots=True)
-class AliasSensitiveTranslation:
-    dx: float = 0.0
-    dy: float = 0.0
-
-    def __call__(self, origin: dict[str, float], result: dict[str, float]) -> None:
-        result["x"] = origin["x"] + self.dx
-        result["y"] = origin["x"] - origin["y"] + self.dy
-
-    def norm(self) -> float:
-        return abs(self.dx) + abs(self.dy)
-
-    def __add__(self, other: "AliasSensitiveTranslation") -> "AliasSensitiveTranslation":
-        return AliasSensitiveTranslation(self.dx + other.dx, self.dy + other.dy)
-
-    def __rmul__(self, scalar: float) -> "AliasSensitiveTranslation":
-        return AliasSensitiveTranslation(scalar * self.dx, scalar * self.dy)
-
-
-class AliasAllocator:
-    def allocate_state(self) -> dict[str, float]:
-        return {"x": 0.0, "y": 0.0}
-
-    def copy_state(self, source: dict[str, float], out: dict[str, float]) -> None:
-        out["x"] = source["x"]
-        out["y"] = source["y"]
-
-    def allocate_translation(self) -> AliasSensitiveTranslation:
-        return AliasSensitiveTranslation()
 
 
 def _dummy_derivative(interval, state, out) -> None:
@@ -230,7 +195,7 @@ def test_scheme_synthesizes_missing_fast_combines_from_combine2() -> None:
     assert combined.value == 650.0
 
 
-def test_scheme_workspace_consumes_algebraist_linear_combine_contract() -> None:
+def test_scheme_step_support_consumes_algebraist_linear_combine_contract() -> None:
     class AlgebraistTranslation:
         def __init__(self, value=None) -> None:
             self.value = np.zeros(2) if value is None else np.array(value, dtype=float)
@@ -265,7 +230,7 @@ def test_scheme_workspace_consumes_algebraist_linear_combine_contract() -> None:
         provider.provide(AlgebraistArity(3)),
     )
 
-    workspace = SchemeWorkspace(allocator, AlgebraistTranslation([1.0, 2.0]))
+    workspace = SchemeStepSupport(allocator, AlgebraistTranslation([1.0, 2.0]))
     out = AlgebraistTranslation()
     left = AlgebraistTranslation([1.0, 2.0])
     right = AlgebraistTranslation([3.0, 4.0])
@@ -274,47 +239,6 @@ def test_scheme_workspace_consumes_algebraist_linear_combine_contract() -> None:
 
     assert combined is out
     np.testing.assert_allclose(out.value, np.array([11.0, 16.0]))
-
-
-class RecordingWorkspace:
-    def __init__(self) -> None:
-        self.combine2_called = False
-        self.combine12_called = False
-
-    def scale(self, coefficient, translation, out):
-        out.value = coefficient * translation.value
-        return out
-
-    def combine2(self, *terms):
-        del terms
-        self.combine2_called = True
-        raise AssertionError("IMEX accumulation should dispatch to combine12.")
-
-    def combine12(self, *terms):
-        self.combine12_called = True
-        out = terms[-1]
-        terms = terms[:-1]
-        out.value = sum(
-            coefficient * translation.value
-            for coefficient, translation in zip(terms[0::2], terms[1::2])
-        )
-        return out
-
-
-def test_imex_accumulation_dispatches_to_direct_combine12() -> None:
-    stepper = object.__new__(ImExStepper)
-    workspace = RecordingWorkspace()
-    stepper.workspace = workspace
-    out = PairwiseOnlyTranslation()
-    coefficients = [float(value) for value in range(1, 13)]
-    translations = [PairwiseOnlyTranslation(float(value)) for value in range(1, 13)]
-
-    combined = stepper._accumulate_terms(12, coefficients, translations, out)
-
-    assert combined is out
-    assert combined.value == 650.0
-    assert workspace.combine12_called
-    assert not workspace.combine2_called
 
 
 def test_scheme_repr_includes_names_and_tableau() -> None:
@@ -425,23 +349,6 @@ def test_adaptive_scheme_updates_next_interval_step() -> None:
 
     assert accepted_dt == 0.1
     assert interval.step >= 0.1
-
-
-def test_scheme_applies_translation_without_aliasing_state() -> None:
-    def derivative(interval, state: dict[str, float], out: AliasSensitiveTranslation) -> None:
-        del interval
-        del state
-        out.dx = 1.0
-        out.dy = 0.0
-
-    scheme = SchemeEuler(derivative, AliasAllocator())
-    interval = Interval(present=0.0, step=1.0, stop=1.0)
-    state = {"x": 1.0, "y": 2.0}
-
-    accepted_dt = scheme(interval, state, ExecutorTolerance())
-
-    assert accepted_dt == 1.0
-    assert state == {"x": 2.0, "y": -1.0}
 
 
 @dataclass(slots=True)
@@ -556,13 +463,13 @@ def test_imex_ark324_accepts_constant_split_rhs() -> None:
     assert interval.step >= 0.25
 
 
-def test_integrator_monitored_collects_adaptive_step_payloads() -> None:
-    scheme = SchemeCashKarp(_dummy_derivative, DummyAllocator())
+def test_scheme_monitor_collects_adaptive_step_payloads_during_integration() -> None:
+    monitor = Monitor()
+    scheme = SchemeCashKarp(_dummy_derivative, DummyAllocator(), monitor=monitor.scheme)
     marcher = Marcher(scheme, Executor(tolerance=ExecutorTolerance(atol=1.0e-6, rtol=1.0e-6)))
     interval = Interval(present=0.0, step=0.1, stop=0.3)
-    monitor = Monitor()
 
-    list(Integrator().monitored(marcher, interval, object(), monitor))
+    list(Integrator().live(marcher, interval, object()))
 
     assert len(monitor.scheme.adaptive_steps) == 2
     assert [round(step.t_start, 12) for step in monitor.scheme.adaptive_steps] == [0.0, 0.1]
@@ -570,4 +477,3 @@ def test_integrator_monitored_collects_adaptive_step_payloads() -> None:
     assert all(step.scheme == "RKCK" for step in monitor.scheme.adaptive_steps)
     assert monitor.scheme.adaptive_steps[0].accepted_dt == 0.1
     assert monitor.scheme.adaptive_steps[0].rejection_count == 0
-    assert marcher.monitor is None

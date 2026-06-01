@@ -115,8 +115,8 @@ import pytest
 
 from stark import Integrator, Interval, Marcher
 from stark.monitor import Monitor
-from stark.schemes.explicit_adaptive.dormand_prince import SchemeDormandPrince
-from stark.schemes.explicit_adaptive.tsitouras5 import SchemeTsitouras5
+from stark.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
+from stark.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
 
 
 @pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])
@@ -227,13 +227,13 @@ def test_dopri_tsit5_monitoring_records_existing_adaptive_fields(
     scheme_cls,
     scheme_name: str,
 ) -> None:
-    scheme = scheme_cls(zero_rhs, ScalarAllocator())
+    monitor = Monitor()
+    scheme = scheme_cls(zero_rhs, ScalarAllocator(), monitor=monitor.scheme)
     marcher = Marcher(scheme, tight_executor())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
-    monitor = Monitor()
 
-    list(Integrator().live_monitored(marcher, interval, state, monitor))
+    list(Integrator().live(marcher, interval, state))
 
     assert len(monitor.scheme.adaptive_steps) == 2
     first = monitor.scheme.adaptive_steps[0]

@@ -19,7 +19,7 @@ contrast inside the STARK inverter library.
 
 from stark.block import Block
 from stark.contracts import AcceleratorLike, InnerProduct, LegacyInverterPreconditionerLike, Allocator
-from stark.block.operator import BlockOperator
+from stark.block.operator import BlockOperatorDiagonal
 from stark.inverters.legacy_support.descriptor import InverterDescriptor
 from stark.inverters.legacy_support.policy import InverterPolicy
 from stark.inverters.legacy_support.safety import InverterSafety
@@ -32,6 +32,8 @@ from stark.inverters.legacy_support import (
 from stark.executor.tolerance import ExecutorTolerance
 
 
+# Optional extension: adds human-readable inverter metadata and formatting helpers.
+# Provides: short_name, full_name, __repr__, and __str__.
 @with_inverter_display_methods
 @with_inverter_binding_methods
 class InverterBiCGStab:
@@ -153,7 +155,7 @@ class InverterBiCGStab:
             f"{policy.max_iterations} iterations (residual={residual_norm:g})."
         )
 
-    def initial_residual(self, rhs: Block, out: Block, operator: BlockOperator) -> float:
+    def initial_residual(self, rhs: Block, out: Block, operator: BlockOperatorDiagonal) -> float:
         """
         Compute `r = rhs - A out`, initialize the BiCG shadow state, and return
         the residual norm.
@@ -166,7 +168,7 @@ class InverterBiCGStab:
         workspace.zero_block(self.velocity)
         return workspace.norm(self.residual)
 
-    def iterate(self, out: Block, operator: BlockOperator, rhs_norm: float) -> tuple[int, float]:
+    def iterate(self, out: Block, operator: BlockOperatorDiagonal, rhs_norm: float) -> tuple[int, float]:
         """
         Run BiCGStab iterations and update `out` in place.
 

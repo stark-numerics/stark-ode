@@ -4,13 +4,11 @@ import importlib
 
 from stark import Auditor, Executor, DerivativeIMEX, Integrator, Interval, Marcher, ExecutorAdaptivity, ExecutorSafety, ExecutorTolerance, ExecutorTolerance
 from stark.accelerators import Accelerator, AcceleratorAbsent
-from stark.block.operator import BlockOperator
+from stark.block.operator import BlockOperatorDiagonal
 from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.block import Block
 from stark.contracts import Resolvent
-from stark.inverters.legacy_support.descriptor import InverterDescriptor
-from stark.inverters.legacy_support.policy import InverterPolicy
-from stark.inverters.legacy_support.tolerance import InverterTolerance
+from stark.inverters.support import InverterBudget, InverterDescriptor, InverterTolerance
 from stark.resolvents import (
     ResolventAnderson,
     ResolventBroyden,
@@ -19,23 +17,10 @@ from stark.resolvents import (
     ResolventNewton,
     ResolventPicard,
 )
-from stark.resolvents.support.descriptor import ResolventDescriptor
-from stark.resolvents.support.policy import ResolventPolicy
-from stark.resolvents.support.tolerance import ResolventTolerance
+from stark.resolvents.method.descriptor import ResolventDescriptor
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.resolvents.method.tolerance import ResolventTolerance
 from stark.schemes import (
-    ARK324L2SA_TABLEAU,
-    ARK436L2SA_TABLEAU,
-    ARK437L2SA_TABLEAU,
-    ARK548L2SAB_TABLEAU,
-    ARK548L2SA_TABLEAU,
-    BE_TABLEAU,
-    CRANK_NICOLSON_TABLEAU,
-    CROUZEIX_DIRK3_TABLEAU,
-    GAUSS_LEGENDRE4_TABLEAU,
-    IMEX_EULER_TABLEAU,
-    IMPLICIT_MIDPOINT_TABLEAU,
-    LOBATTO_IIIC4_TABLEAU,
-    RADAU_IIA5_TABLEAU,
     SchemeBackwardEuler,
     SchemeCrankNicolson,
     SchemeCrouzeixDIRK3,
@@ -50,7 +35,24 @@ from stark.schemes import (
     SchemeLobattoIIIC4,
     SchemeRadauIIA5,
 )
-from stark.schemes.support.tableau import ButcherTableau, ButcherTableauImex
+from stark.schemes.imex.adaptive import (
+    ARK324L2SA_TABLEAU,
+    ARK436L2SA_TABLEAU,
+    ARK437L2SA_TABLEAU,
+    ARK548L2SAB_TABLEAU,
+    ARK548L2SA_TABLEAU,
+)
+from stark.schemes.imex.fixed import IMEX_EULER_TABLEAU
+from stark.schemes.implicit.fixed import (
+    BE_TABLEAU,
+    CRANK_NICOLSON_TABLEAU,
+    CROUZEIX_DIRK3_TABLEAU,
+    GAUSS_LEGENDRE4_TABLEAU,
+    IMPLICIT_MIDPOINT_TABLEAU,
+    LOBATTO_IIIC4_TABLEAU,
+    RADAU_IIA5_TABLEAU,
+)
+from stark.schemes.method.tableau import ButcherTableau, ButcherTableauImex
 
 
 def test_package_imports() -> None:
@@ -83,11 +85,10 @@ def test_executor_module_imports() -> None:
     assert importlib.import_module("stark.executor.executor") is not None
     assert importlib.import_module("stark.executor.tolerance") is not None
     assert importlib.import_module("stark.executor.safety") is not None
-    assert importlib.import_module("stark.schemes.support.tableau") is not None
-    assert importlib.import_module("stark.machinery.stage_solve.workspace") is not None
-    assert importlib.import_module("stark.machinery.stage_solve.workers") is not None
+    assert importlib.import_module("stark.schemes.method.tableau") is not None
+    assert importlib.import_module("stark.schemes.execution.support") is not None
     assert importlib.import_module("stark.algebraist.runtime") is not None
-    assert importlib.import_module("stark.schemes.support.display") is not None
+    assert importlib.import_module("stark.schemes.display.display") is not None
 
 
 def test_integrate_module_imports() -> None:
@@ -99,15 +100,14 @@ def test_inverter_imports() -> None:
     """The inverter package should import cleanly."""
     inverters = importlib.import_module("stark.inverters")
 
-    assert inverters.InverterGMRES is not None
-    assert inverters.InverterFGMRES is not None
-    assert inverters.InverterBiCGStab is not None
+    assert inverters.InverterRelaxationRichardson is not None
+    assert inverters.InverterRelaxationJacobi is not None
 
 
 def test_resolvent_imports() -> None:
     """The resolvent package should expose methods and metadata cleanly."""
     resolvents = importlib.import_module("stark.resolvents")
-    support = importlib.import_module("stark.resolvents.support")
+    equations = importlib.import_module("stark.resolvents.equations")
 
     assert resolvents.ResolventPolicy is not None
     assert resolvents.ResolventTolerance is not None
@@ -118,18 +118,18 @@ def test_resolvent_imports() -> None:
     assert resolvents.ResolventBroyden is not None
     assert resolvents.ResolventCoupledPicard is not None
     assert resolvents.ResolventCoupledNewton is not None
-    assert support.ResolventStageResidual is not None
+    assert equations.ResolventImplicitEquation is not None
 
 
 def test_scheme_imports() -> None:
     """The schemes package should expose aggregate and grouped public imports."""
     schemes = importlib.import_module("stark.schemes")
-    adaptive = importlib.import_module("stark.schemes.explicit_adaptive")
-    adaptive_implicit = importlib.import_module("stark.schemes.implicit_adaptive")
-    fixed_step = importlib.import_module("stark.schemes.explicit_fixed")
-    imex_adaptive = importlib.import_module("stark.schemes.imex_adaptive")
-    imex_fixed = importlib.import_module("stark.schemes.imex_fixed")
-    implicit = importlib.import_module("stark.schemes.implicit_fixed")
+    adaptive = importlib.import_module("stark.schemes.explicit.adaptive")
+    adaptive_implicit = importlib.import_module("stark.schemes.implicit.adaptive")
+    fixed_step = importlib.import_module("stark.schemes.explicit.fixed")
+    imex_adaptive = importlib.import_module("stark.schemes.imex.adaptive")
+    imex_fixed = importlib.import_module("stark.schemes.imex.fixed")
+    implicit = importlib.import_module("stark.schemes.implicit.fixed")
 
     assert schemes.SchemeDormandPrince is adaptive.SchemeDormandPrince
     assert schemes.SchemeCashKarp is adaptive.SchemeCashKarp
@@ -153,6 +153,8 @@ def test_scheme_imports() -> None:
     assert schemes.SchemeGaussLegendre4 is implicit.SchemeGaussLegendre4
     assert schemes.SchemeLobattoIIIC4 is implicit.SchemeLobattoIIIC4
     assert schemes.SchemeRadauIIA5 is implicit.SchemeRadauIIA5
+    assert not hasattr(schemes, "GAUSS_LEGENDRE4_TABLEAU")
+    assert not hasattr(schemes, "IMEX_EULER_TABLEAU")
 
 
 class MinimalScheme:
@@ -162,9 +164,6 @@ class MinimalScheme:
 
     def snapshot_state(self, state: object) -> object:
         return state
-
-    def set_apply_delta_safety(self, enabled: bool) -> None:
-        del enabled
 
 
 class MinimalAllocator:
@@ -230,10 +229,10 @@ def test_core_objects_have_readable_representations() -> None:
     )
     interval = Interval(0.0, 0.1, 1.0)
     block = Block([])
-    block_operator = BlockOperator([])
-    inverter_policy = InverterPolicy()
+    block_operator = BlockOperatorDiagonal([])
+    inverter_budget = InverterBudget()
     inverter_tolerance = InverterTolerance(atol=1.0e-8, rtol=1.0e-6)
-    inverter_descriptor = InverterDescriptor("GMRES", "Restarted GMRES")
+    inverter_descriptor = InverterDescriptor("Richardson", "Richardson relaxation")
     resolver_policy = ResolventPolicy()
     resolver_tolerance = ResolventTolerance(atol=1.0e-8, rtol=1.0e-6)
     resolver_descriptor = ResolventDescriptor("Picard", "Picard Iteration")
@@ -293,17 +292,16 @@ def test_core_objects_have_readable_representations() -> None:
     assert str(interval) == "[0, 1] step=0.1"
     assert repr(block) == "Block(size=0)"
     assert str(block) == "block[0]"
-    assert repr(block_operator).startswith("BlockOperator(")
+    assert repr(block_operator).startswith("BlockOperatorDiagonal(")
     assert str(block_operator) == "block operator[0]"
-    assert repr(inverter_policy) == "InverterPolicy(max_iterations=32, restart=16, breakdown_tol=1e-30)"
-    assert str(inverter_policy) == "max_iterations=32, restart=16, breakdown_tol=1e-30"
+    assert repr(inverter_budget) == "InverterBudget(maximum_steps=32)"
     assert repr(inverter_tolerance) == "InverterTolerance(atol=1e-08, rtol=1e-06)"
-    assert repr(inverter_descriptor) == "InverterDescriptor(short_name='GMRES', full_name='Restarted GMRES')"
+    assert repr(inverter_descriptor) == "InverterDescriptor(short_name='Richardson', full_name='Richardson relaxation')"
     assert repr(resolver_policy) == "ResolventPolicy(max_iterations=16)"
     assert str(resolver_policy) == "max_iterations=16"
     assert repr(resolver_tolerance) == "ResolventTolerance(atol=1e-08, rtol=1e-06)"
     assert repr(resolver_descriptor) == "ResolventDescriptor(short_name='Picard', full_name='Picard Iteration')"
-    assert repr(executor_safety) == "ExecutorSafety(progress=True, block_sizes=True, apply_delta=True)"
+    assert repr(executor_safety) == "ExecutorSafety(progress=True, block_sizes=True)"
     assert repr(executor_tolerance) == "ExecutorTolerance(atol=1e-08, rtol=1e-06)"
     assert repr(scheme_tolerance) == "ExecutorTolerance(atol=1e-08, rtol=1e-06)"
     assert str(executor_tolerance) == "atol=1e-08, rtol=1e-06"
@@ -338,7 +336,7 @@ def test_core_objects_have_readable_representations() -> None:
     assert SchemeRadauIIA5 is not None
     assert SchemeIMEXEuler is not None
     assert str(Integrator()) == "STARK integrator (safe mode)"
-    assert repr(marcher) == "Marcher(scheme='MinimalScheme', executor=Executor(tolerance=ExecutorTolerance(atol=1e-08, rtol=1e-06), safety=ExecutorSafety(progress=True, block_sizes=True, apply_delta=True), adaptivity=None))"
+    assert repr(marcher) == "Marcher(scheme='MinimalScheme', executor=Executor(tolerance=ExecutorTolerance(atol=1e-08, rtol=1e-06), safety=ExecutorSafety(progress=True, block_sizes=True), adaptivity=None))"
     assert str(marcher) == "Marcher MinimalScheme with atol=1e-08, rtol=1e-06"
     assert "Auditor(status=" in repr(auditor)
     assert "ResolventPicard" in repr(auto_picard)
@@ -357,8 +355,8 @@ def test_core_objects_have_readable_representations() -> None:
 
 
 def test_scheme_classes_can_display_their_resolvent_problems() -> None:
-    from stark.schemes.implicit_adaptive import SchemeKvaerno3
-    from stark.schemes.imex_adaptive import SchemeKennedyCarpenter32
+    from stark.schemes.implicit.adaptive import SchemeKvaerno3
+    from stark.schemes.imex.adaptive import SchemeKennedyCarpenter32
 
     implicit_text = SchemeKvaerno3.display_resolvent_problem()
     imex_text = SchemeKennedyCarpenter32.display_resolvent_problem()

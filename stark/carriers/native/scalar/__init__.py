@@ -1,6 +1,7 @@
 """Native Python scalar carrier parts."""
 
 from stark.carriers.native.scalar.allocation import CarrierAllocationNativeScalar
+from stark.carriers.native.scalar.basis import CarrierBasisNativeScalar
 from stark.carriers.native.scalar.arithmetic import CarrierArithmeticNativeScalar
 from stark.carriers.native.scalar.carrier import CarrierNativeScalar
 from stark.carriers.native.scalar.norm import (
@@ -13,6 +14,7 @@ from stark.carriers.native.scalar.validation import CarrierValidationNativeScala
 
 __all__ = [
     "CarrierAllocationNativeScalar",
+    "CarrierBasisNativeScalar",
     "CarrierArithmeticNativeScalar",
     "CarrierNativeScalar",
     "CarrierNativeScalarValue",

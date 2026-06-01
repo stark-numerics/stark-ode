@@ -138,7 +138,7 @@ Scratch allocation and non-mathematical support should be owned explicitly.
 
 STARK likes support objects such as:
 
-- `SchemeWorkspace`
+- `SchemeStepSupport`
 - `ResolverWorkspace`
 - `InverterWorkspace`
 

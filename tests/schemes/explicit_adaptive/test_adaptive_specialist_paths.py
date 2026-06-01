@@ -114,11 +114,11 @@ def tight_executor() -> Executor:
 import pytest
 
 from stark import Interval
-from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
-from stark.schemes.explicit_adaptive.cash_karp import SchemeCashKarp
-from stark.schemes.explicit_adaptive.dormand_prince import SchemeDormandPrince
-from stark.schemes.explicit_adaptive.fehlberg45 import SchemeFehlberg45
-from stark.schemes.explicit_adaptive.tsitouras5 import SchemeTsitouras5
+from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
+from stark.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
+from stark.schemes.explicit.adaptive.fehlberg45 import SchemeFehlberg45
+from stark.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
 
 
 @pytest.mark.parametrize(

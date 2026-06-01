@@ -4,6 +4,7 @@ from array import array
 from numbers import Number
 from typing import Any
 
+from stark.carriers.native.basis import CarrierBasisNative
 from stark.carriers.native.array import CarrierNativeArray
 from stark.carriers.native.list import CarrierNativeList
 from stark.carriers.native.scalar import CarrierNativeScalar
@@ -22,6 +23,7 @@ class CarrierNative:
         self.storage = concrete.storage
         self.validation = concrete.validation
         self.allocation = concrete.allocation
+        self.basis = CarrierBasisNative(concrete.storage)
         self.arithmetic = concrete.arithmetic
         self.norm = concrete.norm
 

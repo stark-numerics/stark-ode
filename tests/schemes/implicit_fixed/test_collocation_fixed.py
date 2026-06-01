@@ -9,10 +9,10 @@ from stark import Executor, Interval, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.resolvents import ResolventCoupledPicard
-from stark.resolvents.support.policy import ResolventPolicy
-from stark.schemes.implicit_fixed.gauss_legendre4 import SchemeGaussLegendre4
-from stark.schemes.implicit_fixed.lobatto_iiic4 import SchemeLobattoIIIC4
-from stark.schemes.implicit_fixed.radau_iia5 import SchemeRadauIIA5
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.schemes.implicit.fixed.gauss_legendre4 import SchemeGaussLegendre4
+from stark.schemes.implicit.fixed.lobatto_iiic4 import SchemeLobattoIIIC4
+from stark.schemes.implicit.fixed.radau_iia5 import SchemeRadauIIA5
 
 
 @dataclass(slots=True)
@@ -321,7 +321,7 @@ def test_collocation_fixed_returns_zero_when_interval_is_complete(scheme_cls) ->
         SchemeRadauIIA5,
     ],
 )
-def test_collocation_fixed_snapshot_and_safety_are_exposed_through_scheme(
+def test_collocation_fixed_snapshot_is_exposed_through_scheme(
     scheme_cls,
 ) -> None:
     scheme = make_scheme(scheme_cls)
@@ -335,6 +335,3 @@ def test_collocation_fixed_snapshot_and_safety_are_exposed_through_scheme(
     state.value = 9.0
 
     assert snapshot.value == pytest.approx(3.0)
-
-    scheme.set_apply_delta_safety(False)
-    scheme.set_apply_delta_safety(True)

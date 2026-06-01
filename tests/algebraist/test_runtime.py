@@ -9,7 +9,7 @@ from stark.algebraist.runtime import (
     AlgebraistRuntimeGeneral,
     AlgebraistRuntimeSpecialist,
 )
-from stark.schemes.support.stencil import SchemeStencil
+from stark.schemes.specialization.stencil import SchemeStencil
 
 
 @dataclass

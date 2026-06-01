@@ -1,5 +1,13 @@
 """Built-in linear inverse-action operators."""
 
+from stark.inverters.relaxation import (
+    InverterRelaxationJacobi,
+    InverterRelaxationRichardson,
+    InverterRelaxationSpecialist,
+    InverterRelaxationStencil,
+    InverterRelaxationStencilUpdate,
+)
+
 from stark.inverters.legacy.bicgstab import InverterBiCGStab
 from stark.inverters.legacy.fgmres import InverterFGMRES
 from stark.inverters.legacy.gmres import InverterGMRES
@@ -13,5 +21,10 @@ __all__ = [
     "InverterFGMRES",
     "InverterGMRES",
     "InverterPolicy",
+    "InverterRelaxationJacobi",
+    "InverterRelaxationRichardson",
+    "InverterRelaxationSpecialist",
+    "InverterRelaxationStencil",
+    "InverterRelaxationStencilUpdate",
     "InverterTolerance",
 ]

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from stark.accelerators import Accelerator
-from stark.block.operator import BlockOperator
+from stark.block.operator import BlockOperatorDiagonal
 from stark.block import Block
 from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
 from stark.inverters.legacy_support.policy import InverterPolicy
@@ -103,7 +103,7 @@ def test_inverter_solves_scalar_linear_system(inverter_type) -> None:
     def scale_by_two(translation: ScalarTranslation, out: ScalarTranslation) -> None:
         out.value = 2.0 * translation.value
 
-    inverter.bind(BlockOperator([scale_by_two]))
+    inverter.bind(BlockOperatorDiagonal([scale_by_two]))
     solution = Block([ScalarTranslation(0.0)])
     rhs = Block([ScalarTranslation(4.0)])
 
@@ -127,7 +127,7 @@ def test_inverter_accepts_preconditioner(inverter_type) -> None:
     def scale_by_two(translation: ScalarTranslation, out: ScalarTranslation) -> None:
         out.value = 2.0 * translation.value
 
-    inverter.bind(BlockOperator([scale_by_two]))
+    inverter.bind(BlockOperatorDiagonal([scale_by_two]))
     solution = Block([ScalarTranslation(0.0)])
     rhs = Block([ScalarTranslation(4.0)])
 
@@ -149,7 +149,7 @@ def test_inverter_solves_two_by_two_block_system(inverter_type) -> None:
 
     def first_row(out: ScalarTranslation, block_item: ScalarTranslation) -> None:
         del block_item
-        raise AssertionError("BlockOperator should route row operators componentwise only.")
+        raise AssertionError("BlockOperatorDiagonal should route row operators componentwise only.")
 
     del first_row
 
@@ -157,7 +157,7 @@ def test_inverter_solves_two_by_two_block_system(inverter_type) -> None:
         out.items[0].value = 4.0 * block[0].value + block[1].value
         out.items[1].value = block[0].value + 3.0 * block[1].value
 
-    class DenseBlockOperator(BlockOperator):
+    class DenseBlockOperator(BlockOperatorDiagonal):
         def __call__(self, block: Block, out: Block) -> None:
             apply_operator(block, out)
 

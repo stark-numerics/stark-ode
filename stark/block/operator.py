@@ -12,7 +12,7 @@ BlockEntryOperator = Callable[[TranslationType, TranslationType], None]
 
 
 @dataclass(slots=True, init=False)
-class BlockOperator(Generic[TranslationType]):
+class BlockOperatorDiagonal(Generic[TranslationType]):
     """Entrywise linear operator on a Block."""
 
     operators: list[BlockEntryOperator[TranslationType] | None]
@@ -64,7 +64,7 @@ class BlockOperator(Generic[TranslationType]):
         for index, operator in enumerate(self.operators):
             if operator is None:
                 raise RuntimeError(
-                    f"BlockOperator entry {index} is not configured."
+                    f"BlockOperatorDiagonal entry {index} is not configured."
                 )
 
             operator(block[index], out[index])
@@ -76,13 +76,13 @@ class BlockOperator(Generic[TranslationType]):
         cls,
         operator: BlockEntryOperator[TranslationType],
         size: int,
-    ) -> BlockOperator[TranslationType]:
+    ) -> BlockOperatorDiagonal[TranslationType]:
         if type(size) is not int:
-            raise TypeError("BlockOperator size must be an integer.")
+            raise TypeError("BlockOperatorDiagonal size must be an integer.")
         if size < 0:
-            raise ValueError("BlockOperator size must be non-negative.")
+            raise ValueError("BlockOperatorDiagonal size must be non-negative.")
 
         return cls(operator for _ in range(size))
 
 
-__all__ = ["BlockEntryOperator", "BlockOperator"]
+__all__ = ["BlockEntryOperator", "BlockOperatorDiagonal"]

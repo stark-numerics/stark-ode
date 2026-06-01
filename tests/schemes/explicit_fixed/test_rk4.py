@@ -5,8 +5,8 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Executor, Interval
-from stark.schemes.explicit_fixed.rk4 import SchemeRK4
-from stark.schemes.support.stencil import SchemeStencil
+from stark.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.schemes.specialization.stencil import SchemeStencil
 
 
 @dataclass(slots=True)
@@ -188,15 +188,12 @@ def test_rk4_satisfies_public_scheme_contract_without_base_class_assertions() ->
 
     assert callable(scheme)
     assert callable(scheme.snapshot_state)
-    assert callable(scheme.set_apply_delta_safety)
 
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 
     accepted_dt = scheme(interval, state, Executor())
     snapshot = scheme.snapshot_state(state)
-    scheme.set_apply_delta_safety(False)
-    scheme.set_apply_delta_safety(True)
 
     assert accepted_dt == pytest.approx(0.125)
     assert snapshot is not state
@@ -210,7 +207,6 @@ def test_rk4_exposes_copyable_fixed_explicit_scheme_shape() -> None:
         "call_specialized",
         "prepare_specialized_kernels",
         "snapshot_state",
-        "set_apply_delta_safety",
     }
     available_names = set(dir(SchemeRK4))
 

@@ -1,4 +1,5 @@
 from stark.carriers.numpy.allocation import CarrierAllocationNumpy
+from stark.carriers.numpy.basis import CarrierBasisNumpy
 from stark.carriers.numpy.arithmetic import CarrierArithmeticNumpy
 from stark.carriers.numpy.norm import CarrierNormNumpyRMS
 from stark.carriers.numpy.storage import CarrierNumpyValue, CarrierStorageNumpy
@@ -12,5 +13,6 @@ class CarrierNumpy:
         self.storage = storage
         self.validation = CarrierValidationNumpy(storage)
         self.allocation = CarrierAllocationNumpy(storage)
+        self.basis = CarrierBasisNumpy(storage)
         self.arithmetic = CarrierArithmeticNumpy(storage)
         self.norm = CarrierNormNumpyRMS()

@@ -8,28 +8,28 @@ import pytest
 from stark import Executor, Interval, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.resolvents import ResolventCoupledPicard, ResolventPicard
-from stark.resolvents.support.policy import ResolventPolicy
-from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
-from stark.schemes.explicit_fixed.euler import SchemeEuler
-from stark.schemes.explicit_fixed.heun import SchemeHeun
-from stark.schemes.explicit_fixed.rk4 import SchemeRK4
-from stark.schemes.implicit_adaptive.bdf2 import SchemeBDF2
-from stark.schemes.implicit_adaptive.kvaerno3 import SchemeKvaerno3
-from stark.schemes.implicit_adaptive.kvaerno4 import SchemeKvaerno4
-from stark.schemes.implicit_adaptive.sdirk21 import SchemeSDIRK21
-from stark.schemes.implicit_fixed.backward_euler import SchemeBackwardEuler
-from stark.schemes.implicit_fixed.crank_nicolson import SchemeCrankNicolson
-from stark.schemes.implicit_fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
-from stark.schemes.implicit_fixed.gauss_legendre4 import SchemeGaussLegendre4
-from stark.schemes.implicit_fixed.implicit_midpoint import SchemeImplicitMidpoint
-from stark.schemes.implicit_fixed.lobatto_iiic4 import SchemeLobattoIIIC4
-from stark.schemes.implicit_fixed.radau_iia5 import SchemeRadauIIA5
-from stark.schemes.imex_fixed.euler import SchemeIMEXEuler
-from stark.schemes.imex_adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
-from stark.schemes.imex_adaptive.kennedy_carpenter43_6 import SchemeKennedyCarpenter43_6
-from stark.schemes.imex_adaptive.kennedy_carpenter43_7 import SchemeKennedyCarpenter43_7
-from stark.schemes.imex_adaptive.kennedy_carpenter54 import SchemeKennedyCarpenter54
-from stark.schemes.imex_adaptive.kennedy_carpenter54b import SchemeKennedyCarpenter54b
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.schemes.explicit.fixed.euler import SchemeEuler
+from stark.schemes.explicit.fixed.heun import SchemeHeun
+from stark.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.schemes.implicit.adaptive.bdf2 import SchemeBDF2
+from stark.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
+from stark.schemes.implicit.adaptive.kvaerno4 import SchemeKvaerno4
+from stark.schemes.implicit.adaptive.sdirk21 import SchemeSDIRK21
+from stark.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
+from stark.schemes.implicit.fixed.crank_nicolson import SchemeCrankNicolson
+from stark.schemes.implicit.fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
+from stark.schemes.implicit.fixed.gauss_legendre4 import SchemeGaussLegendre4
+from stark.schemes.implicit.fixed.implicit_midpoint import SchemeImplicitMidpoint
+from stark.schemes.implicit.fixed.lobatto_iiic4 import SchemeLobattoIIIC4
+from stark.schemes.implicit.fixed.radau_iia5 import SchemeRadauIIA5
+from stark.schemes.imex.fixed.euler import SchemeIMEXEuler
+from stark.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
+from stark.schemes.imex.adaptive.kennedy_carpenter43_6 import SchemeKennedyCarpenter43_6
+from stark.schemes.imex.adaptive.kennedy_carpenter43_7 import SchemeKennedyCarpenter43_7
+from stark.schemes.imex.adaptive.kennedy_carpenter54 import SchemeKennedyCarpenter54
+from stark.schemes.imex.adaptive.kennedy_carpenter54b import SchemeKennedyCarpenter54b
 
 @dataclass(slots=True)
 class ScalarState:
@@ -340,19 +340,6 @@ def test_snapshot_state_works_through_scheme_object(scheme) -> None:
     state.value = 9.0
 
     assert snapshot.value == pytest.approx(3.0)
-
-
-@pytest.mark.parametrize("scheme", public_contract_schemes())
-def test_set_apply_delta_safety_works_through_scheme_object(scheme) -> None:
-    # This is a public contract guard. It deliberately avoids asserting private
-    # workspace/stepper internals; the important point for the refactor is that
-    # schemes continue to expose the ExecutorSafety switch directly.
-    scheme.set_apply_delta_safety(False)
-    scheme.set_apply_delta_safety(True)
-
-    snapshot = scheme.snapshot_state(ScalarState(1.0))
-
-    assert snapshot.value == pytest.approx(1.0)
 
 
 def test_self_contained_scheme_exemplars_own_public_call_method() -> None:

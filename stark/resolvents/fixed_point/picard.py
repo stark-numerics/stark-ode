@@ -8,31 +8,32 @@ from stark.block import Block, BlockAllocator
 from stark.contracts import AcceleratorLike, Translation, Allocator
 from stark.accelerators import AcceleratorAbsent
 from stark.executor.tolerance import ExecutorTolerance
-from stark.resolvents.support import (
-    MonitorResolventLike,
-    ResolventError,
-    ResolventPolicy,
-    ResolventSafety,
-    ResolventSpecialist,
-    ResolventStageProblem,
-    ResolventStageResidual,
-    ResolventStencilBlock,
-    with_resolvent_display,
-    with_resolvent_monitoring,
-)
-from stark.resolvents.support.descriptor import ResolventDescriptor
-from stark.resolvents.support.tolerance import ResolventTolerance
-from stark.resolvents.support.safety import ResolventSafety, ResolventSafetyDefault
+from stark.resolvents.method.descriptor import ResolventDescriptor
+from stark.resolvents.method.errors import ResolventError
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.resolvents.monitoring.monitor import MonitorResolventLike
+from stark.resolvents.monitoring.decorators import with_resolvent_monitoring
+from stark.resolvents.display.decorators import with_resolvent_display
+from stark.resolvents.requests.resolvent import ResolventRequest
+from stark.resolvents.equations.implicit import ResolventImplicitEquation
+from stark.resolvents.specialization.specialist import ResolventSpecialist
+from stark.resolvents.specialization.stencil import ResolventStencilBlock
+from stark.resolvents.method.tolerance import ResolventTolerance
+from stark.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 
+# Optional extension: adds human-readable resolvent metadata and formatting helpers.
+# Provides: short_name, __repr__, and __str__.
 @with_resolvent_display
+# Optional extension: records resolvent monitor events.
+# Provides: assign_monitor, unassign_monitor, and record_solve.
 @with_resolvent_monitoring
 class ResolventPicard:
     """Picard iteration for one-stage shifted implicit residuals.
 
     Residual equation:
 
-        F(delta) = delta - rhs - alpha * f(t, origin + delta)
+        equation(delta) = delta - rhs - alpha * f(t, origin + delta)
 
     Algorithm sketch:
 
@@ -52,7 +53,7 @@ class ResolventPicard:
         "picard_update",
         "policy",
         "redirect_call",
-        "residual",
+        "equation",
         "residual_buffer",
         "safety",
         "size",
@@ -109,7 +110,7 @@ class ResolventPicard:
         self.redirect_call = self.call_step
 
         self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
-        self.residual = ResolventStageResidual(
+        self.equation = ResolventImplicitEquation(
             "ResolventPicard",
             allocator,
             accelerator=self.accelerator,
@@ -124,7 +125,7 @@ class ResolventPicard:
             ResolventStencilBlock((1.0, -1.0))
         )
 
-    def residual_buffer_for(
+    def residual_scratch(
         self,
         delta: Block[Translation],
     ) -> Block[Translation]:
@@ -137,23 +138,22 @@ class ResolventPicard:
 
     def call_inline(
         self,
-        problem: ResolventStageProblem,
+        problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
             raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
 
         self.alpha = problem.alpha
-        F = self.residual
-        F.configure(problem)
-        residual = self.residual_buffer_for(delta)
+        equation = self.equation.prepare(problem)
+        residual = self.residual_scratch(delta)
 
         block_size = len(delta)
         iteration_count = 0
 
         for _ in range(self.policy.max_iterations):
             # 2. Compute F(delta).
-            F(delta, residual)
+            equation(delta, residual)
 
             # 3. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
@@ -167,7 +167,7 @@ class ResolventPicard:
             iteration_count += 1
 
         # 5. Recheck once after the final correction.
-        F(delta, residual)
+        equation(delta, residual)
 
         error = residual.norm()
         scale = delta.norm()
@@ -183,16 +183,15 @@ class ResolventPicard:
 
     def call_specialized(
         self,
-        problem: ResolventStageProblem,
+        problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
             raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
 
         self.alpha = problem.alpha
-        F = self.residual
-        F.configure(problem)
-        residual = self.residual_buffer_for(delta)
+        equation = self.equation.prepare(problem)
+        residual = self.residual_scratch(delta)
         picard_update = self.picard_update
         assert picard_update is not None
 
@@ -201,7 +200,7 @@ class ResolventPicard:
 
         for _ in range(self.policy.max_iterations):
             # 2. Compute F(delta).
-            F(delta, residual)
+            equation(delta, residual)
 
             # 3. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
@@ -215,7 +214,7 @@ class ResolventPicard:
             iteration_count += 1
 
         # 5. Recheck once after the final correction.
-        F(delta, residual)
+        equation(delta, residual)
 
         error = residual.norm()
         scale = delta.norm()
@@ -228,7 +227,7 @@ class ResolventPicard:
             f"{type(self).__name__} failed to resolve the residual within "
             f"{self.policy.max_iterations} iterations (error={error:g})."
         )
-    
+
     def __call__(self, problem, delta):
         return self.redirect_call(problem, delta)
 

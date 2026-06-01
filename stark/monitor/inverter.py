@@ -18,6 +18,17 @@ class MonitorInverterSummary:
     final_residual_median: float | None
     final_residual_max: float | None
 
+    def __str__(self) -> str:
+        return (
+            "inverter: "
+            f"solves={self.solve_count}, "
+            f"failures={self.failure_count}, "
+            "iterations min/median/max="
+            f"{self.iteration_min}/{self.iteration_median}/{self.iteration_max}, "
+            "final residual min/median/max="
+            f"{self.final_residual_min}/{self.final_residual_median}/{self.final_residual_max}"
+        )
+
 
 @dataclass(slots=True)
 class MonitorInverterSolve:
@@ -27,6 +38,14 @@ class MonitorInverterSolve:
     initial_residual: float | None
     final_residual: float | None
     failure_reason: str | None
+
+    def __str__(self) -> str:
+        return (
+            f"{self.inverter}: "
+            f"iterations={self.iteration_count}, "
+            f"residual {self.initial_residual} -> {self.final_residual}, "
+            f"converged={self.converged}"
+        )
 
 
 def _min_median_max_float(values: list[float]) -> tuple[float | None, float | None, float | None]:

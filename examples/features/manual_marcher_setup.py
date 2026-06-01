@@ -21,7 +21,7 @@ from __future__ import annotations
 from stark import Executor, Integrator, Interval, Marcher
 from stark.carriers import CarrierNative
 from stark.interface.vector import StarkVector, StarkVectorTranslation
-from stark.schemes.explicit_fixed.rk4 import SchemeRK4
+from stark.schemes.explicit.fixed.rk4 import SchemeRK4
 
 
 def growth(

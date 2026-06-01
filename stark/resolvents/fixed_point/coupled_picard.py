@@ -8,24 +8,25 @@ from stark.block import Block, BlockAllocator
 from stark.contracts import AcceleratorLike, Translation, Allocator
 from stark.accelerators import AcceleratorAbsent
 from stark.executor.tolerance import ExecutorTolerance
-from stark.resolvents.support import (
-    MonitorResolventLike,
-    ResolventCoupledStageProblem,
-    ResolventCoupledStageResidual,
-    ResolventError,
-    ResolventPolicy,
-    ResolventSafety,
-    ResolventSpecialist,
-    ResolventStencilBlock,
-    with_resolvent_display,
-    with_resolvent_monitoring,
-)
-from stark.resolvents.support.descriptor import ResolventDescriptor
-from stark.resolvents.support.tolerance import ResolventTolerance
-from stark.resolvents.support.safety import ResolventSafety, ResolventSafetyDefault
+from stark.resolvents.method.descriptor import ResolventDescriptor
+from stark.resolvents.method.errors import ResolventError
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.resolvents.monitoring.monitor import MonitorResolventLike
+from stark.resolvents.monitoring.decorators import with_resolvent_monitoring
+from stark.resolvents.display.decorators import with_resolvent_display
+from stark.resolvents.requests.resolvent import ResolventRequestCoupled
+from stark.resolvents.equations.implicit import ResolventImplicitEquationCoupled
+from stark.resolvents.specialization.specialist import ResolventSpecialist
+from stark.resolvents.specialization.stencil import ResolventStencilBlock
+from stark.resolvents.method.tolerance import ResolventTolerance
+from stark.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 
+# Optional extension: adds human-readable resolvent metadata and formatting helpers.
+# Provides: short_name, __repr__, and __str__.
 @with_resolvent_display
+# Optional extension: records resolvent monitor events.
+# Provides: assign_monitor, unassign_monitor, and record_solve.
 @with_resolvent_monitoring
 class ResolventCoupledPicard:
     """Picard iteration for fully coupled implicit RK stage systems.
@@ -48,7 +49,7 @@ class ResolventCoupledPicard:
         "picard_update",
         "policy",
         "redirect_call",
-        "residual",
+        "equation",
         "residual_buffer",
         "safety",
         "size",
@@ -95,7 +96,7 @@ class ResolventCoupledPicard:
         self.policy = policy if policy is not None else ResolventPolicy()
 
         self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
-        self.residual = ResolventCoupledStageResidual(
+        self.equation = ResolventImplicitEquationCoupled(
             "ResolventCoupledPicard",
             allocator,
             accelerator=self.accelerator,
@@ -121,7 +122,7 @@ class ResolventCoupledPicard:
             ResolventStencilBlock((1.0, -1.0))
         )
 
-    def residual_buffer_for(
+    def residual_scratch(
         self,
         delta: Block[Translation],
     ) -> Block[Translation]:
@@ -134,23 +135,22 @@ class ResolventCoupledPicard:
 
     def call_inline(
         self,
-        problem: ResolventCoupledStageProblem,
+        problem: ResolventRequestCoupled,
         delta: Block[Translation],
     ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
             raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
 
         self.alpha = problem.step
-        F = self.residual
-        F.configure(problem)
-        residual = self.residual_buffer_for(delta)
+        equation = self.equation.prepare(problem)
+        residual = self.residual_scratch(delta)
 
         block_size = len(delta)
         iteration_count = 0
 
         for _ in range(self.policy.max_iterations):
             # 2. Compute the coupled residual F(delta).
-            F(delta, residual)
+            equation(delta, residual)
 
             # 3. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
@@ -164,7 +164,7 @@ class ResolventCoupledPicard:
             iteration_count += 1
 
         # 5. Recheck once after the final correction.
-        F(delta, residual)
+        equation(delta, residual)
 
         error = residual.norm()
         scale = delta.norm()
@@ -180,16 +180,15 @@ class ResolventCoupledPicard:
 
     def call_specialized(
         self,
-        problem: ResolventCoupledStageProblem,
+        problem: ResolventRequestCoupled,
         delta: Block[Translation],
     ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
             raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
 
         self.alpha = problem.step
-        F = self.residual
-        F.configure(problem)
-        residual = self.residual_buffer_for(delta)
+        equation = self.equation.prepare(problem)
+        residual = self.residual_scratch(delta)
         picard_update = self.picard_update
         assert picard_update is not None
 
@@ -198,7 +197,7 @@ class ResolventCoupledPicard:
 
         for _ in range(self.policy.max_iterations):
             # 2. Compute the coupled residual F(delta).
-            F(delta, residual)
+            equation(delta, residual)
 
             # 3. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
@@ -212,7 +211,7 @@ class ResolventCoupledPicard:
             iteration_count += 1
 
         # 5. Recheck once after the final correction.
-        F(delta, residual)
+        equation(delta, residual)
 
         error = residual.norm()
         scale = delta.norm()

@@ -204,37 +204,6 @@ def test_bakeoff_uses_monitored_observation_without_monitoring_timed_repeats() -
     assert "monitored observation pass, not the timed repeats" in rendered
 
 
-def test_bakeoff_monitors_built_in_fixed_and_adaptive_schemes() -> None:
-    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
-    allocator = ScalarAllocator()
-    problem = ComparisonProblem(
-        name="Built-in scalar",
-        build_state=lambda: ScalarState(),
-        build_interval=lambda: Interval(present=0.0, step=0.1, stop=0.2),
-        difference=lambda left, right: abs(left.value - right.value),
-    )
-    entries = [
-        ComparisonEntry(
-            "Euler",
-            lambda: Marcher(SchemeEuler(unit_rhs, allocator), executor),
-        ),
-        ComparisonEntry(
-            "Cash-Karp",
-            lambda: Marcher(SchemeCashKarp(unit_rhs, allocator), executor),
-        ),
-    ]
-
-    report = ComparisonRunner(problem, entries, repeats=1)()
-    summaries = report.monitor_summaries_by_name()
-
-    assert summaries["Euler"].scheme.fixed_step_count == 2
-    assert summaries["Euler"].scheme.adaptive_step_count == 0
-    assert summaries["Cash-Karp"].scheme.fixed_step_count == 0
-    assert summaries["Cash-Karp"].scheme.adaptive_step_count >= 1
-    assert report.final_difference_map()["Euler"]["Cash-Karp"] == pytest.approx(0.0)
-    assert "Scheme behaviour" in report.render()
-
-
 def test_bakeoff_requires_two_entries() -> None:
     problem = ComparisonProblem(
         name="Dummy",

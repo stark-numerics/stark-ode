@@ -9,28 +9,24 @@ import numpy as np
 from stark.accelerators import AcceleratorAbsent
 from stark.block import Block, BlockAllocator
 from stark.contracts import AcceleratorLike, InnerProduct, Translation, Allocator
-from stark.accelerators import AcceleratorAbsent
 from stark.executor.tolerance import ExecutorTolerance
-from stark.resolvents.support import (
-    MonitorResolventLike,
-    ResolventError,
-    ResolventPolicy,
-    ResolventSafety,
-    ResolventSpecialist,
-    ResolventStageProblem,
-    ResolventStageResidual,
-    ResolventStencilBlock,
-    with_resolvent_display,
-    with_resolvent_monitoring,
-)
-from stark.resolvents.support.descriptor import ResolventDescriptor
-from stark.resolvents.support.secant import (
+from stark.resolvents.method.descriptor import ResolventDescriptor
+from stark.resolvents.method.errors import ResolventError
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.resolvents.monitoring.monitor import MonitorResolventLike
+from stark.resolvents.monitoring.decorators import with_resolvent_monitoring
+from stark.resolvents.display.decorators import with_resolvent_display
+from stark.resolvents.requests.resolvent import ResolventRequest
+from stark.resolvents.equations.implicit import ResolventImplicitEquation
+from stark.resolvents.secant._least_squares import (
     BlockInnerProduct,
     ResolventSecantLeastSquares,
     block_inner_product,
 )
-from stark.resolvents.support.tolerance import ResolventTolerance
-from stark.resolvents.support.safety import ResolventSafety, ResolventSafetyDefault
+from stark.resolvents.specialization.specialist import ResolventSpecialist
+from stark.resolvents.specialization.stencil import ResolventStencilBlock
+from stark.resolvents.method.tolerance import ResolventTolerance
+from stark.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 
 class ResolventAndersonHistory:
@@ -180,14 +176,18 @@ class ResolventAndersonHistory:
         return (self.head + index) % self.depth
 
 
+# Optional extension: adds human-readable resolvent metadata and formatting helpers.
+# Provides: short_name, __repr__, and __str__.
 @with_resolvent_display
+# Optional extension: records resolvent monitor events.
+# Provides: assign_monitor, unassign_monitor, and record_solve.
 @with_resolvent_monitoring
 class ResolventAnderson:
     """Anderson-accelerated fixed-point resolvent.
 
     Residual equation:
 
-        F(delta) = 0
+        equation(delta) = 0
 
     Anderson starts from the Picard fixed-point candidate and accelerates it
     using a short history of fixed-point and residual differences.
@@ -213,7 +213,7 @@ class ResolventAnderson:
         "history_correction",
         "policy",
         "redirect_call",
-        "residual",
+        "equation",
         "residual_buffer",
         "safety",
         "size",
@@ -262,7 +262,7 @@ class ResolventAnderson:
         self.policy = policy if policy is not None else ResolventPolicy()
         
         self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
-        self.residual = ResolventStageResidual(
+        self.equation = ResolventImplicitEquation(
             "ResolventAnderson",
             allocator,
             accelerator=self.accelerator,
@@ -315,7 +315,7 @@ class ResolventAnderson:
 
     def call_inline(
         self,
-        problem: ResolventStageProblem,
+        problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
@@ -325,8 +325,7 @@ class ResolventAnderson:
         self.prepare_buffers(delta)
         self.history.clear()
 
-        F = self.residual
-        F.configure(problem)
+        equation = self.equation.prepare(problem)
         residual = cast(Block[Translation], self.residual_buffer)
         fixed_point = cast(Block[Translation], self.fixed_point)
         history_correction = cast(Block[Translation], self.history_correction)
@@ -336,7 +335,7 @@ class ResolventAnderson:
 
         for _ in range(self.policy.max_iterations):
             # 1. Compute F(delta).
-            F(delta, residual)
+            equation(delta, residual)
 
             # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
@@ -360,7 +359,7 @@ class ResolventAnderson:
             iteration_count += 1
 
         # 6. Recheck once after the final correction.
-        F(delta, residual)
+        equation(delta, residual)
 
         error = residual.norm()
         scale = delta.norm()
@@ -376,7 +375,7 @@ class ResolventAnderson:
 
     def call_specialized(
         self,
-        problem: ResolventStageProblem,
+        problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
@@ -386,8 +385,7 @@ class ResolventAnderson:
         self.prepare_buffers(delta)
         self.history.clear()
 
-        F = self.residual
-        F.configure(problem)
+        equation = self.equation.prepare(problem)
         residual = cast(Block[Translation], self.residual_buffer)
         fixed_point = cast(Block[Translation], self.fixed_point)
         history_correction = cast(Block[Translation], self.history_correction)
@@ -399,7 +397,7 @@ class ResolventAnderson:
 
         for _ in range(self.policy.max_iterations):
             # 1. Compute F(delta).
-            F(delta, residual)
+            equation(delta, residual)
 
             # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
@@ -423,7 +421,7 @@ class ResolventAnderson:
             iteration_count += 1
 
         # 6. Recheck once after the final correction.
-        F(delta, residual)
+        equation(delta, residual)
 
         error = residual.norm()
         scale = delta.norm()

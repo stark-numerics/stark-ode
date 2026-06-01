@@ -18,7 +18,7 @@ a slightly more general but somewhat more expensive GMRES-like scheme.
 
 from stark.block import Block
 from stark.contracts import AcceleratorLike, InnerProduct, LegacyInverterPreconditionerLike, Allocator
-from stark.block.operator import BlockOperator
+from stark.block.operator import BlockOperatorDiagonal
 from stark.inverters.legacy_support.descriptor import InverterDescriptor
 from stark.inverters.legacy_support.policy import InverterPolicy
 from stark.inverters.legacy_support.safety import InverterSafety
@@ -32,6 +32,8 @@ from stark.inverters.legacy_support.krylov import Arnoldi, GivensRotations, Hess
 from stark.executor.tolerance import ExecutorTolerance
 
 
+# Optional extension: adds human-readable inverter metadata and formatting helpers.
+# Provides: short_name, full_name, __repr__, and __str__.
 @with_inverter_display_methods
 @with_inverter_binding_methods
 class InverterFGMRES:
@@ -161,7 +163,7 @@ class InverterFGMRES:
             f"{policy.max_iterations} iterations (residual={residual_norm:g})."
         )
 
-    def initial_residual(self, rhs: Block, out: Block, operator: BlockOperator) -> float:
+    def initial_residual(self, rhs: Block, out: Block, operator: BlockOperatorDiagonal) -> float:
         """Compute `r = rhs - A out` in cached storage and return its norm."""
         workspace = self.workspace
         operator(out, self.applied)
@@ -172,7 +174,7 @@ class InverterFGMRES:
         self,
         rhs: Block,
         out: Block,
-        operator: BlockOperator,
+        operator: BlockOperatorDiagonal,
         rhs_norm: float,
         remaining_iterations: int,
     ) -> tuple[int, float]:

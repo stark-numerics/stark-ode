@@ -7,8 +7,8 @@ import pytest
 from stark import Executor, Interval, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.resolvents import ResolventPicard
-from stark.resolvents.support.policy import ResolventPolicy
-from stark.schemes.imex_fixed.euler import SchemeIMEXEuler
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.schemes.imex.fixed.euler import SchemeIMEXEuler
 
 
 @dataclass(slots=True)
@@ -239,7 +239,7 @@ def test_imex_euler_solves_linear_implicit_split() -> None:
     assert accepted_dt == pytest.approx(0.1)
     assert state.value == pytest.approx(1.0 / 1.1)
 
-def test_imex_euler_snapshot_and_safety_are_exposed_through_scheme() -> None:
+def test_imex_euler_snapshot_is_exposed_through_scheme() -> None:
     scheme = make_constant_scheme()
     state = ScalarState(3.0)
 
@@ -251,6 +251,3 @@ def test_imex_euler_snapshot_and_safety_are_exposed_through_scheme() -> None:
     state.value = 9.0
 
     assert snapshot.value == pytest.approx(3.0)
-
-    scheme.set_apply_delta_safety(False)
-    scheme.set_apply_delta_safety(True)

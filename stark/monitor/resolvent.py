@@ -15,6 +15,17 @@ class MonitorResolventSummary:
     error_median: float | None
     error_max: float | None
 
+    def __str__(self) -> str:
+        return (
+            "resolvent: "
+            f"solves={self.solve_count}, "
+            f"failures={self.failure_count}, "
+            "iterations min/median/max="
+            f"{self.iteration_min}/{self.iteration_median}/{self.iteration_max}, "
+            "error min/median/max="
+            f"{self.error_min}/{self.error_median}/{self.error_max}"
+        )
+
 
 @dataclass(slots=True)
 class MonitorResolventSolve:
@@ -25,6 +36,16 @@ class MonitorResolventSolve:
     error: float
     scale: float
     converged: bool
+
+    def __str__(self) -> str:
+        return (
+            f"{self.resolvent}: "
+            f"alpha={self.alpha:.6g}, "
+            f"block={self.block_size}, "
+            f"iterations={self.iteration_count}, "
+            f"error={self.error:.6g}, "
+            f"converged={self.converged}"
+        )
 
 
 def _min_median_max_float(values: list[float]) -> tuple[float | None, float | None, float | None]:

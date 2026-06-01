@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from stark.contracts import IntervalLike
-from stark.schemes.support.stage_problem import SchemeStageProblem
+from stark.schemes.requests.resolvent import SchemeResolventRequest
 
 
 class DummyTranslation:
@@ -39,7 +39,7 @@ def test_scheme_stage_problem_preserves_scheme_constructed_data() -> None:
     origin = object()
     rhs = DummyTranslation()
 
-    problem = SchemeStageProblem(
+    problem = SchemeResolventRequest(
         derivative=derivative,
         interval=interval,
         origin=origin,

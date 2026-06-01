@@ -1,4 +1,5 @@
 from stark.carriers.jax.allocation import CarrierAllocationJax
+from stark.carriers.jax.basis import CarrierBasisJax
 from stark.carriers.jax.arithmetic import CarrierArithmeticJax
 from stark.carriers.jax.norm import CarrierNormJaxRMS
 from stark.carriers.jax.storage import CarrierJaxValue, CarrierStorageJax
@@ -12,5 +13,6 @@ class CarrierJax:
         self.storage = storage
         self.validation = CarrierValidationJax(storage)
         self.allocation = CarrierAllocationJax(storage)
+        self.basis = CarrierBasisJax(storage)
         self.arithmetic = CarrierArithmeticJax()
         self.norm = CarrierNormJaxRMS()

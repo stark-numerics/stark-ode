@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark.block import Block, BlockOperator
+from stark.block import Block, BlockOperatorDiagonal
 
 
 @dataclass
@@ -29,7 +29,7 @@ def double(translation: TranslationFixture, out: TranslationFixture) -> None:
 
 
 def test_block_operator_applies_entrywise() -> None:
-    operator = BlockOperator([add_one, double])
+    operator = BlockOperatorDiagonal([add_one, double])
     out = block(0.0, 0.0)
 
     result = operator(block(3.0, 4.0), out)
@@ -39,7 +39,7 @@ def test_block_operator_applies_entrywise() -> None:
 
 
 def test_repeated_block_operator_reuses_operator_for_each_entry() -> None:
-    operator = BlockOperator.repeated(add_one, 3)
+    operator = BlockOperatorDiagonal.repeated(add_one, 3)
     out = block(0.0, 0.0, 0.0)
 
     operator(block(1.0, 2.0, 3.0), out)
@@ -48,7 +48,7 @@ def test_repeated_block_operator_reuses_operator_for_each_entry() -> None:
 
 
 def test_block_operator_rejects_size_mismatch() -> None:
-    operator = BlockOperator([add_one])
+    operator = BlockOperatorDiagonal([add_one])
 
     with pytest.raises(ValueError, match="Block operator size"):
         operator(block(1.0, 2.0), block(0.0, 0.0))

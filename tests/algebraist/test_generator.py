@@ -15,7 +15,7 @@ from stark.algebraist.layout import (
     AlgebraistLayoutScalar,
     AlgebraistLayoutUnravel,
 )
-from stark.schemes.support.stencil import SchemeStencil
+from stark.schemes.specialization.stencil import SchemeStencil
 
 
 @dataclass

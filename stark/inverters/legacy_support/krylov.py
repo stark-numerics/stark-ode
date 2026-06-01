@@ -19,7 +19,7 @@ import numpy as np
 
 from stark.accelerators import AcceleratorAbsent
 from stark.block import Block
-from stark.block.operator import BlockOperator
+from stark.block.operator import BlockOperatorDiagonal
 from stark.contracts import AcceleratorLike
 from stark.inverters.legacy_support.workspace import InverterWorkspace
 
@@ -149,7 +149,7 @@ class Arnoldi:
 
     into a basis `q_0, q_1, ...` and simultaneously builds the small Hessenberg
     matrix seen by GMRES-family methods. In STARK the basis vectors are `Block`
-    objects, and the operator action is provided by `BlockOperator`.
+    objects, and the operator action is provided by `BlockOperatorDiagonal`.
     """
 
     __slots__ = ("workspace", "restart", "size", "basis", "work", "temporary")
@@ -179,7 +179,7 @@ class Arnoldi:
     def build_column(
         self,
         column: int,
-        operator: BlockOperator,
+        operator: BlockOperatorDiagonal,
         search_vector: Block,
         least_squares: HessenbergLeastSquares,
         rotations: GivensRotations,

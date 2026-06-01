@@ -29,26 +29,53 @@ class BlockSpecialist(Generic[StencilType, TranslationType]):
     def provide(self, stencil: StencilType) -> BlockKernel[TranslationType]:
         item_kernel = self.specialist.provide(stencil)
 
-        def kernel(
-            step: float,
-            out: Block[TranslationType],
-            *blocks: Block[TranslationType],
-        ) -> Block[TranslationType]:
-            if not blocks:
-                raise TypeError("Block specialist kernels need source blocks.")
+        if getattr(stencil, "apply", False):
 
-            Block._require_same_size(out, *blocks)
+            def apply_kernel(
+                step: float,
+                origin: Block[TranslationType],
+                *terms: Block[TranslationType],
+            ) -> Block[TranslationType]:
+                if not terms:
+                    raise TypeError("Block apply kernels need a result block.")
+
+                sources = terms[:-1]
+                result = terms[-1]
+                Block._require_same_size(origin, *sources, result)
+
+                for index, result_item in enumerate(result):
+                    item_kernel(
+                        step,
+                        origin[index],
+                        *(source[index] for source in sources),
+                        result_item,
+                    )
+
+                return result
+
+            return apply_kernel
+
+        def delta_kernel(
+            step: float,
+            *terms: Block[TranslationType],
+        ) -> Block[TranslationType]:
+            if not terms:
+                raise TypeError("Block delta kernels need an output block.")
+
+            sources = terms[:-1]
+            out = terms[-1]
+            Block._require_same_size(*sources, out)
 
             for index, out_item in enumerate(out):
                 item_kernel(
                     step,
+                    *(source[index] for source in sources),
                     out_item,
-                    *(block[index] for block in blocks),
                 )
 
             return out
 
-        return kernel
+        return delta_kernel
 
 
 __all__ = ["BlockItemSpecialist", "BlockKernel", "BlockSpecialist"]

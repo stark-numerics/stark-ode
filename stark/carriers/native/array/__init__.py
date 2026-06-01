@@ -1,6 +1,7 @@
 """Native array.array carrier parts."""
 
 from stark.carriers.native.array.allocation import CarrierAllocationNativeArray
+from stark.carriers.native.array.basis import CarrierBasisNativeArray
 from stark.carriers.native.array.arithmetic import CarrierArithmeticNativeArray
 from stark.carriers.native.array.carrier import CarrierNativeArray
 from stark.carriers.native.array.norm import CarrierNormNativeArrayMax, CarrierNormNativeArrayRMS
@@ -9,6 +10,7 @@ from stark.carriers.native.array.validation import CarrierValidationNativeArray
 
 __all__ = [
     "CarrierAllocationNativeArray",
+    "CarrierBasisNativeArray",
     "CarrierArithmeticNativeArray",
     "CarrierNativeArray",
     "CarrierNativeArrayValue",

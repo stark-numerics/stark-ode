@@ -10,20 +10,20 @@ from stark import Executor, Interval, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.resolvents import ResolventPicard
-from stark.resolvents.support.policy import ResolventPolicy
-from stark.schemes.imex_adaptive.kennedy_carpenter32 import (
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.schemes.imex.adaptive.kennedy_carpenter32 import (
     SchemeKennedyCarpenter32,
 )
-from stark.schemes.imex_adaptive.kennedy_carpenter43_6 import (
+from stark.schemes.imex.adaptive.kennedy_carpenter43_6 import (
     SchemeKennedyCarpenter43_6,
 )
-from stark.schemes.imex_adaptive.kennedy_carpenter43_7 import (
+from stark.schemes.imex.adaptive.kennedy_carpenter43_7 import (
     SchemeKennedyCarpenter43_7,
 )
-from stark.schemes.imex_adaptive.kennedy_carpenter54 import (
+from stark.schemes.imex.adaptive.kennedy_carpenter54 import (
     SchemeKennedyCarpenter54,
 )
-from stark.schemes.imex_adaptive.kennedy_carpenter54b import (
+from stark.schemes.imex.adaptive.kennedy_carpenter54b import (
     SchemeKennedyCarpenter54b,
 )
 

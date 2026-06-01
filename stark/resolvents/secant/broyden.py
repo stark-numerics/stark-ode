@@ -10,22 +10,19 @@ from stark.block import Block, BlockAllocator
 from stark.contracts import AcceleratorLike, InnerProduct, Translation, Allocator
 from stark.accelerators import AcceleratorAbsent
 from stark.executor.tolerance import ExecutorTolerance
-from stark.resolvents.support import (
-    MonitorResolventLike,
-    ResolventError,
-    ResolventPolicy,
-    ResolventSafety,
-    ResolventSpecialist,
-    ResolventStageProblem,
-    ResolventStageResidual,
-    ResolventStencilBlock,
-    with_resolvent_display,
-    with_resolvent_monitoring,
-)
-from stark.resolvents.support.descriptor import ResolventDescriptor
-from stark.resolvents.support.secant import BlockInnerProduct, block_inner_product
-from stark.resolvents.support.tolerance import ResolventTolerance
-from stark.resolvents.support.safety import ResolventSafety, ResolventSafetyDefault
+from stark.resolvents.method.descriptor import ResolventDescriptor
+from stark.resolvents.method.errors import ResolventError
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.resolvents.monitoring.monitor import MonitorResolventLike
+from stark.resolvents.monitoring.decorators import with_resolvent_monitoring
+from stark.resolvents.display.decorators import with_resolvent_display
+from stark.resolvents.requests.resolvent import ResolventRequest
+from stark.resolvents.equations.implicit import ResolventImplicitEquation
+from stark.resolvents.secant._least_squares import BlockInnerProduct, block_inner_product
+from stark.resolvents.specialization.specialist import ResolventSpecialist
+from stark.resolvents.specialization.stencil import ResolventStencilBlock
+from stark.resolvents.method.tolerance import ResolventTolerance
+from stark.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 
 class ResolventBroydenHistory:
@@ -130,14 +127,18 @@ class ResolventBroydenHistory:
         return (self.head + index) % self.depth
 
 
+# Optional extension: adds human-readable resolvent metadata and formatting helpers.
+# Provides: short_name, __repr__, and __str__.
 @with_resolvent_display
+# Optional extension: records resolvent monitor events.
+# Provides: assign_monitor, unassign_monitor, and record_solve.
 @with_resolvent_monitoring
 class ResolventBroyden:
     """Inverse-Broyden resolvent for one-stage shifted implicit equations.
 
     Residual equation:
 
-        F(delta) = 0
+        equation(delta) = 0
 
     Broyden maintains a low-rank approximation to the inverse residual
     differential and uses it to propose nonlinear corrections.
@@ -169,7 +170,7 @@ class ResolventBroyden:
         "next_residual",
         "policy",
         "redirect_call",
-        "residual",
+        "equation",
         "residual_buffer",
         "residual_delta",
         "safety",
@@ -219,7 +220,7 @@ class ResolventBroyden:
             else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         )
         self.policy = policy if policy is not None else ResolventPolicy()
-        self.residual = ResolventStageResidual(
+        self.equation = ResolventImplicitEquation(
             "ResolventBroyden",
             allocator,
             accelerator=self.accelerator,
@@ -284,7 +285,7 @@ class ResolventBroyden:
 
     def call_inline(
         self,
-        problem: ResolventStageProblem,
+        problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
@@ -294,8 +295,7 @@ class ResolventBroyden:
         self.prepare_buffers(delta)
         self.history.clear()
 
-        F = self.residual
-        F.configure(problem)
+        equation = self.equation.prepare(problem)
         residual = cast(Block[Translation], self.residual_buffer)
         next_residual = cast(Block[Translation], self.next_residual)
         correction = cast(Block[Translation], self.correction)
@@ -310,7 +310,7 @@ class ResolventBroyden:
 
         for _ in range(self.policy.max_iterations):
             # 1. Compute F(delta).
-            F(delta, residual)
+            equation(delta, residual)
 
             # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
@@ -325,7 +325,7 @@ class ResolventBroyden:
 
             # 4. Trial the correction and compute the residual change.
             trial.replace(delta + correction)
-            F(trial, next_residual)
+            equation(trial, next_residual)
             residual_delta.replace(next_residual - residual)
 
             # 5. Store a new inverse-Broyden secant pair when informative.
@@ -345,7 +345,7 @@ class ResolventBroyden:
             iteration_count += 1
 
         # 7. Recheck once after the final correction.
-        F(delta, residual)
+        equation(delta, residual)
 
         error = residual.norm()
         scale = delta.norm()
@@ -361,7 +361,7 @@ class ResolventBroyden:
 
     def call_specialized(
         self,
-        problem: ResolventStageProblem,
+        problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
         if self.policy.max_iterations < 1:
@@ -371,8 +371,7 @@ class ResolventBroyden:
         self.prepare_buffers(delta)
         self.history.clear()
 
-        F = self.residual
-        F.configure(problem)
+        equation = self.equation.prepare(problem)
         residual = cast(Block[Translation], self.residual_buffer)
         next_residual = cast(Block[Translation], self.next_residual)
         correction = cast(Block[Translation], self.correction)
@@ -391,7 +390,7 @@ class ResolventBroyden:
 
         for _ in range(self.policy.max_iterations):
             # 1. Compute F(delta).
-            F(delta, residual)
+            equation(delta, residual)
 
             # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
             error = residual.norm()
@@ -406,7 +405,7 @@ class ResolventBroyden:
 
             # 4. Trial the correction and compute the residual change.
             add_update(1.0, trial, delta, correction)
-            F(trial, next_residual)
+            equation(trial, next_residual)
             difference_update(1.0, residual_delta, next_residual, residual)
 
             # 5. Store a new inverse-Broyden secant pair when informative.
@@ -431,7 +430,7 @@ class ResolventBroyden:
             iteration_count += 1
 
         # 7. Recheck once after the final correction.
-        F(delta, residual)
+        equation(delta, residual)
 
         error = residual.norm()
         scale = delta.norm()

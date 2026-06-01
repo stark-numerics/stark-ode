@@ -74,9 +74,6 @@ class DummyScheme:
     def snapshot_state(self, state: object) -> object:
         return state
 
-    def set_apply_delta_safety(self, enabled: bool) -> None:
-        del enabled
-
 
 class BadAccelerator:
     name = "bad"

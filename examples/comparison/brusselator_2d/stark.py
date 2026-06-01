@@ -10,7 +10,7 @@ from stark.accelerators import Accelerator
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
-from stark.schemes.explicit_adaptive import SchemeCashKarp, SchemeDormandPrince
+from stark.schemes.explicit.adaptive import SchemeCashKarp, SchemeDormandPrince
 
 
 try:

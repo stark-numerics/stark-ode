@@ -36,7 +36,7 @@ def timed_runner(
         result = solve_once()
         durations.append(perf_counter() - started)
 
-    return {
+    timed_result = {
         "library": result["library"],
         "solver": result["solver"],
         "error": result["error"],
@@ -47,6 +47,29 @@ def timed_runner(
         "median": float(median(durations)),
         "min": float(min(durations)),
     }
+    for key, value in result.items():
+        if key.startswith("inverter_"):
+            timed_result[key] = value
+    return timed_result
+
+
+def timed_diffrax_runner(repeats, problem, tolerances, diffrax_parameters, initial_conditions, reference):
+    return timed_runner(
+        "Diffrax",
+        "Kvaerno5",
+        lambda problem, tolerances, initial_conditions, reference: diffrax.prepare_kvaerno5(
+            problem,
+            tolerances,
+            diffrax_parameters,
+            initial_conditions,
+            reference,
+        ),
+        repeats,
+        problem,
+        tolerances,
+        initial_conditions,
+        reference,
+    )
 
 
 def render_table(headers, rows):
@@ -106,8 +129,12 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
             else "selected accelerator: numba, but it is unavailable here so the benchmark is using pure Python kernels"
         )
     )
-    print("  STARK Robertson uses a fully implicit Kvaerno4 solve with a custom exact cubic resolvent")
-    print("  the whole Robertson right-hand side is treated implicitly in that resolvent")
+    print("  STARK Robertson uses StarkIVP to prepare the carrier, allocator, derivative, executor, and integrator")
+    print("  STARK Robertson includes a fully implicit Kvaerno4 solve with a custom exact cubic resolvent")
+    print("  STARK Robertson also includes Kvaerno4 Newton rows using the new inverter request path")
+    print("  one Newton row uses Jacobi relaxation with a materialized local 3x3 entry inverse")
+    print("  one Newton row uses the generic dense inverter with the native dense provider")
+    print("  the Newton/Jacobi relaxation update is supplied through the allocator BlockSpecialist")
     print("  Diffrax uses Kvaerno5, an adaptive stiffly accurate ESDIRK method")
     print("  all compared solver stacks are prewarmed once before timed rows")
     print("  each method performs setup once, then one complete untimed warmup solve")
@@ -115,6 +142,115 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
     print("  reference generation is excluded from the timing table")
     print("  timings are CPU wall-clock timings for repeated solves of one small stiff problem")
     print("  the solver rows do not use identical step-control or nonlinear-solve strategies")
+    print()
+
+
+def print_error_table(rows):
+    print("Error Table")
+    print(
+        render_table(
+            ("library", "solver", "steps", "error"),
+            [
+                (
+                    row["library"],
+                    row["solver"],
+                    str(row["steps"]),
+                    f"{row['error']:.6e}",
+                )
+                for row in rows
+            ],
+        )
+    )
+    print()
+
+
+def print_preparation_table(rows):
+    print("Preparation Timing Table")
+    print(
+        render_table(
+            ("library", "solver", "setup", "warmup", "total"),
+            [
+                (
+                    row["library"],
+                    row["solver"],
+                    f"{row['setup']:.6f}s",
+                    f"{row['warmup']:.6f}s",
+                    f"{row['preparation']:.6f}s",
+                )
+                for row in rows
+            ],
+        )
+    )
+    print()
+
+
+def print_run_table(rows, repeats):
+    print("Run Timing Table")
+    print(
+        render_table(
+            ("library", "solver", "median", "min", "repeats"),
+            [
+                (
+                    row["library"],
+                    row["solver"],
+                    f"{row['median']:.6f}s",
+                    f"{row['min']:.6f}s",
+                    str(repeats),
+                )
+                for row in rows
+            ],
+        )
+    )
+    print()
+
+
+def _format_optional_float(value: float | None) -> str:
+    if value is None:
+        return "-"
+    return f"{value:.6e}"
+
+
+def _format_optional_iteration(value: float | int | None) -> str:
+    if value is None:
+        return "-"
+    if isinstance(value, float):
+        return f"{value:.1f}"
+    return str(value)
+
+
+def print_inverter_diagnostics(rows) -> None:
+    diagnostic_rows = [row for row in rows if "inverter_solve_count" in row]
+    if not diagnostic_rows:
+        return
+
+    print("Inverter Diagnostics Table")
+    print(
+        render_table(
+            (
+                "solver",
+                "solves",
+                "failures",
+                "iter min",
+                "iter med",
+                "iter max",
+                "initial med",
+                "final med",
+            ),
+            [
+                (
+                    row["solver"],
+                    str(row["inverter_solve_count"]),
+                    str(row["inverter_failure_count"]),
+                    _format_optional_iteration(row["inverter_iteration_min"]),
+                    _format_optional_iteration(row["inverter_iteration_median"]),
+                    _format_optional_iteration(row["inverter_iteration_max"]),
+                    _format_optional_float(row["inverter_initial_residual_median"]),
+                    _format_optional_float(row["inverter_final_residual_median"]),
+                )
+                for row in diagnostic_rows
+            ],
+        )
+    )
     print()
 
 
@@ -157,6 +293,8 @@ def main() -> None:
     reference_elapsed = perf_counter() - started
 
     prewarm_runner(stark.prepare_kvaerno4_full_custom, problem, stark_parameters, initial_conditions, reference)
+    prewarm_runner(stark.prepare_kvaerno4_full_newton, problem, stark_parameters, initial_conditions, reference)
+    prewarm_runner(stark.prepare_kvaerno4_full_newton_dense, problem, stark_parameters, initial_conditions, reference)
     prewarm_runner(scipy.prepare_radau, problem, tolerances, initial_conditions, reference)
     prewarm_runner(scipy.prepare_bdf, problem, tolerances, initial_conditions, reference)
     if diffrax.DIFFRAX_AVAILABLE:
@@ -176,95 +314,31 @@ def main() -> None:
 
     rows = [
         timed_runner("STARK", "Kvaerno4 Full Cubic", stark.prepare_kvaerno4_full_custom, repeats, problem, stark_parameters, initial_conditions, reference),
+        timed_runner("STARK", "Kvaerno4 Full Newton Jacobi", stark.prepare_kvaerno4_full_newton, repeats, problem, stark_parameters, initial_conditions, reference),
+        timed_runner("STARK", "Kvaerno4 Full Newton Dense", stark.prepare_kvaerno4_full_newton_dense, repeats, problem, stark_parameters, initial_conditions, reference),
         timed_runner("SciPy", "Radau", scipy.prepare_radau, repeats, problem, tolerances, initial_conditions, reference),
         timed_runner("SciPy", "BDF", scipy.prepare_bdf, repeats, problem, tolerances, initial_conditions, reference),
     ]
 
     if diffrax.DIFFRAX_AVAILABLE:
         rows.append(
-            timed_runner(
-                "Diffrax",
-                "Kvaerno5",
-                lambda problem, tolerances, initial_conditions, reference: diffrax.prepare_kvaerno5(
-                    problem,
-                    tolerances,
-                    diffrax_parameters,
-                    initial_conditions,
-                    reference,
-                ),
+            timed_diffrax_runner(
                 repeats,
                 problem,
                 tolerances,
+                diffrax_parameters,
                 initial_conditions,
                 reference,
             )
         )
 
     describe_problem(problem, tolerances, stark_parameters, reference_tolerances, reference, reference_elapsed)
-
-    print("Error Table")
-    print(
-        render_table(
-            ("library", "solver", "steps", "error"),
-            [
-                (
-                    row["library"],
-                    row["solver"],
-                    str(row["steps"]),
-                    f"{row['error']:.6e}",
-                )
-                for row in rows
-            ],
-        )
-    )
-    print()
-
-    print("Preparation Timing Table")
-    print(
-        render_table(
-            ("library", "solver", "setup", "warmup", "total"),
-            [
-                (
-                    row["library"],
-                    row["solver"],
-                    f"{row['setup']:.6f}s",
-                    f"{row['warmup']:.6f}s",
-                    f"{row['preparation']:.6f}s",
-                )
-                for row in rows
-            ],
-        )
-    )
-    print()
-
-    print("Run Timing Table")
-    print(
-        render_table(
-            ("library", "solver", "median", "min", "repeats"),
-            [
-                (
-                    row["library"],
-                    row["solver"],
-                    f"{row['median']:.6f}s",
-                    f"{row['min']:.6f}s",
-                    str(repeats),
-                )
-                for row in rows
-            ],
-        )
-    )
-    print()
+    print_error_table(rows)
+    print_preparation_table(rows)
+    print_run_table(rows, repeats)
+    print_inverter_diagnostics(rows)
     print_summary(rows)
 
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-

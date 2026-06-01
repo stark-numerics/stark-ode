@@ -4,7 +4,6 @@ This example shows the public shape expected from a STARK scheme:
 
 - `__call__(interval, state, executor) -> float`
 - `snapshot_state(state)`
-- `set_apply_delta_safety(enabled)`
 
 The example uses `StarkVector`, STARK's simple vector-space carrier. In this
 case the state and the increment both live in the same mathematical vector
@@ -46,7 +45,6 @@ class ForwardEuler:
         carrier = CarrierNative([1.0])
         self.allocator = StarkVectorAllocator(carrier)
         self.delta = self.allocator.allocate_translation()
-        self.apply_delta_safely = True
 
     def __call__(
         self,
@@ -73,10 +71,6 @@ class ForwardEuler:
         snapshot = self.allocator.allocate_state()
         self.allocator.copy_state(state, snapshot)
         return snapshot
-
-    def set_apply_delta_safety(self, enabled: bool) -> None:
-        self.apply_delta_safely = enabled
-
 
 def main() -> None:
     scheme = ForwardEuler()

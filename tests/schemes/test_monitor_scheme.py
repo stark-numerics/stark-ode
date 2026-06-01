@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 
 from stark import Executor, Integrator, Interval, Marcher, Monitor, ExecutorTolerance
-from stark.schemes.explicit_adaptive.cash_karp import SchemeCashKarp
-from stark.schemes.explicit_fixed.euler import SchemeEuler
-from stark.schemes.support.stencil import SchemeStencil
+from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
+from stark.schemes.explicit.fixed.euler import SchemeEuler
+from stark.schemes.specialization.stencil import SchemeStencil
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -142,23 +142,22 @@ def test_unmonitored_integration_creates_no_scheme_monitor_records() -> None:
     assert scheme.monitor is None
 
 
-def test_monitor_is_unassigned_after_monitored_integration_exception() -> None:
-    scheme = SchemeEuler(failing_rhs, ScalarAllocator())
-    marcher = Marcher(scheme, Executor())
+def test_direct_scheme_monitor_remains_available_after_integration_exception() -> None:
     monitor = Monitor()
+    scheme = SchemeEuler(failing_rhs, ScalarAllocator(), monitor=monitor.scheme)
+    marcher = Marcher(scheme, Executor())
 
     with pytest.raises(RuntimeError, match="intentional example failure"):
         list(
-            Integrator().monitored(
+            Integrator().live(
                 marcher,
                 Interval(present=0.0, step=0.1, stop=0.2),
                 ScalarState(),
-                monitor,
             )
         )
 
-    assert marcher.monitor is None
-    assert scheme.redirect_call == scheme.call_step
+    assert scheme.monitor is monitor.scheme
+    assert scheme.redirect_call.__func__ is scheme.call_monitored.__func__
     assert monitor.scheme.fixed_steps == []
     assert monitor.scheme.adaptive_steps == []
 

@@ -32,7 +32,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 
-from stark import Executor
+from stark import Executor, Marcher
 from stark.interface import StarkDerivative, StarkIVP
 from stark.monitor import Monitor
 from stark.schemes import SchemeCashKarp
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     monitor = Monitor()
 
     # Monitoring is opt-in. We build the same explicit problem as lesson 1,
-    # then pass a monitor only around this one observed integration.
+    # then pass the scheme monitor only to this one observed integration.
 
     build = StarkIVP(
         derivative=StarkDerivative.in_place(
@@ -66,13 +66,14 @@ if __name__ == "__main__":
         scheme=SchemeCashKarp,
         executor=Executor(tolerance=EXECUTOR_TOLERANCE),
     ).build()
+    build.scheme = SchemeCashKarp(build.derivative, build.allocator, monitor=monitor.scheme)
+    build.marcher = Marcher(build.scheme, build.executor)
 
     list(
-        build.integrator.live_monitored(
+        build.integrator.live(
             marcher=build.marcher,
             interval=build.interval,
             state=build.initial,
-            monitor=monitor,
         )
     )
 

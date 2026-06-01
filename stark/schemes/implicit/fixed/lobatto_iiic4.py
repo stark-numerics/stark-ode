@@ -1,0 +1,138 @@
+from __future__ import annotations
+
+from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
+from stark.schemes.execution.executor import SchemeExecutor
+from stark.schemes.monitoring.monitor import MonitorSchemeLike
+from stark.schemes.monitoring.decorators import with_fixed_step_monitoring
+from stark.schemes.method.descriptor import SchemeDescriptor
+from stark.schemes.display.decorators import with_scheme_display
+from stark.schemes.implicit._support import (
+    initialise_implicit_support,
+    implicit_display_resolvent_problem,
+    implicit_snapshot_state,
+)
+from stark.schemes.specialization.specialist import SchemeSpecialist
+from stark.schemes.requests.resolvent import SchemeResolventRequestCoupled
+from stark.schemes.method.tableau import ButcherTableau
+
+
+LOBATTO_IIIC4_TABLEAU = ButcherTableau(
+    c=(0.0, 0.5, 1.0),
+    a=(
+        (1.0 / 6.0, -1.0 / 3.0, 1.0 / 6.0),
+        (1.0 / 6.0, 5.0 / 12.0, -1.0 / 12.0),
+        (1.0 / 6.0, 2.0 / 3.0, 1.0 / 6.0),
+    ),
+    b=(1.0 / 6.0, 2.0 / 3.0, 1.0 / 6.0),
+    order=4,
+    short_name="Lobatto4",
+    full_name="Lobatto IIIC 4",
+)
+
+
+# Optional extension: adds human-readable scheme metadata and formatting helpers.
+# Provides: with_scheme_display, display_tableau, short_name, full_name, __repr__, __str__, and __format__.
+@with_scheme_display
+# Optional extension: records fixed-step monitor events.
+# Provides: call_monitored.
+@with_fixed_step_monitoring
+class SchemeLobattoIIIC4:
+    """The three-stage fourth-order Lobatto IIIC collocation method.
+
+    Algorithm sketch for one accepted step of size h:
+
+        1. Solve the coupled Lobatto stage increment problem.
+        2. Apply the final stage increment directly:
+               y <- y + delta_3
+
+    The method is stiffly accurate: the final tableau row equals b, so the
+    final stage increment is already the full accepted step update.
+    """
+
+    __slots__ = (
+        "monitor",
+        "block_allocator",
+        "call_body",
+        "call_step",
+        "derivative",
+        "redirect_call",
+        "resolvent",
+        "stage_delta",
+        "workspace",
+    )
+
+    descriptor = SchemeDescriptor("Lobatto4", "Lobatto IIIC 4")
+    display_resolvent_problem = classmethod(implicit_display_resolvent_problem)
+    snapshot_state = implicit_snapshot_state
+
+    tableau = LOBATTO_IIIC4_TABLEAU
+
+    def __init__(
+        self,
+        derivative: Derivative,
+        allocator: Allocator,
+        resolvent: Resolvent,
+        *,
+        specialist: SchemeSpecialist | None = None,
+        monitor: MonitorSchemeLike | None = None,
+    ) -> None:
+        self.monitor = monitor
+        self.call_body = self.call_inline
+        self.call_step = self.call_monitored if monitor is not None else self.call_body
+        self.redirect_call = self.call_step
+        self.resolvent = resolvent
+
+        initialise_implicit_support(self, derivative, allocator)
+        self.stage_delta = self.block_allocator.allocate(3)
+
+        if specialist is not None:
+            self.prepare_specialized_kernels(specialist)
+            self.call_body = self.call_specialized
+            if monitor is None:
+                self.call_step = self.call_body
+                self.redirect_call = self.call_step
+
+    def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
+        return self.redirect_call(interval, state, executor)
+
+    def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
+        """Accept specialist hooks for constructor consistency."""
+
+        del specialist
+
+    def _problem(self, interval: IntervalLike, state: State, dt: float) -> SchemeResolventRequestCoupled:
+        tableau = self.tableau
+        return SchemeResolventRequestCoupled(
+            derivative=self.derivative,
+            interval=interval,
+            origin=state,
+            rhs=None,
+            step=dt,
+            stage_shifts=tableau.c,
+            matrix=tableau.a,
+        )
+
+    def call_inline(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
+        del executor
+
+        remaining = interval.stop - interval.present
+        if remaining <= 0.0:
+            return 0.0
+
+        dt = interval.step if interval.step <= remaining else remaining
+
+        # 1. Solve the coupled Lobatto stage increment problem.
+        self.resolvent(self._problem(interval, state, dt), self.stage_delta)
+
+        # 2. Apply the final stage increment directly.
+        self.workspace.apply_delta(self.stage_delta[2], state)
+
+        remaining_after = remaining - dt
+        interval.step = 0.0 if remaining_after <= 0.0 else min(interval.step, remaining_after)
+        return dt
+
+    def call_specialized(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
+        return self.call_inline(interval, state, executor)
+
+
+__all__ = ["LOBATTO_IIIC4_TABLEAU", "SchemeLobattoIIIC4"]

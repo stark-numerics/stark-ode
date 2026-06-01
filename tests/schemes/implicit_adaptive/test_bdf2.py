@@ -8,8 +8,8 @@ from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
 from stark.accelerators import Accelerator
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
-from stark.resolvents.support.policy import ResolventPolicy
-from stark.schemes.implicit_adaptive.bdf2 import SchemeBDF2
+from stark.resolvents.method.policy import ResolventPolicy
+from stark.schemes.implicit.adaptive.bdf2 import SchemeBDF2
 
 
 @dataclass(slots=True)
@@ -57,6 +57,7 @@ def constant_rhs(
 def make_scheme(
     *,
     specialist: object | None = None,
+    monitor=None,
 ) -> SchemeBDF2:
     allocator = ScalarAllocator()
     resolvent = ResolventPicard(
@@ -71,6 +72,7 @@ def make_scheme(
         allocator,
         resolvent=resolvent,
         specialist=specialist,
+        monitor=monitor,
     )
 
 
@@ -222,18 +224,14 @@ def test_bdf2_snapshot_and_safety_are_exposed_through_scheme() -> None:
 
     assert snapshot.value == pytest.approx(3.0)
 
-    scheme.set_apply_delta_safety(False)
-    scheme.set_apply_delta_safety(True)
-
-
 def test_bdf2_monitoring_records_existing_adaptive_fields() -> None:
-    scheme = make_scheme()
+    monitor = Monitor()
+    scheme = make_scheme(monitor=monitor.scheme)
     marcher = Marcher(scheme, tight_executor())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(0.0)
-    monitor = Monitor()
 
-    list(Integrator().live_monitored(marcher, interval, state, monitor))
+    list(Integrator().live(marcher, interval, state))
 
     assert len(monitor.scheme.adaptive_steps) == 2
 

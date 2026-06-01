@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from stark import Interval
 from stark.block import Block
 from stark.resolvents import ResolventAnderson, ResolventPolicy, ResolventTolerance
-from stark.schemes.support.stage_problem import SchemeStageProblem
+from stark.schemes.requests.resolvent import SchemeResolventRequest
 
 
 @dataclass(slots=True)
@@ -96,7 +96,7 @@ def test_anderson_resolvent_solves_rhs_shift_without_reversing_residual_argument
     state = ScalarState(1.0)
     rhs = Block([ScalarTranslation(2.0)])
     out = Block([ScalarTranslation()])
-    problem = SchemeStageProblem(zero_rhs, interval, state, rhs, 0.0)
+    problem = SchemeResolventRequest(zero_rhs, interval, state, rhs, 0.0)
 
     resolvent(problem, out)
 

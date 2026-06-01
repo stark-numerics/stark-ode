@@ -18,6 +18,16 @@ class MonitorSchemeSummary:
     adaptive_error_ratio_median: float | None
     adaptive_error_ratio_max: float | None
 
+    def __str__(self) -> str:
+        return (
+            "scheme: "
+            f"steps={self.step_count}, "
+            f"fixed={self.fixed_step_count}, "
+            f"adaptive={self.adaptive_step_count}, "
+            "dt min/median/max="
+            f"{self.accepted_dt_min}/{self.accepted_dt_median}/{self.accepted_dt_max}"
+        )
+
 
 @dataclass(slots=True)
 class MonitorSchemeStepFixed:
@@ -25,6 +35,13 @@ class MonitorSchemeStepFixed:
     t_start: float
     t_end: float
     accepted_dt: float
+
+    def __str__(self) -> str:
+        return (
+            f"{self.scheme}: "
+            f"{self.t_start:.6g} -> {self.t_end:.6g}, "
+            f"dt={self.accepted_dt:.6g}"
+        )
 
 
 @dataclass(slots=True)
@@ -37,6 +54,16 @@ class MonitorSchemeStepAdaptive:
     next_dt: float
     error_ratio: float
     rejection_count: int = 0
+
+    def __str__(self) -> str:
+        return (
+            f"{self.scheme}: "
+            f"{self.t_start:.6g} -> {self.t_end:.6g}, "
+            f"dt={self.accepted_dt:.6g}, "
+            f"next={self.next_dt:.6g}, "
+            f"error ratio={self.error_ratio:.6g}, "
+            f"rejections={self.rejection_count}"
+        )
 
 
 def _min_median_max(values: list[float]) -> tuple[float | None, float | None, float | None]:

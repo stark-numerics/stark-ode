@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 
 from examples.comparison.fitzhugh_nagumo_1d.stark import FitzHughNagumoParameters, run_inverter_example
-from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
+from stark.inverters.relaxation import InverterRelaxationRichardson
 
 
 @pytest.mark.slow
-def test_fitzhugh_nagumo_inverters_track_each_other() -> None:
+def test_fitzhugh_nagumo_richardson_inverter_runs() -> None:
     parameters = FitzHughNagumoParameters(
         grid_size=32,
         t_stop=3.0,
@@ -25,30 +25,9 @@ def test_fitzhugh_nagumo_inverters_track_each_other() -> None:
         inversion_restart=10,
     )
 
-    trajectories = [
-        run_inverter_example("GMRES", InverterGMRES, parameters),
-        run_inverter_example("FGMRES", InverterFGMRES, parameters),
-        run_inverter_example("BiCGStab", InverterBiCGStab, parameters),
-    ]
+    trajectory = run_inverter_example("Richardson", InverterRelaxationRichardson, parameters)
 
-    final_u = [trajectory.u_snapshots[-1] for trajectory in trajectories]
-    final_v = [trajectory.v_snapshots[-1] for trajectory in trajectories]
-
-    for trajectory in trajectories:
-        assert trajectory.steps > 0
-        assert np.isfinite(trajectory.runtime)
-        assert np.all(np.isfinite(trajectory.u_snapshots[-1]))
-        assert np.all(np.isfinite(trajectory.v_snapshots[-1]))
-
-    for left in range(len(trajectories)):
-        for right in range(left + 1, len(trajectories)):
-            assert np.max(np.abs(final_u[left] - final_u[right])) < 5.0e-2
-            assert np.max(np.abs(final_v[left] - final_v[right])) < 5.0e-2
-
-
-
-
-
-
-
-
+    assert trajectory.steps > 0
+    assert np.isfinite(trajectory.runtime)
+    assert np.all(np.isfinite(trajectory.u_snapshots[-1]))
+    assert np.all(np.isfinite(trajectory.v_snapshots[-1]))

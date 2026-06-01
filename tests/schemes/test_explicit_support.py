@@ -5,10 +5,10 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Executor, Interval
-from stark.schemes.support.derivative import SchemeDerivative
-from stark.machinery.stage_solve.workspace import SchemeWorkspace
-from stark.schemes.explicit_fixed.rk4 import SchemeRK4
-from stark.schemes.support.explicit import SchemeSupportExplicit
+from stark.schemes.execution.derivative import SchemeDerivative
+from stark.schemes.execution.support import SchemeStepSupport
+from stark.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.schemes.explicit._support import SchemeSupportExplicit
 
 
 @dataclass(slots=True)
@@ -76,7 +76,7 @@ class FixedDelta:
         return FixedDelta()
 
 
-def test_explicit_support_constructs_prepared_derivative_and_workspace() -> None:
+def test_explicit_support_constructs_prepared_derivative_and_step_support() -> None:
     support = SchemeSupportExplicit.from_inputs(
         exponential_growth,
         ScalarAllocator(),
@@ -84,7 +84,7 @@ def test_explicit_support_constructs_prepared_derivative_and_workspace() -> None
 
     assert isinstance(support.derivative, SchemeDerivative)
     assert support.derivative is exponential_growth
-    assert isinstance(support.workspace, SchemeWorkspace)
+    assert isinstance(support.step_support, SchemeStepSupport)
     assert isinstance(support.first_translation, ScalarTranslation)
     assert support.k1 is support.first_translation
 
@@ -103,7 +103,7 @@ def test_explicit_support_prepared_derivative_calls_original_worker() -> None:
     assert out.value == pytest.approx(3.0)
 
 
-def test_explicit_support_snapshot_state_copies_through_workspace() -> None:
+def test_explicit_support_snapshot_state_copies_through_step_support() -> None:
     support = SchemeSupportExplicit.from_inputs(
         exponential_growth,
         ScalarAllocator(),
@@ -120,7 +120,7 @@ def test_explicit_support_snapshot_state_copies_through_workspace() -> None:
     assert snapshot.value == pytest.approx(4.0)
 
 
-def test_explicit_support_set_apply_delta_safety_controls_workspace_update_mode() -> None:
+def test_explicit_support_step_support_apply_delta_updates_state_in_place() -> None:
     support = SchemeSupportExplicit.from_inputs(
         exponential_growth,
         ScalarAllocator(),
@@ -128,13 +128,11 @@ def test_explicit_support_set_apply_delta_safety_controls_workspace_update_mode(
     state = ScalarState(2.0)
     delta = FixedDelta()
 
-    support.set_apply_delta_safety(True)
-    support.workspace.apply_delta(delta, state)
+    support.step_support.apply_delta(delta, state)
 
     assert state.value == pytest.approx(3.0)
 
-    support.set_apply_delta_safety(False)
-    support.workspace.apply_delta(delta, state)
+    support.step_support.apply_delta(delta, state)
 
     assert state.value == pytest.approx(4.0)
 
@@ -144,7 +142,7 @@ def test_explicit_scheme_base_delegates_to_explicit_support() -> None:
 
     assert isinstance(scheme.explicit, SchemeSupportExplicit)
     assert scheme.derivative is scheme.explicit.derivative
-    assert scheme.workspace is scheme.explicit.workspace
+    assert scheme.workspace is scheme.explicit.step_support
     assert scheme.k1 is scheme.explicit.k1
 
 

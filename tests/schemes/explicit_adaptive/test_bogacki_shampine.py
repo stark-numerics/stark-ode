@@ -115,7 +115,7 @@ import pytest
 
 from stark import Integrator, Interval, Marcher
 from stark.monitor import Monitor
-from stark.schemes.explicit_adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
 
 
 def test_bogacki_shampine_owns_its_public_call_method() -> None:
@@ -228,13 +228,13 @@ def test_bogacki_shampine_integration_matches_characterized_step_count() -> None
 
 
 def test_bogacki_shampine_monitoring_records_existing_adaptive_fields() -> None:
-    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
+    monitor = Monitor()
+    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator(), monitor=monitor.scheme)
     marcher = Marcher(scheme, tight_executor())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
-    monitor = Monitor()
 
-    list(Integrator().live_monitored(marcher, interval, state, monitor))
+    list(Integrator().live(marcher, interval, state))
 
     assert len(monitor.scheme.adaptive_steps) == 2
     first = monitor.scheme.adaptive_steps[0]

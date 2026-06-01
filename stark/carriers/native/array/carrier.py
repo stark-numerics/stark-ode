@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from stark.carriers.native.array.allocation import CarrierAllocationNativeArray
+from stark.carriers.native.array.basis import CarrierBasisNativeArray
 from stark.carriers.native.array.arithmetic import CarrierArithmeticNativeArray
 from stark.carriers.native.array.norm import CarrierNormNativeArrayRMS
 from stark.carriers.native.array.storage import CarrierNativeArrayValue, CarrierStorageNativeArray
@@ -13,5 +14,6 @@ class CarrierNativeArray:
         self.storage = storage
         self.validation = CarrierValidationNativeArray(storage)
         self.allocation = CarrierAllocationNativeArray(storage)
+        self.basis = CarrierBasisNativeArray(storage)
         self.arithmetic = CarrierArithmeticNativeArray()
         self.norm = CarrierNormNativeArrayRMS()

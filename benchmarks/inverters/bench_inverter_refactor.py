@@ -11,7 +11,7 @@ from statistics import median
 from time import perf_counter
 
 from stark.accelerators import Accelerator
-from stark.block.operator import BlockOperator
+from stark.block.operator import BlockOperatorDiagonal
 from stark.block import Block
 from stark.executor.safety import ExecutorSafety
 from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES, InverterPolicy, InverterTolerance
@@ -55,7 +55,7 @@ class ScalarAllocator:
         return ScalarTranslation()
 
 
-class DenseBlockOperator(BlockOperator):
+class DenseBlockOperator(BlockOperatorDiagonal):
     """Small dense block operator expressed through STARK's block contract."""
 
     __slots__ = ("matrix",)
@@ -72,7 +72,7 @@ class DenseBlockOperator(BlockOperator):
             out[row_index].value = total
 
 
-class DiagonalBlockOperator(BlockOperator):
+class DiagonalBlockOperator(BlockOperatorDiagonal):
     """One-item scalar block operator for call-overhead-sensitive rows."""
 
     __slots__ = ("scale",)

@@ -6,7 +6,7 @@ from time import perf_counter
 import pytest
 
 from stark import Executor, Integrator, Interval, Marcher
-from stark.schemes.explicit_fixed.rk4 import SchemeRK4
+from stark.schemes.explicit.fixed.rk4 import SchemeRK4
 
 
 @dataclass(slots=True)

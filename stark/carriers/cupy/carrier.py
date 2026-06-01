@@ -1,4 +1,5 @@
 from stark.carriers.cupy.allocation import CarrierAllocationCupy
+from stark.carriers.cupy.basis import CarrierBasisCupy
 from stark.carriers.cupy.arithmetic import CarrierArithmeticCupy
 from stark.carriers.cupy.norm import CarrierNormCupyRMS
 from stark.carriers.cupy.storage import CarrierCupyValue, CarrierStorageCupy
@@ -12,5 +13,6 @@ class CarrierCupy:
         self.storage = storage
         self.validation = CarrierValidationCupy(storage)
         self.allocation = CarrierAllocationCupy(storage)
+        self.basis = CarrierBasisCupy(storage)
         self.arithmetic = CarrierArithmeticCupy(storage)
         self.norm = CarrierNormCupyRMS()

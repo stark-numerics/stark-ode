@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from stark.block import Block
 from stark.contracts import LegacyInverterPreconditionerLike
-from stark.block.operator import BlockOperator
+from stark.block.operator import BlockOperatorDiagonal
 from stark.inverters.legacy_support.workspace import InverterWorkspace
 
 
@@ -32,7 +32,7 @@ class InverterPreconditioner:
     def __str__(self) -> str:
         return "identity preconditioner" if self.worker is None else f"preconditioner {type(self.worker).__name__}"
 
-    def bind(self, operator: BlockOperator) -> None:
+    def bind(self, operator: BlockOperatorDiagonal) -> None:
         if self.worker is not None:
             self.worker.bind(operator)
 

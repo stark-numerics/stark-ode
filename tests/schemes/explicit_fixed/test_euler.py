@@ -6,8 +6,8 @@ import pytest
 
 from stark import Executor, Interval
 from stark.monitor import Monitor
-from stark.schemes.explicit_fixed.euler import SchemeEuler
-from stark.schemes.support.stencil import SchemeStencil
+from stark.schemes.explicit.fixed.euler import SchemeEuler
+from stark.schemes.specialization.stencil import SchemeStencil
 
 
 @dataclass(slots=True)

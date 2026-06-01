@@ -20,8 +20,8 @@ from stark.algebraist.layout import (
     AlgebraistLayoutField,
     AlgebraistLayoutLooped,
 )
-from stark.schemes.explicit_adaptive import SchemeCashKarp, SchemeDormandPrince
-from stark.schemes.explicit_fixed import SchemeEuler, SchemeRK4
+from stark.schemes.explicit.adaptive import SchemeCashKarp, SchemeDormandPrince
+from stark.schemes.explicit.fixed import SchemeEuler, SchemeRK4
 
 
 EXPLICIT_CASES = (

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from stark.contracts import IntervalLike
-from stark.resolvents.support.problem import ResolventStageProblem
-from stark.schemes.support.stage_problem import SchemeStageProblem
+from stark.resolvents.requests.resolvent import ResolventRequest
+from stark.schemes.requests.resolvent import SchemeResolventRequest
 
 
 class DummyTranslation:
@@ -35,8 +35,8 @@ def derivative(interval: IntervalLike, state: object, out: DummyTranslation) -> 
 
 
 def accepts_stage_problem(
-    problem: ResolventStageProblem,
-) -> ResolventStageProblem:
+    problem: ResolventRequest,
+) -> ResolventRequest:
     return problem
 
 
@@ -45,7 +45,7 @@ def test_scheme_stage_problem_satisfies_resolvent_stage_problem() -> None:
     origin = object()
     rhs = DummyTranslation()
 
-    problem = SchemeStageProblem(
+    problem = SchemeResolventRequest(
         derivative=derivative,
         interval=interval,
         origin=origin,
