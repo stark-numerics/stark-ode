@@ -2,9 +2,9 @@ from __future__ import annotations
 
 """Picard-backed resolvent for one-stage shifted implicit solves."""
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
-from stark.block import Block, BlockAllocator
+from stark.block import Block
 from stark.contracts import AcceleratorLike, Translation, Allocator
 from stark.accelerators import AcceleratorAbsent
 from stark.executor.tolerance import ExecutorTolerance
@@ -48,15 +48,14 @@ class ResolventPicard:
         "_monitor",
         "accelerator",
         "alpha",
-        "allocator",
         "call_step",
         "picard_update",
         "policy",
+        "max_iterations",
         "redirect_call",
         "equation",
         "residual_buffer",
         "safety",
-        "size",
         "tableau",
         "tolerance",
     )
@@ -90,17 +89,16 @@ class ResolventPicard:
         self.safety = safety if safety is not None else ResolventSafetyDefault()
         self.alpha = 0.0
         self._monitor = None
-        self.allocator = BlockAllocator(allocator)
         self.tolerance = (
             ExecutorTolerance
             if ExecutorTolerance is not None
             else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         )
         self.policy = policy if policy is not None else ResolventPolicy()
+        self.max_iterations = self.policy.max_iterations
 
-        self.residual_buffer = None
+        self.residual_buffer = Block([allocator.allocate_translation()])
         self.picard_update = None
-        self.size = -1
         
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
@@ -125,33 +123,19 @@ class ResolventPicard:
             ResolventStencilBlock((1.0, -1.0))
         )
 
-    def residual_scratch(
-        self,
-        delta: Block[Translation],
-    ) -> Block[Translation]:
-        size = len(delta)
-        if self.size != size:
-            self.size = size
-            self.residual_buffer = self.allocator.allocate_like(delta)
-
-        return cast(Block[Translation], self.residual_buffer)
-
     def call_inline(
         self,
         problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
-        if self.policy.max_iterations < 1:
-            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
-
         self.alpha = problem.alpha
         equation = self.equation.prepare(problem)
-        residual = self.residual_scratch(delta)
+        residual = self.residual_buffer
 
         block_size = len(delta)
         iteration_count = 0
 
-        for _ in range(self.policy.max_iterations):
+        for _ in range(self.max_iterations):
             # 2. Compute F(delta).
             equation(delta, residual)
 
@@ -178,7 +162,7 @@ class ResolventPicard:
         self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
             f"{type(self).__name__} failed to resolve the residual within "
-            f"{self.policy.max_iterations} iterations (error={error:g})."
+            f"{self.max_iterations} iterations (error={error:g})."
         )
 
     def call_specialized(
@@ -186,19 +170,16 @@ class ResolventPicard:
         problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
-        if self.policy.max_iterations < 1:
-            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
-
         self.alpha = problem.alpha
         equation = self.equation.prepare(problem)
-        residual = self.residual_scratch(delta)
+        residual = self.residual_buffer
         picard_update = self.picard_update
         assert picard_update is not None
 
         block_size = len(delta)
         iteration_count = 0
 
-        for _ in range(self.policy.max_iterations):
+        for _ in range(self.max_iterations):
             # 2. Compute F(delta).
             equation(delta, residual)
 
@@ -225,7 +206,7 @@ class ResolventPicard:
         self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
             f"{type(self).__name__} failed to resolve the residual within "
-            f"{self.policy.max_iterations} iterations (error={error:g})."
+            f"{self.max_iterations} iterations (error={error:g})."
         )
 
     def __call__(self, problem, delta):

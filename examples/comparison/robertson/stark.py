@@ -58,6 +58,30 @@ def _jacobian_kernel(state_y: Array, dy: Array, out_y: Array) -> None:
 
 
 @ACCELERATOR.compile
+def _jacobian_dense_kernel(
+    state_y: Array,
+    matrix: Array,
+    row_offset: int,
+    column_offset: int,
+    stride: int,
+) -> None:
+    y2 = state_y[1]
+    y3 = state_y[2]
+
+    matrix[(row_offset + 0) * stride + column_offset + 0] = -0.04
+    matrix[(row_offset + 0) * stride + column_offset + 1] = 1.0e4 * y3
+    matrix[(row_offset + 0) * stride + column_offset + 2] = 1.0e4 * y2
+
+    matrix[(row_offset + 1) * stride + column_offset + 0] = 0.04
+    matrix[(row_offset + 1) * stride + column_offset + 1] = -1.0e4 * y3 - 6.0e7 * y2
+    matrix[(row_offset + 1) * stride + column_offset + 2] = -1.0e4 * y2
+
+    matrix[(row_offset + 2) * stride + column_offset + 0] = 0.0
+    matrix[(row_offset + 2) * stride + column_offset + 1] = 6.0e7 * y2
+    matrix[(row_offset + 2) * stride + column_offset + 2] = 0.0
+
+
+@ACCELERATOR.compile
 def _state_error_kernel(y: Array, reference_y: Array) -> float:
     dy0 = y[0] - reference_y[0]
     dy1 = y[1] - reference_y[1]
@@ -208,7 +232,9 @@ class RobertsonFullLinearizer:
     def __init__(self) -> None:
         if not self.__class__._compiled:
             probe = np.zeros(3, dtype=np.float64)
+            probe_matrix = [0.0 for _ in range(9)]
             ACCELERATOR.compile_examples(_jacobian_kernel, (probe, probe, probe))
+            ACCELERATOR.compile_examples(_jacobian_dense_kernel, (probe, probe_matrix, 0, 0, 3))
             self.__class__._compiled = True
 
     def __call__(self, interval, state: StarkVector, out) -> None:
@@ -218,7 +244,11 @@ class RobertsonFullLinearizer:
         def apply(translation: StarkVectorTranslation, result: StarkVectorTranslation) -> None:
             _jacobian_kernel(state_y, translation.value.dy, result.value.dy)
 
+        def dense_fill(_basis, matrix, row_offset, column_offset, stride) -> None:
+            _jacobian_dense_kernel(state_y, matrix, row_offset, column_offset, stride)
+
         out.apply = apply
+        out.dense_fill = dense_fill
 
 
 class RobertsonVectorBasis:

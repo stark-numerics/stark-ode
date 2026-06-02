@@ -28,6 +28,7 @@ from stark.contracts.integrator import IntegratorLike
 from stark.contracts.interval import IntervalLike
 from stark.contracts.inverter import (
     Inverter,
+    InverterOutputMode,
     InverterRequest,
     LegacyInverterAudit,
     LegacyInverterLike,
@@ -104,6 +105,7 @@ __all__ = [
     "IntegratorLike",
     "IntervalLike",
     "Inverter",
+    "InverterOutputMode",
     "InverterRequest",
     "LegacyInverterAudit",
     "LegacyInverterLike",

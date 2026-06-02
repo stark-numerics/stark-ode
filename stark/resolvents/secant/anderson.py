@@ -212,6 +212,7 @@ class ResolventAnderson:
         "history",
         "history_correction",
         "policy",
+        "max_iterations",
         "redirect_call",
         "equation",
         "residual_buffer",
@@ -260,6 +261,7 @@ class ResolventAnderson:
             else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         )
         self.policy = policy if policy is not None else ResolventPolicy()
+        self.max_iterations = self.policy.max_iterations
         
         self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
         self.equation = ResolventImplicitEquation(
@@ -318,9 +320,6 @@ class ResolventAnderson:
         problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
-        if self.policy.max_iterations < 1:
-            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
-
         self.alpha = problem.alpha
         self.prepare_buffers(delta)
         self.history.clear()
@@ -333,7 +332,7 @@ class ResolventAnderson:
         block_size = len(delta)
         iteration_count = 0
 
-        for _ in range(self.policy.max_iterations):
+        for _ in range(self.max_iterations):
             # 1. Compute F(delta).
             equation(delta, residual)
 
@@ -370,7 +369,7 @@ class ResolventAnderson:
         self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
             f"{type(self).__name__} failed to resolve the residual within "
-            f"{self.policy.max_iterations} iterations (error={error:g})."
+            f"{self.max_iterations} iterations (error={error:g})."
         )
 
     def call_specialized(
@@ -378,9 +377,6 @@ class ResolventAnderson:
         problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
-        if self.policy.max_iterations < 1:
-            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
-
         self.alpha = problem.alpha
         self.prepare_buffers(delta)
         self.history.clear()
@@ -395,7 +391,7 @@ class ResolventAnderson:
         block_size = len(delta)
         iteration_count = 0
 
-        for _ in range(self.policy.max_iterations):
+        for _ in range(self.max_iterations):
             # 1. Compute F(delta).
             equation(delta, residual)
 
@@ -432,7 +428,7 @@ class ResolventAnderson:
         self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
             f"{type(self).__name__} failed to resolve the residual within "
-            f"{self.policy.max_iterations} iterations (error={error:g})."
+            f"{self.max_iterations} iterations (error={error:g})."
         )
     
     def __call__(self, problem, delta):

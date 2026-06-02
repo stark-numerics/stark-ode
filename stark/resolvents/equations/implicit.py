@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import MutableSequence
 from typing import cast
 
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.runtime.general import AlgebraistRuntimeGeneral
 from stark.block import Block, BlockOperatorDiagonal
 from stark.contracts import AcceleratorLike, Derivative, IntervalLike, Linearizer, State, Translation, Allocator
+from stark.contracts.translation_basis import TranslationBasis
 from stark.resolvents.requests.resolvent import (
     ResolventRequestCoupled,
     ResolventRequest,
@@ -16,11 +18,12 @@ from stark.resolvents.equations.workers import ResolventDerivative, ResolventLin
 class ResolventImplicitEquationJacobian:
     """Mutable Jacobian action configured by a linearizer."""
 
-    __slots__ = ("apply", "method_name")
+    __slots__ = ("apply", "dense_fill", "method_name")
 
     def __init__(self, method_name: str) -> None:
         self.method_name = method_name
         self.apply = self._unconfigured
+        self.dense_fill = None
 
     def __call__(self, translation: Translation, out: Translation) -> None:
         self.apply(translation, out)
@@ -36,10 +39,19 @@ class ResolventImplicitEquationJacobian:
 class ResolventImplicitEquationDifferential:
     """Linearized one-stage implicit equation action ``I - alpha J``."""
 
-    __slots__ = ("combine2", "jacobian_buffer", "jacobian", "alpha")
+    __slots__ = (
+        "combine2",
+        "dense_fill",
+        "dense_fill_direct",
+        "jacobian_buffer",
+        "jacobian",
+        "alpha",
+    )
 
     def __init__(self, combine2, allocate_translation, jacobian) -> None:
         self.combine2 = combine2
+        self.dense_fill = None
+        self.dense_fill_direct = self.dense_fill_configured
         self.jacobian_buffer = allocate_translation()
         self.jacobian = jacobian
         self.alpha = 0.0
@@ -47,6 +59,32 @@ class ResolventImplicitEquationDifferential:
     def __call__(self, translation: Translation, out: Translation) -> None:
         self.jacobian(translation, self.jacobian_buffer)
         self.combine2(1.0, translation, -self.alpha, self.jacobian_buffer, out)
+
+    def dense_fill_configured(
+        self,
+        basis: TranslationBasis[Translation],
+        matrix: MutableSequence[float],
+        row_offset: int,
+        column_offset: int,
+        stride: int,
+    ) -> None:
+        jacobian_dense_fill = self.jacobian.dense_fill
+        assert jacobian_dense_fill is not None
+
+        jacobian_dense_fill(basis, matrix, row_offset, column_offset, stride)
+
+        dimension = basis.dimension
+        alpha = self.alpha
+        for local_column in range(dimension):
+            column = column_offset + local_column
+            for local_row in range(dimension):
+                row = row_offset + local_row
+                matrix[row * stride + column] *= -alpha
+
+        for local_index in range(dimension):
+            row = row_offset + local_index
+            column = column_offset + local_index
+            matrix[row * stride + column] += 1.0
 
 
 class ResolventImplicitEquationDifferentialCoupled:
@@ -80,6 +118,7 @@ class ResolventImplicitEquationDifferentialCoupled:
         self.step = 0.0
         for jacobian in self.jacobians:
             jacobian.apply = jacobian._unconfigured
+            jacobian.dense_fill = None
 
     def __call__(self, block: Block[Translation], out: Block[Translation]) -> None:
         for row_index, row in enumerate(self.matrix):
@@ -238,8 +277,14 @@ class ResolventImplicitEquation:
         assert interval is not None
 
         block[0](self.base_state, self.trial_state)
+        self.jacobian_operator.dense_fill = None
         linearizer(interval, self.trial_state, self.jacobian_operator)
         self.residual_operator.alpha = self.alpha
+        self.residual_operator.dense_fill = (
+            self.residual_operator.dense_fill_direct
+            if self.jacobian_operator.dense_fill is not None
+            else None
+        )
         out[0] = self.residual_operator
 
 
@@ -426,6 +471,7 @@ class ResolventImplicitEquationCoupled:
             delta(self.base_state, self.stage_states[index])
             interval = self.stage_intervals[index]
             assert interval is not None
+            self.jacobian_operators[index].dense_fill = None
             linearizer(interval, self.stage_states[index], self.jacobian_operators[index])
 
     def _ensure_stage_count(self, stage_count: int) -> None:

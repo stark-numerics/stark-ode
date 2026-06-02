@@ -6,6 +6,7 @@ from typing import Generic
 from stark.contracts import (
     BlockOperatorEntryLike,
     BlockLike,
+    InverterOutputMode,
     InverterRequest,
     TranslationType,
 )
@@ -63,6 +64,7 @@ class InverterRelaxationJacobi(Generic[TranslationType]):
     )
 
     descriptor = InverterDescriptor("Jacobi", "Jacobi relaxation")
+    output_mode = InverterOutputMode.improve
 
     def __init__(
         self,

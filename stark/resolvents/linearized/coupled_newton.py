@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING, Any, cast
 from stark.block import Block, BlockAllocator, BlockOperatorDiagonal
 from stark.contracts import (
     AcceleratorLike,
+    BlockOperatorLike,
     Inverter,
+    InverterOutputMode,
     Linearizer,
     Translation,
     Allocator,
@@ -59,11 +61,13 @@ class ResolventCoupledNewton:
         "newton_update",
         "operator",
         "policy",
+        "max_iterations",
         "redirect_call",
         "equation",
         "residual_buffer",
         "rhs_buffer",
         "safety",
+        "solve_correction",
         "size",
         "tableau",
         "tolerance",
@@ -107,7 +111,14 @@ class ResolventCoupledNewton:
             else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         )
         self.policy = policy if policy is not None else ResolventPolicy()
+        self.max_iterations = self.policy.max_iterations
         self.inverter = inverter
+        self.solve_correction = (
+            self.solve_correction_overwrite
+            if getattr(inverter, "output_mode", InverterOutputMode.improve)
+            is InverterOutputMode.overwrite
+            else self.solve_correction_improve
+        )
 
         self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
         self.equation = ResolventImplicitEquationCoupled(
@@ -138,6 +149,25 @@ class ResolventCoupledNewton:
         self.newton_update = specialist.provide(
             ResolventStencilBlock((1.0, 1.0))
         )
+
+    def solve_correction_improve(
+        self,
+        operator: BlockOperatorLike[Translation],
+        rhs: Block[Translation],
+        correction: Block[Translation],
+    ) -> None:
+        correction.replace(0.0 * correction)
+        request = ResolventInverterRequest(operator=operator, residual=rhs)
+        self.inverter(request, correction)
+
+    def solve_correction_overwrite(
+        self,
+        operator: BlockOperatorLike[Translation],
+        rhs: Block[Translation],
+        correction: Block[Translation],
+    ) -> None:
+        request = ResolventInverterRequest(operator=operator, residual=rhs)
+        self.inverter(request, correction)
 
     def prepare_buffers(self, delta: Block[Translation]) -> None:
         size = len(delta)
@@ -170,9 +200,6 @@ class ResolventCoupledNewton:
         problem: ResolventRequestCoupled,
         delta: Block[Translation],
     ) -> Block[Translation]:
-        if self.policy.max_iterations < 1:
-            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
-
         self.alpha = problem.step
         self.prepare_buffers(delta)
 
@@ -184,7 +211,7 @@ class ResolventCoupledNewton:
         block_size = len(delta)
         iteration_count = 0
 
-        for _ in range(self.policy.max_iterations):
+        for _ in range(self.max_iterations):
             # 1. Compute the coupled residual F(delta).
             equation(delta, residual)
 
@@ -202,9 +229,7 @@ class ResolventCoupledNewton:
 
             # 4. Solve DF(delta) correction = -F(delta).
             rhs.replace(-1.0 * residual)
-            correction.replace(0.0 * correction)
-            request = ResolventInverterRequest(operator=operator, residual=rhs)
-            self.inverter(request, correction)
+            self.solve_correction(operator, rhs, correction)
 
             # 5. Newton update: delta <- delta + correction.
             delta += correction
@@ -222,7 +247,7 @@ class ResolventCoupledNewton:
         self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
             f"{type(self).__name__} failed to resolve the residual within "
-            f"{self.policy.max_iterations} iterations (error={error:g})."
+            f"{self.max_iterations} iterations (error={error:g})."
         )
 
     def call_specialized(
@@ -230,9 +255,6 @@ class ResolventCoupledNewton:
         problem: ResolventRequestCoupled,
         delta: Block[Translation],
     ) -> Block[Translation]:
-        if self.policy.max_iterations < 1:
-            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
-
         self.alpha = problem.step
         self.prepare_buffers(delta)
 
@@ -246,7 +268,7 @@ class ResolventCoupledNewton:
         block_size = len(delta)
         iteration_count = 0
 
-        for _ in range(self.policy.max_iterations):
+        for _ in range(self.max_iterations):
             # 1. Compute the coupled residual F(delta).
             equation(delta, residual)
 
@@ -264,9 +286,7 @@ class ResolventCoupledNewton:
 
             # 4. Solve DF(delta) correction = -F(delta).
             rhs.replace(-1.0 * residual)
-            correction.replace(0.0 * correction)
-            request = ResolventInverterRequest(operator=operator, residual=rhs)
-            self.inverter(request, correction)
+            self.solve_correction(operator, rhs, correction)
 
             # 5. Newton update: delta <- delta + correction.
             newton_update(1.0, delta, correction, delta)
@@ -284,7 +304,7 @@ class ResolventCoupledNewton:
         self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
             f"{type(self).__name__} failed to resolve the residual within "
-            f"{self.policy.max_iterations} iterations (error={error:g})."
+            f"{self.max_iterations} iterations (error={error:g})."
         )
 
     def __call__(self, problem, delta):

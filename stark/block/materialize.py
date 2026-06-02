@@ -1,12 +1,105 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, MutableSequence, Sequence
 from dataclasses import dataclass, field
 from typing import Generic
 
 from stark.contracts.block import BlockLike, BlockOperatorDiagonalLike
 from stark.contracts.translation import TranslationType
 from stark.contracts.translation_basis import TranslationBasis
+
+
+OperatorDenseFill = Callable[
+    [
+        TranslationBasis[TranslationType],
+        MutableSequence[float],
+        int,
+        int,
+        int,
+    ],
+    None,
+]
+
+
+class OperatorDenseEntryMaterialize(Generic[TranslationType]):
+    """Prepared dense materializer for one translation-level operator."""
+
+    def refresh(
+        self,
+        matrix: MutableSequence[float],
+        *,
+        row_offset: int,
+        column_offset: int,
+        stride: int,
+        source: TranslationType,
+        image: TranslationType,
+    ) -> tuple[TranslationType, TranslationType]:
+        raise NotImplementedError
+
+
+@dataclass(slots=True)
+class OperatorDenseEntryMaterializeDirect(Generic[TranslationType]):
+    """Use an operator-provided dense-fill capability."""
+
+    dense_fill: OperatorDenseFill[TranslationType]
+    basis: TranslationBasis[TranslationType]
+
+    def refresh(
+        self,
+        matrix: MutableSequence[float],
+        *,
+        row_offset: int,
+        column_offset: int,
+        stride: int,
+        source: TranslationType,
+        image: TranslationType,
+    ) -> tuple[TranslationType, TranslationType]:
+        self.dense_fill(self.basis, matrix, row_offset, column_offset, stride)
+        return source, image
+
+
+@dataclass(slots=True)
+class OperatorDenseEntryMaterializeProbe(Generic[TranslationType]):
+    """Materialize an operator by applying it to basis vectors."""
+
+    operator: object
+    basis: TranslationBasis[TranslationType]
+
+    def refresh(
+        self,
+        matrix: MutableSequence[float],
+        *,
+        row_offset: int,
+        column_offset: int,
+        stride: int,
+        source: TranslationType,
+        image: TranslationType,
+    ) -> tuple[TranslationType, TranslationType]:
+        dimension = self.basis.dimension
+        for local_column in range(dimension):
+            source = self.basis.vector(local_column, source)
+            result = self.operator(source, image)  # type: ignore[operator]
+            if result is not None:
+                image = result
+
+            column = column_offset + local_column
+            for local_row in range(dimension):
+                row = row_offset + local_row
+                matrix[row * stride + column] = self.basis.coordinate(local_row, image)
+
+        return source, image
+
+
+def dense_entry_materializer(
+    operator: object,
+    basis: TranslationBasis[TranslationType],
+    dense_fill: object | None = None,
+) -> OperatorDenseEntryMaterialize[TranslationType]:
+    if dense_fill is None:
+        dense_fill = getattr(operator, "dense_fill", None)
+    if callable(dense_fill):
+        return OperatorDenseEntryMaterializeDirect(dense_fill, basis)
+    return OperatorDenseEntryMaterializeProbe(operator, basis)
 
 
 @dataclass(slots=True)
@@ -30,10 +123,14 @@ class OperatorMaterialize(Generic[TranslationType]):
     source: TranslationType
     image: TranslationType
     matrix: list[float] = field(init=False)
+    entry_materializer: OperatorDenseEntryMaterialize[TranslationType] = field(init=False)
+    refresh_initial: bool = True
 
     def __post_init__(self) -> None:
         self.matrix = self._allocate_matrix()
-        self.refresh()
+        self.entry_materializer = dense_entry_materializer(self.operator, self.basis)
+        if self.refresh_initial:
+            self.refresh()
 
     @property
     def dimension(self) -> int:
@@ -53,15 +150,18 @@ class OperatorMaterialize(Generic[TranslationType]):
         dimension = self.basis.dimension
         if len(self.matrix) != dimension * dimension:
             self.matrix = self._allocate_matrix()
+        else:
+            for index in range(len(self.matrix)):
+                self.matrix[index] = 0.0
 
-        for column in range(dimension):
-            self.source = self.basis.vector(column, self.source)
-            result = self.operator(self.source, self.image)  # type: ignore[operator]
-            if result is not None:
-                self.image = result
-
-            for row in range(dimension):
-                self.matrix[row * dimension + column] = self.basis.coordinate(row, self.image)
+        self.source, self.image = self.entry_materializer.refresh(
+            self.matrix,
+            row_offset=0,
+            column_offset=0,
+            stride=dimension,
+            source=self.source,
+            image=self.image,
+        )
 
         return self.matrix
 
@@ -88,13 +188,21 @@ class BlockOperatorDiagonalMaterialize(Generic[TranslationType]):
     matrix: list[float] = field(init=False)
     offsets: list[int] = field(init=False)
     dimension: int = field(init=False)
+    entry_materializers: list[OperatorDenseEntryMaterialize[TranslationType] | None] = field(init=False)
+    entry_operators: list[object | None] = field(init=False)
+    entry_dense_fills: list[object | None] = field(init=False)
+    refresh_initial: bool = True
 
     def __post_init__(self) -> None:
         self.bases = self._normalize_bases(self.bases)
         self.offsets = self._build_offsets(self.bases)
         self.dimension = self.offsets[-1]
         self.matrix = self._allocate_matrix()
-        self.refresh()
+        self.entry_materializers = [None for _ in self.bases]
+        self.entry_operators = [None for _ in self.bases]
+        self.entry_dense_fills = [None for _ in self.bases]
+        if self.refresh_initial:
+            self.refresh()
 
     @property
     def shape(self) -> tuple[int, int]:
@@ -150,24 +258,43 @@ class BlockOperatorDiagonalMaterialize(Generic[TranslationType]):
             if entry_operator is None:
                 raise RuntimeError(f"Block operator diagonal entry {block_index} is not configured.")
 
-            offset = self.offsets[block_index]
-            for local_column in range(basis.dimension):
-                source_item = basis.vector(local_column, self.source[block_index])
-                self.source[block_index] = source_item
-                result = entry_operator(source_item, self.image[block_index])
-                if result is not None:
-                    self.image[block_index] = result
+            entry_materializer = self.entry_materializers[block_index]
+            entry_dense_fill = getattr(entry_operator, "dense_fill", None)
+            if (
+                entry_materializer is None
+                or self.entry_operators[block_index] is not entry_operator
+                or self.entry_dense_fills[block_index] is not entry_dense_fill
+            ):
+                entry_materializer = dense_entry_materializer(
+                    entry_operator,
+                    basis,
+                    entry_dense_fill,
+                )
+                self.entry_materializers[block_index] = entry_materializer
+                self.entry_operators[block_index] = entry_operator
+                self.entry_dense_fills[block_index] = entry_dense_fill
 
-                image_item = self.image[block_index]
-                for local_row in range(basis.dimension):
-                    row = offset + local_row
-                    column = offset + local_column
-                    self.matrix[row * dimension + column] = basis.coordinate(local_row, image_item)
+            offset = self.offsets[block_index]
+            source_item, image_item = entry_materializer.refresh(
+                self.matrix,
+                row_offset=offset,
+                column_offset=offset,
+                stride=dimension,
+                source=self.source[block_index],
+                image=self.image[block_index],
+            )
+            self.source[block_index] = source_item
+            self.image[block_index] = image_item
 
         return self.matrix
 
 
 __all__ = [
     "BlockOperatorDiagonalMaterialize",
+    "OperatorDenseEntryMaterialize",
+    "OperatorDenseEntryMaterializeDirect",
+    "OperatorDenseEntryMaterializeProbe",
+    "OperatorDenseFill",
     "OperatorMaterialize",
+    "dense_entry_materializer",
 ]

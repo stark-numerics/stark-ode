@@ -48,6 +48,7 @@ class ResolventCoupledPicard:
         "call_step",
         "picard_update",
         "policy",
+        "max_iterations",
         "redirect_call",
         "equation",
         "residual_buffer",
@@ -94,6 +95,7 @@ class ResolventCoupledPicard:
             else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         )
         self.policy = policy if policy is not None else ResolventPolicy()
+        self.max_iterations = self.policy.max_iterations
 
         self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
         self.equation = ResolventImplicitEquationCoupled(
@@ -138,9 +140,6 @@ class ResolventCoupledPicard:
         problem: ResolventRequestCoupled,
         delta: Block[Translation],
     ) -> Block[Translation]:
-        if self.policy.max_iterations < 1:
-            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
-
         self.alpha = problem.step
         equation = self.equation.prepare(problem)
         residual = self.residual_scratch(delta)
@@ -148,7 +147,7 @@ class ResolventCoupledPicard:
         block_size = len(delta)
         iteration_count = 0
 
-        for _ in range(self.policy.max_iterations):
+        for _ in range(self.max_iterations):
             # 2. Compute the coupled residual F(delta).
             equation(delta, residual)
 
@@ -175,7 +174,7 @@ class ResolventCoupledPicard:
         self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
             f"{type(self).__name__} failed to resolve the residual within "
-            f"{self.policy.max_iterations} iterations (error={error:g})."
+            f"{self.max_iterations} iterations (error={error:g})."
         )
 
     def call_specialized(
@@ -183,9 +182,6 @@ class ResolventCoupledPicard:
         problem: ResolventRequestCoupled,
         delta: Block[Translation],
     ) -> Block[Translation]:
-        if self.policy.max_iterations < 1:
-            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
-
         self.alpha = problem.step
         equation = self.equation.prepare(problem)
         residual = self.residual_scratch(delta)
@@ -195,7 +191,7 @@ class ResolventCoupledPicard:
         block_size = len(delta)
         iteration_count = 0
 
-        for _ in range(self.policy.max_iterations):
+        for _ in range(self.max_iterations):
             # 2. Compute the coupled residual F(delta).
             equation(delta, residual)
 
@@ -222,7 +218,7 @@ class ResolventCoupledPicard:
         self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
             f"{type(self).__name__} failed to resolve the residual within "
-            f"{self.policy.max_iterations} iterations (error={error:g})."
+            f"{self.max_iterations} iterations (error={error:g})."
         )
 
     def __call__(self, problem, delta):

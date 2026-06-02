@@ -2,11 +2,27 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any, Protocol
 
 from stark.contracts.contract_audit import AuditRecorder
 from stark.contracts.block import BlockLike, BlockOperatorLike
 from stark.contracts.translation import Translation, TranslationType
+
+
+class InverterOutputMode(Enum):
+    """
+    Contract for how an inverter treats the supplied output block.
+
+    overwrite:
+        The inverter computes a fresh solution and replaces output contents.
+
+    improve:
+        The inverter treats output as the current guess and improves it in place.
+    """
+
+    overwrite = "overwrite"
+    improve = "improve"
 
 
 class InverterRequest(Protocol[TranslationType]):
@@ -40,6 +56,8 @@ class Inverter(Protocol[TranslationType]):
 
         request.operator(output) ≈ request.residual
     """
+    output_mode: InverterOutputMode
+
     def __call__(
         self,
         request: InverterRequest[TranslationType],
@@ -111,8 +129,11 @@ class LegacyInverterAudit:
         )
 
 
-__all__ = ["InverterRequest", 
-           "Inverter", 
-           "LegacyInverterAudit", 
-           "LegacyInverterLike", 
-           "LegacyInverterPreconditionerLike"]
+__all__ = [
+    "InverterOutputMode",
+    "InverterRequest",
+    "Inverter",
+    "LegacyInverterAudit",
+    "LegacyInverterLike",
+    "LegacyInverterPreconditionerLike",
+]

@@ -2,12 +2,13 @@ from __future__ import annotations
 
 """Newton-backed resolvent for one-stage shifted implicit solves."""
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
-from stark.block import Block, BlockAllocator, BlockOperatorDiagonal
+from stark.block import Block, BlockOperatorDiagonal
 from stark.contracts import (
     AcceleratorLike,
     Inverter,
+    InverterOutputMode,
     Linearizer,
     Translation,
     Allocator,
@@ -56,19 +57,19 @@ class ResolventNewton:
         "_monitor",
         "accelerator",
         "alpha",
-        "allocator",
         "call_step",
         "correction",
         "inverter",
         "newton_update",
         "operator",
         "policy",
+        "max_iterations",
         "redirect_call",
         "equation",
         "residual_buffer",
         "rhs_buffer",
         "safety",
-        "size",
+        "solve_correction",
         "tableau",
         "tolerance",
     )
@@ -104,14 +105,20 @@ class ResolventNewton:
         self.alpha = 0.0
         self._monitor = None
 
-        self.allocator = BlockAllocator(allocator)
         self.tolerance = (
             ExecutorTolerance
             if ExecutorTolerance is not None
             else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
         )
         self.policy = policy if policy is not None else ResolventPolicy()
+        self.max_iterations = self.policy.max_iterations
         self.inverter = inverter
+        self.solve_correction = (
+            self.solve_correction_overwrite
+            if getattr(inverter, "output_mode", InverterOutputMode.improve)
+            is InverterOutputMode.overwrite
+            else self.solve_correction_improve
+        )
 
         self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
         self.equation = ResolventImplicitEquation(
@@ -120,12 +127,11 @@ class ResolventNewton:
             linearizer=linearizer,
             accelerator=self.accelerator,
         )
-        self.correction = None
-        self.residual_buffer = None
-        self.rhs_buffer = None
-        self.operator = None
+        self.correction = Block([allocator.allocate_translation()])
+        self.residual_buffer = Block([allocator.allocate_translation()])
+        self.rhs_buffer = Block([allocator.allocate_translation()])
+        self.operator = BlockOperatorDiagonal([None])
         self.newton_update = None
-        self.size = -1
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
@@ -143,38 +149,42 @@ class ResolventNewton:
             ResolventStencilBlock((1.0, 1.0))
         )
 
-    def prepare_buffers(self, delta: Block[Translation]) -> None:
-        size = len(delta)
-        if self.size == size:
-            return
+    def solve_correction_improve(
+        self,
+        operator: BlockOperatorDiagonal[Translation],
+        rhs: Block[Translation],
+        correction: Block[Translation],
+    ) -> None:
+        correction.replace(0.0 * correction)
+        request = ResolventInverterRequest(operator=operator, residual=rhs)
+        self.inverter(request, correction)
 
-        self.size = size
-        self.correction = self.allocator.allocate_like(delta)
-        self.residual_buffer = self.allocator.allocate_like(delta)
-        self.rhs_buffer = self.allocator.allocate_like(delta)
-        self.operator = BlockOperatorDiagonal(None for _ in range(size))
+    def solve_correction_overwrite(
+        self,
+        operator: BlockOperatorDiagonal[Translation],
+        rhs: Block[Translation],
+        correction: Block[Translation],
+    ) -> None:
+        request = ResolventInverterRequest(operator=operator, residual=rhs)
+        self.inverter(request, correction)
 
     def call_inline(
         self,
         problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
-        if self.policy.max_iterations < 1:
-            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
-
         self.alpha = problem.alpha
-        self.prepare_buffers(delta)
 
         equation = self.equation.prepare(problem)
-        correction = cast(Block[Translation], self.correction)
-        residual = cast(Block[Translation], self.residual_buffer)
-        rhs = cast(Block[Translation], self.rhs_buffer)
-        operator = cast(BlockOperatorDiagonal[Translation], self.operator)
+        correction = self.correction
+        residual = self.residual_buffer
+        rhs = self.rhs_buffer
+        operator = self.operator
 
         block_size = len(delta)
         iteration_count = 0
 
-        for _ in range(self.policy.max_iterations):
+        for _ in range(self.max_iterations):
             # 1. Compute F(delta).
             equation(delta, residual)
 
@@ -191,9 +201,7 @@ class ResolventNewton:
 
             # 4. Solve DF(delta) correction = -F(delta).
             rhs.replace(-1.0 * residual)
-            correction.replace(0.0 * correction)
-            request = ResolventInverterRequest(operator=operator, residual=rhs)
-            self.inverter(request, correction)
+            self.solve_correction(operator, rhs, correction)
 
             # 5. Newton update: delta <- delta + correction.
             delta += correction
@@ -211,7 +219,7 @@ class ResolventNewton:
         self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
             f"{type(self).__name__} failed to resolve the residual within "
-            f"{self.policy.max_iterations} iterations (error={error:g})."
+            f"{self.max_iterations} iterations (error={error:g})."
         )
 
     def call_specialized(
@@ -219,24 +227,20 @@ class ResolventNewton:
         problem: ResolventRequest,
         delta: Block[Translation],
     ) -> Block[Translation]:
-        if self.policy.max_iterations < 1:
-            raise ValueError("ResolventPolicy.max_iterations must be at least 1.")
-
         self.alpha = problem.alpha
-        self.prepare_buffers(delta)
 
         equation = self.equation.prepare(problem)
-        correction = cast(Block[Translation], self.correction)
-        residual = cast(Block[Translation], self.residual_buffer)
-        rhs = cast(Block[Translation], self.rhs_buffer)
-        operator = cast(BlockOperatorDiagonal[Translation], self.operator)
+        correction = self.correction
+        residual = self.residual_buffer
+        rhs = self.rhs_buffer
+        operator = self.operator
         newton_update = self.newton_update
         assert newton_update is not None
 
         block_size = len(delta)
         iteration_count = 0
 
-        for _ in range(self.policy.max_iterations):
+        for _ in range(self.max_iterations):
             # 1. Compute F(delta).
             equation(delta, residual)
 
@@ -253,9 +257,7 @@ class ResolventNewton:
 
             # 4. Solve DF(delta) correction = -F(delta).
             rhs.replace(-1.0 * residual)
-            correction.replace(0.0 * correction)
-            request = ResolventInverterRequest(operator=operator, residual=rhs)
-            self.inverter(request, correction)
+            self.solve_correction(operator, rhs, correction)
 
             # 5. Newton update: delta <- delta + correction.
             newton_update(1.0, delta, correction, delta)
@@ -273,7 +275,7 @@ class ResolventNewton:
         self.record_solve(block_size, iteration_count, error, scale, False)
         raise ResolventError(
             f"{type(self).__name__} failed to resolve the residual within "
-            f"{self.policy.max_iterations} iterations (error={error:g})."
+            f"{self.max_iterations} iterations (error={error:g})."
         )
 
     def __call__(self, problem, delta):

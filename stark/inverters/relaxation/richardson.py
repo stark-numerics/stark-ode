@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from typing import Generic
 
-from stark.contracts import BlockLike, InverterRequest, TranslationType
+from stark.contracts import (
+    BlockLike,
+    InverterOutputMode,
+    InverterRequest,
+    TranslationType,
+)
 from stark.inverters.relaxation.specialist import InverterRelaxationSpecialist
 from stark.inverters.relaxation.stencil import InverterRelaxationStencilUpdate
 from stark.inverters.support import (
@@ -49,6 +54,7 @@ class InverterRelaxationRichardson(Generic[TranslationType]):
     )
 
     descriptor = InverterDescriptor("Richardson", "Richardson relaxation")
+    output_mode = InverterOutputMode.improve
 
     def __init__(
         self,
