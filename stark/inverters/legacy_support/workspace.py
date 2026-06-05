@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from math import sqrt
 from typing import Callable
 
-from stark.accelerators import AcceleratorAbsent
+from stark.accelerators import AcceleratorNone
 from stark.algebraist.runtime import AlgebraistRuntimeGeneral
 from stark.block import Block
-from stark.contracts import AcceleratorLike, InnerProduct, Translation, Allocator
+from stark.contracts import Accelerator, InnerProduct, Translation, Allocator
 from stark.inverters.legacy_support.safety import InverterSafety, InverterSafetyDefault
 
 
@@ -15,7 +15,7 @@ from stark.inverters.legacy_support.safety import InverterSafety, InverterSafety
 class InverterWorkspace:
     """Reusable scratch support for bundle-level linear inversion."""
 
-    accelerator: AcceleratorLike
+    accelerator: Accelerator
     allocate_translation: Callable[[], Translation]
     inner_product_translation: InnerProduct
     translation: Translation
@@ -31,9 +31,9 @@ class InverterWorkspace:
         translation: Translation,
         inner_product: InnerProduct,
         safety: InverterSafety | None = None,
-        accelerator: AcceleratorLike | None = None,
+        accelerator: Accelerator | None = None,
     ) -> None:
-        self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
+        self.accelerator = accelerator if accelerator is not None else AcceleratorNone()
         self.allocate_translation = allocator.allocate_translation
         self.inner_product_translation = inner_product
         self.translation = translation
@@ -41,7 +41,7 @@ class InverterWorkspace:
         self._check = self._check_size if self.safety.block_sizes else self._skip_check
         self.bind_accelerator(self.accelerator)
 
-    def bind_accelerator(self, accelerator: AcceleratorLike) -> None:
+    def bind_accelerator(self, accelerator: Accelerator) -> None:
         self.accelerator = accelerator
         algebraist = AlgebraistRuntimeGeneral(
             translation=self.translation,
@@ -133,7 +133,6 @@ class InverterWorkspace:
 
 
 __all__ = ["InverterWorkspace"]
-
 
 
 

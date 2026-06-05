@@ -1,6 +1,5 @@
-from stark.core.integrate import Integrator
-from stark.executor.safety import ExecutorSafety
-
+from stark.integrator.integrator import Integrator
+from stark.core import Configuration
 
 class DummyInterval:
     def __init__(self, present: float, step: float, stop: float) -> None:
@@ -69,18 +68,18 @@ def test_integrate_with_safety_rails_advances() -> None:
 
 
 def test_integrate_with_safety_rails_raises_on_no_progress() -> None:
-    iterator = Integrator(safety=ExecutorSafety())(StalledMarcher(), DummyInterval(0.0, 0.25, 1.0), object())
+    iterator = Integrator(configuration=Configuration())(StalledMarcher(), DummyInterval(0.0, 0.25, 1.0), object())
 
     try:
         next(iterator)
     except RuntimeError as exc:
         assert "no progress" in str(exc).lower()
     else:  # pragma: no cover - defensive failure branch
-        raise AssertionError("Expected ExecutorSafety rails to reject a stalled integration.")
+        raise AssertionError("Expected ConfigurationSafety rails to reject a stalled integration.")
 
 
 def test_integrate_without_safety_rails_can_skip_progress_check() -> None:
-    iterator = Integrator(safety=ExecutorSafety.fast()).live(
+    iterator = Integrator(configuration=Configuration(check_progress=False)).live(
         StalledMarcher(),
         DummyInterval(0.0, 0.25, 1.0),
         object(),

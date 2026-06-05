@@ -1,0 +1,48 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Protocol
+
+from stark.core.tolerance import Tolerance
+
+@dataclass(frozen=True, slots=True)
+class Configuration:
+    """Immutable init-time configuration for STARK components."""
+
+    scheme_tolerance: Tolerance = field(default_factory=Tolerance)
+    adaptive_scheme_safety: float = 0.8
+    adaptive_scheme_min_factor: float = 0.1
+    adaptive_scheme_max_factor: float = 5.0
+    adaptive_scheme_error_exponent: float = 0.2
+    check_progress: bool = True
+    resolvent_tolerance: Tolerance = field(
+        default_factory=lambda: Tolerance(atol=1.0e-9, rtol=1.0e-9)
+    )
+    resolvent_maximum_steps: int = 16
+    inverter_tolerance: Tolerance = field(default_factory=Tolerance)
+    inverter_maximum_steps: int = 32
+
+    def __post_init__(self) -> None:
+        if self.adaptive_scheme_min_factor <= 0.0:
+            raise ValueError("Configuration.adaptive_scheme_min_factor must be positive.")
+        if self.adaptive_scheme_max_factor <= 0.0:
+            raise ValueError("Configuration.adaptive_scheme_max_factor must be positive.")
+        if self.adaptive_scheme_min_factor > self.adaptive_scheme_max_factor:
+            raise ValueError(
+                "Configuration.adaptive_scheme_min_factor must not exceed "
+                "adaptive_scheme_max_factor."
+            )
+        if self.adaptive_scheme_safety <= 0.0:
+            raise ValueError("Configuration.adaptive_scheme_safety must be positive.")
+        if self.adaptive_scheme_error_exponent <= 0.0:
+            raise ValueError("Configuration.adaptive_scheme_error_exponent must be positive.")
+        if self.resolvent_maximum_steps < 1:
+            raise ValueError("Configuration.resolvent_maximum_steps must be at least 1.")
+        if self.inverter_maximum_steps < 1:
+            raise ValueError("Configuration.inverter_maximum_steps must be at least 1.")
+
+
+__all__ = [
+    "Configuration",
+    "IntegratorConfiguration",
+]

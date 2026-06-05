@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark import Interval
+from stark import Configuration, Interval, Tolerance
 from stark.block import Block
-from stark.resolvents import ResolventAnderson, ResolventPolicy, ResolventTolerance
+from stark.resolvents import ResolventAnderson
 from stark.schemes.requests.resolvent import SchemeResolventRequest
 
 
@@ -89,8 +89,7 @@ def test_anderson_resolvent_solves_rhs_shift_without_reversing_residual_argument
     resolvent = ResolventAnderson(
         ScalarAllocator(),
         inner_product,
-        ExecutorTolerance=ResolventTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=4),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=4),
     )
     interval = Interval(present=0.0, step=0.1, stop=1.0)
     state = ScalarState(1.0)

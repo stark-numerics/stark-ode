@@ -256,7 +256,7 @@ class ComparisonReportWriter:
                 [
                     "",
                     "Custom entry hotspots",
-                    "Rows show the top non-STARK profile entries for custom marchers or runtime",
+                    "Rows show the top non-STARK profile entries for custom steppers or runtime",
                     "configurations, ordered by cumulative time so users can see where their own",
                     "code is spending time.",
                 ]

@@ -6,11 +6,11 @@ from typing import Any
 import numpy as np
 import pytest
 
-from stark import Executor, Interval, ExecutorTolerance
-from stark.accelerators import Accelerator
+from stark import Interval, Tolerance
+from stark.accelerators import AcceleratorNone
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.resolvents import ResolventPicard
-from stark.resolvents.method.policy import ResolventPolicy
+from stark import Configuration
 from stark.schemes.imex.adaptive.kennedy_carpenter32 import (
     SchemeKennedyCarpenter32,
 )
@@ -114,9 +114,8 @@ def make_array_scheme(
     )
     resolvent = ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=scheme_cls.tableau,
     )
     return scheme_cls(
@@ -134,8 +133,8 @@ def make_array_scheme(
     )
 
 
-def tight_executor() -> Executor:
-    return Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
+def tight_configuration() -> Configuration:
+    return Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
 @pytest.mark.parametrize("scheme_cls", IMEX_ADAPTIVE_SCHEMES)
@@ -162,8 +161,8 @@ def test_imex_adaptive_specialist_path_matches_generic_path(
     generic_state = ArrayScalarState.zero()
     generated_state = ArrayScalarState.zero()
 
-    generic_dt = generic(generic_interval, generic_state, tight_executor())
-    generated_dt = generated(generated_interval, generated_state, tight_executor())
+    generic_dt = generic(generic_interval, generic_state)
+    generated_dt = generated(generated_interval, generated_state)
 
     assert generated_dt == pytest.approx(generic_dt)
     assert generated_state.value[0] == pytest.approx(generic_state.value[0])

@@ -1,15 +1,11 @@
 from __future__ import annotations
 
+from stark.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.block import Block
 from stark.contracts import DerivativeIMEX, IntervalLike, Resolvent, State, Allocator
-from stark.schemes.execution.executor import SchemeExecutor
-from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.contracts.errors import StarkErrorRecoverable
-from stark.schemes.monitoring.monitor import MonitorSchemeLike
-from stark.schemes.adaptivity import (
-    SchemeStepControl,
-    initialise_adaptive_runtime,
-)
+from stark.schemes.monitoring.monitor import SchemeMonitor
+from stark.schemes.execution.step_control import SchemeStepControl
 from stark.schemes.imex._support import initialise_imex_support
 from stark.schemes.execution.unbound import unbound_scheme_call
 from stark.schemes.specialization.imex_stencil import SchemeStencilImexTableau
@@ -54,13 +50,13 @@ class SchemeKennedyCarpenterAdaptive:
         derivative: DerivativeIMEX,
         allocator: Allocator,
         resolvent: Resolvent,
-        adaptivity: ExecutorAdaptivity | None = None,
         *,
+        configuration: SchemeConfiguration | None = None,
         specialist: SchemeSpecialist | None = None,
-        monitor: MonitorSchemeLike | None = None,
+        monitor: SchemeMonitor | None = None,
     ) -> None:
         initialise_imex_support(self, derivative, allocator)
-        initialise_adaptive_runtime(self, adaptivity)
+        self.step_control = SchemeStepControl(configuration if configuration is not None else SchemeConfigurationDefault())
 
         self.explicit_derivative = derivative.explicit
         self.implicit_derivative = derivative.implicit
@@ -98,9 +94,8 @@ class SchemeKennedyCarpenterAdaptive:
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
-        return self.redirect_call(interval, state, executor)
+        return self.redirect_call(interval, state)
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
         """Prepare fixed-coefficient kernels for the specialized IMEX path."""
@@ -125,18 +120,14 @@ class SchemeKennedyCarpenterAdaptive:
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
-        self.step_control.cache_executor(executor)
         return self._call(interval, state, specialized=False)
 
     def call_specialized(
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
-        self.step_control.cache_executor(executor)
         return self._call(interval, state, specialized=True)
 
     def _call(

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Interval
+from stark import Interval
 from stark.monitor import Monitor
 from stark.schemes.explicit.fixed.euler import SchemeEuler
 from stark.schemes.specialization.stencil import SchemeStencil
@@ -111,15 +111,14 @@ def test_euler_public_call_uses_redirect_call() -> None:
     def replacement_call(
         replacement_interval: Interval,
         replacement_state: ScalarState,
-        replacement_executor: Executor,
     ) -> float:
-        del replacement_interval, replacement_executor
+        del replacement_interval
         replacement_state.value = 42.0
         return 0.03125
 
     scheme.redirect_call = replacement_call
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.03125)
     assert state.value == pytest.approx(42.0)
@@ -130,7 +129,7 @@ def test_euler_inline_call_performs_one_forward_euler_step() -> None:
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(1.125)
@@ -141,7 +140,7 @@ def test_euler_inline_call_clips_to_remaining_interval() -> None:
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(1.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.05)
     assert state.value == pytest.approx(1.05)
@@ -170,7 +169,7 @@ def test_euler_monitoring_records_fixed_step_without_changing_pure_path() -> Non
     assert scheme.call_step.__func__ is scheme.call_monitored.__func__
     assert scheme.redirect_call == scheme.call_step
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(1.125)
@@ -201,7 +200,7 @@ def test_euler_monitoring_records_specialist_fixed_step() -> None:
     assert scheme.call_step.__func__ is scheme.call_monitored.__func__
     assert scheme.redirect_call == scheme.call_step
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(1.125)
@@ -222,11 +221,10 @@ def test_euler_inline_and_specialist_paths_match_for_one_step() -> None:
         specialist=StubSpecialist(),
     )
 
-    accepted_dt_inline = inline(interval_inline, state_inline, Executor())
+    accepted_dt_inline = inline(interval_inline, state_inline)
     accepted_dt_specialist = specialist(
         interval_specialist,
         state_specialist,
-        Executor(),
     )
 
     assert accepted_dt_inline == pytest.approx(accepted_dt_specialist)

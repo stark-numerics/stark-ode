@@ -9,14 +9,13 @@ from stark.contracts.derivative_imex import DerivativeIMEXAudit
 from stark.contracts.derivative import DerivativeAudit
 from stark.contracts.interval import IntervalAudit
 from stark.contracts.linearizer import LinearizerAudit
-from stark.contracts.marcher import MarcherAudit
+from stark.contracts.stepper import IntegratorStepperAudit
 from stark.contracts.residual import ResidualAudit
 from stark.contracts.scheme import SchemeAudit
 from stark.contracts.translation import TranslationAudit
 from stark.contracts.allocator import AllocatorAudit
-from stark.executor.safety import ExecutorSafetyAudit
-from stark.executor.tolerance import ExecutorToleranceAudit
 from stark.core.interval import Interval
+from stark.core.tolerance import ToleranceAudit
 
 
 class AuditError(TypeError):
@@ -41,11 +40,10 @@ class Auditor:
     linearizer_audit = LinearizerAudit()
     interval_audit = IntervalAudit()
     scheme_audit = SchemeAudit()
-    marcher_audit = MarcherAudit()
+    stepper_audit = IntegratorStepperAudit()
     residual_audit = ResidualAudit()
     acceleration_audit = AcceleratorAudit()
-    tolerance_audit = ExecutorToleranceAudit()
-    safety_audit = ExecutorSafetyAudit()
+    tolerance_audit = ToleranceAudit()
 
     def __init__(
         self,
@@ -56,9 +54,9 @@ class Auditor:
         translation: Any | None = None,
         allocator: Any | None = None,
         interval: Any | None = None,
-        marcher: Any | None = None,
+        stepper: Any | None = None,
         scheme: Any | None = None,
-        ExecutorTolerance: Any | None = None,
+        tolerance: Any | None = None,
         accelerator: Any | None = None,
         residual: Any | None = None,
         linear_residual: bool = False,
@@ -90,8 +88,8 @@ class Auditor:
                 sample_translation=sample_translation if sample_translation is not None else translation,
             )
 
-        if ExecutorTolerance is not None:
-            self.tolerance_audit(self, ExecutorTolerance)
+        if tolerance is not None:
+            self.tolerance_audit(self, tolerance)
 
         if accelerator is not None:
             self.acceleration_audit(self, accelerator, exercise=exercise)
@@ -102,8 +100,8 @@ class Auditor:
         if scheme is not None:
             self.scheme_audit(self, scheme)
 
-        if marcher is not None:
-            self.marcher_audit(self, marcher, snapshots=snapshots)
+        if stepper is not None:
+            self.stepper_audit(self, stepper, snapshots=snapshots)
 
         if interval is not None:
             self.interval_audit(self, interval, exercise=exercise)
@@ -154,20 +152,18 @@ class Auditor:
         cls(imex_derivative=imex_derivative, allocator=allocator, translation=translation, exercise=False).raise_if_invalid()
 
     @classmethod
-    def require_marcher_inputs(cls, scheme: Any, ExecutorTolerance: Any, ExecutorSafety: Any) -> None:
+    def require_stepper_inputs(cls, scheme: Any) -> None:
         auditor = cls(
             scheme=scheme,
-            ExecutorTolerance=ExecutorTolerance,
             snapshots=True,
             exercise=False,
         )
-        auditor.safety_audit(auditor, ExecutorSafety)
         auditor.raise_if_invalid()
 
     @classmethod
-    def require_integration_inputs(cls, marcher: Any, interval: Any, state: Any, *, snapshots: bool) -> None:
+    def require_integration_inputs(cls, stepper: Any, interval: Any, state: Any, *, snapshots: bool) -> None:
         del state
-        cls(marcher=marcher, interval=interval, snapshots=snapshots, exercise=False).raise_if_invalid()
+        cls(stepper=stepper, interval=interval, snapshots=snapshots, exercise=False).raise_if_invalid()
 
     @classmethod
     def require_linear_residual(cls, residual: Any) -> None:
@@ -241,20 +237,18 @@ class Auditor:
             return "Translation"
         if summary.startswith("Allocator"):
             return "Allocator"
-        if summary.startswith("ExecutorTolerance"):
-            return "ExecutorTolerance"
+        if summary.startswith("Tolerance"):
+            return "Tolerance"
         if summary.startswith("Accelerator"):
             return "Accelerator"
         if summary.startswith("Residual"):
             return "Residual"
         if summary.startswith("Interval"):
             return "Interval"
-        if summary.startswith("Marcher"):
-            return "Marcher"
+        if summary.startswith("IntegratorStepper"):
+            return "IntegratorStepper"
         if summary.startswith("Scheme"):
             return "Scheme"
-        if summary.startswith("ExecutorSafety"):
-            return "Marcher"
         return "Interface"
 
     @staticmethod
@@ -266,9 +260,9 @@ class Auditor:
             "Allocator": 3,
             "Accelerator": 4,
             "Scheme": 5,
-            "ExecutorTolerance": 6,
+            "Tolerance": 6,
             "Residual": 7,
-            "Marcher": 8,
+            "IntegratorStepper": 8,
             "Interface": 9,
         }
         return order.get(object_name, order["Interface"])

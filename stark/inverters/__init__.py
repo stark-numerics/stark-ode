@@ -11,12 +11,13 @@ from stark.inverters.relaxation import (
 from stark.inverters.legacy.bicgstab import InverterBiCGStab
 from stark.inverters.legacy.fgmres import InverterFGMRES
 from stark.inverters.legacy.gmres import InverterGMRES
+from stark.inverters.configuration import InverterConfiguration
 from stark.inverters.legacy_support.descriptor import InverterDescriptor
 from stark.inverters.legacy_support.policy import InverterPolicy
-from stark.inverters.legacy_support.tolerance import InverterTolerance
 
 __all__ = [
     "InverterBiCGStab",
+    "InverterConfiguration",
     "InverterDescriptor",
     "InverterFGMRES",
     "InverterGMRES",
@@ -26,5 +27,4 @@ __all__ = [
     "InverterRelaxationSpecialist",
     "InverterRelaxationStencil",
     "InverterRelaxationStencilUpdate",
-    "InverterTolerance",
 ]

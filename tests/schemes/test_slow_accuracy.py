@@ -5,7 +5,7 @@ from math import cos, sin, sqrt
 
 import pytest
 
-from stark import Executor, Marcher, Integrator, Interval, ExecutorTolerance
+from stark import Configuration, IntegratorStepper, Integrator, Interval, Tolerance
 from stark.schemes import (
     SchemeBogackiShampine,
     SchemeCashKarp,
@@ -31,7 +31,7 @@ class SchemeCase:
     label: str
     scheme_type: type
     step: float
-    tolerance: ExecutorTolerance | None
+    tolerance: Tolerance | None
     max_error: float
 
 
@@ -44,11 +44,11 @@ SCHEME_CASES = [
     SchemeCase("SSPRK33", SchemeSSPRK33, 2.0e-3, None, 2.0e-7),
     SchemeCase("RK4", SchemeRK4, 5.0e-3, None, 2.0e-8),
     SchemeCase("RK38", SchemeRK38, 5.0e-3, None, 2.0e-8),
-    SchemeCase("BS23", SchemeBogackiShampine, 1.0e-2, ExecutorTolerance(atol=1.0e-8, rtol=1.0e-8), 5.0e-7),
-    SchemeCase("RKCK", SchemeCashKarp, 1.0e-2, ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
-    SchemeCase("RKF45", SchemeFehlberg45, 1.0e-2, ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
-    SchemeCase("RKDP", SchemeDormandPrince, 1.0e-2, ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
-    SchemeCase("TSIT5", SchemeTsitouras5, 1.0e-2, ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
+    SchemeCase("BS23", SchemeBogackiShampine, 1.0e-2, Tolerance(atol=1.0e-8, rtol=1.0e-8), 5.0e-7),
+    SchemeCase("RKCK", SchemeCashKarp, 1.0e-2, Tolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
+    SchemeCase("RKF45", SchemeFehlberg45, 1.0e-2, Tolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
+    SchemeCase("RKDP", SchemeDormandPrince, 1.0e-2, Tolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
+    SchemeCase("TSIT5", SchemeTsitouras5, 1.0e-2, Tolerance(atol=1.0e-9, rtol=1.0e-9), 5.0e-8),
 ]
 
 
@@ -242,12 +242,18 @@ class RiccatiDerivative:
 def test_scheme_matches_time_dependent_riccati_solution(case: SchemeCase) -> None:
     state = RiccatiState(0.0, exact_solution(0.0))
     interval = Interval(present=0.0, step=case.step, stop=STOP)
-    scheme = case.scheme_type(RiccatiDerivative(), RiccatiAllocator())
-    marcher = Marcher(scheme, Executor(tolerance=case.tolerance if case.tolerance is not None else ExecutorTolerance()))
+    scheme = case.scheme_type(
+        RiccatiDerivative(),
+        RiccatiAllocator(),
+        configuration=Configuration(
+            scheme_tolerance=case.tolerance if case.tolerance is not None else Tolerance()
+        ),
+    )
+    stepper = IntegratorStepper(scheme)
     integrate = Integrator()
 
     steps = 0
-    for _interval, _state in integrate.live(marcher, interval, state):
+    for _interval, _state in integrate.live(stepper, interval, state):
         steps += 1
 
     expected = exact_solution(STOP)

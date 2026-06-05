@@ -5,12 +5,12 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
-from stark.accelerators import Accelerator
+from stark import Integrator, Interval, IntegratorStepper, Tolerance
+from stark.accelerators import AcceleratorNone
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
-from stark.resolvents.method.policy import ResolventPolicy
+from stark import Configuration
 from stark.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
 from stark.schemes.implicit.adaptive.kvaerno4 import SchemeKvaerno4
 from stark.schemes.implicit.adaptive.sdirk21 import SchemeSDIRK21
@@ -112,9 +112,8 @@ def make_scheme(scheme_cls, *, monitor=None):
     allocator = ScalarAllocator()
     resolvent = ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=scheme_cls.tableau,
     )
     return scheme_cls(
@@ -133,9 +132,8 @@ def make_array_scalar_scheme(
     allocator = ArrayScalarAllocator()
     resolvent = ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=scheme_cls.tableau,
     )
     return scheme_cls(
@@ -153,8 +151,8 @@ def make_array_scalar_scheme(
     )
 
 
-def tight_executor() -> Executor:
-    return Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
+def tight_configuration() -> Configuration:
+    return Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
 @pytest.mark.parametrize(
@@ -225,15 +223,14 @@ def test_esdirk_adaptive_public_call_uses_redirect_call(scheme_cls) -> None:
     def replacement_call(
         replacement_interval: Interval,
         replacement_state: ScalarState,
-        replacement_executor: Executor,
     ) -> float:
-        del replacement_interval, replacement_executor
+        del replacement_interval
         replacement_state.value = 42.0
         return 0.03125
 
     scheme.redirect_call = replacement_call
 
-    accepted_dt = scheme(interval, state, tight_executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.03125)
     assert state.value == pytest.approx(42.0)
@@ -254,7 +251,7 @@ def test_esdirk_adaptive_call_returns_accepted_dt_and_updates_next_step(
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, tight_executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.1)
     assert state.value == pytest.approx(0.1)
@@ -274,7 +271,7 @@ def test_esdirk_adaptive_call_clips_to_remaining_interval(scheme_cls) -> None:
     interval = Interval(present=0.1, step=1.0, stop=0.3)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, tight_executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.2)
     assert state.value == pytest.approx(0.2)
@@ -299,8 +296,8 @@ def test_esdirk_adaptive_specialist_path_matches_generic_path(
     generic_state = ArrayScalarState.zero()
     generated_state = ArrayScalarState.zero()
 
-    generic_dt = generic(generic_interval, generic_state, tight_executor())
-    generated_dt = generated(generated_interval, generated_state, tight_executor())
+    generic_dt = generic(generic_interval, generic_state)
+    generated_dt = generated(generated_interval, generated_state)
 
     assert generated_dt == pytest.approx(generic_dt)
     assert generated_state.value[0] == pytest.approx(generic_state.value[0])
@@ -365,11 +362,11 @@ def test_esdirk_adaptive_monitoring_records_existing_adaptive_fields(
 ) -> None:
     monitor = Monitor()
     scheme = make_scheme(scheme_cls, monitor=monitor.scheme)
-    marcher = Marcher(scheme, tight_executor())
+    stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(0.0)
 
-    list(Integrator().live(marcher, interval, state))
+    list(Integrator().live(stepper, interval, state))
 
     assert len(monitor.scheme.adaptive_steps) == 2
 

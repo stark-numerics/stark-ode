@@ -1,18 +1,13 @@
 from __future__ import annotations
 
+from stark.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.block import Block
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
-from stark.schemes.execution.executor import SchemeExecutor
-from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.contracts.errors import StarkErrorRecoverable
 from stark.schemes.method.descriptor import SchemeDescriptor
-from stark.schemes.monitoring.monitor import MonitorSchemeLike
+from stark.schemes.monitoring.monitor import SchemeMonitor
 from stark.schemes.monitoring.decorators import with_adaptive_step_monitoring
-from stark.schemes.adaptivity import (
-    SchemeStepControl,
-    initialise_adaptive_runtime,
-    adaptive_adaptivity,
-)
+from stark.schemes.execution.step_control import SchemeStepControl
 from stark.schemes.execution.unbound import unbound_scheme_call
 from stark.schemes.display.decorators import with_scheme_display
 from stark.schemes.implicit._support import (
@@ -110,12 +105,9 @@ class SchemeKvaerno4:
     descriptor = SchemeDescriptor("Kvaerno4", "Kvaerno 4(3)")
     display_resolvent_problem = classmethod(implicit_display_resolvent_problem)
     snapshot_state = implicit_snapshot_state
-
-    adaptivity = property(adaptive_adaptivity)
-
     tableau = KVAERNO4_TABLEAU
 
-    def __init__(self, derivative: Derivative, allocator: Allocator, resolvent: Resolvent, adaptivity: ExecutorAdaptivity | None = None, *, specialist: SchemeSpecialist | None = None, monitor: MonitorSchemeLike | None = None) -> None:
+    def __init__(self, derivative: Derivative, allocator: Allocator, resolvent: Resolvent, *, configuration: SchemeConfiguration | None = None, specialist: SchemeSpecialist | None = None, monitor: SchemeMonitor | None = None) -> None:
         self.error_delta_call = unbound_scheme_call
         self.high_delta_call = unbound_scheme_call
         self.known2_call = unbound_scheme_call
@@ -136,7 +128,8 @@ class SchemeKvaerno4:
         self.known3_block = Block([self.known3])
         self.known4_block = Block([self.known4])
         self.known5_block = Block([self.known5])
-        initialise_adaptive_runtime(self, adaptivity)
+
+        self.step_control = SchemeStepControl(configuration if configuration is not None else SchemeConfigurationDefault())
         self.call_body = self.call_inline
         self.monitor = monitor
         self.call_step = self.call_monitored if monitor is not None else self.call_body
@@ -149,11 +142,11 @@ class SchemeKvaerno4:
                 self.redirect_call = self.call_step
 
     @staticmethod
-    def default_adaptivity() -> ExecutorAdaptivity:
-        return ExecutorAdaptivity(error_exponent=1.0 / 4.0)
+    def default_adaptivity() -> float:
+        return 1.0 / 4.0
 
-    def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
-        return self.redirect_call(interval, state, executor)
+    def __call__(self, interval: IntervalLike, state: State) -> float:
+        return self.redirect_call(interval, state)
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
         self.known2_call = specialist.provide(SchemeStencil((1.0,), scale=KVAERNO4_GAMMA))
@@ -169,9 +162,8 @@ class SchemeKvaerno4:
         self.resolvent(problem, delta_block)
         return delta_block[0]
 
-    def call_inline(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
+    def call_inline(self, interval: IntervalLike, state: State) -> float:
         step_control = self.step_control
-        step_control.cache_executor(executor)
         proposal = step_control.propose_step(interval)
         if proposal.remaining <= 0.0:
             step_control.record_stopped(interval)
@@ -245,9 +237,8 @@ class SchemeKvaerno4:
         report = self.step_control.record_accepted(accepted_dt=accepted_dt, t_start=t_start, proposed_dt=proposed_dt, next_dt=next_dt, error_ratio=error_ratio, rejection_count=rejection_count)
         return report.accepted_dt
 
-    def call_specialized(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
+    def call_specialized(self, interval: IntervalLike, state: State) -> float:
         step_control = self.step_control
-        step_control.cache_executor(executor)
         proposal = step_control.propose_step(interval)
         if proposal.remaining <= 0.0:
             step_control.record_stopped(interval)

@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from collections.abc import Callable
 
+from stark.core import Configuration
+from stark.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.contracts import IntervalLike, State
-from stark.executor.adaptivity import ExecutorAdaptivity
-from stark.schemes.execution.executor import SchemeExecutor
 
 ErrorRatio = Callable[[float, float], float]
 ErrorBound = Callable[[float], float]
-
 
 @dataclass(frozen=True, slots=True)
 class SchemeStepAdaptiveAdvanceReport:
@@ -41,19 +40,28 @@ class SchemeStepControl:
     """Small adaptive step-control support object.
 
     Concrete schemes own their call routing. This object keeps adaptive policy,
-    cached executor-derived helpers, and the latest advance report.
+    tolerance helpers, and the latest advance report.
     """
 
     __slots__ = (
-        "adaptivity",
-        "_active_adaptivity",
         "_bound",
+        "_configuration",
+        "_max_factor",
+        "_min_factor",
         "_ratio",
         "_report",
+        "_safety",
+        "_error_exponent",
     )
 
-    def __init__(self, adaptivity: ExecutorAdaptivity | None = None) -> None:
-        self.adaptivity = adaptivity if adaptivity is not None else ExecutorAdaptivity()
+    def __init__(self, configuration: SchemeConfiguration) -> None:
+        self._configuration = configuration
+        self._safety = configuration.adaptive_scheme_safety
+        self._min_factor = configuration.adaptive_scheme_min_factor
+        self._max_factor = configuration.adaptive_scheme_max_factor
+        self._error_exponent = configuration.adaptive_scheme_error_exponent
+        self._ratio = configuration.scheme_tolerance.ratio
+        self._bound = configuration.scheme_tolerance.bound
         self._report = SchemeStepAdaptiveAdvanceReport(
             accepted_dt=0.0,
             t_start=0.0,
@@ -62,43 +70,28 @@ class SchemeStepControl:
             error_ratio=0.0,
             rejection_count=0,
         )
-        self._active_adaptivity = self.adaptivity
-        self._ratio = None
-        self._bound = None
 
     @classmethod
-    def from_adaptivity(cls, adaptivity: ExecutorAdaptivity) -> SchemeStepControl:
-        return cls(adaptivity)
+    def from_configuration(cls, configuration: SchemeConfiguration) -> SchemeStepControl:
+        return cls(configuration)
 
     @property
-    def active_adaptivity(self):
-        return self._active_adaptivity
+    def configuration(self) -> SchemeConfiguration:
+        return self._configuration
 
     @property
     def ratio(self) -> ErrorRatio:
-        ratio = self._ratio
-        if ratio is None:
-            raise RuntimeError("Adaptive SchemeExecutor has not been prepared.")
-        return ratio
+        return self._ratio
 
     @property
     def bound(self) -> ErrorBound:
-        bound = self._bound
-        if bound is None:
-            raise RuntimeError("Adaptive SchemeExecutor has not been prepared.")
-        return bound
+        return self._bound
 
-    def cache_executor(self, executor: SchemeExecutor) -> None:
-        ratio = executor.ratio
-        bound = executor.bound
-        if not callable(ratio):
-            raise TypeError("Adaptive SchemeExecutor must provide ratio(error, scale).")
-        if not callable(bound):
-            raise TypeError("Adaptive SchemeExecutor must provide bound(scale).")
-
-        self._active_adaptivity = executor.adaptivity_or(self.adaptivity)
-        self._ratio = ratio
-        self._bound = bound
+    def factor(self, error_ratio: float) -> float:
+        if error_ratio == 0.0:
+            return self._max_factor
+        factor = self._safety * (1.0 / error_ratio) ** self._error_exponent
+        return min(self._max_factor, max(self._min_factor, factor))
 
     def propose_step(self, interval: IntervalLike) -> SchemeStepAdaptiveProposal:
         remaining = interval.stop - interval.present
@@ -125,7 +118,10 @@ class SchemeStepControl:
         remaining: float,
         label: str,
     ) -> float:
-        return self._active_adaptivity.rejected_step(dt, error_ratio, remaining, label)
+        dt *= self.factor(error_ratio)
+        if dt <= 0.0:
+            raise RuntimeError(f"{label} step size underflowed to zero.")
+        return remaining if dt > remaining else dt
 
     def accepted_next_step(
         self,
@@ -133,9 +129,10 @@ class SchemeStepControl:
         error_ratio: float,
         remaining_after: float,
     ) -> float:
-        return self._active_adaptivity.accepted_next_step(
-            accepted_dt, error_ratio, remaining_after
-        )
+        if remaining_after <= 0.0:
+            return 0.0
+        next_step = accepted_dt * self.factor(error_ratio)
+        return remaining_after if next_step > remaining_after else next_step
 
     def record_stopped(self, interval: IntervalLike) -> SchemeStepAdaptiveAdvanceReport:
         self._report = SchemeStepAdaptiveAdvanceReport(
@@ -172,30 +169,20 @@ class SchemeStepControl:
         return self._report
 
 
-def default_adaptivity(scheme) -> ExecutorAdaptivity:
+def default_adaptive_error_exponent(scheme) -> float:
     default_adaptivity = getattr(type(scheme), "default_adaptivity", None)
     if default_adaptivity is None:
-        return ExecutorAdaptivity()
+        return Configuration().adaptive_scheme_error_exponent
+    value = default_adaptivity()
+    return value.error_exponent if hasattr(value, "error_exponent") else float(value)
 
-    return default_adaptivity()
 
-
-def initialise_adaptive_runtime(
-    scheme,
-    adaptivity: ExecutorAdaptivity | None = None,
-) -> SchemeStepControl:
-    support = SchemeStepControl(
-        adaptivity if adaptivity is not None else default_adaptivity(scheme)
+def default_scheme_configuration(scheme) -> Configuration:
+    return replace(
+        Configuration(),
+        adaptive_scheme_error_exponent=default_adaptive_error_exponent(scheme),
     )
-    scheme.step_control = support
-    return support
 
-
-
-def adaptive_adaptivity(self):
-    """Return the scheme's adaptive controller policy."""
-
-    return self.step_control.adaptivity
 
 
 __all__ = [
@@ -204,7 +191,6 @@ __all__ = [
     "SchemeStepAdaptiveProposal",
     "SchemeStepAdaptiveAdvanceReport",
     "SchemeStepControl",
-    "default_adaptivity",
-    "initialise_adaptive_runtime",
-    "adaptive_adaptivity",
+    "default_adaptive_error_exponent",
+    "default_scheme_configuration",
 ]

@@ -1,16 +1,11 @@
 from __future__ import annotations
 
+from stark.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.contracts import Derivative, IntervalLike, State, Allocator
-from stark.schemes.execution.executor import SchemeExecutor
-from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.schemes.method.descriptor import SchemeDescriptor
-from stark.schemes.monitoring.monitor import MonitorSchemeLike
+from stark.schemes.monitoring.monitor import SchemeMonitor
 from stark.schemes.monitoring.decorators import with_adaptive_step_monitoring
-from stark.schemes.adaptivity import (
-    SchemeStepControl,
-    initialise_adaptive_runtime,
-    adaptive_adaptivity,
-)
+from stark.schemes.execution.step_control import SchemeStepControl
 from stark.schemes.explicit._support import (
     initialise_explicit_support,
     explicit_snapshot_state,
@@ -126,7 +121,7 @@ class SchemeTsitouras5:
     Further reading: https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods
     """
 
-    # Assigned by initialise_adaptive_runtime from stark.schemes.adaptivity.
+    # Assigned by initialise_adaptive_runtime from stark.schemes.execution.step_control.
     step_control: SchemeStepControl
 
     __slots__ = (
@@ -162,21 +157,18 @@ class SchemeTsitouras5:
 
     descriptor = SchemeDescriptor('TSIT5', 'Tsitouras 5')
     snapshot_state = explicit_snapshot_state
-
-    adaptivity = property(adaptive_adaptivity)
-
     tableau = TSIT5_TABLEAU
 
     def __init__(
         self,
         derivative: Derivative,
         allocator: Allocator,
-        adaptivity: ExecutorAdaptivity | None = None,
+        configuration: SchemeConfiguration | None = None,
         specialist: SchemeSpecialist | None = None,
-        monitor: MonitorSchemeLike | None = None,
+        monitor: SchemeMonitor | None = None,
     ) -> None:
         initialise_explicit_support(self, derivative, allocator)
-        initialise_adaptive_runtime(self, adaptivity)
+        self.step_control = SchemeStepControl(configuration if configuration is not None else SchemeConfigurationDefault())
 
         self.initialise_buffers()
 
@@ -196,9 +188,8 @@ class SchemeTsitouras5:
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
-        return self.redirect_call(interval, state, executor)
+        return self.redirect_call(interval, state)
 
     def initialise_buffers(self) -> None:
         workspace = self.workspace
@@ -241,10 +232,8 @@ class SchemeTsitouras5:
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
         step_control = self.step_control
-        step_control.cache_executor(executor)
         proposal = step_control.propose_step(interval)
         record_stopped = step_control.record_stopped
 
@@ -442,10 +431,8 @@ class SchemeTsitouras5:
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
         step_control = self.step_control
-        step_control.cache_executor(executor)
         proposal = step_control.propose_step(interval)
         record_stopped = step_control.record_stopped
 

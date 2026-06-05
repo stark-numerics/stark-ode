@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from stark import Executor, Integrator, Interval, Marcher, Monitor, ExecutorTolerance
+from stark import Integrator, Interval, IntegratorStepper, Monitor, Tolerance
 from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
 from stark.schemes.explicit.fixed.euler import SchemeEuler
 from stark.schemes.specialization.stencil import SchemeStencil
@@ -113,8 +113,8 @@ def failing_rhs(
     raise RuntimeError("intentional example failure")
 
 
-def tight_executor() -> Executor:
-    return Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
+def tight_configuration() -> Configuration:
+    return Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
 def test_assigning_scheme_monitor_selects_monitored_path() -> None:
@@ -131,11 +131,11 @@ def test_assigning_scheme_monitor_selects_monitored_path() -> None:
 
 def test_unmonitored_integration_creates_no_scheme_monitor_records() -> None:
     scheme = SchemeCashKarp(zero_rhs, ScalarAllocator())
-    marcher = Marcher(scheme, tight_executor())
+    stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     monitor = Monitor()
 
-    list(Integrator().live(marcher, interval, ScalarState()))
+    list(Integrator().live(stepper, interval, ScalarState()))
 
     assert monitor.scheme.fixed_steps == []
     assert monitor.scheme.adaptive_steps == []
@@ -145,12 +145,12 @@ def test_unmonitored_integration_creates_no_scheme_monitor_records() -> None:
 def test_direct_scheme_monitor_remains_available_after_integration_exception() -> None:
     monitor = Monitor()
     scheme = SchemeEuler(failing_rhs, ScalarAllocator(), monitor=monitor.scheme)
-    marcher = Marcher(scheme, Executor())
+    stepper = IntegratorStepper(scheme)
 
     with pytest.raises(RuntimeError, match="intentional example failure"):
         list(
             Integrator().live(
-                marcher,
+                stepper,
                 Interval(present=0.0, step=0.1, stop=0.2),
                 ScalarState(),
             )
@@ -181,7 +181,7 @@ def test_specialist_fixed_path_is_monitored_only_at_scheme_boundary() -> None:
         monitor=monitor.scheme,
     )
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(0.125)

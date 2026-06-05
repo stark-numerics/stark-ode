@@ -4,13 +4,13 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Generic, TypeVar, cast
 
-from stark.accelerators.absent import AcceleratorAbsent
+from stark.accelerators.none import AcceleratorNone
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.generator.compiler import AlgebraistGeneratorCompiler
 from stark.algebraist.generator.emitter import AlgebraistGeneratorEmitter
 from stark.algebraist.layout import AlgebraistLayout
 from stark.algebraist.allocator import AlgebraistAllocator
-from stark.contracts.accelerator import AcceleratorLike
+from stark.contracts.accelerator import Accelerator
 
 TranslationType = TypeVar("TranslationType")
 
@@ -23,7 +23,7 @@ class AlgebraistGeneratorGeneral(Generic[TranslationType]):
     allocator: AlgebraistAllocator[TranslationType]
     layout: AlgebraistLayout
     linear_combine: Sequence[Callable[..., TranslationType]] | None = None
-    accelerator: AcceleratorLike = field(default_factory=AcceleratorAbsent)
+    accelerator: Accelerator = field(default_factory=AcceleratorNone)
 
     def source_string(self, request: AlgebraistArity) -> str:
         return AlgebraistGeneratorEmitter(self.layout).general(request)

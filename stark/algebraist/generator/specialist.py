@@ -4,13 +4,13 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Generic, TypeVar, cast
 
-from stark.accelerators.absent import AcceleratorAbsent
+from stark.accelerators.none import AcceleratorNone
 from stark.algebraist.generator.compiler import AlgebraistGeneratorCompiler
 from stark.algebraist.generator.emitter import AlgebraistGeneratorEmitter
 from stark.algebraist.layout import AlgebraistLayout
 from stark.algebraist.stencil import AlgebraistStencil
 from stark.algebraist.allocator import AlgebraistAllocator
-from stark.contracts.accelerator import AcceleratorLike
+from stark.contracts.accelerator import Accelerator
 
 StateType = TypeVar("StateType")
 TranslationType = TypeVar("TranslationType")
@@ -28,7 +28,7 @@ class AlgebraistGeneratorSpecialist(Generic[StateType, TranslationType]):
     allocator: AlgebraistAllocator[TranslationType]
     layout: AlgebraistLayout
     linear_combine: Sequence[Callable[..., TranslationType]] | None = None
-    accelerator: AcceleratorLike = field(default_factory=AcceleratorAbsent)
+    accelerator: Accelerator = field(default_factory=AcceleratorNone)
 
     def source_string(self, stencil: AlgebraistStencil) -> str:
         return AlgebraistGeneratorEmitter(self.layout).specialist(stencil)

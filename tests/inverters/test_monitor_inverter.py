@@ -8,7 +8,7 @@ from stark.block.operator import BlockOperatorDiagonal
 from stark.block import Block
 from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
 from stark.inverters.legacy_support.policy import InverterPolicy
-from stark.inverters.legacy_support.tolerance import InverterTolerance
+from stark import Configuration, Tolerance
 from stark.monitor import MonitorInverter
 
 
@@ -45,7 +45,7 @@ def test_monitored_inverter_records_successful_solve(inverter_type) -> None:
     inverter = inverter_type(
         ScalarAllocator(),
         scalar_inner_product,
-        ExecutorTolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12)),
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
     inverter.bind(BlockOperatorDiagonal([scale_by_two]))
@@ -91,7 +91,7 @@ def test_monitored_inverter_records_failed_solve_before_reraising() -> None:
     inverter = InverterGMRES(
         ScalarAllocator(),
         scalar_inner_product,
-        ExecutorTolerance=InverterTolerance(atol=1.0e-14, rtol=1.0e-14),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-14, rtol=1.0e-14)),
         policy=InverterPolicy(max_iterations=1, restart=1),
     )
     inverter.bind(DiagonalOperator([]))

@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from math import sqrt
 from typing import Callable
 
-from stark.accelerators import AcceleratorAbsent
+from stark.accelerators import AcceleratorNone
 from stark.algebraist.runtime import AlgebraistRuntimeGeneral
 from stark.block import Block
-from stark.contracts import AcceleratorLike, InnerProduct, Translation, Allocator
+from stark.contracts import Accelerator, InnerProduct, Translation, Allocator
 from stark.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 
@@ -15,7 +15,7 @@ from stark.resolvents.method.safety import ResolventSafety, ResolventSafetyDefau
 class ResolventWorkspace:
     """Reusable scratch support for nonlinear resolvents."""
 
-    accelerator: AcceleratorLike
+    accelerator: Accelerator
     allocate_translation: Callable[[], Translation]
     inner_product_translation: InnerProduct | None
     translation: Translation
@@ -33,9 +33,9 @@ class ResolventWorkspace:
         translation: Translation,
         safety: ResolventSafety | None = None,
         inner_product: InnerProduct | None = None,
-        accelerator: AcceleratorLike | None = None,
+        accelerator: Accelerator | None = None,
     ) -> None:
-        self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
+        self.accelerator = accelerator if accelerator is not None else AcceleratorNone()
         self.allocate_translation = allocator.allocate_translation
         self.inner_product_translation = inner_product
         self.translation = translation
@@ -49,7 +49,7 @@ class ResolventWorkspace:
         self._norm_impl = self._norm_from_inner_product if self.inner_product_translation is not None else self._norm_from_block
         self.bind_accelerator(self.accelerator)
 
-    def bind_accelerator(self, accelerator: AcceleratorLike) -> None:
+    def bind_accelerator(self, accelerator: Accelerator) -> None:
         self.accelerator = accelerator
         algebraist = AlgebraistRuntimeGeneral(
             translation=self.translation,
@@ -142,7 +142,6 @@ class ResolventWorkspace:
 
 
 __all__ = ["ResolventWorkspace"]
-
 
 
 

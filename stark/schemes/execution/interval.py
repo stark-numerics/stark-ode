@@ -1,7 +1,14 @@
 from __future__ import annotations
 
+from typing import Protocol, Self
 from stark.contracts.interval import IntervalLike
 
+class SchemeInterval(Protocol):
+    present: float
+    step: float
+    stop: float
+    def copy(self) -> Self:
+        ...
 
 class SchemeShiftedInterval:
     """Reusable interval view shifted within the current scheme step."""

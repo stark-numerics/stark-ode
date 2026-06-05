@@ -1,18 +1,13 @@
 from __future__ import annotations
 
+from stark.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.block import Block
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
-from stark.schemes.execution.executor import SchemeExecutor
-from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.contracts.errors import StarkErrorRecoverable
 from stark.schemes.method.descriptor import SchemeDescriptor
-from stark.schemes.monitoring.monitor import MonitorSchemeLike
+from stark.schemes.monitoring.monitor import SchemeMonitor
 from stark.schemes.monitoring.decorators import with_adaptive_step_monitoring
-from stark.schemes.adaptivity import (
-    SchemeStepControl,
-    initialise_adaptive_runtime,
-    adaptive_adaptivity,
-)
+from stark.schemes.execution.step_control import SchemeStepControl
 from stark.schemes.implicit._support import (
     initialise_implicit_support,
     implicit_display_resolvent_problem,
@@ -52,17 +47,16 @@ class SchemeBDF2:
 
     descriptor = SchemeDescriptor("BDF2", "Backward Differentiation Formula 2")
     snapshot_state = implicit_snapshot_state
-    adaptivity = property(adaptive_adaptivity)
 
     def __init__(
         self,
         derivative: Derivative,
         allocator: Allocator,
         resolvent: Resolvent,
-        adaptivity: ExecutorAdaptivity | None = None,
         *,
+        configuration: SchemeConfiguration | None = None,
         specialist: SchemeSpecialist | None = None,
-        monitor: MonitorSchemeLike | None = None,
+        monitor: SchemeMonitor | None = None,
     ) -> None:
         del specialist
         self.resolvent = resolvent
@@ -79,15 +73,15 @@ class SchemeBDF2:
         self.previous_step = 0.0
         self.has_history = False
 
-        initialise_adaptive_runtime(self, adaptivity)
+        self.step_control = SchemeStepControl(configuration if configuration is not None else SchemeConfigurationDefault())
         self.call_body = self.call_inline
         self.monitor = monitor
         self.call_step = self.call_monitored if monitor is not None else self.call_body
         self.redirect_call = self.call_step
 
     @staticmethod
-    def default_adaptivity() -> ExecutorAdaptivity:
-        return ExecutorAdaptivity(error_exponent=0.5)
+    def default_adaptivity() -> float:
+        return 0.5
 
     @property
     def short_name(self) -> str:
@@ -139,15 +133,14 @@ class SchemeBDF2:
     def __format__(self, format_spec: str) -> str:
         return format(str(self), format_spec)
 
-    def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
-        return self.redirect_call(interval, state, executor)
+    def __call__(self, interval: IntervalLike, state: State) -> float:
+        return self.redirect_call(interval, state)
 
-    def call_specialized(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
-        return self.call_inline(interval, state, executor)
+    def call_specialized(self, interval: IntervalLike, state: State) -> float:
+        return self.call_inline(interval, state)
 
-    def call_inline(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
+    def call_inline(self, interval: IntervalLike, state: State) -> float:
         step_control = self.step_control
-        step_control.cache_executor(executor)
         proposal = step_control.propose_step(interval)
         if proposal.remaining <= 0.0:
             self.step_control.record_stopped(interval)

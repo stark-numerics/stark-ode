@@ -10,10 +10,9 @@ def with_fixed_step_monitoring(cls):
         self,
         interval: IntervalLike,
         state: State,
-        executor,
     ) -> float:
         t_start = interval.present
-        accepted_dt = self.call_body(interval, state, executor)
+        accepted_dt = self.call_body(interval, state)
         monitor = self.monitor
         if monitor is not None and accepted_dt > 0.0:
             monitor.record_fixed_step(self.short_name, t_start, accepted_dt)
@@ -30,9 +29,8 @@ def with_adaptive_step_monitoring(cls):
         self,
         interval: IntervalLike,
         state: State,
-        executor,
     ) -> float:
-        accepted_dt = self.call_body(interval, state, executor)
+        accepted_dt = self.call_body(interval, state)
         report = self.step_control.report()
         monitor = self.monitor
 

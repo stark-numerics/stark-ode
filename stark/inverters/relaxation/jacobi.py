@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Generic
 
+from stark.core import Configuration
 from stark.contracts import (
     BlockOperatorEntryLike,
     BlockLike,
@@ -10,13 +11,12 @@ from stark.contracts import (
     InverterRequest,
     TranslationType,
 )
+from stark.inverters.configuration import InverterConfiguration
 from stark.inverters.relaxation.specialist import InverterRelaxationSpecialist
 from stark.inverters.relaxation.stencil import InverterRelaxationStencilUpdate
 from stark.inverters.support import (
-    InverterBudget,
     InverterDefect,
     InverterDescriptor,
-    InverterTolerance,
     MonitorInverterLike,
     with_inverter_monitoring,
 )
@@ -49,11 +49,11 @@ class InverterRelaxationJacobi(Generic[TranslationType]):
     """
 
     __slots__ = (
-        "budget",
         "call_body",
         "damping",
         "defect",
         "diagonal_inverse",
+        "maximum_steps",
         "monitor",
         "output_buffer",
         "output_size",
@@ -71,18 +71,18 @@ class InverterRelaxationJacobi(Generic[TranslationType]):
         diagonal_inverse: InverterRelaxationJacobiInverse[TranslationType],
         *,
         damping: float = 1.0,
-        tolerance: InverterTolerance | None = None,
-        budget: InverterBudget | None = None,
+        configuration: InverterConfiguration | None = None,
         monitor: MonitorInverterLike | None = None,
         specialist: InverterRelaxationSpecialist[TranslationType] | None = None,
     ) -> None:
         if damping <= 0.0:
             raise ValueError("InverterRelaxationJacobi.damping must be positive.")
 
+        configuration = configuration if configuration is not None else Configuration()
         self.diagonal_inverse = diagonal_inverse
         self.damping = damping
-        self.tolerance = tolerance if tolerance is not None else InverterTolerance()
-        self.budget = budget if budget is not None else InverterBudget()
+        self.tolerance = configuration.inverter_tolerance
+        self.maximum_steps = configuration.inverter_maximum_steps
         self.monitor = monitor
         self.defect = InverterDefect[TranslationType]()
         self.output_buffer = None
@@ -178,7 +178,7 @@ class InverterRelaxationJacobi(Generic[TranslationType]):
             return
 
         final_defect = initial_defect
-        for step in range(1, self.budget.maximum_steps + 1):
+        for step in range(1, self.maximum_steps + 1):
             # 3. Apply each diagonal inverse to the corresponding defect entry.
             self.apply_diagonal_inverse(request)
             update = self.update
@@ -200,7 +200,7 @@ class InverterRelaxationJacobi(Generic[TranslationType]):
 
         self.record_solve(
             converged=False,
-            iteration_count=self.budget.maximum_steps,
+            iteration_count=self.maximum_steps,
             initial_residual=initial_defect,
             final_residual=final_defect,
             failure_reason="maximum steps reached",
@@ -233,7 +233,7 @@ class InverterRelaxationJacobi(Generic[TranslationType]):
             return
 
         final_defect = initial_defect
-        for step in range(1, self.budget.maximum_steps + 1):
+        for step in range(1, self.maximum_steps + 1):
             # 3. Apply each diagonal inverse to the corresponding defect entry.
             self.apply_diagonal_inverse(request)
             update = self.update
@@ -256,7 +256,7 @@ class InverterRelaxationJacobi(Generic[TranslationType]):
 
         self.record_solve(
             converged=False,
-            iteration_count=self.budget.maximum_steps,
+            iteration_count=self.maximum_steps,
             initial_residual=initial_defect,
             final_residual=final_defect,
             failure_reason="maximum steps reached",

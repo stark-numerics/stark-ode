@@ -7,7 +7,7 @@ from typing import Callable
 
 import pytest
 
-from stark import Executor, ExecutorTolerance, Marcher
+from stark import Tolerance, IntegratorStepper
 from stark.block import Block, BlockBasis
 
 try:  # New name after the diagonal block-operator rename.
@@ -18,10 +18,10 @@ except ImportError:  # Compatibility while developing this slow integration test
 from stark.core.interval import Interval
 from stark.inverters.dense import InverterDense, InverterProviderDenseNative
 from stark.inverters.relaxation import InverterRelaxationJacobi, InverterRelaxationRichardson
-from stark.inverters.support import InverterBudget, InverterTolerance
+from stark import Configuration, Tolerance
 from stark.resolvents import ResolventNewton
-from stark.resolvents.method.policy import ResolventPolicy
-from stark.resolvents.method.tolerance import ResolventTolerance
+from stark import Configuration
+from stark import Tolerance
 from stark.schemes.implicit.fixed import SchemeBackwardEuler
 
 
@@ -230,8 +230,7 @@ def make_dense_inverter(provider) -> InverterDense[VectorTranslation]:
 def make_jacobi_inverter() -> InverterRelaxationJacobi[VectorTranslation]:
     return InverterRelaxationJacobi(
         diagonal_inverse=jacobi_entry_inverse,
-        tolerance=InverterTolerance(atol=1.0e-13, rtol=0.0),
-        budget=InverterBudget(maximum_steps=4),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-13, rtol=0.0), inverter_maximum_steps=4),
     )
 
 
@@ -241,8 +240,7 @@ def make_richardson_inverter() -> InverterRelaxationRichardson[VectorTranslation
     # Richardson as a genuine iterative cross-check rather than an exact solve.
     return InverterRelaxationRichardson(
         damping=0.5,
-        tolerance=InverterTolerance(atol=1.0e-11, rtol=0.0),
-        budget=InverterBudget(maximum_steps=80),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-11, rtol=0.0), inverter_maximum_steps=80),
     )
 
 
@@ -280,19 +278,18 @@ def run_backward_euler_newton(inverter) -> VectorState:
         allocator,
         linearizer=VectorLinearizer(),
         inverter=inverter,
-        ExecutorTolerance=ResolventTolerance(atol=1.0e-10, rtol=1.0e-10),
-        policy=ResolventPolicy(max_iterations=8),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-10), resolvent_maximum_steps=8),
     )
     scheme = SchemeBackwardEuler(
         derivative,
         allocator,
         resolvent=resolvent,
     )
-    marcher = Marcher(scheme, Executor(tolerance=ExecutorTolerance()))
+    stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.1)
     state = VectorState((1.0, -0.5, 0.25))
 
-    marcher(interval, state)
+    stepper(interval, state)
 
     return state
 

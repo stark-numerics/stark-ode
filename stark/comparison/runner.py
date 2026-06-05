@@ -80,7 +80,7 @@ class ComparisonRunner:
     def _prewarm_builders(self) -> None:
         self._announce("Prewarming entry builders...")
         for entry in self.entries:
-            entry.make_marcher()
+            entry.make_stepper()
             if entry.build_integrator is not None:
                 entry.build_integrator()
 

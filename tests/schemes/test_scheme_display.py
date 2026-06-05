@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import pytest
 
 from stark import DerivativeIMEX
-from stark.accelerators import Accelerator
+from stark.accelerators import AcceleratorNone
 from stark.resolvents import ResolventPicard
 from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.schemes.explicit.fixed.euler import SchemeEuler
@@ -56,7 +56,7 @@ def make_imex_euler() -> SchemeIMEXEuler:
     allocator = DummyAllocator()
     resolvent = ResolventPicard(
         allocator,
-        accelerator=Accelerator.none(),
+        accelerator=AcceleratorNone(),
         tableau=SchemeIMEXEuler.tableau,
     )
     return SchemeIMEXEuler(split, allocator, resolvent=resolvent)

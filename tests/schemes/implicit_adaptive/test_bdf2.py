@@ -4,11 +4,11 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
-from stark.accelerators import Accelerator
+from stark import Integrator, Interval, IntegratorStepper, Tolerance
+from stark.accelerators import AcceleratorNone
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
-from stark.resolvents.method.policy import ResolventPolicy
+from stark import Configuration
 from stark.schemes.implicit.adaptive.bdf2 import SchemeBDF2
 
 
@@ -62,9 +62,8 @@ def make_scheme(
     allocator = ScalarAllocator()
     resolvent = ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=None,
     )
     return SchemeBDF2(
@@ -76,8 +75,8 @@ def make_scheme(
     )
 
 
-def tight_executor() -> Executor:
-    return Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
+def tight_configuration() -> Configuration:
+    return Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
 def test_bdf2_owns_its_public_call_method() -> None:
@@ -118,15 +117,14 @@ def test_bdf2_public_call_uses_redirect_call() -> None:
     def replacement_call(
         replacement_interval: Interval,
         replacement_state: ScalarState,
-        replacement_executor: Executor,
     ) -> float:
-        del replacement_interval, replacement_executor
+        del replacement_interval
         replacement_state.value = 42.0
         return 0.03125
 
     scheme.redirect_call = replacement_call
 
-    accepted_dt = scheme(interval, state, tight_executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.03125)
     assert state.value == pytest.approx(42.0)
@@ -137,7 +135,7 @@ def test_bdf2_startup_call_returns_accepted_dt_and_establishes_history() -> None
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, tight_executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.1)
     assert state.value == pytest.approx(0.1)
@@ -151,12 +149,12 @@ def test_bdf2_second_call_uses_history_and_advances_constant_rhs() -> None:
     scheme = make_scheme()
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(0.0)
-    executor = tight_executor()
+    configuration = tight_configuration()
 
-    first_dt = scheme(interval, state, executor)
+    first_dt = scheme(interval, state)
     interval.present += first_dt
 
-    second_dt = scheme(interval, state, executor)
+    second_dt = scheme(interval, state)
 
     assert second_dt == pytest.approx(0.2)
     assert state.value == pytest.approx(0.3)
@@ -170,9 +168,9 @@ def test_bdf2_falls_back_to_startup_when_step_ratio_is_too_large() -> None:
     scheme = make_scheme()
     interval = Interval(present=0.0, step=0.1, stop=1.0)
     state = ScalarState(0.0)
-    executor = tight_executor()
+    configuration = tight_configuration()
 
-    accepted_dt = scheme(interval, state, executor)
+    accepted_dt = scheme(interval, state)
     interval.present += accepted_dt
 
     assert scheme.has_history is True
@@ -180,7 +178,7 @@ def test_bdf2_falls_back_to_startup_when_step_ratio_is_too_large() -> None:
 
     interval.step = 0.25
 
-    accepted_dt = scheme(interval, state, executor)
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.25)
     assert state.value == pytest.approx(0.35)
@@ -193,7 +191,7 @@ def test_bdf2_call_clips_to_remaining_interval() -> None:
     interval = Interval(present=0.1, step=1.0, stop=0.3)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, tight_executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.2)
     assert state.value == pytest.approx(0.2)
@@ -205,7 +203,7 @@ def test_bdf2_returns_zero_when_interval_is_complete() -> None:
     interval = Interval(present=1.0, step=0.1, stop=1.0)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, tight_executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.0)
     assert state.value == pytest.approx(0.0)
@@ -227,11 +225,11 @@ def test_bdf2_snapshot_and_safety_are_exposed_through_scheme() -> None:
 def test_bdf2_monitoring_records_existing_adaptive_fields() -> None:
     monitor = Monitor()
     scheme = make_scheme(monitor=monitor.scheme)
-    marcher = Marcher(scheme, tight_executor())
+    stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(0.0)
 
-    list(Integrator().live(marcher, interval, state))
+    list(Integrator().live(stepper, interval, state))
 
     assert len(monitor.scheme.adaptive_steps) == 2
 

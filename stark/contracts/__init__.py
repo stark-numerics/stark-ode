@@ -5,7 +5,7 @@ re-exports the most common protocol names for examples and interactive use.
 Prefer focused submodule imports in implementation code.
 """
 
-from stark.contracts.accelerator import AcceleratorLike
+from stark.contracts.accelerator import Accelerator
 from stark.contracts.block import (
     BlockLike,
     BlockOperatorDiagonalLike,
@@ -23,6 +23,7 @@ from stark.contracts.carrier import (
 from stark.contracts.derivative_imex import DerivativeIMEX, DerivativeIMEXAudit
 from stark.contracts.derivative import Derivative, DerivativeAudit
 from stark.contracts.errors import StarkError, StarkErrorRecoverable
+from stark.contracts.engine import StarkEngine
 from stark.contracts.inner_product import InnerProduct
 from stark.contracts.integrator import IntegratorLike
 from stark.contracts.interval import IntervalLike
@@ -51,7 +52,7 @@ from stark.contracts.linear_combine import (
     SupportsLinearCombine,
 )
 from stark.contracts.linearizer import Linearizer, LinearizerAudit
-from stark.contracts.marcher import MarcherAudit, MarcherLike
+from stark.contracts.stepper import IntegratorStepperAudit, IntegratorStepperLike
 from stark.contracts.operator import Operator, OperatorType
 from stark.contracts.residual import LinearResidual, Residual, ResidualAudit
 from stark.contracts.resolvent import Resolvent, ResolventAudit
@@ -73,7 +74,7 @@ from stark.contracts.translation import (
 from stark.contracts.allocator import Allocator, AllocatorAudit
 
 __all__ = [
-    "AcceleratorLike",
+    "Accelerator",
     "BlockLike",
     "BlockOperatorEntryLike",
     "BlockOperatorLike",
@@ -99,6 +100,7 @@ __all__ = [
     "DerivativeIMEX",
     "DerivativeIMEXAudit",
     "DerivativeAudit",
+    "StarkEngine",
     "StarkError",
     "StarkErrorRecoverable",
     "InnerProduct",
@@ -114,8 +116,8 @@ __all__ = [
     "LinearResidual",
     "Linearizer",
     "LinearizerAudit",
-    "MarcherAudit",
-    "MarcherLike",
+    "IntegratorStepperAudit",
+    "IntegratorStepperLike",
     "Operator",
     "OperatorType",
     "Residual",

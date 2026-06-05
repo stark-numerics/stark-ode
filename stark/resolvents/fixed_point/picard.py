@@ -1,16 +1,16 @@
 from __future__ import annotations
 
+from stark.core import Configuration
+from stark.resolvents.configuration import ResolventConfiguration
 """Picard-backed resolvent for one-stage shifted implicit solves."""
 
 from typing import TYPE_CHECKING, Any
 
 from stark.block import Block
-from stark.contracts import AcceleratorLike, Translation, Allocator
-from stark.accelerators import AcceleratorAbsent
-from stark.executor.tolerance import ExecutorTolerance
+from stark.contracts import Accelerator, Translation, Allocator
+from stark.accelerators import AcceleratorNone
 from stark.resolvents.method.descriptor import ResolventDescriptor
 from stark.resolvents.method.errors import ResolventError
-from stark.resolvents.method.policy import ResolventPolicy
 from stark.resolvents.monitoring.monitor import MonitorResolventLike
 from stark.resolvents.monitoring.decorators import with_resolvent_monitoring
 from stark.resolvents.display.decorators import with_resolvent_display
@@ -18,7 +18,6 @@ from stark.resolvents.requests.resolvent import ResolventRequest
 from stark.resolvents.equations.implicit import ResolventImplicitEquation
 from stark.resolvents.specialization.specialist import ResolventSpecialist
 from stark.resolvents.specialization.stencil import ResolventStencilBlock
-from stark.resolvents.method.tolerance import ResolventTolerance
 from stark.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 
@@ -39,7 +38,7 @@ class ResolventPicard:
 
         1. Start from the current stage increment delta.
         2. Compute F(delta).
-        3. Accept if ||F(delta)|| is within ExecutorTolerance.
+        3. Accept if ||F(delta)|| is within Tolerance.
         4. Otherwise apply the Picard correction delta <- delta - F(delta).
         5. Recheck once after the final correction.
     """
@@ -50,7 +49,6 @@ class ResolventPicard:
         "alpha",
         "call_step",
         "picard_update",
-        "policy",
         "max_iterations",
         "redirect_call",
         "equation",
@@ -77,10 +75,9 @@ class ResolventPicard:
     def __init__(
         self,
         allocator: Allocator,
-        ExecutorTolerance: ExecutorTolerance | None = None,
-        policy: ResolventPolicy | None = None,
+        configuration: ResolventConfiguration | None = None,
         safety: ResolventSafety | None = None,
-        accelerator: AcceleratorLike | None = None,
+        accelerator: Accelerator | None = None,
         specialist: ResolventSpecialist[Translation] | None = None,
         tableau: Any | None = None,
     ) -> None:
@@ -89,13 +86,9 @@ class ResolventPicard:
         self.safety = safety if safety is not None else ResolventSafetyDefault()
         self.alpha = 0.0
         self._monitor = None
-        self.tolerance = (
-            ExecutorTolerance
-            if ExecutorTolerance is not None
-            else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
-        )
-        self.policy = policy if policy is not None else ResolventPolicy()
-        self.max_iterations = self.policy.max_iterations
+        configuration = configuration if configuration is not None else Configuration()
+        self.tolerance = configuration.resolvent_tolerance
+        self.max_iterations = configuration.resolvent_maximum_steps
 
         self.residual_buffer = Block([allocator.allocate_translation()])
         self.picard_update = None
@@ -107,7 +100,7 @@ class ResolventPicard:
             self.call_step = self.call_inline
         self.redirect_call = self.call_step
 
-        self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
+        self.accelerator = accelerator if accelerator is not None else AcceleratorNone()
         self.equation = ResolventImplicitEquation(
             "ResolventPicard",
             allocator,
@@ -139,7 +132,7 @@ class ResolventPicard:
             # 2. Compute F(delta).
             equation(delta, residual)
 
-            # 3. Accept if ||F(delta)|| is within ExecutorTolerance.
+            # 3. Accept if ||F(delta)|| is within Tolerance.
             error = residual.norm()
             scale = delta.norm()
             if self.tolerance.accepts(error, scale):
@@ -183,7 +176,7 @@ class ResolventPicard:
             # 2. Compute F(delta).
             equation(delta, residual)
 
-            # 3. Accept if ||F(delta)|| is within ExecutorTolerance.
+            # 3. Accept if ||F(delta)|| is within Tolerance.
             error = residual.norm()
             scale = delta.norm()
             if self.tolerance.accepts(error, scale):

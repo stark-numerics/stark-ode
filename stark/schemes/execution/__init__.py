@@ -2,18 +2,31 @@
 
 from stark.schemes.execution.derivative import SchemeDerivative
 from stark.schemes.execution.unbound import unbound_scheme_call
-from stark.schemes.execution.executor import SchemeExecutor
 from stark.schemes.execution.interval import SchemeShiftedInterval
-from stark.schemes.execution.safety import SchemeSafety
-from stark.schemes.execution.support import SchemeStepSupport
+from stark.schemes.execution.step_support import SchemeStepSupport
 from stark.schemes.execution.tolerance import SchemeTolerance
+from stark.schemes.execution.step_control import (
+    ErrorBound,
+    ErrorRatio,
+    SchemeStepAdaptiveAdvanceReport,
+    SchemeStepAdaptiveProposal,
+    SchemeStepControl,
+    default_adaptive_error_exponent,
+    default_scheme_configuration,
+)
+
 
 __all__ = [
     "SchemeDerivative",
-    "SchemeExecutor",
-    "SchemeSafety",
     "SchemeShiftedInterval",
     "SchemeStepSupport",
     "SchemeTolerance",
     "unbound_scheme_call",
+    "ErrorBound",
+    "ErrorRatio",
+    "SchemeStepAdaptiveAdvanceReport",
+    "SchemeStepAdaptiveProposal",
+    "SchemeStepControl",
+    "default_adaptive_error_exponent",
+    "default_scheme_configuration",
 ]

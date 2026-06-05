@@ -17,7 +17,7 @@ from stark.comparison.models import (
     ComparisonTiming,
     ProfileCategory,
 )
-from stark.core.integrate import Integrator
+from stark.integrator.integrator import Integrator
 from stark.monitor import Monitor, MonitorSummary
 
 
@@ -41,22 +41,22 @@ class ComparisonEntryEvaluation:
 
 
 class ComparisonMarcherCounting:
-    __slots__ = ("marcher", "steps")
+    __slots__ = ("stepper", "steps")
 
-    def __init__(self, marcher: Any) -> None:
-        self.marcher = marcher
+    def __init__(self, stepper: Any) -> None:
+        self.stepper = stepper
         self.steps = 0
 
     def __call__(self, interval: Any, state: Any) -> None:
         self.steps += 1
-        self.marcher(interval, state)
+        self.stepper(interval, state)
 
     def snapshot_state(self, state: Any) -> Any:
-        snapshot_state = getattr(self.marcher, "snapshot_state", None)
+        snapshot_state = getattr(self.stepper, "snapshot_state", None)
         if not callable(snapshot_state):
             raise TypeError(
-                "ComparisonRunner checkpoint comparison requires marcher.snapshot_state(state). "
-                "Use Marcher(...) or add snapshot_state(state) to the custom marcher."
+                "ComparisonRunner checkpoint comparison requires stepper.snapshot_state(state). "
+                "Use IntegratorStepper(...) or add snapshot_state(state) to the custom stepper."
             )
         return snapshot_state(state)
 
@@ -67,13 +67,13 @@ class ComparisonProfileSurvey:
     def __call__(
         self,
         profiler: cProfile.Profile,
-        marcher: Any,
+        stepper: Any,
         profile_category: ProfileCategory | None = None,
     ) -> ComparisonProfile:
         return ComparisonProfile(
             breakdown=self._breakdown(profiler, profile_category),
-            note=self._note(marcher),
-            custom_hotspots=self._custom_hotspots(profiler, marcher),
+            note=self._note(stepper),
+            custom_hotspots=self._custom_hotspots(profiler, stepper),
         )
 
     def _breakdown(
@@ -127,8 +127,8 @@ class ComparisonProfileSurvey:
         return "problem"
 
     @staticmethod
-    def _note(marcher: Any) -> str | None:
-        scheme = getattr(marcher, "scheme", None)
+    def _note(stepper: Any) -> str | None:
+        scheme = getattr(stepper, "scheme", None)
         if scheme is None:
             return (
                 "Custom entry: the profile buckets are approximate and cannot reliably "
@@ -142,8 +142,8 @@ class ComparisonProfileSurvey:
             "cannot reliably separate method logic from resolvent and problem work."
         )
 
-    def _custom_hotspots(self, profiler: cProfile.Profile, marcher: Any) -> list[ComparisonHotspot]:
-        if self._note(marcher) is None:
+    def _custom_hotspots(self, profiler: cProfile.Profile, stepper: Any) -> list[ComparisonHotspot]:
+        if self._note(stepper) is None:
             return []
 
         hotspots: list[ComparisonHotspot] = []
@@ -187,26 +187,26 @@ class ComparisonEntryRunner:
         self._announce(f"Comparing {entry.name}...")
 
         started = perf_counter()
-        marcher = ComparisonMarcherCounting(entry.make_marcher())
+        stepper = ComparisonMarcherCounting(entry.make_stepper())
         integrator = entry.build_integrator() if entry.build_integrator is not None else Integrator()
         setup_elapsed = perf_counter() - started
 
-        observed_state, observed_checkpoints, observed_steps, monitor_summary = self._observe_once(marcher, integrator)
+        observed_state, observed_checkpoints, observed_steps, monitor_summary = self._observe_once(stepper, integrator)
         self._announce(f"Observed {entry.name}: steps={observed_steps}")
 
-        warmup = self._run_once(marcher, integrator)
+        warmup = self._run_once(stepper, integrator)
         self._announce(f"Warmup {entry.name}: steps={warmup.steps}, elapsed={warmup.elapsed:.3f}s")
 
         durations = []
         for repeat in range(self.repeats):
-            timed = self._run_once(marcher, integrator)
+            timed = self._run_once(stepper, integrator)
             durations.append(timed.elapsed)
             self._announce(
                 f"Timed {entry.name} repeat {repeat + 1}/{self.repeats}: "
                 f"steps={timed.steps}, elapsed={timed.elapsed:.3f}s"
             )
 
-        profile = self._profile_once(marcher, integrator, entry.profile_category)
+        profile = self._profile_once(stepper, integrator, entry.profile_category)
         diagnostics = self.problem.diagnostics(observed_state) if self.problem.diagnostics is not None else None
 
         return ComparisonEntryEvaluation(
@@ -226,59 +226,59 @@ class ComparisonEntryRunner:
 
     def _observe_once(
         self,
-        marcher: ComparisonMarcherCounting,
+        stepper: ComparisonMarcherCounting,
         integrator: Integrator,
     ) -> tuple[Any, list[Any], int, MonitorSummary | None]:
         monitor = Monitor()
-        assign_monitor = getattr(marcher.marcher, "assign_monitor", None)
+        assign_monitor = getattr(stepper.stepper, "assign_monitor", None)
         if not callable(assign_monitor):
-            observed = self._run_once(marcher, integrator)
+            observed = self._run_once(stepper, integrator)
             return observed.state, observed.checkpoints, observed.steps, None
 
         try:
             assign_monitor(monitor)
         except TypeError:
-            observed = self._run_once(marcher, integrator)
+            observed = self._run_once(stepper, integrator)
             return observed.state, observed.checkpoints, observed.steps, None
 
         try:
-            observed = self._run_once(marcher, integrator)
+            observed = self._run_once(stepper, integrator)
             return observed.state, observed.checkpoints, observed.steps, monitor.summary()
         finally:
-            unassign_monitor = getattr(marcher.marcher, "unassign_monitor", None)
+            unassign_monitor = getattr(stepper.stepper, "unassign_monitor", None)
             if callable(unassign_monitor):
                 unassign_monitor()
 
-    def _run_once(self, marcher: ComparisonMarcherCounting, integrator: Integrator) -> ComparisonRunRecord:
+    def _run_once(self, stepper: ComparisonMarcherCounting, integrator: Integrator) -> ComparisonRunRecord:
         state = self.problem.build_state()
         interval = self.problem.build_interval()
-        marcher.steps = 0
+        stepper.steps = 0
         checkpoints: list[Any] = []
         started = perf_counter()
-        for _interval, _state in integrator.live(marcher, interval, state, checkpoints=self.problem.checkpoints):
+        for _interval, _state in integrator.live(stepper, interval, state, checkpoints=self.problem.checkpoints):
             if self.problem.checkpoints is not None:
-                checkpoints.append(marcher.snapshot_state(state))
+                checkpoints.append(stepper.snapshot_state(state))
         elapsed = perf_counter() - started
-        return ComparisonRunRecord(state=state, checkpoints=checkpoints, steps=marcher.steps, elapsed=elapsed)
+        return ComparisonRunRecord(state=state, checkpoints=checkpoints, steps=stepper.steps, elapsed=elapsed)
 
     def _profile_once(
         self,
-        marcher: ComparisonMarcherCounting,
+        stepper: ComparisonMarcherCounting,
         integrator: Integrator,
         profile_category: ProfileCategory | None,
     ) -> ComparisonProfile:
         state = self.problem.build_state()
         interval = self.problem.build_interval()
-        marcher.steps = 0
+        stepper.steps = 0
         profiler = cProfile.Profile()
         profiler.enable()
         try:
-            for _interval, _state in integrator.live(marcher, interval, state, checkpoints=self.problem.checkpoints):
+            for _interval, _state in integrator.live(stepper, interval, state, checkpoints=self.problem.checkpoints):
                 pass
         finally:
             profiler.disable()
 
-        profile = self.profile_survey(profiler, marcher.marcher, profile_category)
+        profile = self.profile_survey(profiler, stepper.stepper, profile_category)
         breakdown = profile.breakdown
         if breakdown.profiled > 0.0:
             self._announce(

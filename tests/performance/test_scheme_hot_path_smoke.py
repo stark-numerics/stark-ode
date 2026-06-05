@@ -5,7 +5,7 @@ from time import perf_counter
 
 import pytest
 
-from stark import Executor, Integrator, Interval, Marcher
+from stark import Integrator, Interval, IntegratorStepper
 from stark.schemes.explicit.fixed.rk4 import SchemeRK4
 
 
@@ -49,12 +49,12 @@ def exponential_growth(interval: Interval, state: ScalarState, out: ScalarTransl
 
 def run_rk4_steps(n_steps: int) -> float:
     scheme = SchemeRK4(exponential_growth, ScalarAllocator())
-    marcher = Marcher(scheme, Executor())
+    stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=1.0 / n_steps, stop=1.0)
     state = ScalarState(1.0)
 
     start = perf_counter()
-    for _interval, _state in Integrator().live(marcher, interval, state):
+    for _interval, _state in Integrator().live(stepper, interval, state):
         pass
     return perf_counter() - start
 

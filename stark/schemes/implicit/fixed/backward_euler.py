@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from stark.schemes.configuration import SchemeConfiguration
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
-from stark.schemes.execution.executor import SchemeExecutor
-from stark.schemes.monitoring.monitor import MonitorSchemeLike
+from stark.schemes.monitoring.monitor import SchemeMonitor
 from stark.schemes.monitoring.decorators import with_fixed_step_monitoring
 from stark.schemes.method.descriptor import SchemeDescriptor
 from stark.schemes.display.decorators import with_scheme_display
@@ -80,8 +80,9 @@ class SchemeBackwardEuler:
         allocator: Allocator,
         resolvent: Resolvent,
         *,
+        configuration: SchemeConfiguration | None = None,
         specialist: SchemeSpecialist | None = None,
-        monitor: MonitorSchemeLike | None = None,
+        monitor: SchemeMonitor | None = None,
     ) -> None:
         self.monitor = monitor
         self.call_body = self.call_inline
@@ -103,9 +104,8 @@ class SchemeBackwardEuler:
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
-        return self.redirect_call(interval, state, executor)
+        return self.redirect_call(interval, state)
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
         """Accept specialist hooks for constructor consistency."""
@@ -116,10 +116,7 @@ class SchemeBackwardEuler:
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
-        del executor
-
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
@@ -154,9 +151,8 @@ class SchemeBackwardEuler:
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
-        return self.call_inline(interval, state, executor)
+        return self.call_inline(interval, state)
 
 
 __all__ = ["BE_TABLEAU", "SchemeBackwardEuler"]

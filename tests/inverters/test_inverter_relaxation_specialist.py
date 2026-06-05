@@ -12,7 +12,7 @@ from stark.inverters.relaxation import (
     InverterRelaxationRichardson,
     InverterRelaxationStencilUpdate,
 )
-from stark.inverters.support import InverterBudget, InverterTolerance
+from stark import Configuration, Tolerance
 from stark.resolvents.requests.inverter import ResolventInverterRequest
 
 
@@ -93,8 +93,7 @@ def test_richardson_uses_specialist_update_path() -> None:
     output = Block([TranslationScalar(0.0)])
     inverter = InverterRelaxationRichardson[TranslationScalar](
         damping=0.5,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=0.0),
-        budget=InverterBudget(maximum_steps=4),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=4),
         specialist=specialist,
     )
 
@@ -116,8 +115,7 @@ def test_jacobi_uses_specialist_update_path_after_diagonal_inverse() -> None:
     output = Block([TranslationScalar(0.0), TranslationScalar(0.0)])
     inverter = InverterRelaxationJacobi[TranslationScalar](
         invert_entry,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=0.0),
-        budget=InverterBudget(maximum_steps=2),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=2),
         specialist=specialist,
     )
 

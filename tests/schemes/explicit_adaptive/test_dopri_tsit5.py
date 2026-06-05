@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark import Executor, Interval, ExecutorTolerance
+from stark import Interval, Tolerance
 
 
 @dataclass(slots=True)
@@ -107,13 +107,13 @@ def exponential_growth(
     out.value = state.value
 
 
-def tight_executor() -> Executor:
-    return Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
+def tight_configuration() -> Configuration:
+    return Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
 import pytest
 
-from stark import Integrator, Interval, Marcher
+from stark import Integrator, Interval, IntegratorStepper
 from stark.monitor import Monitor
 from stark.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
 from stark.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
@@ -140,16 +140,15 @@ def test_dopri_tsit5_public_call_uses_redirect_call(scheme_cls) -> None:
 
     def replacement_call(
         replacement_interval: Interval,
-        replacement_state: ScalarState,
-        replacement_executor,
+        replacement_state: ScalarState
     ) -> float:
-        del replacement_interval, replacement_executor
+        del replacement_interval
         replacement_state.value = 42.0
         return 0.03125
 
     scheme.redirect_call = replacement_call
 
-    accepted_dt = scheme(interval, state, tight_executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.03125)
     assert state.value == pytest.approx(42.0)
@@ -161,7 +160,7 @@ def test_dopri_tsit5_call_returns_accepted_dt_and_updates_next_step(scheme_cls) 
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
 
-    accepted_dt = scheme(interval, state, tight_executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.1)
     assert interval.step == pytest.approx(0.2)
@@ -174,7 +173,7 @@ def test_dopri_tsit5_call_clips_to_remaining_interval(scheme_cls) -> None:
     interval = Interval(present=0.1, step=1.0, stop=0.3)
     state = ScalarState(2.0)
 
-    accepted_dt = scheme(interval, state, tight_executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.2)
     assert interval.step == pytest.approx(0.0)
@@ -207,11 +206,10 @@ def test_dopri_tsit5_inline_and_specialist_paths_match_for_one_step(scheme_cls) 
         specialist=StubSpecialist(),
     )
 
-    accepted_dt_inline = inline(interval_inline, state_inline, tight_executor())
+    accepted_dt_inline = inline(interval_inline, state_inline)
     accepted_dt_specialist = specialist(
         interval_specialist,
         state_specialist,
-        tight_executor(),
     )
 
     assert accepted_dt_specialist == pytest.approx(accepted_dt_inline)
@@ -229,11 +227,11 @@ def test_dopri_tsit5_monitoring_records_existing_adaptive_fields(
 ) -> None:
     monitor = Monitor()
     scheme = scheme_cls(zero_rhs, ScalarAllocator(), monitor=monitor.scheme)
-    marcher = Marcher(scheme, tight_executor())
+    stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
 
-    list(Integrator().live(marcher, interval, state))
+    list(Integrator().live(stepper, interval, state))
 
     assert len(monitor.scheme.adaptive_steps) == 2
     first = monitor.scheme.adaptive_steps[0]

@@ -2,28 +2,32 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
-from stark.accelerators.common import AcceleratorBase
 from stark.contracts.accelerator import AcceleratorTarget
 
 
 @dataclass(slots=True)
-class AcceleratorJax(AcceleratorBase):
+class AcceleratorJax:
     """JAX-backed accelerator for pure array functions."""
 
+    strict: bool = False
+    options: dict[str, Any] = field(default_factory=dict, repr=False)
     _jax: Any = field(init=False, repr=False, default=None)
 
-    name = "jax"
+    name: ClassVar[str] = "jax"
 
-    def __init__(self, *, strict: bool = False, values: dict[str, Any] | None = None) -> None:
+    def __init__(self, *, strict: bool = False, options: dict[str, Any] | None = None) -> None:
         try:
             import jax
         except ImportError:  # pragma: no cover - optional dependency
             raise ModuleNotFoundError("AcceleratorJax requires JAX to be installed.") from None
         self.strict = strict
-        self.values = {} if values is None else dict(values)
+        self.options = {} if options is None else dict(options)
         self._jax = jax
+
+    def __str__(self) -> str:
+        return self.name
 
     def compile(
         self,
@@ -35,7 +39,7 @@ class AcceleratorJax(AcceleratorBase):
         **options: Any,
     ) -> Callable[..., Any]:
         del label, cache
-        jit_options = {**self.values, **options}
+        jit_options = {**self.options, **options}
 
         def compile_function(target: AcceleratorTarget) -> AcceleratorTarget:
             if getattr(target, "__code__", None) is None:
@@ -49,26 +53,35 @@ class AcceleratorJax(AcceleratorBase):
             return compile_function
         return compile_function(function)
 
-    def _compile_examples(self, function: AcceleratorTarget, *signatures: Any) -> AcceleratorTarget:
-        if not signatures or not callable(function):
+    def compile_examples(self, function: AcceleratorTarget, *examples: Any) -> AcceleratorTarget:
+        if not examples or not callable(function):
             return function
 
+        compiled_any = False
         lower = getattr(function, "lower", None)
         if callable(lower):
-            for signature in signatures:
-                arguments = signature if isinstance(signature, tuple) else (signature,)
+            for example in examples:
+                arguments = example if isinstance(example, tuple) else (example,)
                 try:
                     lower(*arguments).compile()
                 except Exception:
                     continue
+                else:
+                    compiled_any = True
+            if self.strict and not compiled_any:
+                raise RuntimeError("jax backend could not compile the requested examples.")
             return function
 
-        for signature in signatures:
-            arguments = signature if isinstance(signature, tuple) else (signature,)
+        for example in examples:
+            arguments = example if isinstance(example, tuple) else (example,)
             try:
                 function(*arguments)
             except Exception:
                 continue
+            else:
+                compiled_any = True
+        if self.strict and not compiled_any:
+            raise RuntimeError("jax backend could not compile the requested examples.")
         return function
 
 

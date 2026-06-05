@@ -4,10 +4,10 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Interval, ExecutorTolerance
-from stark.accelerators import AcceleratorAbsent
+from stark import Interval, Tolerance
+from stark.accelerators import AcceleratorNone
 from stark.resolvents import ResolventPicard
-from stark.resolvents.method.policy import ResolventPolicy
+from stark import Configuration
 from stark.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
 
 
@@ -57,9 +57,8 @@ def make_scheme() -> SchemeBackwardEuler:
     allocator = ScalarAllocator()
     resolvent = ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=AcceleratorAbsent(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=SchemeBackwardEuler.tableau,
     )
     return SchemeBackwardEuler(
@@ -89,15 +88,14 @@ def test_backward_euler_public_call_uses_redirect_call() -> None:
     def replacement_call(
         replacement_interval: Interval,
         replacement_state: ScalarState,
-        replacement_executor: Executor,
     ) -> float:
-        del replacement_interval, replacement_executor
+        del replacement_interval
         replacement_state.value = 42.0
         return 0.03125
 
     scheme.redirect_call = replacement_call
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.03125)
     assert state.value == pytest.approx(42.0)
@@ -108,7 +106,7 @@ def test_backward_euler_generic_call_performs_one_implicit_step() -> None:
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(0.125)
@@ -120,7 +118,7 @@ def test_backward_euler_generic_call_clips_to_remaining_interval() -> None:
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.05)
     assert state.value == pytest.approx(0.05)
@@ -132,7 +130,7 @@ def test_backward_euler_returns_zero_when_interval_is_already_complete() -> None
     interval = Interval(present=1.0, step=0.125, stop=1.0)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.0)
     assert state.value == pytest.approx(0.0)

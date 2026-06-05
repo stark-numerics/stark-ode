@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from stark.core.auditor import Auditor
 from stark.contracts import Derivative, State, Translation, Allocator
-from stark.schemes.execution.support import SchemeStepSupport
+from stark.schemes.execution.step_support import SchemeStepSupport
 
 
 @dataclass(slots=True)

@@ -1,7 +1,6 @@
 from stark.resolvents.method.descriptor import ResolventDescriptor
 from stark.resolvents.method.errors import ResolventError
-from stark.resolvents.method.policy import ResolventPolicy
-from stark.resolvents.method.tolerance import ResolventTolerance
+from stark.resolvents.configuration import ResolventConfiguration
 from stark.resolvents.fixed_point.coupled_picard import ResolventCoupledPicard
 from stark.resolvents.fixed_point.picard import ResolventPicard
 from stark.resolvents.linearized.coupled_newton import ResolventCoupledNewton
@@ -18,6 +17,5 @@ __all__ = [
     "ResolventPicard",
     "ResolventError",
     "ResolventDescriptor",
-    "ResolventPolicy",
-    "ResolventTolerance",
+    "ResolventConfiguration",
 ]

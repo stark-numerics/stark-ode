@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.block import BlockAllocator
 from stark.contracts import Derivative, State, Allocator
 from stark.schemes.display.display import display_implicit_resolvent_problem
-from stark.schemes.execution.support import SchemeStepSupport
+from stark.schemes.execution.step_support import SchemeStepSupport
 
 
 def initialise_implicit_support(self, derivative: Derivative, allocator: Allocator) -> None:

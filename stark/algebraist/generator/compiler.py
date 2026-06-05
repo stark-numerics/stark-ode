@@ -4,8 +4,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TypeVar, cast
 
-from stark.accelerators.absent import AcceleratorAbsent
-from stark.contracts.accelerator import AcceleratorLike
+from stark.accelerators.none import AcceleratorNone
+from stark.contracts.accelerator import Accelerator
 
 KernelType = TypeVar("KernelType", bound=Callable[..., object])
 
@@ -14,7 +14,7 @@ KernelType = TypeVar("KernelType", bound=Callable[..., object])
 class AlgebraistGeneratorCompiler:
     """Compile a generated source string into a callable kernel."""
 
-    accelerator: AcceleratorLike = field(default_factory=AcceleratorAbsent)
+    accelerator: Accelerator = field(default_factory=AcceleratorNone)
 
     def compile(self, source: str) -> KernelType:
         namespace: dict[str, object] = {}

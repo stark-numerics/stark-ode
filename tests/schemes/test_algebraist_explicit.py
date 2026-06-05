@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
+from stark import Integrator, Interval, IntegratorStepper, Tolerance
 from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
 from stark.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
@@ -19,7 +19,7 @@ from stark.schemes.explicit.fixed.ralston import SchemeRalston
 from stark.schemes.explicit.fixed.rk38 import SchemeRK38
 from stark.schemes.explicit.fixed.rk4 import SchemeRK4
 from stark.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
-
+from stark.core import Configuration
 
 @dataclass(slots=True)
 class ArrayState:
@@ -148,7 +148,7 @@ def run_fixed_step(scheme_type, *, specialist=None) -> ArrayState:
     interval = Interval(0.0, 0.05, 0.05)
     scheme = scheme_type(ArrayDerivative(), ArrayAllocator(3), specialist=specialist)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.05)
     return state
@@ -158,11 +158,11 @@ def run_adaptive_solve(scheme_type, *, specialist=None) -> tuple[ArrayState, int
     state = build_state()
     interval = Interval(0.0, 0.05, 0.25)
     scheme = scheme_type(ArrayDerivative(), ArrayAllocator(3), specialist=specialist)
-    marcher = Marcher(scheme, Executor(tolerance=ExecutorTolerance(atol=1.0e-10, rtol=1.0e-10)))
-    integrator = Integrator(executor=marcher.executor)
+    stepper = IntegratorStepper(scheme)
+    integrator = Integrator(configuration=Configuration())
 
     steps = 0
-    for _interval, _state in integrator.live(marcher, interval, state):
+    for _interval, _state in integrator.live(stepper, interval, state):
         del _interval, _state
         steps += 1
 
@@ -199,6 +199,6 @@ def test_adaptive_scheme_specialist_binding_selects_scheme_owned_call_specialize
 
     assert scheme.call_step.__self__ is scheme
     assert scheme.call_step.__func__ is SchemeCashKarp.call_specialized
-    # Adaptive schemes still bind executor runtime lazily on first call.
+    # Adaptive schemes still bind Configuration runtime lazily on first call.
     assert scheme.redirect_call.__self__ is scheme
     assert scheme.redirect_call.__func__ is scheme.call_step.__func__

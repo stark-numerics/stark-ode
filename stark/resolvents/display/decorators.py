@@ -24,7 +24,7 @@ def with_resolvent_display(cls):
         return (
             f"{type(self).__name__}("
             f"tolerance={self.tolerance!r}, "
-            f"policy={self.policy!r}"
+            f"maximum_steps={self.max_iterations!r}"
             f"{extra}, "
             f"accelerator={self.accelerator!r}, "
             f"tableau={self.tableau!r})"

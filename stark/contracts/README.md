@@ -17,7 +17,7 @@ Prefer focused imports when writing docs or implementation code:
 - `stark.contracts.interval`: timeline cursors
 - `stark.contracts.linear_combine`: translation algebra fast paths
 - `stark.contracts.linearizer`: Jacobian-action workers
-- `stark.contracts.marcher`: step-accepting workers
+- `stark.contracts.stepper`: step-accepting workers
 - `stark.contracts.operator`: matrix-free linear operators
 - `stark.contracts.residual`: residual workers for nonlinear solves
 - `stark.contracts.resolvent`: nonlinear stage solvers

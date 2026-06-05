@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 from stark.contracts import IntervalLike, State
-from stark.schemes.execution.executor import SchemeExecutor
-from stark.executor.adaptivity import ExecutorAdaptivity
-from stark.schemes.monitoring.monitor import MonitorSchemeLike
+from stark.schemes.monitoring.monitor import SchemeMonitor
 from stark.schemes.monitoring.decorators import with_adaptive_step_monitoring
-from stark.schemes.adaptivity import (
+from stark.schemes.execution.step_control import (
     SchemeStepControl,
-    adaptive_adaptivity,
 )
 from stark.schemes.imex._support import (
     imex_display_resolvent_problem,
@@ -114,17 +111,14 @@ class SchemeKennedyCarpenter32(SchemeKennedyCarpenterAdaptive):
     descriptor = SchemeDescriptor("KC32", "Kennedy-Carpenter 3(2)")
     display_resolvent_problem = classmethod(imex_display_resolvent_problem)
     snapshot_state = imex_snapshot_state
-
-    adaptivity = property(adaptive_adaptivity)
-
     tableau = KENNEDY_CARPENTER32_TABLEAU
 
-    def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
-        return self.redirect_call(interval, state, executor)
+    def __call__(self, interval: IntervalLike, state: State) -> float:
+        return self.redirect_call(interval, state)
 
     @staticmethod
-    def default_adaptivity() -> ExecutorAdaptivity:
-        return ExecutorAdaptivity(error_exponent=1.0 / 3.0)
+    def default_adaptivity() -> float:
+        return 1.0 / 3.0
 
 
 __all__ = [

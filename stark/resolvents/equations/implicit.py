@@ -6,7 +6,7 @@ from typing import cast
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.runtime.general import AlgebraistRuntimeGeneral
 from stark.block import Block, BlockOperatorDiagonal
-from stark.contracts import AcceleratorLike, Derivative, IntervalLike, Linearizer, State, Translation, Allocator
+from stark.contracts import Accelerator, Derivative, IntervalLike, Linearizer, State, Translation, Allocator
 from stark.contracts.translation_basis import TranslationBasis
 from stark.resolvents.requests.resolvent import (
     ResolventRequestCoupled,
@@ -184,7 +184,7 @@ class ResolventImplicitEquation:
         method_name: str,
         allocator: Allocator,
         linearizer: Linearizer | None = None,
-        accelerator: AcceleratorLike | None = None,
+        accelerator: Accelerator | None = None,
     ) -> None:
         self.method_name = method_name
         translation_probe = allocator.allocate_translation()
@@ -319,7 +319,7 @@ class ResolventImplicitEquationCoupled:
         method_name: str,
         allocator: Allocator,
         linearizer: Linearizer | None = None,
-        accelerator: AcceleratorLike | None = None,
+        accelerator: Accelerator | None = None,
     ) -> None:
         self.method_name = method_name
         translation_probe = allocator.allocate_translation()

@@ -2,15 +2,15 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from stark import Executor, Marcher
-from stark.accelerators import Accelerator
+from stark import IntegratorStepper
+from stark.accelerators import AcceleratorNone
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.generator import AlgebraistGeneratorGeneral
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField
 from stark.core.auditor import Auditor
-from stark.core.integrate import Integrator
+from stark.integrator.integrator import Integrator
 from stark.monitor import Monitor
-from stark.executor.tolerance import ExecutorTolerance
+from stark import Tolerance
 from stark.core.interval import Interval
 from stark.resolvents import ResolventPicard
 from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
@@ -32,7 +32,7 @@ from stark.schemes.explicit.fixed.ralston import SchemeRalston
 from stark.schemes.explicit.fixed.rk4 import SchemeRK4
 from stark.schemes.explicit.fixed.rk38 import SchemeRK38
 from stark.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
-from stark.schemes.execution.support import SchemeStepSupport
+from stark.schemes.execution.step_support import SchemeStepSupport
 from stark import DerivativeIMEX
 
 
@@ -122,8 +122,8 @@ class DummyScheme:
     def snapshot_state(self, state):
         return self.workspace.snapshot_state(state)
 
-    def __call__(self, interval, state, executor: Executor) -> float:
-        del interval, state, executor
+    def __call__(self, interval, state: Configuration) -> float:
+        del interval, state
         return 0.0
 
 
@@ -148,7 +148,7 @@ def _dummy_derivative(interval, state, out) -> None:
 
 
 def _imex_picard(split: DerivativeIMEX, allocator, tableau):
-    return ResolventPicard(allocator, accelerator=Accelerator.none(), tableau=tableau)
+    return ResolventPicard(allocator, accelerator=AcceleratorNone(), tableau=tableau)
 
 
 def test_scheme_falls_back_to_arithmetic_linear_combination() -> None:
@@ -345,7 +345,7 @@ def test_adaptive_scheme_updates_next_interval_step() -> None:
     scheme = SchemeCashKarp(_dummy_derivative, DummyAllocator())
     interval = Interval(present=0.0, step=0.1, stop=1.0)
 
-    accepted_dt = scheme(interval, object(), Executor(tolerance=ExecutorTolerance(atol=1.0e-6)))
+    accepted_dt = scheme(interval, object())
 
     assert accepted_dt == 0.1
     assert interval.step >= 0.1
@@ -394,24 +394,24 @@ def test_midpoint_uses_stage_time_for_non_autonomous_derivative() -> None:
     interval = Interval(present=0.0, step=1.0, stop=1.0)
     state = TimeState(0.0)
 
-    accepted_dt = scheme(interval, state, ExecutorTolerance())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == 1.0
     assert abs(state.value - 0.5) < 1.0e-12
 
 
-def test_marcher_keeps_explicitly_supplied_scheme_derivative() -> None:
+def test_stepper_keeps_explicitly_supplied_scheme_derivative() -> None:
     class ConstantDerivative:
         def __call__(self, interval: Interval, state: TimeState, out: TimeTranslation) -> None:
             del interval, state
             out.value = 1.0
 
     scheme = SchemeEuler(ConstantDerivative(), TimeAllocator())
-    marcher = Marcher(scheme, Executor(tolerance=ExecutorTolerance()))
+    stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.5, stop=0.5)
     state = TimeState(0.0)
 
-    marcher(interval, state)
+    stepper(interval, state)
 
     assert abs(state.value - 0.5) < 1.0e-12
 
@@ -431,7 +431,7 @@ def test_imex_euler_handles_purely_explicit_split() -> None:
     interval = Interval(present=0.0, step=0.5, stop=0.5)
     state = TimeState(0.0)
 
-    accepted_dt = scheme(interval, state, ExecutorTolerance())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == 0.5
     assert abs(state.value - 0.5) < 1.0e-12
@@ -456,7 +456,7 @@ def test_imex_ark324_accepts_constant_split_rhs() -> None:
     interval = Interval(present=0.0, step=0.25, stop=1.0)
     state = TimeState(0.0)
 
-    accepted_dt = scheme(interval, state, Executor(tolerance=ExecutorTolerance(atol=1.0e-6, rtol=1.0e-6)))
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == 0.25
     assert abs(state.value - 0.25) < 1.0e-12
@@ -466,10 +466,10 @@ def test_imex_ark324_accepts_constant_split_rhs() -> None:
 def test_scheme_monitor_collects_adaptive_step_payloads_during_integration() -> None:
     monitor = Monitor()
     scheme = SchemeCashKarp(_dummy_derivative, DummyAllocator(), monitor=monitor.scheme)
-    marcher = Marcher(scheme, Executor(tolerance=ExecutorTolerance(atol=1.0e-6, rtol=1.0e-6)))
+    stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
 
-    list(Integrator().live(marcher, interval, object()))
+    list(Integrator().live(stepper, interval, object()))
 
     assert len(monitor.scheme.adaptive_steps) == 2
     assert [round(step.t_start, 12) for step in monitor.scheme.adaptive_steps] == [0.0, 0.1]

@@ -2,28 +2,29 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
-from stark.accelerators.common import AcceleratorBase
 from stark.contracts.accelerator import AcceleratorTarget
 
 
 @dataclass(slots=True)
-class AcceleratorNumba(AcceleratorBase):
+class AcceleratorNumba:
     """Numba-backed accelerator for imperative numerical kernels."""
 
+    strict: bool = False
     cache: bool = True
+    options: dict[str, Any] = field(default_factory=dict, repr=False)
     _njit: Any = field(init=False, repr=False, default=None)
     _typeof: Any = field(init=False, repr=False, default=None)
 
-    name = "numba"
+    name: ClassVar[str] = "numba"
 
     def __init__(
         self,
         *,
         cache: bool = True,
         strict: bool = False,
-        values: dict[str, Any] | None = None,
+        options: dict[str, Any] | None = None,
     ) -> None:
         try:
             from numba import njit, typeof
@@ -34,9 +35,12 @@ class AcceleratorNumba(AcceleratorBase):
 
         self.cache = cache
         self.strict = strict
-        self.values = {} if values is None else dict(values)
+        self.options = {} if options is None else dict(options)
         self._njit = njit
         self._typeof = typeof
+
+    def __str__(self) -> str:
+        return self.name
 
     def compile(
         self,
@@ -48,7 +52,7 @@ class AcceleratorNumba(AcceleratorBase):
         **options: Any,
     ) -> Callable[..., Any]:
         del label
-        base_options = {"cache": self.cache, **self.values, **options}
+        base_options = {"cache": self.cache, **self.options, **options}
         if cache is not None:
             base_options["cache"] = cache
 
@@ -76,20 +80,26 @@ class AcceleratorNumba(AcceleratorBase):
 
         return compile_function(function)
 
-    def _compile_examples(
+    def compile_examples(
         self,
         function: AcceleratorTarget,
-        *signatures: Any,
+        *examples: Any,
     ) -> AcceleratorTarget:
-        if not signatures or not callable(function) or not hasattr(function, "compile"):
+        if not examples or not callable(function) or not hasattr(function, "compile"):
             return function
 
-        for signature in signatures:
-            arguments = signature if isinstance(signature, tuple) else (signature,)
+        compiled_any = False
+        for example in examples:
+            arguments = example if isinstance(example, tuple) else (example,)
             try:
                 function.compile(tuple(self._typeof(argument) for argument in arguments))
             except Exception:
                 continue
+            else:
+                compiled_any = True
+
+        if self.strict and not compiled_any:
+            raise RuntimeError("numba backend could not compile the requested examples.")
 
         return function
 

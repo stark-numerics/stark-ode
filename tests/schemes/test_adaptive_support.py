@@ -4,13 +4,12 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Interval, ExecutorTolerance
-from stark.executor.adaptivity import ExecutorAdaptivity
-from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
-from stark.schemes.adaptivity import (
+from stark import Configuration, Interval, Tolerance
+from stark.schemes.execution.step_control import (
     SchemeStepAdaptiveAdvanceReport,
     SchemeStepControl,
 )
+from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
 
 
 @dataclass(slots=True)
@@ -55,20 +54,21 @@ def zero_rhs(
     out.value = 0.0
 
 
-def test_adaptive_support_owns_adaptivity_and_report_state() -> None:
-    adaptivity = ExecutorAdaptivity(
-        safety=0.7,
-        min_factor=0.2,
-        max_factor=3.0,
-        error_exponent=0.25,
+def test_adaptive_support_owns_configuration_and_report_state() -> None:
+    configuration = Configuration(
+        scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9),
+        adaptive_scheme_safety=0.7,
+        adaptive_scheme_min_factor=0.2,
+        adaptive_scheme_max_factor=3.0,
+        adaptive_scheme_error_exponent=0.25,
     )
 
-    support = SchemeStepControl(adaptivity)
+    support = SchemeStepControl(configuration)
     report = support.report()
 
-    assert support.adaptivity is adaptivity
-    assert isinstance(support.adaptivity, ExecutorAdaptivity)
-
+    assert support.configuration is configuration
+    assert support.ratio(1.0e-10, 1.0) < 1.0
+    assert support.bound(1.0) == pytest.approx(configuration.scheme_tolerance.bound(1.0))
     assert isinstance(report, SchemeStepAdaptiveAdvanceReport)
     assert report.accepted_dt == pytest.approx(0.0)
     assert report.t_start == pytest.approx(0.0)
@@ -78,60 +78,9 @@ def test_adaptive_support_owns_adaptivity_and_report_state() -> None:
     assert report.error_ratio == pytest.approx(0.0)
     assert report.rejection_count == 0
 
-    assert support.active_adaptivity is support.adaptivity
-    with pytest.raises(RuntimeError, match="has not been prepared"):
-        support.ratio
-    with pytest.raises(RuntimeError, match="has not been prepared"):
-        support.bound
-
-
-def test_adaptive_support_caches_executor_runtime_helpers() -> None:
-    support = SchemeStepControl()
-    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
-
-    support.cache_executor(executor)
-
-    assert support.active_adaptivity is executor.adaptivity_or(support.adaptivity)
-    assert support.ratio(1.0, 2.0) == pytest.approx(executor.ratio(1.0, 2.0))
-    assert support.bound(2.0) == pytest.approx(executor.bound(2.0))
-
-
-def test_adaptive_support_uses_scheme_adaptivity_unless_executor_overrides() -> None:
-    scheme_adaptivity = ExecutorAdaptivity(
-        safety=0.7,
-        min_factor=0.2,
-        max_factor=3.0,
-        error_exponent=0.25,
-    )
-    executor_adaptivity = ExecutorAdaptivity(
-        safety=0.9,
-        min_factor=0.3,
-        max_factor=4.0,
-        error_exponent=0.5,
-    )
-    support = SchemeStepControl(scheme_adaptivity)
-
-    support.cache_executor(Executor())
-    adaptivity = support.active_adaptivity
-
-    assert adaptivity is not None
-    assert adaptivity.safety == pytest.approx(scheme_adaptivity.safety)
-    assert adaptivity.min_factor == pytest.approx(scheme_adaptivity.min_factor)
-    assert adaptivity.max_factor == pytest.approx(scheme_adaptivity.max_factor)
-    assert adaptivity.error_exponent == pytest.approx(scheme_adaptivity.error_exponent)
-
-    support.cache_executor(Executor(adaptivity=executor_adaptivity))
-    adaptivity = support.active_adaptivity
-
-    assert adaptivity is not None
-    assert adaptivity.safety == pytest.approx(executor_adaptivity.safety)
-    assert adaptivity.min_factor == pytest.approx(executor_adaptivity.min_factor)
-    assert adaptivity.max_factor == pytest.approx(executor_adaptivity.max_factor)
-    assert adaptivity.error_exponent == pytest.approx(executor_adaptivity.error_exponent)
-
 
 def test_adaptive_support_computes_proposed_step() -> None:
-    support = SchemeStepControl()
+    support = SchemeStepControl(Configuration())
     interval = Interval(present=0.2, step=0.5, stop=0.3)
 
     proposal = support.propose_step(interval)
@@ -143,7 +92,7 @@ def test_adaptive_support_computes_proposed_step() -> None:
 
 
 def test_adaptive_support_records_stopped_report() -> None:
-    support = SchemeStepControl()
+    support = SchemeStepControl(Configuration())
     interval = Interval(present=1.0, step=0.1, stop=1.0)
 
     report = support.record_stopped(interval)
@@ -160,14 +109,13 @@ def test_adaptive_support_records_stopped_report() -> None:
 
 def test_adaptive_support_delegates_rejected_and_accepted_step_calculations() -> None:
     support = SchemeStepControl(
-        ExecutorAdaptivity(
-            safety=0.8,
-            min_factor=0.1,
-            max_factor=5.0,
-            error_exponent=0.2,
+        Configuration(
+            adaptive_scheme_safety=0.8,
+            adaptive_scheme_min_factor=0.1,
+            adaptive_scheme_max_factor=5.0,
+            adaptive_scheme_error_exponent=0.2,
         )
     )
-    support.cache_executor(Executor())
 
     rejected_dt = support.rejected_step(
         dt=0.1,
@@ -188,7 +136,7 @@ def test_adaptive_support_delegates_rejected_and_accepted_step_calculations() ->
 
 
 def test_adaptive_support_records_accepted_report() -> None:
-    support = SchemeStepControl()
+    support = SchemeStepControl(Configuration())
 
     report = support.record_accepted(
         accepted_dt=0.1,
@@ -216,22 +164,14 @@ def test_adaptive_scheme_exposes_step_control_without_legacy_report() -> None:
     assert isinstance(scheme.step_control, SchemeStepControl)
     assert not hasattr(scheme, "advance_report")
 
-    assert scheme.adaptivity is scheme.step_control.adaptivity
-
-    assert scheme.step_control.active_adaptivity is scheme.step_control.adaptivity
-    with pytest.raises(RuntimeError, match="has not been prepared"):
-        scheme.step_control.ratio
-    with pytest.raises(RuntimeError, match="has not been prepared"):
-        scheme.step_control.bound
-
 
 def test_existing_adaptive_scheme_still_runs_after_support_cleanup() -> None:
-    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
+    configuration = Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
+    scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator(), configuration=configuration)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
-    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
 
-    accepted_dt = scheme(interval, state, executor)
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.1)
     assert state.value == pytest.approx(2.0)

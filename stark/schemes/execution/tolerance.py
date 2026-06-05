@@ -1,4 +1,4 @@
-"""Scheme-facing ExecutorTolerance protocols."""
+"""Scheme-facing tolerance protocols."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from typing import Protocol
 
 
 class SchemeTolerance(Protocol):
-    """ExecutorTolerance behaviour consumed by adaptive schemes."""
+    """Tolerance behaviour consumed by adaptive schemes."""
 
     def bound(self, scale: float) -> float:
         ...

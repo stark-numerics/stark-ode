@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Interval
+from stark import Interval
 from stark.schemes.explicit.fixed.heun import SchemeHeun
 from stark.schemes.explicit.fixed.midpoint import SchemeMidpoint
 from stark.schemes.explicit.fixed.ralston import SchemeRalston
@@ -136,15 +136,14 @@ def test_rk2_public_call_uses_redirect_call(scheme_cls) -> None:
     def replacement_call(
         replacement_interval: Interval,
         replacement_state: ScalarState,
-        replacement_executor: Executor,
     ) -> float:
-        del replacement_interval, replacement_executor
+        del replacement_interval
         replacement_state.value = 42.0
         return 0.03125
 
     scheme.redirect_call = replacement_call
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.03125)
     assert state.value == pytest.approx(42.0)
@@ -163,7 +162,7 @@ def test_rk2_call_inline_performs_one_second_order_step(scheme_cls) -> None:
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(1.1328125)
@@ -182,7 +181,7 @@ def test_rk2_call_inline_clips_to_remaining_interval(scheme_cls) -> None:
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(1.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.05)
     assert state.value == pytest.approx(1.05125)
@@ -229,11 +228,10 @@ def test_rk2_inline_and_specialist_paths_match_for_one_step(scheme_cls) -> None:
         specialist=StubSpecialist(),
     )
 
-    accepted_dt_inline = inline(interval_inline, state_inline, Executor())
+    accepted_dt_inline = inline(interval_inline, state_inline)
     accepted_dt_specialist = specialist(
         interval_specialist,
         state_specialist,
-        Executor(),
     )
 
     assert accepted_dt_inline == pytest.approx(accepted_dt_specialist)

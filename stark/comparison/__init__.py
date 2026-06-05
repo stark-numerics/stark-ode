@@ -1,7 +1,7 @@
 """Structured comparison reports for STARK solver experiments.
 
 The comparison package owns reusable report data models and the development
-runner that compares several configured marchers on one problem. It is the
+runner that compares several configured steppers on one problem. It is the
 programmatic counterpart to the longer narrative examples under
 `examples/comparison/`.
 """

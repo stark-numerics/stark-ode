@@ -4,10 +4,10 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Interval, ExecutorTolerance
-from stark.accelerators import Accelerator
+from stark import Interval, Tolerance
+from stark.accelerators import AcceleratorNone
 from stark.resolvents import ResolventPicard
-from stark.resolvents.method.policy import ResolventPolicy
+from stark import Configuration
 from stark.schemes.imex.fixed.euler import SchemeIMEXEuler
 
 
@@ -100,9 +100,8 @@ def make_resolvent(
 ) -> ResolventPicard:
     return ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=32),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=32),
+        accelerator=AcceleratorNone(),
         tableau=SchemeIMEXEuler.tableau,
     )
 
@@ -155,8 +154,8 @@ def test_imex_euler_specialist_path_matches_generic_path() -> None:
     generic_state = ScalarState(0.0)
     specialized_state = ScalarState(0.0)
 
-    generic_dt = generic(generic_interval, generic_state, Executor())
-    specialized_dt = specialized(specialized_interval, specialized_state, Executor())
+    generic_dt = generic(generic_interval, generic_state)
+    specialized_dt = specialized(specialized_interval, specialized_state)
 
     assert specialized_dt == pytest.approx(generic_dt)
     assert specialized_state.value == pytest.approx(generic_state.value)
@@ -170,15 +169,14 @@ def test_imex_euler_public_call_uses_redirect_call() -> None:
     def replacement_call(
         replacement_interval: Interval,
         replacement_state: ScalarState,
-        replacement_executor: Executor,
     ) -> float:
-        del replacement_interval, replacement_executor
+        del replacement_interval
         replacement_state.value = 42.0
         return 0.03125
 
     scheme.redirect_call = replacement_call
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.03125)
     assert state.value == pytest.approx(42.0)
@@ -189,7 +187,7 @@ def test_imex_euler_call_performs_one_split_constant_rhs_step() -> None:
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(0.375)
@@ -201,7 +199,7 @@ def test_imex_euler_call_clips_to_remaining_interval() -> None:
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.05)
     assert state.value == pytest.approx(0.15)
@@ -213,7 +211,7 @@ def test_imex_euler_returns_zero_when_interval_is_complete() -> None:
     interval = Interval(present=1.0, step=0.125, stop=1.0)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.0)
     assert state.value == pytest.approx(0.0)
@@ -234,7 +232,7 @@ def test_imex_euler_solves_linear_implicit_split() -> None:
     interval = Interval(present=0.0, step=0.1, stop=1.0)
     state = ScalarState(1.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.1)
     assert state.value == pytest.approx(1.0 / 1.1)

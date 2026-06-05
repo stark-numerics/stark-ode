@@ -1,11 +1,10 @@
 from __future__ import annotations
 
+from stark.schemes.configuration import SchemeConfiguration
 from stark.block import Block
 from stark.contracts import DerivativeIMEX, IntervalLike, Resolvent, State, Allocator
-from stark.schemes.execution.executor import SchemeExecutor
-from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.schemes.method.descriptor import SchemeDescriptor
-from stark.schemes.monitoring.monitor import MonitorSchemeLike
+from stark.schemes.monitoring.monitor import SchemeMonitor
 from stark.schemes.monitoring.decorators import with_fixed_step_monitoring
 from stark.schemes.imex._support import (
     initialise_imex_support,
@@ -92,12 +91,12 @@ class SchemeIMEXEuler:
         derivative: DerivativeIMEX,
         allocator: Allocator,
         resolvent: Resolvent,
-        adaptivity: ExecutorAdaptivity | None = None,
         *,
+        configuration: SchemeConfiguration | None = None,
         specialist: SchemeSpecialist | None = None,
-        monitor: MonitorSchemeLike | None = None,
+        monitor: SchemeMonitor | None = None,
     ) -> None:
-        del adaptivity
+        del configuration
         self.monitor = monitor
         self.advance_call = unbound_scheme_call
         self.resolvent = resolvent
@@ -126,9 +125,8 @@ class SchemeIMEXEuler:
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
-        return self.redirect_call(interval, state, executor)
+        return self.redirect_call(interval, state)
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
         stencils = SchemeStencilImexTableau(self.tableau)
@@ -139,18 +137,14 @@ class SchemeIMEXEuler:
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
-        del executor
         return self._call(interval, state, specialized=False)
 
     def call_specialized(
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
-        del executor
         return self._call(interval, state, specialized=True)
 
     def _call(

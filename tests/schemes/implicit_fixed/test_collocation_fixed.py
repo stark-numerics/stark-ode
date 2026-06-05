@@ -5,11 +5,11 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stark import Executor, Interval, ExecutorTolerance
-from stark.accelerators import Accelerator
+from stark import Interval, Tolerance
+from stark.accelerators import AcceleratorNone
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.resolvents import ResolventCoupledPicard
-from stark.resolvents.method.policy import ResolventPolicy
+from stark import Configuration
 from stark.schemes.implicit.fixed.gauss_legendre4 import SchemeGaussLegendre4
 from stark.schemes.implicit.fixed.lobatto_iiic4 import SchemeLobattoIIIC4
 from stark.schemes.implicit.fixed.radau_iia5 import SchemeRadauIIA5
@@ -112,9 +112,8 @@ def make_scheme(scheme_cls):
     resolvent = ResolventCoupledPicard(
         allocator,
         tableau=scheme_cls.tableau,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
     )
     return scheme_cls(
         constant_rhs,
@@ -128,9 +127,8 @@ def make_array_scheme(scheme_cls, *, specialist: bool = False):
     resolvent = ResolventCoupledPicard(
         allocator,
         tableau=scheme_cls.tableau,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
     )
     return scheme_cls(
         array_constant_rhs,
@@ -218,15 +216,14 @@ def test_collocation_fixed_public_call_uses_redirect_call(scheme_cls) -> None:
     def replacement_call(
         replacement_interval: Interval,
         replacement_state: ScalarState,
-        replacement_executor: Executor,
     ) -> float:
-        del replacement_interval, replacement_executor
+        del replacement_interval
         replacement_state.value = 42.0
         return 0.03125
 
     scheme.redirect_call = replacement_call
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.03125)
     assert state.value == pytest.approx(42.0)
@@ -245,7 +242,7 @@ def test_collocation_fixed_call_performs_one_constant_rhs_step(scheme_cls) -> No
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(0.125)
@@ -260,8 +257,8 @@ def test_gauss_legendre4_specialist_path_matches_generic_path() -> None:
     generic_state = ArrayScalarState.zero()
     generated_state = ArrayScalarState.zero()
 
-    generic_dt = generic(generic_interval, generic_state, Executor())
-    generated_dt = generated(generated_interval, generated_state, Executor())
+    generic_dt = generic(generic_interval, generic_state)
+    generated_dt = generated(generated_interval, generated_state)
 
     assert generated_dt == pytest.approx(generic_dt)
     assert generated_state.value[0] == pytest.approx(generic_state.value[0])
@@ -287,7 +284,7 @@ def test_collocation_fixed_call_clips_to_remaining_interval(scheme_cls) -> None:
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.05)
     assert state.value == pytest.approx(0.05)
@@ -307,7 +304,7 @@ def test_collocation_fixed_returns_zero_when_interval_is_complete(scheme_cls) ->
     interval = Interval(present=1.0, step=0.125, stop=1.0)
     state = ScalarState(0.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.0)
     assert state.value == pytest.approx(0.0)

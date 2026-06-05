@@ -4,10 +4,10 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
-from stark.accelerators import Accelerator
+from stark import Integrator, Interval, IntegratorStepper, Tolerance
+from stark.accelerators import AcceleratorNone
 from stark.resolvents import ResolventPicard
-from stark.resolvents.method.policy import ResolventPolicy
+from stark import Configuration
 from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.schemes.explicit.fixed.rk4 import SchemeRK4
 from stark.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
@@ -85,12 +85,12 @@ def run_live(
     *,
     state: ScalarState,
     interval: Interval,
-    executor: Executor | None = None,
+    configuration: Configuration | None = None,
 ) -> tuple[list[tuple[float, float, float]], ScalarState, Interval]:
-    marcher = Marcher(scheme, executor or Executor())
+    stepper = IntegratorStepper(scheme or Configuration())
     outputs = [
         (snapshot_interval.present, snapshot_interval.step, snapshot_state.value)
-        for snapshot_interval, snapshot_state in Integrator().live(marcher, interval, state)
+        for snapshot_interval, snapshot_state in Integrator().live(stepper, interval, state)
     ]
     return outputs, state, interval
 
@@ -124,7 +124,7 @@ def test_bogacki_shampine_adaptive_explicit_characterization() -> None:
         scheme,
         state=state,
         interval=interval,
-        executor=Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9)),
+        configuration=Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9)),
     )
 
     assert len(outputs) == 2
@@ -142,9 +142,8 @@ def test_kennedy_carpenter32_adaptive_imex_characterization() -> None:
     )
     resolvent = ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=SchemeKennedyCarpenter32.tableau,
     )
     scheme = SchemeKennedyCarpenter32(
@@ -159,7 +158,7 @@ def test_kennedy_carpenter32_adaptive_imex_characterization() -> None:
         scheme,
         state=state,
         interval=interval,
-        executor=Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9)),
+        configuration=Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9)),
     )
 
     assert len(outputs) == 2
@@ -173,9 +172,8 @@ def test_backward_euler_implicit_fixed_characterization() -> None:
     allocator = ScalarAllocator()
     resolvent = ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=SchemeBackwardEuler.tableau,
     )
     scheme = SchemeBackwardEuler(

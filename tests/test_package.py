@@ -2,8 +2,19 @@
 
 import importlib
 
-from stark import Auditor, Executor, DerivativeIMEX, Integrator, Interval, Marcher, ExecutorAdaptivity, ExecutorSafety, ExecutorTolerance, ExecutorTolerance
-from stark.accelerators import Accelerator, AcceleratorAbsent, AcceleratorJax, AcceleratorNumba
+from stark import (
+    Auditor,
+    Configuration,
+    DerivativeIMEX,
+    Integrator,
+    Interval,
+    IntegratorStepper,
+    StarkField,
+    StarkLayout,
+    StarkMethod,
+    Tolerance,
+)
+from stark.accelerators import Accelerator, AcceleratorNone, AcceleratorJax, AcceleratorNumba
 from stark.block.operator import BlockOperatorDiagonal
 from stark.comparison.models import (
     Comparison,
@@ -16,8 +27,9 @@ from stark.comparison.models import (
 )
 from stark.block import Block
 from stark.contracts import Resolvent
+from stark.engines import StarkEngineNumpy
 from stark.inverters import InverterRelaxationJacobi, InverterRelaxationRichardson
-from stark.inverters.support import InverterBudget, InverterDescriptor, InverterTolerance
+from stark.inverters.support import InverterDescriptor
 from stark.resolvents import (
     ResolventAnderson,
     ResolventBroyden,
@@ -27,8 +39,6 @@ from stark.resolvents import (
     ResolventPicard,
 )
 from stark.resolvents.method.descriptor import ResolventDescriptor
-from stark.resolvents.method.policy import ResolventPolicy
-from stark.resolvents.method.tolerance import ResolventTolerance
 from stark.schemes import (
     SchemeBackwardEuler,
     SchemeCrankNicolson,
@@ -69,20 +79,24 @@ def test_package_imports() -> None:
     stark = importlib.import_module("stark")
     assert stark is not None
     assert Accelerator is not None
-    assert AcceleratorAbsent is not None
+    assert AcceleratorNone is not None
     assert AcceleratorJax is not None
     assert AcceleratorNumba is not None
     assert DerivativeIMEX is not None
     assert Resolvent is not None
+    assert StarkField is not None
+    assert StarkLayout is not None
+    assert StarkMethod is not None
+    assert not hasattr(stark, "StarkEngineNumpy")
     assert not hasattr(stark, "Algebraist")
     assert not hasattr(stark, "ResolventNewton")
     assert not hasattr(stark, "InverterGMRES")
     assert not hasattr(stark, "SchemeDormandPrince")
 
 
-def test_marcher_module_imports() -> None:
-    """The marcher module should exist and import cleanly."""
-    assert importlib.import_module("stark.core.marcher") is not None
+def test_stepper_module_imports() -> None:
+    """The stepper module should exist and import cleanly."""
+    assert importlib.import_module("stark.integrator.stepper") is not None
 
 
 def test_audit_module_imports() -> None:
@@ -102,15 +116,18 @@ def test_algebraist_package_imports() -> None:
     assert algebraist.AlgebraistLayoutLooped is not None
 
 
-def test_executor_module_imports() -> None:
-    """The ExecutorAdaptivity module should exist and import cleanly."""
+def test_Configuration_module_imports() -> None:
+    """Configuration lives in core with narrow domain protocol views."""
     assert importlib.import_module("stark.accelerators") is not None
-    assert importlib.import_module("stark.executor.adaptivity") is not None
-    assert importlib.import_module("stark.executor.executor") is not None
-    assert importlib.import_module("stark.executor.tolerance") is not None
-    assert importlib.import_module("stark.executor.safety") is not None
+    assert importlib.import_module("stark.core.configuration") is not None
+    assert importlib.import_module("stark.core.tolerance") is not None
+    assert importlib.import_module("stark.schemes.configuration") is not None
+    assert importlib.import_module("stark.resolvents.configuration") is not None
+    assert importlib.import_module("stark.inverters.configuration") is not None
     assert importlib.import_module("stark.schemes.method.tableau") is not None
-    assert importlib.import_module("stark.schemes.execution.support") is not None
+    assert importlib.import_module("stark.schemes.execution.step_support") is not None
+    assert importlib.import_module("stark.engines") is not None
+    assert StarkEngineNumpy is not None
     assert importlib.import_module("stark.algebraist.runtime") is not None
     assert importlib.import_module("stark.algebraist.generator") is not None
     assert importlib.import_module("stark.schemes.display.display") is not None
@@ -118,7 +135,7 @@ def test_executor_module_imports() -> None:
 
 def test_integrate_module_imports() -> None:
     """The integrate module should exist and import cleanly."""
-    assert importlib.import_module("stark.core.integrate") is not None
+    assert importlib.import_module("stark.integrator.integrator") is not None
 
 
 def test_monitor_module_imports() -> None:
@@ -139,8 +156,7 @@ def test_resolvent_imports() -> None:
     resolvents = importlib.import_module("stark.resolvents")
     equations = importlib.import_module("stark.resolvents.equations")
 
-    assert resolvents.ResolventPolicy is not None
-    assert resolvents.ResolventTolerance is not None
+    assert resolvents.ResolventConfiguration is not None
     assert resolvents.ResolventError is not None
     assert resolvents.ResolventPicard is not None
     assert resolvents.ResolventNewton is not None
@@ -188,8 +204,8 @@ def test_scheme_imports() -> None:
 
 
 class MinimalScheme:
-    def __call__(self, interval: Interval, state: object, executor: Executor) -> float:
-        del interval, state, executor
+    def __call__(self, interval: Interval, state: object) -> float:
+        del interval, state
         return 0.0
 
     def snapshot_state(self, state: object) -> object:
@@ -253,25 +269,24 @@ def test_core_objects_have_readable_representations() -> None:
     interval = Interval(0.0, 0.1, 1.0)
     block = Block([])
     block_operator = BlockOperatorDiagonal([])
-    inverter_budget = InverterBudget()
-    inverter_tolerance = InverterTolerance(atol=1.0e-8, rtol=1.0e-6)
+    inverter_budget = Configuration()
+    inverter_tolerance = Tolerance(atol=1.0e-8, rtol=1.0e-6)
     inverter_descriptor = InverterDescriptor("Richardson", "Richardson relaxation")
-    resolver_policy = ResolventPolicy()
-    resolver_tolerance = ResolventTolerance(atol=1.0e-8, rtol=1.0e-6)
+    resolver_policy = Configuration()
+    resolver_tolerance = Tolerance(atol=1.0e-8, rtol=1.0e-6)
     resolver_descriptor = ResolventDescriptor("Picard", "Picard Iteration")
-    executor_safety = ExecutorSafety()
-    executor_tolerance = ExecutorTolerance(atol=1.0e-8, rtol=1.0e-6)
-    scheme_tolerance = ExecutorTolerance(atol=1.0e-8, rtol=1.0e-6)
-    adaptivity = ExecutorAdaptivity()
+    configuration = Configuration()
+    configuration_tolerance = Tolerance(atol=1.0e-8, rtol=1.0e-6)
+    scheme_tolerance = Tolerance(atol=1.0e-8, rtol=1.0e-6)
     tableau = ButcherTableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="E")
     imex_tableau = ButcherTableauImex(
         explicit=ButcherTableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="E"),
         implicit=ButcherTableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="I"),
     )
-    marcher = Marcher(MinimalScheme(), Executor(tolerance=executor_tolerance))
-    auditor = Auditor(interval=interval, marcher=marcher, snapshots=True, exercise=False)
+    stepper = IntegratorStepper(MinimalScheme())
+    auditor = Auditor(interval=interval, stepper=stepper, snapshots=True, exercise=False)
     allocator = MinimalAllocator()
-    auto_picard = ResolventPicard(allocator, accelerator=AcceleratorAbsent())
+    auto_picard = ResolventPicard(allocator, accelerator=AcceleratorNone())
     auto_coupled_picard = ResolventCoupledPicard(
         allocator,
         tableau=ButcherTableau(
@@ -314,19 +329,16 @@ def test_core_objects_have_readable_representations() -> None:
     assert str(block) == "block[0]"
     assert repr(block_operator).startswith("BlockOperatorDiagonal(")
     assert str(block_operator) == "block operator[0]"
-    assert repr(inverter_budget) == "InverterBudget(maximum_steps=32)"
-    assert repr(inverter_tolerance) == "InverterTolerance(atol=1e-08, rtol=1e-06)"
+    assert inverter_budget.inverter_maximum_steps == 32
+    assert repr(inverter_tolerance) == "Tolerance(atol=1e-08, rtol=1e-06)"
     assert repr(inverter_descriptor) == "InverterDescriptor(short_name='Richardson', full_name='Richardson relaxation')"
-    assert repr(resolver_policy) == "ResolventPolicy(max_iterations=16)"
-    assert str(resolver_policy) == "max_iterations=16"
-    assert repr(resolver_tolerance) == "ResolventTolerance(atol=1e-08, rtol=1e-06)"
+    assert resolver_policy.resolvent_maximum_steps == 16
+    assert repr(resolver_tolerance) == "Tolerance(atol=1e-08, rtol=1e-06)"
     assert repr(resolver_descriptor) == "ResolventDescriptor(short_name='Picard', full_name='Picard Iteration')"
-    assert repr(executor_safety) == "ExecutorSafety(progress=True, block_sizes=True)"
-    assert repr(executor_tolerance) == "ExecutorTolerance(atol=1e-08, rtol=1e-06)"
-    assert repr(scheme_tolerance) == "ExecutorTolerance(atol=1e-08, rtol=1e-06)"
-    assert str(executor_tolerance) == "atol=1e-08, rtol=1e-06"
-    assert "ExecutorAdaptivity" in repr(adaptivity)
-    assert "safety=" in str(adaptivity)
+    assert configuration.check_progress is True
+    assert repr(configuration_tolerance) == "Tolerance(atol=1e-08, rtol=1e-06)"
+    assert repr(scheme_tolerance) == "Tolerance(atol=1e-08, rtol=1e-06)"
+    assert str(configuration_tolerance) == "atol=1e-08, rtol=1e-06"
     assert repr(tableau) == "ButcherTableau(stages=1, order=1, embedded_order=None, name='E')"
     assert "ButcherTableauImex" in repr(imex_tableau)
     assert IMEX_EULER_TABLEAU is not None
@@ -356,11 +368,11 @@ def test_core_objects_have_readable_representations() -> None:
     assert SchemeRadauIIA5 is not None
     assert SchemeIMEXEuler is not None
     assert str(Integrator()) == "STARK integrator (safe mode)"
-    assert repr(marcher) == "Marcher(scheme='MinimalScheme', executor=Executor(tolerance=ExecutorTolerance(atol=1e-08, rtol=1e-06), safety=ExecutorSafety(progress=True, block_sizes=True), adaptivity=None))"
-    assert str(marcher) == "Marcher MinimalScheme with atol=1e-08, rtol=1e-06"
+    assert repr(stepper) == "IntegratorStepper(scheme='MinimalScheme')"
+    assert str(stepper) == "IntegratorStepper MinimalScheme"
     assert "Auditor(status=" in repr(auditor)
     assert "ResolventPicard" in repr(auto_picard)
-    assert "accelerator=AcceleratorAbsent" in repr(auto_picard)
+    assert "accelerator=AcceleratorNone" in repr(auto_picard)
     assert str(auto_picard) == "ResolventPicard"
     assert "ResolventCoupledPicard" in repr(auto_coupled_picard)
     assert str(auto_coupled_picard) == "ResolventCoupledPicard"

@@ -4,11 +4,11 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Interval, ExecutorTolerance
-from stark.accelerators import Accelerator
+from stark import Interval, Tolerance
+from stark.accelerators import AcceleratorNone
 from stark.monitor import Monitor
 from stark.resolvents import ResolventPicard
-from stark.resolvents.method.policy import ResolventPolicy
+from stark import Configuration
 from stark.schemes.imex.adaptive.kennedy_carpenter43_6 import (
     SchemeKennedyCarpenter43_6,
 )
@@ -70,9 +70,8 @@ def make_scheme(*, monitor=None) -> SchemeKennedyCarpenter43_6:
     )
     resolvent = ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=SchemeKennedyCarpenter43_6.tableau,
     )
     return SchemeKennedyCarpenter43_6(
@@ -99,9 +98,9 @@ def test_kennedy_carpenter43_6_accepts_zero_split_step() -> None:
     scheme = make_scheme()
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
-    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
+    configuration = Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
-    accepted_dt = scheme(interval, state, executor)
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.1)
     assert state.value == pytest.approx(2.0)
@@ -118,9 +117,9 @@ def test_kennedy_carpenter43_6_clips_to_remaining_interval() -> None:
     scheme = make_scheme()
     interval = Interval(present=0.25, step=0.1, stop=0.3)
     state = ScalarState(2.0)
-    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
+    configuration = Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
-    accepted_dt = scheme(interval, state, executor)
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.05)
     assert state.value == pytest.approx(2.0)
@@ -135,13 +134,13 @@ def test_kennedy_carpenter43_6_monitoring_uses_scheme_owned_boundary() -> None:
     scheme = make_scheme(monitor=monitor.scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
-    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
+    configuration = Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
     assert scheme.monitor is monitor.scheme
     assert scheme.call_step.__func__ is scheme.call_monitored.__func__
     assert scheme.redirect_call == scheme.call_step
 
-    accepted_dt = scheme(interval, state, executor)
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.1)
     assert len(monitor.scheme.adaptive_steps) == 1

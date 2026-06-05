@@ -1,6 +1,6 @@
 import pytest
 
-from stark import Executor, Interval, Marcher, ExecutorTolerance
+from stark import Interval, IntegratorStepper, Tolerance
 from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.schemes import SchemeCashKarp, SchemeEuler
 
@@ -120,7 +120,7 @@ def test_bakeoff_reports_pairwise_differences() -> None:
     assert "slow" in report.render()
 
 
-def test_bakeoff_accepts_direct_marchers() -> None:
+def test_bakeoff_accepts_direct_steppers() -> None:
     problem = ComparisonProblem(
         name="Dummy",
         build_state=lambda: {"value": 0.0},

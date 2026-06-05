@@ -5,10 +5,10 @@ import warnings
 
 import pytest
 
-from stark import Executor, Interval, ExecutorTolerance
-from stark.accelerators import Accelerator
+from stark import Interval, Tolerance
+from stark.accelerators import AcceleratorNone
 from stark.resolvents import ResolventCoupledPicard, ResolventPicard
-from stark.resolvents.method.policy import ResolventPolicy
+from stark import Configuration
 from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.schemes.explicit.fixed.euler import SchemeEuler
 from stark.schemes.explicit.fixed.heun import SchemeHeun
@@ -98,9 +98,8 @@ def zero_rhs(
 def make_one_stage_resolvent(scheme_cls, allocator: ScalarAllocator) -> ResolventPicard:
     return ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=scheme_cls.tableau,
     )
 
@@ -108,9 +107,8 @@ def make_one_stage_resolvent(scheme_cls, allocator: ScalarAllocator) -> Resolven
 def make_bdf2_resolvent(allocator: ScalarAllocator) -> ResolventPicard:
     return ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=None,
     )
 
@@ -121,9 +119,8 @@ def make_coupled_resolvent(
 ) -> ResolventCoupledPicard:
     return ResolventCoupledPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=scheme_cls.tableau,
     )
 
@@ -172,9 +169,8 @@ def make_imex_fixed_scheme() -> SchemeIMEXEuler:
     )
     resolvent = ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=SchemeIMEXEuler.tableau,
     )
     return SchemeIMEXEuler(
@@ -191,9 +187,8 @@ def make_kennedy_carpenter32_scheme():
     )
     resolvent = ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=SchemeKennedyCarpenter32.tableau,
     )
     return SchemeKennedyCarpenter32(
@@ -210,9 +205,8 @@ def make_kennedy_carpenter43_6_scheme():
     )
     resolvent = ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=SchemeKennedyCarpenter43_6.tableau,
     )
     return SchemeKennedyCarpenter43_6(
@@ -229,9 +223,8 @@ def make_kennedy_carpenter43_7_scheme():
     )
     resolvent = ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=SchemeKennedyCarpenter43_7.tableau,
     )
     return SchemeKennedyCarpenter43_7(
@@ -248,9 +241,8 @@ def make_kennedy_carpenter54_scheme():
     )
     resolvent = ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=8),
-        accelerator=Accelerator.none(),
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
+        accelerator=AcceleratorNone(),
         tableau=SchemeKennedyCarpenter54.tableau,
     )
     return SchemeKennedyCarpenter54(
@@ -287,7 +279,7 @@ def test_fixed_scheme_call_returns_accepted_dt() -> None:
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(1.133148193359375)
@@ -298,7 +290,7 @@ def test_fixed_scheme_call_clips_to_remaining_interval() -> None:
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(1.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.05)
     assert state.value == pytest.approx(1.05127109375)
@@ -308,9 +300,9 @@ def test_adaptive_scheme_call_returns_accepted_dt() -> None:
     scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
-    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
+    configuration = Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
-    accepted_dt = scheme(interval, state, executor)
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.1)
     assert state.value == pytest.approx(2.0)
@@ -320,9 +312,9 @@ def test_adaptive_scheme_call_clips_next_accepted_dt_to_remaining_interval() -> 
     scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
     interval = Interval(present=0.1, step=1.0, stop=0.3)
     state = ScalarState(2.0)
-    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
+    configuration = Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
-    accepted_dt = scheme(interval, state, executor)
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.2)
     assert state.value == pytest.approx(2.0)
@@ -371,7 +363,7 @@ def test_converted_fixed_explicit_scheme_still_works_without_warning() -> None:
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        accepted_dt = scheme(interval, state, Executor())
+        accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value > 1.0

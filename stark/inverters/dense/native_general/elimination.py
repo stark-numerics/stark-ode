@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass, field
 
-from stark.accelerators import DEFAULT_ACCELERATOR
-from stark.contracts.accelerator import AcceleratorLike
+from stark.accelerators import AcceleratorNone
+from stark.contracts.accelerator import Accelerator
 
 
 def _invert_general(
@@ -63,7 +63,7 @@ class InverterProviderDenseNativeGeneral:
     """Private dependency-free fallback for dense systems larger than three."""
 
     dimension: int
-    accelerator: AcceleratorLike = field(default_factory=lambda: DEFAULT_ACCELERATOR)
+    accelerator: Accelerator = field(default_factory=AcceleratorNone)
     invert: object = field(init=False, repr=False)
 
     def __post_init__(self) -> None:

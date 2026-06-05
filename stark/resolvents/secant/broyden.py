@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from stark.core import Configuration
+from stark.resolvents.configuration import ResolventConfiguration
 """Broyden-backed resolvent for one-stage shifted implicit solves."""
 
 from typing import TYPE_CHECKING, Any, cast
@@ -7,12 +9,10 @@ from typing import TYPE_CHECKING, Any, cast
 import numpy as np
 
 from stark.block import Block, BlockAllocator
-from stark.contracts import AcceleratorLike, InnerProduct, Translation, Allocator
-from stark.accelerators import AcceleratorAbsent
-from stark.executor.tolerance import ExecutorTolerance
+from stark.contracts import Accelerator, InnerProduct, Translation, Allocator
+from stark.accelerators import AcceleratorNone
 from stark.resolvents.method.descriptor import ResolventDescriptor
 from stark.resolvents.method.errors import ResolventError
-from stark.resolvents.method.policy import ResolventPolicy
 from stark.resolvents.monitoring.monitor import MonitorResolventLike
 from stark.resolvents.monitoring.decorators import with_resolvent_monitoring
 from stark.resolvents.display.decorators import with_resolvent_display
@@ -21,7 +21,6 @@ from stark.resolvents.equations.implicit import ResolventImplicitEquation
 from stark.resolvents.secant._least_squares import BlockInnerProduct, block_inner_product
 from stark.resolvents.specialization.specialist import ResolventSpecialist
 from stark.resolvents.specialization.stencil import ResolventStencilBlock
-from stark.resolvents.method.tolerance import ResolventTolerance
 from stark.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 
@@ -146,7 +145,7 @@ class ResolventBroyden:
     Algorithm sketch:
 
         1. Compute F(delta).
-        2. Accept if ||F(delta)|| is within ExecutorTolerance.
+        2. Accept if ||F(delta)|| is within Tolerance.
         3. Apply the inverse approximation to propose a correction.
         4. Trial the correction and compute the residual change.
         5. Store a new inverse-Broyden secant pair when informative.
@@ -168,7 +167,6 @@ class ResolventBroyden:
         "inner_product",
         "inverse_residual_delta",
         "next_residual",
-        "policy",
         "max_iterations",
         "redirect_call",
         "equation",
@@ -200,28 +198,23 @@ class ResolventBroyden:
         self,
         allocator: Allocator,
         inner_product: InnerProduct,
-        ExecutorTolerance: ExecutorTolerance | None = None,
-        policy: ResolventPolicy | None = None,
+        configuration: ResolventConfiguration | None = None,
         depth: int = 8,
         safety: ResolventSafety | None = None,
-        accelerator: AcceleratorLike | None = None,
+        accelerator: Accelerator | None = None,
         specialist: ResolventSpecialist[Translation] | None = None,
         tableau: Any | None = None,
     ) -> None:
         self.tableau = tableau
         self.safety = safety if safety is not None else ResolventSafetyDefault()
-        self.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
+        self.accelerator = accelerator if accelerator is not None else AcceleratorNone()
         self.alpha = 0.0
         self._monitor = None
 
         self.allocator = BlockAllocator(allocator)
-        self.tolerance = (
-            ExecutorTolerance
-            if ExecutorTolerance is not None
-            else ResolventTolerance(atol=1.0e-9, rtol=1.0e-9)
-        )
-        self.policy = policy if policy is not None else ResolventPolicy()
-        self.max_iterations = self.policy.max_iterations
+        configuration = configuration if configuration is not None else Configuration()
+        self.tolerance = configuration.resolvent_tolerance
+        self.max_iterations = configuration.resolvent_maximum_steps
         self.equation = ResolventImplicitEquation(
             "ResolventBroyden",
             allocator,
@@ -311,7 +304,7 @@ class ResolventBroyden:
             # 1. Compute F(delta).
             equation(delta, residual)
 
-            # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
+            # 2. Accept if ||F(delta)|| is within Tolerance.
             error = residual.norm()
             scale = delta.norm()
             if self.tolerance.accepts(error, scale):
@@ -388,7 +381,7 @@ class ResolventBroyden:
             # 1. Compute F(delta).
             equation(delta, residual)
 
-            # 2. Accept if ||F(delta)|| is within ExecutorTolerance.
+            # 2. Accept if ||F(delta)|| is within Tolerance.
             error = residual.norm()
             scale = delta.norm()
             if self.tolerance.accepts(error, scale):

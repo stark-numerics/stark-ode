@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from stark.accelerators import AcceleratorAbsent
+from stark.accelerators import AcceleratorNone
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
-from stark.contracts import AcceleratorLike, InnerProduct, LegacyInverterPreconditionerLike, Allocator
-from stark.executor.tolerance import ExecutorTolerance
+from stark.core import Configuration, Tolerance
+from stark.contracts import Accelerator, InnerProduct, LegacyInverterPreconditionerLike, Allocator
+from stark.inverters.configuration import InverterConfiguration
 from stark.inverters.legacy_support.monitoring import MonitorInverterLike
 from stark.inverters.legacy_support.policy import InverterPolicy
 from stark.inverters.legacy_support.preconditioner import InverterPreconditioner
 from stark.inverters.legacy_support.safety import InverterSafety, InverterSafetyDefault
-from stark.inverters.legacy_support.tolerance import InverterTolerance
 from stark.inverters.legacy_support.workspace import InverterWorkspace
 
 
@@ -17,18 +17,24 @@ def initialise_inverter_runtime(
     inverter,
     allocator: Allocator,
     inner_product: InnerProduct,
-    tolerance: ExecutorTolerance | None = None,
+    tolerance: Tolerance | None = None,
+    configuration: InverterConfiguration | None = None,
     policy: InverterPolicy | None = None,
     preconditioner: LegacyInverterPreconditionerLike | None = None,
     safety: InverterSafety | None = None,
-    accelerator: AcceleratorLike | None = None,
+    accelerator: Accelerator | None = None,
 ) -> None:
     translation_probe = allocator.allocate_translation()
-    inverter.tolerance = tolerance if tolerance is not None else InverterTolerance(atol=1.0e-9, rtol=1.0e-9)
-    inverter.policy = policy if policy is not None else InverterPolicy()
+    configuration = configuration if configuration is not None else Configuration()
+    inverter.tolerance = tolerance if tolerance is not None else configuration.inverter_tolerance
+    inverter.policy = (
+        policy
+        if policy is not None
+        else InverterPolicy(max_iterations=configuration.inverter_maximum_steps)
+    )
     inverter.operator = None
     inverter.safety = safety if safety is not None else InverterSafetyDefault()
-    inverter.accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
+    inverter.accelerator = accelerator if accelerator is not None else AcceleratorNone()
     inverter.workspace = InverterWorkspace(
         allocator,
         translation_probe,

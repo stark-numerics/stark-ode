@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from stark.schemes.configuration import SchemeConfiguration
 from stark.contracts import Derivative, IntervalLike, State, Allocator
-from stark.schemes.execution.executor import SchemeExecutor
 from stark.schemes.method.descriptor import SchemeDescriptor
-from stark.schemes.monitoring.monitor import MonitorSchemeLike
+from stark.schemes.monitoring.monitor import SchemeMonitor
 from stark.schemes.monitoring.decorators import with_fixed_step_monitoring
 from stark.schemes.explicit._support import (
     explicit_snapshot_state,
@@ -84,8 +84,9 @@ class SchemeRK38:
         self,
         derivative: Derivative,
         allocator: Allocator,
+        configuration: SchemeConfiguration | None = None,
         specialist: SchemeSpecialist | None = None,
-        monitor: MonitorSchemeLike | None = None,
+        monitor: SchemeMonitor | None = None,
     ) -> None:
         self.advance_update = unbound_scheme_call
         self.stage2_update = unbound_scheme_call
@@ -116,9 +117,8 @@ class SchemeRK38:
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
-        return self.redirect_call(interval, state, executor)
+        return self.redirect_call(interval, state)
 
     def prepare_specialized_kernels(
         self,
@@ -140,10 +140,7 @@ class SchemeRK38:
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
-        del executor
-
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
@@ -220,10 +217,7 @@ class SchemeRK38:
         self,
         interval: IntervalLike,
         state: State,
-        executor: SchemeExecutor,
     ) -> float:
-        del executor
-
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0

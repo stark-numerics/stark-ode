@@ -3,9 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol
 
-from stark import Executor, Integrator, Marcher
 from stark.carriers import CarrierNative, CarrierNumpy
 from stark.contracts import Carrier
+from stark.core import Configuration
+from stark.integrator.integrator import Integrator
+from stark.integrator.stepper import IntegratorStepper
 from stark.interface.derivative import StarkDerivative
 from stark.interface.vector import StarkVector, StarkVectorTranslation, StarkVectorAllocator
 from stark.schemes import SchemeCashKarp
@@ -29,8 +31,8 @@ class StarkIVPBuild:
     allocator: StarkVectorAllocator
     derivative: DerivativeRuntime
     scheme: Any
-    executor: Executor
-    marcher: Marcher
+    configuration: Configuration
+    stepper: IntegratorStepper
     integrator: Integrator
     initial: StarkVector
     interval: IntervalLike
@@ -43,7 +45,7 @@ class StarkIVP:
     interval: IntervalLike
     carrier: Carrier[Any, Any] | None = None
     scheme: SchemeFactory | Any | None = None
-    executor: Executor | None = None
+    configuration: Configuration | None = None
 
     prepared_initial: StarkVector = field(init=False)
     prepared_carrier: Carrier[Any, Any] = field(init=False)
@@ -134,22 +136,22 @@ class StarkIVP:
         derivative = self.prepared_derivative
 
         if self.scheme is None:
-            scheme = SchemeCashKarp(derivative, allocator)
+            scheme = SchemeCashKarp(derivative, allocator, configuration=self.configuration)
         elif isinstance(self.scheme, type):
-            scheme = self.scheme(derivative, allocator)
+            scheme = self.scheme(derivative, allocator, configuration=self.configuration)
         else:
             scheme = self.scheme
 
-        executor = self.executor or Executor()
-        marcher = Marcher(scheme, executor)
-        integrator = Integrator(executor=executor)
+        configuration = self.configuration or Configuration()
+        stepper = IntegratorStepper(scheme)
+        integrator = Integrator(configuration=configuration)
 
         return StarkIVPBuild(
             allocator=allocator,
             derivative=derivative,
             scheme=scheme,
-            executor=executor,
-            marcher=marcher,
+            configuration=configuration,
+            stepper=stepper,
             integrator=integrator,
             initial=self.prepared_initial,
             interval=self.interval,
@@ -158,7 +160,7 @@ class StarkIVP:
     def integrate(self) -> Any:
         build = self.build()
         return build.integrator(
-            build.marcher,
+            build.stepper,
             build.interval,
             build.initial,
         )

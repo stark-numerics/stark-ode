@@ -18,7 +18,7 @@ TrajectoryDifference = Callable[[list[Any], list[Any]], float]
 ProfileCategory = Callable[[str, int, str], str | None]
 
 
-def _normalize_marcher_builder(source: Any) -> MarcherBuilder:
+def _normalize_stepper_builder(source: Any) -> MarcherBuilder:
     if _accepts_zero_arguments(source):
         return source
     return lambda: source
@@ -55,7 +55,7 @@ class ComparisonProblem:
 @dataclass(slots=True, init=False)
 class ComparisonEntry:
     name: str
-    build_marcher: MarcherBuilder = field(repr=False)
+    build_stepper: MarcherBuilder = field(repr=False)
     build_integrator: Callable[[], Any] | None = None
     profile_category: ProfileCategory | None = None
     metadata: dict[str, Any] | None = None
@@ -63,19 +63,19 @@ class ComparisonEntry:
     def __init__(
         self,
         name: str,
-        marcher: Any,
+        stepper: Any,
         build_integrator: Callable[[], Any] | None = None,
         profile_category: ProfileCategory | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
         self.name = name
-        self.build_marcher = _normalize_marcher_builder(marcher)
+        self.build_stepper = _normalize_stepper_builder(stepper)
         self.build_integrator = build_integrator
         self.profile_category = profile_category
         self.metadata = metadata
 
-    def make_marcher(self) -> Any:
-        source = self.build_marcher
+    def make_stepper(self) -> Any:
+        source = self.build_stepper
         if _accepts_zero_arguments(source):
             return source()
         return source

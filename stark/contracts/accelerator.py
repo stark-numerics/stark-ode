@@ -10,17 +10,42 @@ reason about.
 """
 
 from collections.abc import Callable
-from typing import Any, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar, overload
 
 from stark.contracts.contract_audit import AuditRecorder
 
 AcceleratorTarget = TypeVar("AcceleratorTarget", bound=Callable[..., Any])
 
-class AcceleratorLike(Protocol):
+
+class Accelerator(Protocol):
     """Public protocol for STARK acceleration workers."""
 
     name: str
     strict: bool
+
+    @overload
+    def compile(
+        self,
+        function: None = None,
+        /,
+        *,
+        label: str | None = None,
+        cache: bool | None = None,
+        **options: Any,
+    ) -> Callable[[AcceleratorTarget], AcceleratorTarget]:
+        ...
+
+    @overload
+    def compile(
+        self,
+        function: AcceleratorTarget,
+        /,
+        *,
+        label: str | None = None,
+        cache: bool | None = None,
+        **options: Any,
+    ) -> AcceleratorTarget:
+        ...
 
     def compile(
         self,
@@ -30,7 +55,7 @@ class AcceleratorLike(Protocol):
         label: str | None = None,
         cache: bool | None = None,
         **options: Any,
-    ) -> Callable[..., Any]:
+    ) -> AcceleratorTarget | Callable[[AcceleratorTarget], AcceleratorTarget]:
         ...
 
     def compile_examples(self, function: AcceleratorTarget, *examples: Any) -> AcceleratorTarget:
@@ -62,8 +87,8 @@ class AcceleratorAudit:
         compile_examples = getattr(accelerator, "compile_examples", None)
         recorder.check(
             callable(compile_examples),
-            "Accelerator provides compile_examples(function, *signatures).",
-            "Add compile_examples(...) so representative signatures can be compiled during setup.",
+            "Accelerator provides compile_examples(function, *examples).",
+            "Add compile_examples(...) so representative examples can be compiled during setup.",
         )
 
         if not exercise or not callable(compile_method):
@@ -95,20 +120,20 @@ class AcceleratorAudit:
             compiled = compile_examples(compiled_probe, (1.0,))
         except Exception as exc:
             recorder.record_exception(
-                "Accelerator.compile_examples(function, *signatures) succeeds.",
+                "Accelerator.compile_examples(function, *examples) succeeds.",
                 exc,
-                "Ensure compile_examples(...) accepts representative example signatures.",
+                "Ensure compile_examples(...) accepts representative example arguments.",
             )
         else:
             recorder.check(
                 callable(compiled),
-                "Accelerator.compile_examples(function, *signatures) returns a callable.",
+                "Accelerator.compile_examples(function, *examples) returns a callable.",
                 "Return the compiled or original callable from compile_examples(...).",
             )
 
 
 __all__ = [
     "AcceleratorAudit",
-    "AcceleratorLike",
+    "Accelerator",
     "AcceleratorTarget",
 ]

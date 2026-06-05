@@ -17,10 +17,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark.accelerators import AcceleratorAbsent
+from stark.accelerators import AcceleratorNone
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
-from stark.contracts import AcceleratorLike
+from stark.contracts import Accelerator
 from stark.inverters.legacy_support.workspace import InverterWorkspace
 
 
@@ -76,10 +76,10 @@ class GivensRotations:
 
     __slots__ = ("cosines", "sines", "_apply_previous", "_apply_new")
 
-    def __init__(self, restart: int, accelerator: AcceleratorLike | None = None) -> None:
+    def __init__(self, restart: int, accelerator: Accelerator | None = None) -> None:
         self.cosines = np.zeros(restart, dtype=np.float64)
         self.sines = np.zeros(restart, dtype=np.float64)
-        resolved_accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
+        resolved_accelerator = accelerator if accelerator is not None else AcceleratorNone()
         self._apply_previous = resolved_accelerator.compile(_apply_previous_rotations)
         self._apply_new = _apply_new_rotation
         hessenberg = np.zeros((restart + 1, restart), dtype=np.float64)
@@ -112,12 +112,12 @@ class HessenbergLeastSquares:
 
     __slots__ = ("restart", "hessenberg", "residual_vector", "coefficients", "_back_substitute")
 
-    def __init__(self, restart: int, accelerator: AcceleratorLike | None = None) -> None:
+    def __init__(self, restart: int, accelerator: Accelerator | None = None) -> None:
         self.restart = restart
         self.hessenberg = np.zeros((restart + 1, restart), dtype=np.float64)
         self.residual_vector = np.zeros(restart + 1, dtype=np.float64)
         self.coefficients = np.zeros(restart, dtype=np.float64)
-        resolved_accelerator = accelerator if accelerator is not None else AcceleratorAbsent()
+        resolved_accelerator = accelerator if accelerator is not None else AcceleratorNone()
         self._back_substitute = resolved_accelerator.compile(_back_substitute)
         resolved_accelerator.compile_examples(
             self._back_substitute,
@@ -220,7 +220,6 @@ __all__ = [
     "GivensRotations",
     "HessenbergLeastSquares",
 ]
-
 
 
 

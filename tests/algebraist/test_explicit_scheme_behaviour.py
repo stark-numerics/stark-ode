@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
+from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
 from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
 from stark.schemes.explicit.fixed.rk4 import SchemeRK4
 
@@ -134,12 +134,10 @@ def test_fixed_explicit_specialist_path_matches_inline_semantics() -> None:
     inline_dt = inline(
         Interval(present=0.0, step=0.05, stop=0.05),
         inline_state,
-        Executor(),
     )
     specialist_dt = specialized(
         Interval(present=0.0, step=0.05, stop=0.05),
         specialist_state,
-        Executor(),
     )
 
     assert specialist_dt == pytest.approx(inline_dt)
@@ -208,12 +206,12 @@ def run_adaptive_solve(
 ) -> tuple[ArrayState, int, float]:
     state = build_state()
     interval = Interval(present=0.0, step=0.05, stop=0.25)
-    executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-10, rtol=1.0e-10))
-    marcher = Marcher(scheme, executor)
-    integrator = Integrator(executor=marcher.executor)
+    configuration = Configuration(scheme_tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-10))
+    stepper = IntegratorStepper(scheme)
+    integrator = Integrator(configuration=Configuration())
 
     steps = 0
-    for _snapshot_interval, _snapshot_state in integrator.live(marcher, interval, state):
+    for _snapshot_interval, _snapshot_state in integrator.live(stepper, interval, state):
         del _snapshot_interval, _snapshot_state
         steps += 1
 

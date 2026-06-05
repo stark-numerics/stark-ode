@@ -1,16 +1,22 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, ClassVar
 
-from stark.accelerators.common import AcceleratorBase
 from stark.contracts.accelerator import AcceleratorTarget
 
 
-class AcceleratorAbsent(AcceleratorBase):
+@dataclass(slots=True)
+class AcceleratorNone:
     """Trivial accelerator that leaves every callable untouched."""
 
-    name = "none"
+    strict: bool = False
+
+    name: ClassVar[str] = "none"
+
+    def __str__(self) -> str:
+        return self.name
 
     def compile(
         self,
@@ -30,5 +36,9 @@ class AcceleratorAbsent(AcceleratorBase):
             return compile_function
         return compile_function(function)
 
+    def compile_examples(self, function: AcceleratorTarget, *examples: Any) -> AcceleratorTarget:
+        del examples
+        return function
 
-__all__ = ["AcceleratorAbsent"]
+
+__all__ = ["AcceleratorNone"]

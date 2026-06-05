@@ -7,7 +7,7 @@ import pytest
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
 from stark.inverters.relaxation import InverterRelaxationJacobi
-from stark.inverters.support import InverterBudget, InverterTolerance
+from stark import Configuration, Tolerance
 from stark.monitor import MonitorInverter
 from stark.resolvents.requests.inverter import ResolventInverterRequest
 
@@ -56,8 +56,7 @@ def test_jacobi_solves_diagonal_scaled_request_in_one_step() -> None:
     output = Block([TranslationScalar(0.0), TranslationScalar(0.0)])
     inverter = InverterRelaxationJacobi[TranslationScalar](
         invert_entry,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=0.0),
-        budget=InverterBudget(maximum_steps=2),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=2),
     )
 
     inverter(request, output)
@@ -77,8 +76,7 @@ def test_jacobi_records_success_through_init_time_monitor() -> None:
     output = Block([TranslationScalar(0.0), TranslationScalar(0.0)])
     inverter = InverterRelaxationJacobi[TranslationScalar](
         invert_entry,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=0.0),
-        budget=InverterBudget(maximum_steps=2),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=2),
         monitor=monitor,
     )
 
@@ -103,7 +101,7 @@ def test_jacobi_records_initial_acceptance() -> None:
     output = Block([TranslationScalar(3.0)])
     inverter = InverterRelaxationJacobi[TranslationScalar](
         invert_entry,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=0.0),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0)),
         monitor=monitor,
     )
 
@@ -126,8 +124,7 @@ def test_jacobi_records_failure_when_budget_is_exhausted() -> None:
     inverter = InverterRelaxationJacobi[TranslationScalar](
         invert_entry,
         damping=0.5,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=0.0),
-        budget=InverterBudget(maximum_steps=1),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=1),
         monitor=monitor,
     )
 

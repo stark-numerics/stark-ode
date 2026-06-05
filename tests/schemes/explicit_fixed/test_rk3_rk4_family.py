@@ -4,12 +4,12 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Interval
+from stark import Interval
 from stark.schemes.explicit.fixed.kutta3 import SchemeKutta3
 from stark.schemes.explicit.fixed.rk38 import SchemeRK38
 from stark.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
 from stark.schemes.specialization.stencil import SchemeStencil
-
+from stark.core import Configuration
 
 @dataclass(slots=True)
 class ScalarState:
@@ -105,7 +105,7 @@ def test_rk3_rk4_scheme_performs_one_step(scheme_cls, expected) -> None:
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(expected)
@@ -124,7 +124,7 @@ def test_rk3_rk4_scheme_clips_to_remaining_interval(scheme_cls, expected) -> Non
     interval = Interval(present=0.2, step=0.125, stop=0.25)
     state = ScalarState(1.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.05)
     assert state.value == pytest.approx(expected)
@@ -187,11 +187,10 @@ def test_rk3_rk4_inline_and_specialist_paths_match_for_one_step(scheme_cls) -> N
         specialist=StubSpecialist(),
     )
 
-    accepted_dt_inline = inline(interval_inline, state_inline, Executor())
+    accepted_dt_inline = inline(interval_inline, state_inline)
     accepted_dt_specialist = specialist(
         interval_specialist,
         state_specialist,
-        Executor(),
     )
 
     assert accepted_dt_inline == pytest.approx(accepted_dt_specialist)

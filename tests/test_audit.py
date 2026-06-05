@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
-from stark.accelerators import Accelerator
-from stark import Executor, DerivativeIMEX
+from stark.accelerators import AcceleratorNone
+from stark import DerivativeIMEX
 from stark.core.auditor import AuditError, Auditor
-from stark.executor.tolerance import ExecutorTolerance
+from stark import Tolerance
 from stark.core.interval import Interval
 
 
@@ -67,8 +67,8 @@ def derivative(interval: Interval, state: dict[str, float], out: DummyTranslatio
 
 
 class DummyScheme:
-    def __call__(self, interval: Interval, state: object, executor: Executor) -> float:
-        del interval, state, executor
+    def __call__(self, interval: Interval, state: object) -> float:
+        del interval, state
         return 0.0
 
     def snapshot_state(self, state: object) -> object:
@@ -104,8 +104,8 @@ def test_auditor_reports_ready_configuration() -> None:
         allocator=DummyAllocator(),
         interval=Interval(0.0, 0.1, 1.0),
         scheme=DummyScheme(),
-        ExecutorTolerance=ExecutorTolerance(),
-        accelerator=Accelerator.none(),
+        tolerance=Tolerance(),
+        accelerator=AcceleratorNone(),
     )
 
     assert auditor.ok
@@ -202,11 +202,11 @@ def test_auditor_reports_missing_accelerator_requirements() -> None:
     assert not auditor.ok
     report = str(auditor)
     assert "Accelerator provides compile(function=None, **options)" in report
-    assert "Accelerator provides compile_examples(function, *signatures)" in report
+    assert "Accelerator provides compile_examples(function, *examples)" in report
 
 
 def test_auditor_reports_ready_built_in_accelerator() -> None:
-    auditor = Auditor(accelerator=Accelerator.none(), exercise=False)
+    auditor = Auditor(accelerator=AcceleratorNone(), exercise=False)
 
     assert auditor.ok
     assert "Accelerator provides compile(function=None, **options)" in str(auditor)
@@ -220,7 +220,7 @@ def test_auditor_reports_ready_user_defined_accelerator() -> None:
 
 
 def test_accelerator_compile_accepts_decorator_form() -> None:
-    accelerator = Accelerator.none()
+    accelerator = AcceleratorNone()
 
     @accelerator.compile
     def worker(value: float) -> float:
@@ -230,7 +230,7 @@ def test_accelerator_compile_accepts_decorator_form() -> None:
 
 
 def test_accelerator_compile_accepts_configured_decorator_form() -> None:
-    accelerator = Accelerator.none()
+    accelerator = AcceleratorNone()
 
     @accelerator.compile(label="audit")
     def worker(value: float) -> float:

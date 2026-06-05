@@ -1,14 +1,13 @@
-"""Repeated integration loops over a configured marcher."""
+"""Repeated integration loops over a configured stepper."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 
+from stark.integrator.configuration import IntegratorConfiguration, IntegratorConfigurationDefault
 from stark.core.auditor import Auditor
-from stark.executor.executor import Executor
-from stark.core.marcher import Marcher
+from stark.integrator.stepper import IntegratorStepper
 from stark.contracts import IntervalLike, State
-from stark.executor.safety import ExecutorSafety
 
 
 Checkpoints = int | Iterable[float]
@@ -16,7 +15,7 @@ Checkpoints = int | Iterable[float]
 
 class Integrator:
     """
-    Chain `Marcher` calls until the interval reaches its stop time.
+    Chain `IntegratorStepper` calls until the interval reaches its stop time.
 
     Calling the instance itself yields snapshots: each `(interval, state)` pair
     is copied before it is yielded, so collecting the iterator gives a real
@@ -35,37 +34,41 @@ class Integrator:
     checkpoint.
 
     Snapshot mode relies on explicit copy support: intervals must implement
-    `copy()`, and `Marcher` provides state snapshots through its scheme
+    `copy()`, and `IntegratorStepper` provides state snapshots through its scheme
     allocator rather than falling back to `deepcopy`.
 
     When progress safety is enabled, both modes check that time advances after
     every accepted step and raise a helpful error if a scheme stalls.
     """
 
-    __slots__ = ("executor", "redirect_call_snapshot", "redirect_call_live")
+    __slots__ = ("configuration", "redirect_call_snapshot", "redirect_call_live")
 
     def __init__(
         self,
-        executor: Executor | None = None,
-        *,
-        safety: ExecutorSafety | None = None,
+        configuration: IntegratorConfiguration | None = None,
     ) -> None:
-        if executor is not None and safety is not None:
-            raise TypeError("Pass safety through Executor(safety=...), not alongside an executor.")
-        self.executor = executor if executor is not None else Executor(safety=safety if safety is not None else ExecutorSafety())
-        self.redirect_call_snapshot = self.call_snapshot_safe if self.executor.safety.progress else self.call_snapshot_fast
-        self.redirect_call_live = self.call_live_safe if self.executor.safety.progress else self.call_live_fast
+        self.configuration = configuration if configuration is not None else IntegratorConfigurationDefault()
+        self.redirect_call_snapshot = (
+            self.call_snapshot_safe
+            if self.configuration.check_progress
+            else self.call_snapshot_fast
+        )
+        self.redirect_call_live = (
+            self.call_live_safe
+            if self.configuration.check_progress
+            else self.call_live_fast
+        )
 
     def __repr__(self) -> str:
-        return f"Integrator(executor={self.executor!r})"
+        return f"Integrator(configuration={self.configuration!r})"
 
     def __str__(self) -> str:
-        mode = "safe" if self.executor.safety.progress else "fast"
+        mode = "safe" if self.configuration.check_progress else "fast"
         return f"STARK integrator ({mode} mode)"
 
     def __call__(
         self,
-        marcher: Marcher,
+        stepper: IntegratorStepper,
         interval: IntervalLike,
         state: State,
         checkpoints: Checkpoints | None = None,
@@ -73,14 +76,14 @@ class Integrator:
         """
         Yield snapshot copies after each accepted step, or only at checkpoints.
         """
-        Auditor.require_integration_inputs(marcher, interval, state, snapshots=True)
+        Auditor.require_integration_inputs(stepper, interval, state, snapshots=True)
         if checkpoints is not None:
-            return self.call_snapshot_checkpoints(marcher, interval, state, checkpoints)
-        return self.redirect_call_snapshot(marcher, interval, state)
+            return self.call_snapshot_checkpoints(stepper, interval, state, checkpoints)
+        return self.redirect_call_snapshot(stepper, interval, state)
 
     def live(
         self,
-        marcher: Marcher,
+        stepper: IntegratorStepper,
         interval: IntervalLike,
         state: State,
         checkpoints: Checkpoints | None = None,
@@ -88,35 +91,35 @@ class Integrator:
         """
         Yield live mutable objects after each accepted step, or only at checkpoints.
         """
-        Auditor.require_integration_inputs(marcher, interval, state, snapshots=False)
+        Auditor.require_integration_inputs(stepper, interval, state, snapshots=False)
         if checkpoints is not None:
-            return self.call_live_checkpoints(marcher, interval, state, checkpoints)
-        return self.redirect_call_live(marcher, interval, state)
+            return self.call_live_checkpoints(stepper, interval, state, checkpoints)
+        return self.redirect_call_live(stepper, interval, state)
 
     def snapshot(
         self,
-        marcher: Marcher,
+        stepper: IntegratorStepper,
         interval: IntervalLike,
         state: State,
     ) -> tuple[IntervalLike, State]:
-        return interval.copy(), marcher.snapshot_state(state)
+        return interval.copy(), stepper.snapshot_state(state)
 
     def call_snapshot_checkpoints(
         self,
-        marcher: Marcher,
+        stepper: IntegratorStepper,
         interval: IntervalLike,
         state: State,
         checkpoints: Checkpoints,
     ) -> Iterator[tuple[IntervalLike, State]]:
         copy_interval = interval.copy
-        snapshot_state = marcher.snapshot_state
-        for checkpoint in self.call_live_checkpoints(marcher, interval, state, checkpoints):
+        snapshot_state = stepper.snapshot_state
+        for checkpoint in self.call_live_checkpoints(stepper, interval, state, checkpoints):
             del checkpoint
             yield copy_interval(), snapshot_state(state)
 
     def call_live_checkpoints(
         self,
-        marcher: Marcher,
+        stepper: IntegratorStepper,
         interval: IntervalLike,
         state: State,
         checkpoints: Checkpoints,
@@ -132,13 +135,13 @@ class Integrator:
                 remaining = target - interval.present
                 if interval.step <= 0.0 or not self.advances_time(interval.present, min(interval.step, remaining)):
                     interval.step = min(last_positive_step, remaining) if last_positive_step is not None else remaining
-                for checkpoint in live_impl(marcher, interval, state):
+                for checkpoint in live_impl(stepper, interval, state):
                     del checkpoint
                     pass
                 if not same_time(interval.present, target):
                     raise RuntimeError(
                         "Integration did not land on the requested checkpoint. "
-                        "Use Marcher(...) or a checkpoint-aware marcher that clamps to interval.stop."
+                        "Use IntegratorStepper(...) or a checkpoint-aware stepper that clamps to interval.stop."
                     )
                 if self.advances_time(interval.present, interval.step):
                     last_positive_step = interval.step
@@ -188,11 +191,11 @@ class Integrator:
 
     def call_live_fast(
         self,
-        marcher: Marcher,
+        stepper: IntegratorStepper,
         interval: IntervalLike,
         state: State,
     ) -> Iterator[tuple[IntervalLike, State]]:
-        march = marcher
+        march = stepper
         same_time = self.same_time
         while interval.present < interval.stop and not same_time(interval.present, interval.stop):
             if not self.advances_time(interval.present, interval.step):
@@ -202,14 +205,14 @@ class Integrator:
 
     def call_live_safe(
         self,
-        marcher: Marcher,
+        stepper: IntegratorStepper,
         interval: IntervalLike,
         state: State,
     ) -> Iterator[tuple[IntervalLike, State]]:
         if interval.step <= 0.0:
             raise ValueError("Interval step must be positive.")
 
-        march = marcher
+        march = stepper
         same_time = self.same_time
         while interval.present < interval.stop and not same_time(interval.present, interval.stop):
             if not self.advances_time(interval.present, interval.step):
@@ -229,13 +232,13 @@ class Integrator:
 
     def call_snapshot_fast(
         self,
-        marcher: Marcher,
+        stepper: IntegratorStepper,
         interval: IntervalLike,
         state: State,
     ) -> Iterator[tuple[IntervalLike, State]]:
-        march = marcher
+        march = stepper
         copy_interval = interval.copy
-        snapshot_state = marcher.snapshot_state
+        snapshot_state = stepper.snapshot_state
         same_time = self.same_time
         while interval.present < interval.stop and not same_time(interval.present, interval.stop):
             if not self.advances_time(interval.present, interval.step):
@@ -245,16 +248,16 @@ class Integrator:
 
     def call_snapshot_safe(
         self,
-        marcher: Marcher,
+        stepper: IntegratorStepper,
         interval: IntervalLike,
         state: State,
     ) -> Iterator[tuple[IntervalLike, State]]:
         if interval.step <= 0.0:
             raise ValueError("Interval step must be positive.")
 
-        march = marcher
+        march = stepper
         copy_interval = interval.copy
-        snapshot_state = marcher.snapshot_state
+        snapshot_state = stepper.snapshot_state
         same_time = self.same_time
         while interval.present < interval.stop and not same_time(interval.present, interval.stop):
             if not self.advances_time(interval.present, interval.step):

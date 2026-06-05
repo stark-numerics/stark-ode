@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+from stark.schemes.configuration import SchemeConfiguration
 from typing import Any, cast
 
 from stark.contracts import Derivative, IntervalLike, Resolvent, State, Allocator
-from stark.schemes.execution.executor import SchemeExecutor
-from stark.schemes.monitoring.monitor import MonitorSchemeLike
+from stark.schemes.monitoring.monitor import SchemeMonitor
 from stark.schemes.monitoring.decorators import with_fixed_step_monitoring
 from stark.schemes.method.descriptor import SchemeDescriptor
 from stark.schemes.display.decorators import with_scheme_display
@@ -112,8 +112,9 @@ class SchemeCrouzeixDIRK3:
         allocator: Allocator,
         resolvent: Resolvent,
         *,
+        configuration: SchemeConfiguration | None = None,
         specialist: SchemeSpecialist | None = None,
-        monitor: MonitorSchemeLike | None = None,
+        monitor: SchemeMonitor | None = None,
     ) -> None:
         self.monitor = monitor
         self.call_body = self.call_inline
@@ -142,8 +143,8 @@ class SchemeCrouzeixDIRK3:
                 self.call_step = self.call_body
                 self.redirect_call = self.call_step
 
-    def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
-        return self.redirect_call(interval, state, executor)
+    def __call__(self, interval: IntervalLike, state: State) -> float:
+        return self.redirect_call(interval, state)
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
         # Steps 2-4 build known shifts from previously solved stage increments.
@@ -175,9 +176,7 @@ class SchemeCrouzeixDIRK3:
             alpha=CROUZEIX_DIRK3_GAMMA * dt,
         )
 
-    def call_inline(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
-        del executor
-
+    def call_inline(self, interval: IntervalLike, state: State) -> float:
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
@@ -254,9 +253,7 @@ class SchemeCrouzeixDIRK3:
         interval.step = 0.0 if remaining_after <= 0.0 else min(interval.step, remaining_after)
         return dt
 
-    def call_specialized(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
-        del executor
-
+    def call_specialized(self, interval: IntervalLike, state: State) -> float:
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0

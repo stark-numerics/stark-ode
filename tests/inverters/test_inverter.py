@@ -4,12 +4,12 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark.accelerators import Accelerator
+from stark.accelerators import AcceleratorNone
 from stark.block.operator import BlockOperatorDiagonal
 from stark.block import Block
 from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
 from stark.inverters.legacy_support.policy import InverterPolicy
-from stark.inverters.legacy_support.tolerance import InverterTolerance
+from stark import Configuration, Tolerance
 
 
 @dataclass(slots=True)
@@ -83,11 +83,11 @@ class ExactScalarPreconditioner:
 
 
 def test_inverter_tolerance_matches_general_tolerance_contract() -> None:
-    ExecutorTolerance = InverterTolerance(atol=1.0e-6, rtol=1.0e-3)
+    tolerance = Tolerance(atol=1.0e-6, rtol=1.0e-3)
 
-    assert ExecutorTolerance.bound(2.0) == 0.002001
-    assert ExecutorTolerance.ratio(0.001, 2.0) < 1.0
-    assert ExecutorTolerance.accepts(0.001, 2.0)
+    assert tolerance.bound(2.0) == 0.002001
+    assert tolerance.ratio(0.001, 2.0) < 1.0
+    assert tolerance.accepts(0.001, 2.0)
 
 
 @pytest.mark.parametrize("inverter_type", INVERTER_TYPES)
@@ -96,7 +96,7 @@ def test_inverter_solves_scalar_linear_system(inverter_type) -> None:
     inverter = inverter_type(
         allocator,
         scalar_inner_product,
-        ExecutorTolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12)),
         policy=InverterPolicy(max_iterations=8, restart=4),
     )
 
@@ -119,7 +119,7 @@ def test_inverter_accepts_preconditioner(inverter_type) -> None:
     inverter = inverter_type(
         allocator,
         scalar_inner_product,
-        ExecutorTolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12)),
         policy=InverterPolicy(max_iterations=8, restart=4),
         preconditioner=preconditioner,
     )
@@ -143,7 +143,7 @@ def test_inverter_solves_two_by_two_block_system(inverter_type) -> None:
     inverter = inverter_type(
         allocator,
         scalar_inner_product,
-        ExecutorTolerance=InverterTolerance(atol=1.0e-12, rtol=1.0e-12),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12)),
         policy=InverterPolicy(max_iterations=16, restart=4),
     )
 
@@ -205,7 +205,7 @@ def test_krylov_inverters_use_their_configured_accelerator() -> None:
 
 @pytest.mark.parametrize("inverter_type", INVERTER_TYPES)
 def test_built_in_inverters_hold_an_explicit_accelerator(inverter_type) -> None:
-    accelerator = Accelerator.none()
+    accelerator = AcceleratorNone()
     inverter = inverter_type(ScalarAllocator(), scalar_inner_product, accelerator=accelerator)
 
     assert inverter.accelerator is accelerator

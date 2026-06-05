@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Executor, Interval
+from stark import Interval
 from stark.schemes.execution.derivative import SchemeDerivative
-from stark.schemes.execution.support import SchemeStepSupport
+from stark.schemes.execution.step_support import SchemeStepSupport
 from stark.schemes.explicit.fixed.rk4 import SchemeRK4
 from stark.schemes.explicit._support import SchemeSupportExplicit
 
@@ -151,7 +151,7 @@ def test_existing_explicit_scheme_still_runs_after_support_extraction() -> None:
     interval = Interval(present=0.0, step=0.125, stop=1.0)
     state = ScalarState(1.0)
 
-    accepted_dt = scheme(interval, state, Executor())
+    accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.125)
     assert state.value == pytest.approx(1.133148193359375)

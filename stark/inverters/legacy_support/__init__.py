@@ -11,7 +11,6 @@ from stark.inverters.legacy_support.runtime import (
     with_inverter_binding_methods,
     with_inverter_display_methods,
 )
-from stark.inverters.legacy_support.tolerance import InverterTolerance
 from stark.inverters.legacy_support.workspace import InverterWorkspace
 
 __all__ = [
@@ -22,7 +21,6 @@ __all__ = [
     "InverterPolicy",
     "InverterSafety",
     "InverterSafetyDefault",
-    "InverterTolerance",
     "InverterWorkspace",
     "MonitorInverterLike",
     "InverterPreconditioner",

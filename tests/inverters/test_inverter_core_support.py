@@ -4,12 +4,10 @@ from dataclasses import dataclass
 
 import pytest
 
+from stark import Configuration, Tolerance
 from stark.contracts import InverterRequest
 from stark.inverters.support import (
-    InverterBudget,
-    InverterBudgetRestarted,
     InverterDescriptor,
-    InverterTolerance,
     with_inverter_monitoring,
 )
 from stark.monitor import MonitorInverter
@@ -128,17 +126,12 @@ def test_inverter_monitoring_is_noop_without_monitor() -> None:
 
 @pytest.mark.parametrize("maximum_steps", [0, -1])
 def test_inverter_budget_rejects_non_positive_step_count(maximum_steps: int) -> None:
-    with pytest.raises(ValueError, match="maximum_steps"):
-        InverterBudget(maximum_steps=maximum_steps)
+    with pytest.raises(ValueError, match="inverter_maximum_steps"):
+        Configuration(inverter_maximum_steps=maximum_steps)
 
 
-def test_inverter_budget_restarted_rejects_non_positive_restart_dimension() -> None:
-    with pytest.raises(ValueError, match="restart_dimension"):
-        InverterBudgetRestarted(maximum_steps=4, restart_dimension=0)
-
-
-def test_inverter_tolerance_uses_executor_tolerance_semantics() -> None:
-    tolerance = InverterTolerance(atol=1.0e-3, rtol=1.0e-2)
+def test_inverter_tolerance_uses_Configuration_tolerance_semantics() -> None:
+    tolerance = Tolerance(atol=1.0e-3, rtol=1.0e-2)
 
     assert tolerance.bound(2.0) == pytest.approx(2.1e-2)
     assert tolerance.accepts(2.0e-2, 2.0)

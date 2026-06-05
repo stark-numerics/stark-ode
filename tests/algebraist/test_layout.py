@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from stark.algebraist.layout import (
@@ -40,6 +42,20 @@ def test_layout_path_rejects_invalid_expression_root() -> None:
 
     with pytest.raises(ValueError):
         path.expression("not valid")
+
+
+def test_layout_path_get_set_and_ensure_traverse_runtime_objects() -> None:
+    path = AlgebraistLayoutPath.from_value("position.velocity")
+    root = SimpleNamespace()
+
+    parent = path.ensure(root)
+
+    assert parent is root.position
+
+    path.set(root, 3.0)
+
+    assert root.position.velocity == 3.0
+    assert path.get(root) == 3.0
 
 
 def test_layout_field_normalizes_paths_and_policy() -> None:

@@ -4,8 +4,8 @@ from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass, field
 from typing import Callable
 
-from stark.accelerators import DEFAULT_ACCELERATOR
-from stark.contracts.accelerator import AcceleratorLike
+from stark.accelerators import AcceleratorNone
+from stark.contracts.accelerator import Accelerator
 from stark.inverters.dense.native_general import InverterProviderDenseNativeGeneral
 
 DenseInvert = Callable[
@@ -90,7 +90,7 @@ class InverterProviderDenseNative:
     is supplied, the selected native kernel is compiled during preparation.
     """
 
-    accelerator: AcceleratorLike = field(default_factory=lambda: DEFAULT_ACCELERATOR)
+    accelerator: Accelerator = field(default_factory=AcceleratorNone)
     dimension: int | None = field(init=False, default=None)
     invert: DenseInvert = field(init=False, repr=False)
     general: InverterProviderDenseNativeGeneral | None = field(init=False, default=None, repr=False)

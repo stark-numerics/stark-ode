@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Protocol
 
 
-class MonitorSchemeLike(Protocol):
+class SchemeMonitor(Protocol):
     """Minimal scheme-side recording surface for monitorable schemes."""
 
     def record_fixed_step(
@@ -25,4 +25,4 @@ class MonitorSchemeLike(Protocol):
     ) -> None: ...
 
 
-__all__ = ["MonitorSchemeLike"]
+__all__ = ["SchemeMonitor"]

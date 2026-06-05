@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark import Executor, Interval, ExecutorTolerance
+from stark import Interval, Tolerance
 
 
 @dataclass(slots=True)
@@ -107,8 +107,8 @@ def exponential_growth(
     out.value = state.value
 
 
-def tight_executor() -> Executor:
-    return Executor(tolerance=ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9))
+def tight_configuration() -> Configuration:
+    return Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
 
 import pytest
@@ -144,11 +144,10 @@ def test_explicit_adaptive_specialist_path_matches_inline_path(scheme_cls) -> No
         specialist=StubSpecialist(),
     )
 
-    accepted_inline = inline(interval_inline, state_inline, tight_executor())
+    accepted_inline = inline(interval_inline, state_inline)
     accepted_specialist = specialized(
         interval_specialist,
         state_specialist,
-        tight_executor(),
     )
 
     assert accepted_specialist == pytest.approx(accepted_inline)

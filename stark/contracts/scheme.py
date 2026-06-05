@@ -10,7 +10,6 @@ from stark.contracts.state import State
 
 if TYPE_CHECKING:
     from stark.schemes.method.descriptor import SchemeDescriptor
-    from stark.schemes.execution.executor import SchemeExecutor
 
 
 class SchemeLike(Protocol):
@@ -25,7 +24,7 @@ class SchemeLike(Protocol):
     also update `interval.step` to propose the next step size.
     """
 
-    def __call__(self, interval: IntervalLike, state: State, executor: SchemeExecutor) -> float:
+    def __call__(self, interval: IntervalLike, state: State) -> float:
         ...
 
     def snapshot_state(self, state: State) -> State:
@@ -64,8 +63,8 @@ class SchemeAudit:
     def __call__(recorder: AuditRecorder, scheme: Any) -> None:
         recorder.check(
             callable(scheme),
-            "Scheme provides __call__(interval, state, executor).",
-            "Add __call__(interval, state, executor) returning the accepted step size.",
+            "Scheme provides __call__(interval, state).",
+            "Add __call__(interval, state) returning the accepted step size.",
         )
         recorder.check(
             callable(getattr(scheme, "snapshot_state", None)),
