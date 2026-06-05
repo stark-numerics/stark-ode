@@ -6,8 +6,8 @@ from statistics import median
 from time import perf_counter
 from typing import Callable
 
-from stark import Executor, ExecutorTolerance, Interval, Marcher
-from stark.accelerators import Accelerator
+from stark import Executor, ExecutorTolerance, Interval, IntegratorStepper
+from stark.accelerators import AcceleratorNumba
 from stark.block import BlockBasis
 from stark.inverters.dense import InverterDense, InverterProviderDenseNative
 from stark.inverters.relaxation import InverterRelaxationJacobi, InverterRelaxationRichardson
@@ -192,7 +192,7 @@ def make_initial_state(dimension: int) -> VectorState:
 def make_dense_inverter(basis: VectorBasis, monitor: MonitorInverter) -> InverterDense[VectorTranslation]:
     return InverterDense(
         basis=BlockBasis([basis]),
-        provider=InverterProviderDenseNative(accelerator=Accelerator.numba()),
+        provider=InverterProviderDenseNative(accelerator=AcceleratorNumba()),
         monitor=monitor,
     )
 
@@ -240,13 +240,13 @@ def prepare_solver(
         allocator,
         resolvent=resolvent,
     )
-    marcher = Marcher(scheme, Executor(tolerance=ExecutorTolerance()))
+    stepper = IntegratorStepper(scheme, Executor(tolerance=ExecutorTolerance()))
 
     def solve_once():
         interval = Interval(present=0.0, step=0.01, stop=0.01)
         state = make_initial_state(dimension)
         scheme.delta[0].values[:] = [0.0 for _ in range(dimension)]
-        marcher(interval, state)
+        stepper(interval, state)
         summary = monitor.summary()
         monitor.clear()
         return state, summary

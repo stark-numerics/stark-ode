@@ -16,14 +16,14 @@ from __future__ import annotations
 #
 #     python -m examples.case_studies.allen_cahn.lesson_02_compare_explicit
 
-from stark import Executor, Marcher
+from stark import IntegratorStepper
 from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp, SchemeDormandPrince
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     DIFFUSIVITY,
-    EXECUTOR_TOLERANCE,
+    Configuration_TOLERANCE,
     AllenCahnRHS,
     Geometry,
     initial_profile,
@@ -35,7 +35,7 @@ from examples.case_studies.allen_cahn.lesson_01_problem import (
 
 if __name__ == "__main__":
     geometry = Geometry()
-    executor = Executor(tolerance=EXECUTOR_TOLERANCE)
+    configuration = Configuration(scheme_tolerance=Configuration_TOLERANCE)
 
     # We ask `StarkIVP` to prepare the vector-space boundary once, then reuse
     # the prepared derivative/allocator with two different schemes. This keeps
@@ -48,7 +48,7 @@ if __name__ == "__main__":
         initial=initial_profile(geometry),
         interval=make_interval(),
         scheme=SchemeCashKarp,
-        executor=executor,
+        configuration=Configuration,
     ).build()
 
     carrier = template.initial.carrier
@@ -74,11 +74,11 @@ if __name__ == "__main__":
     entries = [
         ComparisonEntry(
             "Cash-Karp",
-            Marcher(SchemeCashKarp(derivative, allocator), executor),
+            IntegratorStepper(SchemeCashKarp(derivative, allocator)),
         ),
         ComparisonEntry(
             "Dormand-Prince",
-            Marcher(SchemeDormandPrince(derivative, allocator), executor),
+            IntegratorStepper(SchemeDormandPrince(derivative, allocator)),
         ),
     ]
 

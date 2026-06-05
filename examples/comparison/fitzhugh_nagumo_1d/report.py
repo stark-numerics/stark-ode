@@ -94,11 +94,11 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
     print("Compared runs:")
     print(f"  SciPy/Diffrax tolerances: rtol={tolerances['rtol']:.0e}, atol={tolerances['atol']:.0e}")
     print(
-        "  STARK adaptive ExecutorTolerance: "
+        "  STARK adaptive Tolerance: "
         f"rtol={stark_parameters['tolerance_rtol']:.0e}, atol={stark_parameters['tolerance_atol']:.0e}"
     )
     print(
-        "  STARK resolver ExecutorTolerance/policy: "
+        "  STARK resolver Tolerance/policy: "
         f"atol={stark_parameters['resolution_atol']:.0e}, "
         f"rtol={stark_parameters['resolution_rtol']:.0e}, "
         f"max_iterations={stark_parameters['resolution_max_iterations']}"

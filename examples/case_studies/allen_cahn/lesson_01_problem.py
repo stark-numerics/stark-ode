@@ -41,8 +41,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from stark import Executor, Interval, ExecutorTolerance
-from stark.accelerators import Accelerator
+from stark import Interval, Tolerance
+from stark.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp
 
@@ -55,17 +55,17 @@ from stark.schemes import SchemeCashKarp
 HERE = Path(__file__).resolve().parent
 
 DIFFUSIVITY: float = 0.08
-EXECUTOR_TOLERANCE = ExecutorTolerance(atol=1.0e-6, rtol=1.0e-3)
+Configuration_TOLERANCE = Tolerance(atol=1.0e-6, rtol=1.0e-3)
 START_TIME = 0.0
 STOP_TIME = 1.0
 INITIAL_STEP = 1.0e-3
 
 try:
-    ACCELERATOR = Accelerator.numba()
+    ACCELERATOR = AcceleratorNumba()
 except ModuleNotFoundError:
     # Numba is useful for this grid example, but the lesson should still run in
     # an environment with only the core STARK dependencies available.
-    ACCELERATOR = Accelerator.none()
+    ACCELERATOR = AcceleratorNone()
 
 
 # The geometry object carries the periodic cell length, grid size, spacing, and
@@ -236,7 +236,7 @@ if __name__ == "__main__":
         initial=initial,
         interval=make_interval(),
         scheme=SchemeCashKarp,
-        executor=Executor(tolerance=EXECUTOR_TOLERANCE),
+        configuration=Configuration(scheme_tolerance=Configuration_TOLERANCE),
     )
     build = ivp.build()
 
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     # we should read or copy values immediately inside the loop.
 
     for snapshot_interval, snapshot_state in build.integrator.live(
-        build.marcher,
+        build.stepper,
         build.interval,
         build.initial,
         checkpoints=5,

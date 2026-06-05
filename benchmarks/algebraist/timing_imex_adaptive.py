@@ -10,8 +10,8 @@ from typing import Callable
 
 import numpy as np
 
-from stark import Executor, Integrator, Interval, Marcher, ExecutorSafety, ExecutorTolerance
-from stark.accelerators import Accelerator
+from stark import Executor, Integrator, Interval, IntegratorStepper, ExecutorSafety, ExecutorTolerance
+from stark.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import (
@@ -112,7 +112,7 @@ class ArrayAlgebraist:
 
 
 def make_algebraist(policy, allocator: ArrayAllocator, accelerator=None) -> ArrayAlgebraist:
-    active_accelerator = accelerator if accelerator is not None else Accelerator.none()
+    active_accelerator = accelerator if accelerator is not None else AcceleratorNone()
     layout = AlgebraistLayout(
         fields=(AlgebraistLayoutField("value", "value", policy=policy),),
     )
@@ -135,7 +135,7 @@ def make_algebraist(policy, allocator: ArrayAllocator, accelerator=None) -> Arra
 
 def numba_accelerator():
     try:
-        return Accelerator.numba(cache=False)
+        return AcceleratorNumba(cache=False)
     except ModuleNotFoundError:
         return None
 
@@ -152,13 +152,13 @@ def make_resolvent(scheme_cls, allocator: ArrayAllocator) -> ResolventPicard:
         allocator,
         ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=16),
-        accelerator=Accelerator.none(),
+        accelerator=AcceleratorNone(),
         tableau=scheme_cls.tableau,
     )
 
 
 class BenchmarkCase:
-    __slots__ = ("integrator", "interval", "marcher", "name", "state")
+    __slots__ = ("integrator", "interval", "stepper", "name", "state")
 
     def __init__(
         self,
@@ -170,7 +170,7 @@ class BenchmarkCase:
         executor: Executor,
     ) -> None:
         self.name = name
-        self.marcher = Marcher(scheme, executor)
+        self.stepper = IntegratorStepper(scheme, executor)
         self.integrator = Integrator(executor=executor)
         self.state = state
         self.interval = interval
@@ -178,7 +178,7 @@ class BenchmarkCase:
     def solve_once(self) -> ArrayState:
         state = self.state.copy()
         interval = self.interval.copy()
-        for _interval, _state in self.integrator.live(self.marcher, interval, state):
+        for _interval, _state in self.integrator.live(self.stepper, interval, state):
             pass
         return state
 

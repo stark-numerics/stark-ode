@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Executor, Interval, Marcher
+from stark import Interval, IntegratorStepper
 from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.interface import StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp, SchemeDormandPrince
-
+from stark.core import Configuration
 
 def oscillator_rhs(t: float, y: np.ndarray) -> np.ndarray:
     del t
@@ -39,7 +39,7 @@ def diagnostics(state: StarkVector) -> dict[str, float]:
     return {"position": float(position), "velocity": float(velocity)}
 
 
-executor = Executor()
+configuration = Configuration()
 problem = ComparisonProblem(
     name="harmonic oscillator",
     build_state=build_state,
@@ -50,11 +50,11 @@ problem = ComparisonProblem(
 entries = [
     ComparisonEntry(
         "Cash-Karp",
-        Marcher(SchemeCashKarp(template.derivative, template.allocator), executor),
+        IntegratorStepper(SchemeCashKarp(template.derivative, template.allocator)),
     ),
     ComparisonEntry(
         "Dormand-Prince",
-        Marcher(SchemeDormandPrince(template.derivative, template.allocator), executor),
+        IntegratorStepper(SchemeDormandPrince(template.derivative, template.allocator)),
     ),
 ]
 

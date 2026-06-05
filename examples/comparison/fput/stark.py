@@ -5,8 +5,8 @@ from typing import Any
 
 import numpy as np
 
-from stark import Executor, Integrator, Interval, Marcher, ExecutorSafety, ExecutorTolerance
-from stark.accelerators import Accelerator
+from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
+from stark.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.generator import AlgebraistGeneratorGeneral
 from stark.algebraist.layout import (
@@ -18,10 +18,10 @@ from stark.schemes.explicit.adaptive import SchemeCashKarp, SchemeDormandPrince
 
 
 try:
-    ACCELERATOR = Accelerator.numba()
+    ACCELERATOR = AcceleratorNumba()
     USE_NUMBA_ACCELERATION = True
 except ModuleNotFoundError:
-    ACCELERATOR = Accelerator.none()
+    ACCELERATOR = AcceleratorNone()
     USE_NUMBA_ACCELERATION = False
 
 
@@ -275,27 +275,21 @@ def _prepare_stark_runner(
     initial_conditions: dict[str, Array],
     reference: dict[str, Array],
 ) -> Callable[[], dict[str, Any]]:
-    executor_safety = ExecutorSafety.fast()
+    configuration = Configuration(check_progress=False)
 
     allocator = FPUTAllocator(problem_parameters)
     derivative = FPUTDerivative(problem_parameters)
 
-    scheme = scheme_type(derivative, allocator)
-
-    executor = Executor(
-        tolerance=ExecutorTolerance(
+    configuration = Configuration(
+        scheme_tolerance=Tolerance(
             atol=float(tolerance_parameters["atol"]),
             rtol=float(tolerance_parameters["rtol"]),
         ),
-        safety=executor_safety,
     )
+    scheme = scheme_type(derivative, allocator, configuration=configuration)
 
-    marcher = Marcher(scheme, executor)
-    integrate = Integrator(
-        executor=Executor(
-            safety=executor_safety,
-        )
-    )
+    stepper = IntegratorStepper(scheme)
+    integrate = Integrator(configuration=Configuration(check_progress=False))
 
     def solve_once() -> dict[str, Any]:
         interval = Interval(
@@ -306,7 +300,7 @@ def _prepare_stark_runner(
         state = _make_state(initial_conditions)
 
         steps = 0
-        for _interval, _state in integrate.live(marcher, interval, state):
+        for _interval, _state in integrate.live(stepper, interval, state):
             steps += 1
 
         return {

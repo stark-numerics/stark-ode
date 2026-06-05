@@ -32,14 +32,14 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 
-from stark import Executor, Marcher
+from stark import IntegratorStepper
 from stark.interface import StarkDerivative, StarkIVP
 from stark.monitor import Monitor
 from stark.schemes import SchemeCashKarp
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     DIFFUSIVITY,
-    EXECUTOR_TOLERANCE,
+    Configuration_TOLERANCE,
     AllenCahnRHS,
     Geometry,
     initial_profile,
@@ -64,14 +64,14 @@ if __name__ == "__main__":
         initial=initial_profile(geometry),
         interval=make_interval(),
         scheme=SchemeCashKarp,
-        executor=Executor(tolerance=EXECUTOR_TOLERANCE),
+        configuration=Configuration(scheme_tolerance=Configuration_TOLERANCE),
     ).build()
     build.scheme = SchemeCashKarp(build.derivative, build.allocator, monitor=monitor.scheme)
-    build.marcher = Marcher(build.scheme, build.executor)
+    build.stepper = IntegratorStepper(build.scheme)
 
     list(
         build.integrator.live(
-            marcher=build.marcher,
+            stepper=build.stepper,
             interval=build.interval,
             state=build.initial,
         )

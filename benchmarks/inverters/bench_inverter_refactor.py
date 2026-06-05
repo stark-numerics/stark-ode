@@ -10,7 +10,7 @@ from pathlib import Path
 from statistics import median
 from time import perf_counter
 
-from stark.accelerators import Accelerator
+from stark.accelerators import AcceleratorNone
 from stark.block.operator import BlockOperatorDiagonal
 from stark.block import Block
 from stark.executor.safety import ExecutorSafety
@@ -180,7 +180,7 @@ def make_inverter(inverter_type):
         ExecutorTolerance=make_tolerance(),
         policy=make_policy(),
         safety=ExecutorSafety(block_sizes=False),
-        accelerator=Accelerator.none(),
+        accelerator=AcceleratorNone(),
     )
 
 

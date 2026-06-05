@@ -6,8 +6,8 @@ from typing import Any
 
 import numpy as np
 
-from stark import Executor, ExecutorSafety, ExecutorTolerance, Interval, Marcher
-from stark.accelerators import Accelerator
+from stark import Configuration, Interval, IntegratorStepper, Tolerance
+from stark.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.algebraist.generator import AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutUnravel
 from stark.block import BlockBasis, BlockSpecialist
@@ -15,16 +15,15 @@ from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.interface.vector import StarkVectorAllocator, StarkVectorTranslation
 from stark.inverters import InverterRelaxationJacobi
 from stark.inverters.dense import InverterDense, InverterProviderDenseNative
-from stark.inverters.support import InverterBudget, InverterTolerance
 from stark.monitor import MonitorInverter
-from stark.resolvents import ResolventNewton, ResolventPolicy, ResolventTolerance
+from stark.resolvents import ResolventNewton
 from stark.schemes import SchemeKvaerno4
 
 try:
-    ACCELERATOR = Accelerator.numba()
+    ACCELERATOR = AcceleratorNumba()
     USE_NUMBA_ACCELERATION = True
 except ModuleNotFoundError:
-    ACCELERATOR = Accelerator.none()
+    ACCELERATOR = AcceleratorNone()
     USE_NUMBA_ACCELERATION = False
 
 Array = Any
@@ -385,7 +384,7 @@ class RobertsonCubicRoot:
 class RobertsonStarkSolver:
     name: str
     build: Any
-    marcher: Marcher
+    stepper: IntegratorStepper
     problem_parameters: dict[str, float]
     initial_conditions: dict[str, np.ndarray]
     reference: dict[str, Any]
@@ -399,7 +398,7 @@ class RobertsonStarkSolver:
         )
         steps = 0
 
-        for _interval, _state in self.build.integrator.live(self.marcher, interval, state):
+        for _interval, _state in self.build.integrator.live(self.stepper, interval, state):
             steps += 1
 
         result: dict[str, Any] = {
@@ -439,12 +438,12 @@ def build_template(problem_parameters, stark_parameters, initial_conditions):
         initial=RobertsonState(initial_conditions["y"].copy()),
         interval=Interval(problem_parameters["t0"], stark_parameters["step"], problem_parameters["t1"]),
         carrier=RobertsonCarrier(),
-        executor=Executor(
-            tolerance=ExecutorTolerance(
+        configuration=Configuration(
+            scheme_tolerance=Tolerance(
                 atol=stark_parameters["tolerance_atol"],
                 rtol=stark_parameters["tolerance_rtol"],
             ),
-            safety=ExecutorSafety.fast(),
+            check_progress=False,
         ),
     ).build()
 
@@ -470,11 +469,10 @@ def build_newton_jacobi_inverter(allocator, stark_parameters, monitor: MonitorIn
     return InverterRelaxationJacobi(
         RobertsonEntryOperatorInverse(allocator),
         damping=1.0,
-        tolerance=InverterTolerance(
+        configuration=Configuration(inverter_tolerance=Tolerance(
             atol=stark_parameters["inversion_atol"],
             rtol=stark_parameters["inversion_rtol"],
-        ),
-        budget=InverterBudget(maximum_steps=stark_parameters["inversion_max_iterations"]),
+        ), inverter_maximum_steps=stark_parameters["inversion_max_iterations"]),
         monitor=monitor,
         specialist=BlockSpecialist(specialist),
     )
@@ -485,12 +483,10 @@ def build_newton_jacobi_resolvent(build, stark_parameters, monitor: MonitorInver
         build.allocator,
         linearizer=RobertsonFullLinearizer(),
         inverter=build_newton_jacobi_inverter(build.allocator, stark_parameters, monitor, specialist),
-        ExecutorTolerance=ResolventTolerance(
+        configuration=Configuration(resolvent_tolerance=Tolerance(
             atol=stark_parameters["resolution_atol"],
             rtol=stark_parameters["resolution_rtol"],
-        ),
-        policy=ResolventPolicy(max_iterations=stark_parameters["resolution_max_iterations"]),
-        safety=ExecutorSafety.fast(),
+        ), resolvent_maximum_steps=stark_parameters["resolution_max_iterations"]),
         accelerator=ACCELERATOR,
         specialist=BlockSpecialist(specialist),
         tableau=SchemeKvaerno4.tableau,
@@ -510,12 +506,10 @@ def build_newton_dense_resolvent(build, stark_parameters, monitor: MonitorInvert
         build.allocator,
         linearizer=RobertsonFullLinearizer(),
         inverter=build_newton_dense_inverter(monitor),
-        ExecutorTolerance=ResolventTolerance(
+        configuration=Configuration(resolvent_tolerance=Tolerance(
             atol=stark_parameters["resolution_atol"],
             rtol=stark_parameters["resolution_rtol"],
-        ),
-        policy=ResolventPolicy(max_iterations=stark_parameters["resolution_max_iterations"]),
-        safety=ExecutorSafety.fast(),
+        ), resolvent_maximum_steps=stark_parameters["resolution_max_iterations"]),
         accelerator=ACCELERATOR,
         specialist=BlockSpecialist(specialist),
         tableau=SchemeKvaerno4.tableau,
@@ -529,7 +523,7 @@ def prepare_kvaerno4_full_custom(problem_parameters, stark_parameters, initial_c
     return RobertsonStarkSolver(
         "Kvaerno4 Full Cubic",
         build,
-        Marcher(scheme, build.executor),
+        IntegratorStepper(scheme),
         problem_parameters,
         initial_conditions,
         reference,
@@ -545,7 +539,7 @@ def prepare_kvaerno4_full_newton(problem_parameters, stark_parameters, initial_c
     return RobertsonStarkSolver(
         "Kvaerno4 Full Newton Jacobi",
         build,
-        Marcher(scheme, build.executor),
+        IntegratorStepper(scheme),
         problem_parameters,
         initial_conditions,
         reference,
@@ -562,7 +556,7 @@ def prepare_kvaerno4_full_newton_dense(problem_parameters, stark_parameters, ini
     return RobertsonStarkSolver(
         "Kvaerno4 Full Newton Dense",
         build,
-        Marcher(scheme, build.executor),
+        IntegratorStepper(scheme),
         problem_parameters,
         initial_conditions,
         reference,

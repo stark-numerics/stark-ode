@@ -10,7 +10,7 @@ increments used by the scheme.
 from dataclasses import dataclass
 from math import sqrt
 
-from stark import Executor, Integrator, Interval, Marcher
+from stark import Integrator, Interval, IntegratorStepper
 from stark.schemes import SchemeRK4
 
 
@@ -69,11 +69,11 @@ def harmonic_motion(
 
 allocator = ParticleAllocator()
 scheme = SchemeRK4(harmonic_motion, allocator)
-marcher = Marcher(scheme, Executor())
+stepper = IntegratorStepper(scheme)
 interval = Interval(present=0.0, step=0.1, stop=0.5)
 state = Particle(position=1.0, velocity=0.0)
 
 print("Structured particle state")
-for interval, state in Integrator().live(marcher, interval, state):
+for interval, state in Integrator().live(stepper, interval, state):
     print(f"t={interval.present:.1f}, x={state.position:.6f}, v={state.velocity:.6f}")
 

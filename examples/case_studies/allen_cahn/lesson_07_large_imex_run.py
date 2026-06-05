@@ -5,7 +5,7 @@ from __future__ import annotations
 # At the smaller grid size, the IMEX method has shown that the split is not
 # just mathematically neat, but computationally worthwhile. For a final
 # demonstration, we now increase the size of the spatial grid and use the IMEX
-# marcher to generate a higher-resolution solution.
+# stepper to generate a higher-resolution solution.
 #
 # The goal here is no longer to compare methods, but to use the method that has
 # emerged from the story and let it produce a clean picture of the Allen-Cahn
@@ -29,7 +29,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
+from stark import Integrator, Interval, IntegratorStepper, Tolerance
 from stark.contracts import DerivativeIMEX
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7
@@ -52,11 +52,11 @@ HERE = Path(__file__).resolve().parent
 
 if __name__ == "__main__":
     geometry = Geometry(grid_size=1024)
-    executor_tolerance = ExecutorTolerance(atol=1.0e-6, rtol=1.0e-3)
+    configuration_tolerance = Tolerance(atol=1.0e-6, rtol=1.0e-3)
     start_time = 0.0
     stop_time = 5.0
     initial_step = 1.5e-3
-    executor = Executor(tolerance=executor_tolerance)
+    configuration = Configuration(scheme_tolerance=configuration_tolerance)
 
     # We still let `StarkIVP` prepare the vector carrier and allocator, even
     # though the solve itself uses a hand-assembled IMEX scheme.
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         initial=initial_profile(geometry),
         interval=Interval(present=start_time, step=initial_step, stop=stop_time),
         scheme=SchemeCashKarp,
-        executor=executor,
+        configuration=Configuration,
     ).build()
 
     implicit_derivative = AllenCahnImplicitDerivative(geometry, DIFFUSIVITY)
@@ -86,8 +86,8 @@ if __name__ == "__main__":
         allocator,
         resolvent=resolvent,
     )
-    integrate = Integrator(executor=executor)
-    marcher = Marcher(scheme, executor)
+    integrate = Integrator(configuration=configuration)
+    stepper = IntegratorStepper(scheme)
 
     initial = initial_profile(geometry)
     state = StarkVector(initial.copy(), template.initial.carrier)
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     frames = [state.value.copy()]
 
     for snapshot_interval, snapshot_state in integrate(
-        marcher,
+        stepper,
         interval,
         state,
         checkpoints=checkpoints,

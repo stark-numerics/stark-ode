@@ -110,13 +110,13 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
     print("Compared runs:")
     print(f"  SciPy compared tolerances: rtol={tolerances['rtol']:.0e}, atol={tolerances['atol']:.0e}")
     print(
-        "  STARK adaptive ExecutorTolerance: "
+        "  STARK adaptive Tolerance: "
         f"rtol={stark_parameters['tolerance_rtol']:.0e}, "
         f"atol={stark_parameters['tolerance_atol']:.0e}"
     )
     print(f"  STARK initial step: {stark_parameters['step']:.0e}")
     print(
-        "  STARK resolver ExecutorTolerance/policy: "
+        "  STARK resolver Tolerance/policy: "
         f"atol={stark_parameters['resolution_atol']:.0e}, "
         f"rtol={stark_parameters['resolution_rtol']:.0e}, "
         f"max_iterations={stark_parameters['resolution_max_iterations']}"
@@ -129,7 +129,7 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
             else "selected accelerator: numba, but it is unavailable here so the benchmark is using pure Python kernels"
         )
     )
-    print("  STARK Robertson uses StarkIVP to prepare the carrier, allocator, derivative, executor, and integrator")
+    print("  STARK Robertson uses StarkIVP to prepare the carrier, allocator, derivative, and integrator")
     print("  STARK Robertson includes a fully implicit Kvaerno4 solve with a custom exact cubic resolvent")
     print("  STARK Robertson also includes Kvaerno4 Newton rows using the new inverter request path")
     print("  one Newton row uses Jacobi relaxation with a materialized local 3x3 entry inverse")

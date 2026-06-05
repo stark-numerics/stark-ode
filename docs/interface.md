@@ -5,7 +5,7 @@ array-valued initial-value problems.
 
 It accepts ordinary Python values, array values, and carrier-backed values,
 then prepares the derivative, state, carrier, routing, scheme, executor,
-marcher, and integrator needed by the core STARK objects.
+stepper, and integrator needed by the core STARK objects.
 
 The explicit core API remains available for custom state objects, implicit
 resolvents, inverters, accelerators, and problem-specific fast paths. The

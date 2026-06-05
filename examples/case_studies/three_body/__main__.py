@@ -49,7 +49,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray
 
-from stark import Auditor, Executor, Integrator, Interval, Marcher, ExecutorTolerance
+from stark import Auditor, Integrator, Interval, IntegratorStepper, Tolerance
 from stark.schemes import SchemeDormandPrince
 
 
@@ -62,7 +62,7 @@ CHECKPOINTS = RUN_PERIODS * CHECKPOINTS_PER_PERIOD
 EULER_COARSE_DT = 0.01
 EULER_FINE_DT = 0.001
 STARK_INITIAL_STEP = 0.02
-STARK_TOLERANCE = ExecutorTolerance(atol=1.0e-9, rtol=1.0e-9)
+STARK_TOLERANCE = Tolerance(atol=1.0e-9, rtol=1.0e-9)
 HERE = Path(__file__).resolve().parent
 
 
@@ -308,7 +308,7 @@ print(f"Saved {euler_plot_path}")
 # - `ThreeBodyAllocator` allocates and copies states and translations.
 # - `ThreeBodyDerivative` fills a translation with the current derivative.
 # - `SchemeDormandPrince` owns the numerical Runge-Kutta formula.
-# - `Executor`, `Marcher`, and `Integrator` carry runtime policy and drive time.
+# - `Configuration`, `IntegratorStepper`, and `Integrator` carry runtime policy and drive time.
 
 
 # 5. The STARK translation
@@ -476,7 +476,7 @@ audit = Auditor(
     allocator=allocator,
     interval=audit_interval,
     scheme=audit_scheme,
-    ExecutorTolerance=STARK_TOLERANCE,
+    Tolerance=STARK_TOLERANCE,
 )
 print(audit)
 audit.raise_if_invalid()
@@ -490,8 +490,8 @@ audit.raise_if_invalid()
 # contracts also let users provide their own schemes. For this example we will
 # use Dormand-Prince, a common embedded 5(4) method.
 #
-# The `Executor` carries runtime policy such as ExecutorTolerance, so the marcher now
-# owns a scheme together with an executor rather than a bare ExecutorTolerance object.
+# The `Configuration` carries runtime policy such as Tolerance, so the stepper now
+# owns a scheme together with an Configuration rather than a bare Tolerance object.
 #
 # The `checkpoints` argument asks STARK to pass through evenly spaced output
 # times. This is ideal for plots and animations: the solver can adapt
@@ -505,15 +505,15 @@ state = deepcopy(figure_eight_initial)
 interval = Interval(present=0.0, step=STARK_INITIAL_STEP, stop=STOP_TIME)
 
 scheme = SchemeDormandPrince(derivative, allocator)
-executor = Executor(tolerance=STARK_TOLERANCE)
-marcher = Marcher(scheme, executor)
-integrate = Integrator(executor=executor)
+configuration = Configuration(scheme_tolerance=STARK_TOLERANCE)
+stepper = IntegratorStepper(scheme)
+integrate = Integrator(configuration=configuration)
 stark_trajectory = ThreeBodyTrajectory("STARK Dormand-Prince")
 stark_trajectory.record(state)
 
 checkpoint_outputs = 0
 for _checkpoint_interval, checkpoint_state in integrate.live(
-    marcher,
+    stepper,
     interval,
     state,
     checkpoints=CHECKPOINTS,
@@ -604,7 +604,7 @@ print(f"Saved {comparison_plot_path}")
 # - `ThreeBodyAllocator` tells STARK how to allocate and copy user objects.
 # - `ThreeBodyDerivative` adapts existing acceleration code to the STARK
 #   derivative contract.
-# - `Executor` carries the runtime policy used by `Marcher` and `Integrator`.
+# - `Configuration` carries the runtime policy used by `IntegratorStepper` and `Integrator`.
 # - `Auditor` checks that this interface is complete.
 # - `Integrator().live(..., checkpoints=...)` gives display-ready samples
 #   without forcing the adaptive solver to use a fixed display step.

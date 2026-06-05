@@ -21,7 +21,7 @@ python -m examples.getting_started.interface.numpy
 Focused examples for specific STARK extension points:
 
 ```powershell
-python -m examples.features.manual_marcher_setup
+python -m examples.features.manual_stepper_setup
 python -m examples.features.custom_scheme_fixed_explicit
 python -m examples.features.structured_state_minimal
 python -m examples.features.compare_two_schemes

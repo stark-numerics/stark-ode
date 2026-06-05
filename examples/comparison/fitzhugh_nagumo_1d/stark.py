@@ -7,23 +7,21 @@ from typing import Any
 
 import numpy as np
 
-from stark import Executor, DerivativeIMEX, Integrator, Interval, Marcher, ExecutorSafety, ExecutorTolerance
-from stark.accelerators import Accelerator
+from stark import Configuration, DerivativeIMEX, Integrator, Interval, IntegratorStepper, Tolerance
+from stark.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
-from stark.executor.adaptivity import ExecutorAdaptivity
 from stark.inverters.relaxation import InverterRelaxationRichardson
-from stark.inverters.support import InverterBudget, InverterTolerance
-from stark.resolvents import ResolventAnderson, ResolventNewton, ResolventPolicy, ResolventTolerance
+from stark.resolvents import ResolventAnderson, ResolventNewton
 from stark.schemes import SchemeKennedyCarpenter43_7, SchemeKvaerno3
 
 
 try:
-    ACCELERATOR = Accelerator.numba()
+    ACCELERATOR = AcceleratorNumba()
     USE_NUMBA_ACCELERATION = True
 except ModuleNotFoundError:
-    ACCELERATOR = Accelerator.none()
+    ACCELERATOR = AcceleratorNone()
     USE_NUMBA_ACCELERATION = False
 
 
@@ -440,18 +438,18 @@ def initial_state(parameters: FitzHughNagumoParameters) -> tuple[np.ndarray, Fit
 
 
 class ComparisonMarcherCounting:
-    __slots__ = ("marcher", "steps")
+    __slots__ = ("stepper", "steps")
 
-    def __init__(self, marcher: Marcher) -> None:
-        self.marcher = marcher
+    def __init__(self, stepper: IntegratorStepper) -> None:
+        self.stepper = stepper
         self.steps = 0
 
     def __call__(self, interval, state) -> float:
         self.steps += 1
-        return self.marcher(interval, state)
+        return self.stepper(interval, state)
 
     def snapshot_state(self, state):
-        return self.marcher.snapshot_state(state)
+        return self.stepper.snapshot_state(state)
 
 
 @dataclass(slots=True)
@@ -466,12 +464,19 @@ def _error_against_reference(state: FitzHughNagumoState, reference) -> float:
     return float(_state_error_kernel(state.u, state.v, reference["u"], reference["v"]))
 
 
-def _scheme_adaptivity(scheme_type):
+def _scheme_configuration(scheme_type, parameters: FitzHughNagumoParameters) -> Configuration:
+    common = {
+        "scheme_tolerance": Tolerance(
+            atol=parameters.tolerance_atol,
+            rtol=parameters.tolerance_rtol,
+        ),
+        "adaptive_scheme_safety": 0.95,
+    }
     if scheme_type is SchemeKennedyCarpenter43_7:
-        return ExecutorAdaptivity(safety=0.95, error_exponent=0.25)
+        return Configuration(**common, adaptive_scheme_error_exponent=0.25)
     if scheme_type is SchemeKvaerno3:
-        return ExecutorAdaptivity(safety=0.95, error_exponent=1.0 / 3.0)
-    return ExecutorAdaptivity(safety=0.95, error_exponent=0.45)
+        return Configuration(**common, adaptive_scheme_error_exponent=1.0 / 3.0)
+    return Configuration(**common, adaptive_scheme_error_exponent=0.45)
 
 
 def _imex_derivative(parameters: FitzHughNagumoParameters) -> DerivativeIMEX:
@@ -526,19 +531,17 @@ class FitzHughNagumoSpectralResolvent:
 
 
 def _build_anderson_solver(label, scheme_type, parameters: FitzHughNagumoParameters):
-    executor_safety = ExecutorSafety.fast()
+    configuration = Configuration(check_progress=False)
     allocator = FitzHughNagumoAllocator(parameters.grid_size)
     derivative = FitzHughNagumoDerivative(parameters)
     resolvent = ResolventAnderson(
         allocator,
         _translation_inner_product,
-        ExecutorTolerance=ResolventTolerance(
+        configuration=Configuration(resolvent_tolerance=Tolerance(
             atol=parameters.resolution_atol,
             rtol=parameters.resolution_rtol,
-        ),
-        policy=ResolventPolicy(max_iterations=parameters.resolution_max_iterations),
+        ), resolvent_maximum_steps=parameters.resolution_max_iterations),
         depth=4,
-        safety=executor_safety,
         accelerator=ACCELERATOR,
         tableau=scheme_type.tableau,
     )
@@ -546,27 +549,16 @@ def _build_anderson_solver(label, scheme_type, parameters: FitzHughNagumoParamet
         derivative,
         allocator,
         resolvent=resolvent,
-        adaptivity=_scheme_adaptivity(scheme_type),
+        configuration=_scheme_configuration(scheme_type, parameters),
         specialist=allocator.specialist,
     )
-    marcher = ComparisonMarcherCounting(
-        Marcher(
-            scheme,
-            Executor(
-                tolerance=ExecutorTolerance(
-                    atol=parameters.tolerance_atol,
-                    rtol=parameters.tolerance_rtol,
-                ),
-                safety=executor_safety,
-            ),
-        )
-    )
-    integrator = Integrator(executor=Executor(safety=executor_safety))
-    return label, integrator, marcher
+    stepper = ComparisonMarcherCounting(IntegratorStepper(scheme))
+    integrator = Integrator(configuration=configuration)
+    return label, integrator, stepper
 
 
 def _build_imex_spectral_solver(label, scheme_type, parameters: FitzHughNagumoParameters):
-    executor_safety = ExecutorSafety.fast()
+    configuration = Configuration(check_progress=False)
     allocator = FitzHughNagumoAllocator(parameters.grid_size)
     derivative = _imex_derivative(parameters)
     resolvent = FitzHughNagumoSpectralResolvent(parameters, tableau=scheme_type.tableau)
@@ -574,40 +566,29 @@ def _build_imex_spectral_solver(label, scheme_type, parameters: FitzHughNagumoPa
         derivative,
         allocator,
         resolvent=resolvent,
-        adaptivity=_scheme_adaptivity(scheme_type),
+        configuration=_scheme_configuration(scheme_type, parameters),
         specialist=allocator.specialist,
     )
-    marcher = ComparisonMarcherCounting(
-        Marcher(
-            scheme,
-            Executor(
-                tolerance=ExecutorTolerance(
-                    atol=parameters.tolerance_atol,
-                    rtol=parameters.tolerance_rtol,
-                ),
-                safety=executor_safety,
-            ),
-        )
-    )
-    integrator = Integrator(executor=Executor(safety=executor_safety))
-    return label, integrator, marcher
+    stepper = ComparisonMarcherCounting(IntegratorStepper(scheme))
+    integrator = Integrator(configuration=configuration)
+    return label, integrator, stepper
 
 
 def prepare_quasi_newton(name, scheme_type, builder, problem_parameters, stark_parameters, initial_conditions, reference):
     parameters = parameters_from_benchmark(problem_parameters, stark_parameters)
-    _label, integrator, marcher = builder(name, scheme_type, parameters)
+    _label, integrator, stepper = builder(name, scheme_type, parameters)
 
     def solve_once():
         state = FitzHughNagumoState(initial_conditions["u"].copy(), initial_conditions["v"].copy())
         interval = Interval(parameters.t_start, parameters.initial_step, parameters.t_stop)
-        marcher.steps = 0
-        for _interval, _state in integrator.live(marcher, interval, state):
+        stepper.steps = 0
+        for _interval, _state in integrator.live(stepper, interval, state):
             pass
         return {
             "library": "STARK",
             "solver": name,
             "error": _error_against_reference(state, reference),
-            "steps": marcher.steps,
+            "steps": stepper.steps,
         }
 
     return solve_once
@@ -631,7 +612,7 @@ def prepare_kc43_imex_spectral(problem_parameters, stark_parameters, initial_con
 
 def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParameters) -> FitzHughNagumoTrajectory:
     del name
-    executor_safety = ExecutorSafety.fast()
+    configuration = Configuration(check_progress=False)
     allocator = FitzHughNagumoAllocator(parameters.grid_size)
     derivative = FitzHughNagumoDerivative(parameters)
     linearizer = FitzHughNagumoLinearizer(parameters)
@@ -642,24 +623,22 @@ def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParamet
         )
     inverter = inverter_class(
         damping=1.0,
-        tolerance=InverterTolerance(
-            atol=parameters.inversion_atol,
-            rtol=parameters.inversion_rtol,
-        ),
-        budget=InverterBudget(
-            maximum_steps=parameters.inversion_max_iterations,
+        configuration=Configuration(
+            inverter_tolerance=Tolerance(
+                atol=parameters.inversion_atol,
+                rtol=parameters.inversion_rtol,
+            ),
+            inverter_maximum_steps=parameters.inversion_max_iterations,
         ),
     )
     resolvent = ResolventNewton(
         allocator,
         linearizer=linearizer,
         inverter=inverter,
-        ExecutorTolerance=ResolventTolerance(
+        configuration=Configuration(resolvent_tolerance=Tolerance(
             atol=parameters.resolution_atol,
             rtol=parameters.resolution_rtol,
-        ),
-        policy=ResolventPolicy(max_iterations=parameters.resolution_max_iterations),
-        safety=executor_safety,
+        ), resolvent_maximum_steps=parameters.resolution_max_iterations),
         accelerator=ACCELERATOR,
         tableau=SchemeKvaerno3.tableau,
     )
@@ -667,18 +646,11 @@ def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParamet
         derivative,
         allocator,
         resolvent=resolvent,
-        adaptivity=_scheme_adaptivity(SchemeKvaerno3),
+        configuration=_scheme_configuration(SchemeKvaerno3, parameters),
         specialist=allocator.specialist,
     )
-    executor = Executor(
-        tolerance=ExecutorTolerance(
-            atol=parameters.tolerance_atol,
-            rtol=parameters.tolerance_rtol,
-        ),
-        safety=executor_safety,
-    )
-    integrate = Integrator(executor=executor)
-    marcher = ComparisonMarcherCounting(Marcher(scheme, executor))
+    integrate = Integrator(configuration=configuration)
+    stepper = ComparisonMarcherCounting(IntegratorStepper(scheme))
     _x, state = initial_state(parameters)
     interval = Interval(parameters.t_start, parameters.initial_step, parameters.t_stop)
 
@@ -686,7 +658,7 @@ def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParamet
     v_snapshots = [state.v.copy()]
     started = perf_counter()
     for _interval, snapshot_state in integrate(
-        marcher,
+        stepper,
         interval,
         state,
         checkpoints=parameters.checkpoint_count,
@@ -698,7 +670,7 @@ def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParamet
     return FitzHughNagumoTrajectory(
         u_snapshots=u_snapshots,
         v_snapshots=v_snapshots,
-        steps=marcher.steps,
+        steps=stepper.steps,
         runtime=runtime,
     )
 

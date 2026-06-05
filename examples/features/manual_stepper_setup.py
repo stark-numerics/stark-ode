@@ -9,16 +9,16 @@ Sometimes it is useful to work one level lower:
 * when writing examples for custom schemes
 * when reusing the same scheme object across several short runs
 * when inspecting or changing the interval between accepted steps
-* when demonstrating how states, translations, allocators, schemes, marchers,
+* when demonstrating how states, translations, allocators, schemes, steppers,
   and integrators fit together
 
 This example starts from one `StarkVector` state, derives matching solver
-objects from it, and then assembles the marcher explicitly.
+objects from it, and then assembles the stepper explicitly.
 """
 
 from __future__ import annotations
 
-from stark import Executor, Integrator, Interval, Marcher
+from stark import Integrator, Interval, IntegratorStepper
 from stark.carriers import CarrierNative
 from stark.interface.vector import StarkVector, StarkVectorTranslation
 from stark.schemes.explicit.fixed.rk4 import SchemeRK4
@@ -56,13 +56,13 @@ def main() -> None:
 
     # Manual solver assembly. StarkIVP would normally hide this wiring.
     scheme = SchemeRK4(growth, allocator)
-    marcher = Marcher(scheme, Executor())
+    stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
 
     print("Manual marching with RK4:")
     print(f"  t=0.0, y={state.value[0]:.6f}")
 
-    for step_interval, step_state in Integrator().live(marcher, interval, state):
+    for step_interval, step_state in Integrator().live(stepper, interval, state):
         print(f"  t={step_interval.present:.1f}, y={step_state.value[0]:.6f}")
 
 

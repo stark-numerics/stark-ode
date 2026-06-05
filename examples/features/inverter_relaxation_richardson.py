@@ -17,7 +17,8 @@ from dataclasses import dataclass
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
 from stark.inverters.relaxation import InverterRelaxationRichardson
-from stark.inverters.support import InverterBudget, InverterDefect, InverterTolerance
+from stark import Configuration, Tolerance
+from stark.inverters.support import InverterDefect
 from stark.resolvents.requests.inverter import ResolventInverterRequest
 
 
@@ -51,8 +52,7 @@ def main() -> None:
     defect = InverterDefect[ScalarTranslation]()
     inverter = InverterRelaxationRichardson[ScalarTranslation](
         damping=0.5,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=0.0),
-        budget=InverterBudget(maximum_steps=4),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=4),
     )
 
     initial_defect = defect(request, output)

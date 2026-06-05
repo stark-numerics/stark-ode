@@ -20,11 +20,11 @@ still come from unmonitored runs.
 
 import numpy as np
 
-from stark import Executor, Interval, Marcher
+from stark import Interval, IntegratorStepper
 from stark.interface import StarkIVP
 from stark.monitor import Monitor
 from stark.schemes import SchemeCashKarp, SchemeRK4
-
+from stark.core import Configuration
 
 def oscillator_rhs(t: float, y: np.ndarray) -> np.ndarray:
     del t
@@ -36,11 +36,11 @@ def build_problem(scheme, monitor: Monitor) -> object:
         derivative=oscillator_rhs,
         initial=np.array([1.0, 0.0]),
         interval=Interval(present=0.0, step=0.2, stop=1.0),
-        executor=Executor(),
+        configuration=Configuration(),
         scheme=scheme,
     ).build()
     build.scheme = scheme(build.derivative, build.allocator, monitor=monitor.scheme)
-    build.marcher = Marcher(build.scheme, build.executor)
+    build.stepper = IntegratorStepper(build.scheme)
     return build
 
 
@@ -50,7 +50,7 @@ def run_with_monitor(scheme) -> Monitor:
 
     list(
         build.integrator.live(
-            build.marcher,
+            build.stepper,
             build.interval,
             build.initial,
         )

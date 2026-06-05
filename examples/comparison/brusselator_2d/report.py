@@ -129,7 +129,7 @@ def describe_problem(problem, tolerances, reference_tolerances, reference, refer
     print("  preparation timing excludes one-time cross-row JIT or tracing costs")
     print("  reference generation is excluded from the timing table")
     print("  timings are CPU wall-clock timings for repeated solves of one medium-sized problem")
-    print("  equal ExecutorTolerance numbers do not imply identical solver error norms")
+    print("  equal Tolerance numbers do not imply identical solver error norms")
     print()
 
 

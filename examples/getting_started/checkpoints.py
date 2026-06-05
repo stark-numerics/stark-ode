@@ -22,7 +22,7 @@ build = ivp.build()
 
 print("Checkpointed harmonic oscillator")
 for interval, state in build.integrator(
-    build.marcher,
+    build.stepper,
     build.interval,
     build.initial,
     checkpoints=4,

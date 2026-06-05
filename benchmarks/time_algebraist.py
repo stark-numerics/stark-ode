@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark.accelerators import Accelerator
+from stark.accelerators import AcceleratorNumba
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.generator import AlgebraistGeneratorGeneral
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
@@ -18,7 +18,7 @@ _ACCELERATED_CONTEXTS: dict[int, tuple] = {}
 
 def numba_available() -> bool:
     try:
-        Accelerator.numba(cache=False)
+        AcceleratorNumba(cache=False)
     except ModuleNotFoundError:
         return False
     return True
@@ -45,7 +45,7 @@ def accelerated_context(size: int) -> tuple:
             translation=allocator.allocate_translation(),
             allocator=allocator,
             layout=accelerated_layout(),
-            accelerator=Accelerator.numba(cache=False),
+            accelerator=AcceleratorNumba(cache=False),
         )
         linear_combine = tuple(provider.provide(AlgebraistArity(arity)) for arity in range(1, 13))
         _ACCELERATED_CONTEXTS[size] = linear_combine
@@ -161,7 +161,7 @@ if numba_available():
                 translation=allocator.allocate_translation(),
                 allocator=allocator,
                 layout=accelerated_layout(),
-                accelerator=Accelerator.numba(cache=False),
+                accelerator=AcceleratorNumba(cache=False),
             )
             for arity in ARITIES:
                 provider.provide(AlgebraistArity(arity))

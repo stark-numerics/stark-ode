@@ -9,18 +9,18 @@ three narrow recording surfaces:
 * `monitor.resolvent` records nonlinear solve attempts;
 * `monitor.inverter` records linear inverse-action attempts.
 
-The marcher and integrator do not receive the monitor. Each worker receives
+The stepper and integrator do not receive the monitor. Each worker receives
 only the surface it knows how to write to.
 """
 
 from dataclasses import dataclass
 
-from stark import Executor, Integrator, Interval, Marcher, Monitor
+from stark import Integrator, Interval, IntegratorStepper, Monitor
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
 from stark.contracts import BlockLike, BlockOperatorLike
 from stark.inverters.relaxation import InverterRelaxationRichardson
-from stark.inverters.support import InverterBudget, InverterTolerance
+from stark import Configuration, Tolerance
 from stark.resolvents import ResolventPicard
 from stark.schemes import SchemeEuler
 from stark.schemes.requests.resolvent import SchemeResolventRequest
@@ -90,11 +90,11 @@ def scale_by_two(source: ScalarTranslation, target: ScalarTranslation) -> None:
 def record_scheme_level(monitor: Monitor) -> None:
     allocator = ScalarAllocator()
     scheme = SchemeEuler(constant_rhs, allocator, monitor=monitor.scheme)
-    marcher = Marcher(scheme, Executor())
+    stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState()
 
-    list(Integrator().live(marcher, interval, state))
+    list(Integrator().live(stepper, interval, state))
 
 
 def record_resolvent_level(monitor: Monitor) -> None:
@@ -122,8 +122,7 @@ def record_inverter_level(monitor: Monitor) -> None:
     output = Block([ScalarTranslation(0.0)])
     inverter = InverterRelaxationRichardson[ScalarTranslation](
         damping=0.5,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=0.0),
-        budget=InverterBudget(maximum_steps=4),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=4),
         monitor=monitor.inverter,
     )
 

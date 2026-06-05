@@ -99,7 +99,7 @@ In code, this is `Translation.norm()`.
 
 That norm drives:
 
-- adaptive step rejection/acceptance in `Marcher`
+- adaptive step rejection/acceptance in `IntegratorStepper`
 - stopping tests for nonlinear resolvents
 - stopping tests for linear inverters
 

@@ -86,7 +86,7 @@ def run_stark_scheme(size: int, scheme_class: type) -> RunResult:
     final_state = None
 
     for _interval, state in build.integrator.live(
-        build.marcher,
+        build.stepper,
         build.interval,
         build.initial,
     ):
@@ -256,7 +256,7 @@ def benchmark_size(size: int) -> None:
 
 def main() -> None:
     print("STARK scheme comparison against SciPy RK45")
-    print(f"ExecutorTolerance: rtol={RTOL}, atol={ATOL}")
+    print(f"Tolerance: rtol={RTOL}, atol={ATOL}")
     print(f"Interval:  present={START}, step={STEP}, stop={STOP}")
     print()
 

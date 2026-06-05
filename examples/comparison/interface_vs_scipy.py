@@ -68,7 +68,7 @@ def run_stark_live_return(size: int) -> RunResult:
     final_state = None
 
     for _interval, state in build.integrator.live(
-        build.marcher,
+        build.stepper,
         build.interval,
         build.initial,
     ):
@@ -98,7 +98,7 @@ def run_stark_live_in_place(size: int) -> RunResult:
     final_state = None
 
     for _interval, state in build.integrator.live(
-        build.marcher,
+        build.stepper,
         build.interval,
         build.initial,
     ):
@@ -200,7 +200,7 @@ def benchmark_size(size: int) -> None:
     print()
 
     scipy = time_runs(
-        "SciPy solve_ivp RK45 matched ExecutorTolerance",
+        "SciPy solve_ivp RK45 matched Tolerance",
         run_scipy_matched,
         size,
         runs,
@@ -222,7 +222,7 @@ def benchmark_size(size: int) -> None:
 
 def main() -> None:
     print("Large-vector exponential decay benchmark")
-    print(f"ExecutorTolerance: rtol={RTOL}, atol={ATOL}")
+    print(f"Tolerance: rtol={RTOL}, atol={ATOL}")
     print(f"Interval:  present={START}, step={STEP}, stop={STOP}")
     print()
 

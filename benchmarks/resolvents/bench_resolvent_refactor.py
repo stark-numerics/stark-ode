@@ -11,7 +11,7 @@ from statistics import median
 from time import perf_counter
 
 from stark import Interval
-from stark.accelerators import Accelerator
+from stark.accelerators import AcceleratorNone
 from stark.block import Block
 from stark.executor.safety import ExecutorSafety
 from stark.inverters import InverterGMRES, InverterPolicy, InverterTolerance
@@ -213,7 +213,7 @@ def make_inverter(allocator: ScalarAllocator) -> InverterGMRES:
         ExecutorTolerance=InverterTolerance(atol=ATOL, rtol=RTOL),
         policy=InverterPolicy(max_iterations=8, restart=4),
         safety=ExecutorSafety(block_sizes=False),
-        accelerator=Accelerator.none(),
+        accelerator=AcceleratorNone(),
     )
 
 
@@ -236,7 +236,7 @@ def build_cases() -> list[ResolventSmokeCase]:
                 ExecutorTolerance=make_tolerance(),
                 policy=make_policy(),
                 safety=ExecutorSafety(block_sizes=False),
-                accelerator=Accelerator.none(),
+                accelerator=AcceleratorNone(),
             ),
             1,
         ),
@@ -249,7 +249,7 @@ def build_cases() -> list[ResolventSmokeCase]:
                 policy=make_policy(),
                 depth=4,
                 safety=ExecutorSafety(block_sizes=False),
-                accelerator=Accelerator.none(),
+                accelerator=AcceleratorNone(),
             ),
             1,
         ),
@@ -262,7 +262,7 @@ def build_cases() -> list[ResolventSmokeCase]:
                 policy=make_policy(),
                 depth=4,
                 safety=ExecutorSafety(block_sizes=False),
-                accelerator=Accelerator.none(),
+                accelerator=AcceleratorNone(),
             ),
             1,
         ),
@@ -275,7 +275,7 @@ def build_cases() -> list[ResolventSmokeCase]:
                 ExecutorTolerance=make_tolerance(),
                 policy=make_policy(8),
                 safety=ExecutorSafety(block_sizes=False),
-                accelerator=Accelerator.none(),
+                accelerator=AcceleratorNone(),
             ),
             1,
         ),
@@ -287,7 +287,7 @@ def build_cases() -> list[ResolventSmokeCase]:
                 ExecutorTolerance=make_tolerance(),
                 policy=make_policy(),
                 safety=ExecutorSafety(block_sizes=False),
-                accelerator=Accelerator.none(),
+                accelerator=AcceleratorNone(),
             ),
             len(GAUSS_LEGENDRE4_TABLEAU.c),
         ),
@@ -301,7 +301,7 @@ def build_cases() -> list[ResolventSmokeCase]:
                 ExecutorTolerance=make_tolerance(),
                 policy=make_policy(8),
                 safety=ExecutorSafety(block_sizes=False),
-                accelerator=Accelerator.none(),
+                accelerator=AcceleratorNone(),
             ),
             len(GAUSS_LEGENDRE4_TABLEAU.c),
         ),

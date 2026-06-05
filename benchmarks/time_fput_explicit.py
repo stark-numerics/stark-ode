@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark import Executor, Integrator, Interval, Marcher, ExecutorSafety, ExecutorTolerance
+from stark import Executor, Integrator, Interval, IntegratorStepper, ExecutorSafety, ExecutorTolerance
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.schemes.explicit.adaptive import SchemeCashKarp, SchemeDormandPrince
 from stark.schemes.explicit.fixed import SchemeEuler, SchemeRK4
@@ -59,7 +59,7 @@ def specialist(parameters: FPUTParameters) -> AlgebraistRuntimeSpecialist:
 
 
 class FPUTExplicitCase:
-    __slots__ = ("integrator", "interval", "marcher", "state")
+    __slots__ = ("integrator", "interval", "stepper", "state")
 
     def __init__(
         self,
@@ -72,7 +72,7 @@ class FPUTExplicitCase:
         allocator = FPUTAllocator(parameters)
         scheme = scheme_type(derivative, allocator, specialist=specialist)
         run_executor = executor()
-        self.marcher = Marcher(scheme, run_executor)
+        self.stepper = IntegratorStepper(scheme, run_executor)
         self.integrator = Integrator(executor=run_executor)
         self.interval = Interval(parameters.t0, parameters.initial_step, parameters.t1)
         self.state = initial_fput_state(parameters)
@@ -80,7 +80,7 @@ class FPUTExplicitCase:
     def solve_once(self) -> None:
         interval = self.interval.copy()
         state = self.state.copy()
-        for _interval, _state in self.integrator.live(self.marcher, interval, state):
+        for _interval, _state in self.integrator.live(self.stepper, interval, state):
             pass
 
 

@@ -5,8 +5,8 @@ from typing import Any
 
 import numpy as np
 
-from stark import Executor, Marcher, Integrator, Interval, ExecutorSafety, ExecutorTolerance
-from stark.accelerators import Accelerator
+from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
+from stark.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.algebraist.arity import AlgebraistArity
 from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
@@ -14,10 +14,10 @@ from stark.schemes.explicit.adaptive import SchemeCashKarp, SchemeDormandPrince
 
 
 try:
-    ACCELERATOR = Accelerator.numba()
+    ACCELERATOR = AcceleratorNumba()
     USE_NUMBA_ACCELERATION = True
 except ModuleNotFoundError:
-    ACCELERATOR = Accelerator.none()
+    ACCELERATOR = AcceleratorNone()
     USE_NUMBA_ACCELERATION = False
 
 
@@ -268,18 +268,22 @@ class BrusselatorDerivative:
 
 
 def prepare_rkck(problem_parameters, tolerance_parameters, initial_conditions, reference):
-    executor_safety = ExecutorSafety.fast()
+    configuration = Configuration(check_progress=False)
     allocator = BrusselatorAllocator(problem_parameters)
     derivative = BrusselatorDerivative(problem_parameters)
-    scheme = SchemeCashKarp(derivative, allocator, specialist=allocator.specialist)
-    marcher = Marcher(
-        scheme,
-        Executor(
-            tolerance=ExecutorTolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
-            safety=executor_safety,
+    scheme = SchemeCashKarp(
+        derivative,
+        allocator,
+        configuration=Configuration(
+            scheme_tolerance=Tolerance(
+                atol=tolerance_parameters["atol"],
+                rtol=tolerance_parameters["rtol"],
+            ),
         ),
+        specialist=allocator.specialist,
     )
-    integrate = Integrator(executor=Executor(safety=executor_safety))
+    stepper = IntegratorStepper(scheme)
+    integrate = Integrator(configuration=configuration)
 
     def solve_once():
         interval = Interval(
@@ -290,7 +294,7 @@ def prepare_rkck(problem_parameters, tolerance_parameters, initial_conditions, r
         state = BrusselatorState(initial_conditions["u"].copy(), initial_conditions["v"].copy())
         steps = 0
 
-        for _interval, _state in integrate.live(marcher, interval, state):
+        for _interval, _state in integrate.live(stepper, interval, state):
             steps += 1
 
         return {
@@ -308,18 +312,22 @@ def run_rkck(problem_parameters, tolerance_parameters, initial_conditions, refer
 
 
 def prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, reference):
-    executor_safety = ExecutorSafety.fast()
+    configuration = Configuration(check_progress=False)
     allocator = BrusselatorAllocator(problem_parameters)
     derivative = BrusselatorDerivative(problem_parameters)
-    scheme = SchemeDormandPrince(derivative, allocator, specialist=allocator.specialist)
-    marcher = Marcher(
-        scheme,
-        Executor(
-            tolerance=ExecutorTolerance(atol=tolerance_parameters["atol"], rtol=tolerance_parameters["rtol"]),
-            safety=executor_safety,
+    scheme = SchemeDormandPrince(
+        derivative,
+        allocator,
+        configuration=Configuration(
+            scheme_tolerance=Tolerance(
+                atol=tolerance_parameters["atol"],
+                rtol=tolerance_parameters["rtol"],
+            ),
         ),
+        specialist=allocator.specialist,
     )
-    integrate = Integrator(executor=Executor(safety=executor_safety))
+    stepper = IntegratorStepper(scheme)
+    integrate = Integrator(configuration=configuration)
 
     def solve_once():
         interval = Interval(
@@ -330,7 +338,7 @@ def prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, r
         state = BrusselatorState(initial_conditions["u"].copy(), initial_conditions["v"].copy())
         steps = 0
 
-        for _interval, _state in integrate.live(marcher, interval, state):
+        for _interval, _state in integrate.live(stepper, interval, state):
             steps += 1
 
         return {

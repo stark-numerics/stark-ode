@@ -4,7 +4,7 @@ import runpy
 
 
 EXAMPLES = (
-    "manual_marcher_setup",
+    "manual_stepper_setup",
     "custom_scheme_fixed_explicit",
     "structured_state_minimal",
     "compare_two_schemes",

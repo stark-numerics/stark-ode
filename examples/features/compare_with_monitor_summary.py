@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Executor, Interval, Marcher
+from stark import Interval, IntegratorStepper
 from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.interface import StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp, SchemeDormandPrince
-
+from stark.core import Configuration
 
 def oscillator_rhs(t: float, y: np.ndarray) -> np.ndarray:
     del t
@@ -34,7 +34,7 @@ def difference(left: StarkVector, right: StarkVector) -> float:
     return float(np.linalg.norm(left.value - right.value))
 
 
-executor = Executor()
+configuration = Configuration()
 problem = ComparisonProblem(
     name="monitored oscillator",
     build_state=build_state,
@@ -48,11 +48,11 @@ problem = ComparisonProblem(
 entries = [
     ComparisonEntry(
         "Cash-Karp",
-        lambda: Marcher(SchemeCashKarp(template.derivative, template.allocator), executor),
+        lambda: IntegratorStepper(SchemeCashKarp(template.derivative, template.allocator)),
     ),
     ComparisonEntry(
         "Dormand-Prince",
-        lambda: Marcher(SchemeDormandPrince(template.derivative, template.allocator), executor),
+        lambda: IntegratorStepper(SchemeDormandPrince(template.derivative, template.allocator)),
     ),
 ]
 

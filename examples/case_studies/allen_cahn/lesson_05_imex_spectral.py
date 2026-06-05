@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Executor, Integrator, Interval, Marcher
+from stark import Integrator, Interval, IntegratorStepper
 from stark.contracts import DerivativeIMEX
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.interface.vector import StarkVectorTranslation
@@ -32,7 +32,7 @@ from stark.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     DIFFUSIVITY,
-    EXECUTOR_TOLERANCE,
+    Configuration_TOLERANCE,
     AllenCahnRHS,
     Geometry,
     initial_profile,
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     print(SchemeKennedyCarpenter43_7.display_resolvent_problem())
 
     geometry = Geometry()
-    executor = Executor(tolerance=EXECUTOR_TOLERANCE)
+    configuration = Configuration(scheme_tolerance=Configuration_TOLERANCE)
 
     # `StarkIVP` prepares the carrier/allocator machinery. We then replace the
     # derivative with an IMEX pair because this lesson is about the split, not
@@ -158,7 +158,7 @@ if __name__ == "__main__":
         initial=initial_profile(geometry),
         interval=make_interval(),
         scheme=SchemeCashKarp,
-        executor=executor,
+        configuration=Configuration,
     ).build()
 
     implicit_derivative = AllenCahnImplicitDerivative(geometry, DIFFUSIVITY)
@@ -180,8 +180,8 @@ if __name__ == "__main__":
         allocator,
         resolvent=resolvent,
     )
-    integrate = Integrator(executor=executor)
-    marcher = Marcher(scheme, executor)
+    integrate = Integrator(configuration=configuration)
+    stepper = IntegratorStepper(scheme)
 
     interval = make_interval()
     state = StarkVector(initial_profile(geometry), template.initial.carrier)
@@ -190,7 +190,7 @@ if __name__ == "__main__":
     # safer choice when the caller wants to keep all yielded states.
 
     for snapshot_interval, snapshot_state in integrate(
-        marcher,
+        stepper,
         interval,
         state,
         checkpoints=5,

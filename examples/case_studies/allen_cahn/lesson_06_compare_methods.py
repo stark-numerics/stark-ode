@@ -20,18 +20,18 @@ from __future__ import annotations
 #
 #     python -m examples.case_studies.allen_cahn.lesson_06_compare_methods
 
-from stark import Executor, Marcher
+from stark import IntegratorStepper, Tolerance
 from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.contracts import DerivativeIMEX
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
-from stark.inverters import InverterBiCGStab, InverterPolicy, InverterTolerance
-from stark.resolvents import ResolventNewton, ResolventPolicy, ResolventTolerance
+from stark.inverters import InverterBiCGStab, InverterPolicy
+from stark.resolvents import ResolventNewton
 from stark.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7, SchemeSDIRK21
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     ACCELERATOR,
     DIFFUSIVITY,
-    EXECUTOR_TOLERANCE,
+    Configuration_TOLERANCE,
     AllenCahnRHS,
     Geometry,
     initial_profile,
@@ -52,7 +52,7 @@ from examples.case_studies.allen_cahn.lesson_05_imex_spectral import (
 
 if __name__ == "__main__":
     geometry = Geometry()
-    executor = Executor(tolerance=EXECUTOR_TOLERANCE)
+    configuration = Configuration(scheme_tolerance=Configuration_TOLERANCE)
 
     # Prepare the vector-space boundary once. All three methods below solve the
     # same semidiscrete Allen-Cahn problem on the same carrier.
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         initial=initial_profile(geometry),
         interval=make_interval(),
         scheme=SchemeCashKarp,
-        executor=executor,
+        configuration=Configuration,
     ).build()
 
     carrier = template.initial.carrier
@@ -83,17 +83,14 @@ if __name__ == "__main__":
     inverter = InverterBiCGStab(
         allocator,
         allen_cahn_inner_product,
-        ExecutorTolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
+        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7)),
         policy=InverterPolicy(max_iterations=24, restart=12),
-        safety=executor.safety,
     )
     newton_resolvent = ResolventNewton(
         allocator,
         linearizer=linearizer,
         inverter=inverter,
-        ExecutorTolerance=ResolventTolerance(atol=1.0e-7, rtol=1.0e-7),
-        policy=ResolventPolicy(max_iterations=12),
-        safety=executor.safety,
+        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7), resolvent_maximum_steps=12),
         accelerator=ACCELERATOR,
         tableau=SchemeSDIRK21.tableau,
     )
@@ -126,9 +123,9 @@ if __name__ == "__main__":
     )
 
     entries = [
-        ComparisonEntry("Cash-Karp explicit", Marcher(explicit_scheme, executor)),
-        ComparisonEntry("SDIRK21 Newton", Marcher(implicit_scheme, executor)),
-        ComparisonEntry("KC43-7 IMEX spectral", Marcher(imex_scheme, executor)),
+        ComparisonEntry("Cash-Karp explicit", IntegratorStepper(explicit_scheme)),
+        ComparisonEntry("SDIRK21 Newton", IntegratorStepper(implicit_scheme)),
+        ComparisonEntry("KC43-7 IMEX spectral", IntegratorStepper(imex_scheme)),
     ]
 
     report = ComparisonRunner(problem, entries, repeats=3)()

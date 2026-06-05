@@ -145,17 +145,17 @@ python -m examples.interface.jax
 A STARK integration usually has five user-side objects:
 
 ```python
-from stark import Executor, Marcher, Integrator, Interval, ExecutorTolerance
-from stark.accelerators import AcceleratorAbsent
+from stark import Marcher, Integrator, Interval, Tolerance
+from stark.accelerators import AcceleratorNone
 from stark.schemes import SchemeDormandPrince
 
 allocator = MyAllocator()
 derivative = MyDerivative()
 scheme = SchemeDormandPrince(derivative, allocator)
-executor = Executor(
-    tolerance=ExecutorTolerance(atol=1.0e-8, rtol=1.0e-6),
+Configuration = Configuration(
+    tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6),
 )
-marcher = Marcher(scheme, executor)
+marcher = Marcher(scheme)
 integrate = Integrator()
 
 state = initial_state()
@@ -172,7 +172,7 @@ The user provides:
 - an allocator that allocates and copies states/translations;
 - a derivative callable `derivative(interval, state, out)` that writes the
   time derivative into a translation.
-- an `Executor` that carries runtime ExecutorTolerance, ExecutorSafety, and ExecutorAdaptivity
+- an `Configuration` that carries runtime Tolerance, and ConfigurationAdaptivity
   policy.
 
 Use this explicit core shape when the interface layer is not enough: custom
@@ -181,7 +181,7 @@ problem-specific fast paths, or detailed control over schemes, resolvents, and
 inverters.
 
 Accelerators are passed directly to the objects that use them, such as
-Algebraist providers, resolvents, or inverters. `Executor` deliberately carries
+Algebraist providers, resolvents, or inverters. `Configuration` deliberately carries
 only runtime execution policy.
 
 For split problems, STARK also exposes:
@@ -211,23 +211,23 @@ allocator and derivative, users may provide:
 For example:
 
 ```python
-from stark import Executor, Marcher, ExecutorTolerance
-from stark.accelerators import AcceleratorAbsent
+from stark import Marcher, Tolerance
+from stark.accelerators import AcceleratorNone
 from stark.inverters import InverterBiCGStab
-from stark.inverters import InverterPolicy, InverterTolerance
+from stark.inverters import InverterPolicy, Tolerance
 from stark.resolvents import ResolventNewton
-from stark.resolvents.policy import ResolventPolicy
-from stark.resolvents.ExecutorTolerance import ResolventTolerance
+from stark.resolvents.policy import Configuration
+from stark.resolvents.Tolerance import Tolerance
 from stark.schemes import SchemeKvaerno3
 
 allocator = MyAllocator()
 derivative = MyDerivative()
 linearizer = MyLinearizer()
-accelerator = AcceleratorAbsent()
+accelerator = AcceleratorNone()
 inverter = InverterBiCGStab(
     allocator,
     my_inner_product,
-    ExecutorTolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
+    Tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
     policy=InverterPolicy(max_iterations=24),
     accelerator=accelerator,
 )
@@ -236,8 +236,8 @@ resolvent = ResolventNewton(
     allocator,
     linearizer=linearizer,
     inverter=inverter,
-    ExecutorTolerance=ResolventTolerance(atol=1.0e-7, rtol=1.0e-7),
-    policy=ResolventPolicy(max_iterations=24),
+    Tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
+    policy=Configuration(max_iterations=24),
     accelerator=accelerator,
 )
 scheme = SchemeKvaerno3(
@@ -245,8 +245,8 @@ scheme = SchemeKvaerno3(
     allocator,
     resolvent=resolvent,
 )
-executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-6, rtol=1.0e-5))
-marcher = Marcher(scheme, executor)
+Configuration = Configuration(scheme_tolerance=Tolerance(atol=1.0e-6, rtol=1.0e-5))
+marcher = Marcher(scheme)
 ```
 
 Anderson- or Broyden-backed resolvents are similar, but they do not need a

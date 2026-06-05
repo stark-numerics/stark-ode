@@ -2,7 +2,7 @@
 
 This example shows the public shape expected from a STARK scheme:
 
-- `__call__(interval, state, executor) -> float`
+- `__call__(interval, state) -> float`
 - `snapshot_state(state)`
 
 The example uses `StarkVector`, STARK's simple vector-space carrier. In this
@@ -13,7 +13,7 @@ translation wrapper internally.
 
 from __future__ import annotations
 
-from stark import Executor, Integrator, Interval, Marcher
+from stark import Integrator, Interval, IntegratorStepper
 from stark.carriers import CarrierNative
 from stark.interface.vector import (
     StarkVector,
@@ -50,9 +50,7 @@ class ForwardEuler:
         self,
         interval: Interval,
         state: StarkVector,
-        executor: Executor,
     ) -> float:
-        del executor
 
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
@@ -74,13 +72,13 @@ class ForwardEuler:
 
 def main() -> None:
     scheme = ForwardEuler()
-    marcher = Marcher(scheme, Executor())
+    stepper = IntegratorStepper(scheme)
 
     carrier = scheme.allocator.carrier
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = StarkVector([1.0], carrier)
 
-    for snapshot_interval, snapshot_state in Integrator().live(marcher, interval, state):
+    for snapshot_interval, snapshot_state in Integrator().live(stepper, interval, state):
         y = snapshot_state.value[0]
         print(f"t={snapshot_interval.present:.1f}, y={y:.6f}")
 

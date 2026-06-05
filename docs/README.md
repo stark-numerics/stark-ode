@@ -53,17 +53,17 @@ The main pieces are:
 - `Allocator`: an object that allocates blank states/translations and copies
   states.
 - `Scheme`: a one-step integration method.
-- `Marcher`: couples a scheme to tolerances and performs one accepted step.
-- `Integrator`: runs repeated `Marcher` calls over an interval.
-- `ComparisonRunner`: compares two or more marcher setups on the same problem.
+- `IntegratorStepper`: couples a scheme to tolerances and performs one accepted step.
+- `Integrator`: runs repeated `IntegratorStepper` calls over an interval.
+- `ComparisonRunner`: compares two or more stepper setups on the same problem.
 - `Auditor`: checks that the objects satisfy the STARK contracts before a long
   run.
 
 The standard import path is:
 
 ```python
-from stark import Executor, Marcher, Auditor, Integrator, Interval, ExecutorTolerance
-from stark.accelerators import AcceleratorAbsent
+from stark import IntegratorStepper, Auditor, Integrator, Interval, Tolerance
+from stark.accelerators import AcceleratorNone
 ```
 
 The standard interface import path is:
@@ -81,21 +81,21 @@ Use `Interval` to describe the current time, proposed step, and stop time:
 interval = Interval(present=0.0, step=1.0e-3, stop=1.0)
 ```
 
-Create a `Marcher` object from a scheme and an `Executor`:
+Create a `IntegratorStepper` object from a scheme and an `Configuration`:
 
 ```python
-executor = Executor(
-    ExecutorTolerance=ExecutorTolerance(atol=1.0e-8, rtol=1.0e-6),
-    accelerator=AcceleratorAbsent(),
+Configuration = Configuration(
+    Tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6),
+    accelerator=AcceleratorNone(),
 )
-marcher = Marcher(scheme, executor)
+stepper = IntegratorStepper(scheme)
 integrate = Integrator()
 ```
 
 Then integrate in either snapshot mode or live mode:
 
 ```python
-for interval_snapshot, state_snapshot in integrate(marcher, interval, state):
+for interval_snapshot, state_snapshot in integrate(stepper, interval, state):
     ...
 ```
 
@@ -103,7 +103,7 @@ Snapshot mode yields copied states, so collected trajectories are stable. Live
 mode yields the original mutable objects and is useful for tight loops:
 
 ```python
-for live_interval, live_state in integrate.live(marcher, interval, state):
+for live_interval, live_state in integrate.live(stepper, interval, state):
     ...
 ```
 
@@ -111,11 +111,11 @@ Both modes accept checkpoints. An integer gives equally spaced output times;
 an iterable gives explicit absolute times:
 
 ```python
-for output_interval, output_state in integrate(marcher, interval, state, checkpoints=100):
+for output_interval, output_state in integrate(stepper, interval, state, checkpoints=100):
     ...
 
 for output_interval, output_state in integrate.live(
-    marcher,
+    stepper,
     interval,
     state,
     checkpoints=[0.1, 0.25, 0.5, 1.0],
@@ -124,7 +124,7 @@ for output_interval, output_state in integrate.live(
 ```
 
 Acceleration is configured on the objects that use it, such as Algebraist
-providers, resolvents, and inverters. `Executor` deliberately carries only
+providers, resolvents, and inverters. `Configuration` deliberately carries only
 execution policy for a run.
 
 Checkpoints are useful for plots and animations: the solver may adapt internally
@@ -312,7 +312,7 @@ audit = Auditor(
     allocator=allocator,
     interval=interval,
     scheme=scheme,
-    ExecutorTolerance=ExecutorTolerance,
+    Tolerance=Tolerance,
 )
 print(audit)
 audit.raise_if_invalid()
@@ -454,7 +454,7 @@ and audits user-defined accelerators through `AcceleratorAudit` in
 The built-in import path is:
 
 ```python
-from stark.accelerators import AcceleratorAbsent, AcceleratorJax, AcceleratorNumba
+from stark.accelerators import AcceleratorNone, AcceleratorJax, AcceleratorNumba
 ```
 
 Users who want a custom accelerator implement the public accelerator protocol
@@ -476,18 +476,18 @@ performance-specific implementation.
 
 `Auditor(..., accelerator=my_accelerator)` checks that a custom accelerator is
 conformant before a solve, just as `Auditor(..., scheme=...)` and
-`Auditor(..., marcher=...)` check the rest of the configured-worker stack.
+`Auditor(..., stepper=...)` check the rest of the configured-worker stack.
 
 ## Custom schemes
 
-`Marcher` accepts any object that satisfies the `SchemeLike` contract. A custom
+`IntegratorStepper` accepts any object that satisfies the `SchemeLike` contract. A custom
 scheme does not need to inherit from a STARK base class.
 
 The minimal scheme interface is:
 
 ```python
 class MyScheme:
-    def __call__(self, interval, state, executor):
+    def __call__(self, interval, state):
         ...
         return accepted_dt
 
@@ -502,7 +502,7 @@ The `__call__` method should:
 - update `interval.step` to the next proposed step;
 - return the accepted step size.
 
-`Marcher` will then increment `interval.present` by the returned step size.
+`IntegratorStepper` will then increment `interval.present` by the returned step size.
 
 For built-in-style explicit schemes, the common pattern is to use the helpers under
 `stark.schemes.explicit._support`. They install the non-algorithmic parts that would
@@ -517,20 +517,20 @@ class MyScheme:
     def __init__(self, derivative, allocator):
         initialise_explicit_support(self, derivative, allocator)
 
-    def __call__(self, interval, state, executor):
+    def __call__(self, interval, state):
         ...
 ```
 
 The richer `Scheme` protocol also exposes readable metadata, tableaus, and
 string formatting. That is useful for library-quality schemes, but not required
-for `Marcher`.
+for `IntegratorStepper`.
 
 Run `Auditor(..., scheme=my_scheme)` to check a custom scheme alongside the
-state, translation, allocator, interval, and ExecutorTolerance objects.
+state, translation, allocator, interval, and Tolerance objects.
 
 ## Implicit and IMEX schemes
 
-Built-in implicit and IMEX schemes use the same `Marcher` and `Integrator`
+Built-in implicit and IMEX schemes use the same `IntegratorStepper` and `Integrator`
 layer as the explicit schemes, but they ask the user for extra structure.
 
 The scheme-facing object is a `Resolvent`. The additional pieces depend on
@@ -543,22 +543,22 @@ which resolvent you choose:
 The common implicit shape is:
 
 ```python
-from stark import Executor, Marcher, ExecutorTolerance
-from stark.accelerators import AcceleratorAbsent
+from stark import IntegratorStepper, Tolerance
+from stark.accelerators import AcceleratorNone
 from stark.inverters import InverterBiCGStab
-from stark.inverters import InverterPolicy, InverterTolerance
+from stark.inverters import InverterPolicy, Tolerance
 from stark.resolvents import ResolventNewton
-from stark.resolvents import ResolventPolicy, ResolventTolerance
+from stark.resolvents import Configuration, Tolerance
 from stark.schemes import SchemeKvaerno3
 
 allocator = MyAllocator()
 derivative = MyDerivative()
 linearizer = MyLinearizer()
-accelerator = AcceleratorAbsent()
+accelerator = AcceleratorNone()
 inverter = InverterBiCGStab(
     allocator,
     my_inner_product,
-    ExecutorTolerance=InverterTolerance(atol=1.0e-7, rtol=1.0e-7),
+    Tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
     policy=InverterPolicy(max_iterations=24),
     accelerator=accelerator,
 )
@@ -566,8 +566,8 @@ resolvent = ResolventNewton(
     allocator,
     linearizer=linearizer,
     inverter=inverter,
-    ExecutorTolerance=ResolventTolerance(atol=1.0e-7, rtol=1.0e-7),
-    policy=ResolventPolicy(max_iterations=24),
+    Tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
+    policy=Configuration(max_iterations=24),
     accelerator=accelerator,
 )
 scheme = SchemeKvaerno3(
@@ -575,8 +575,8 @@ scheme = SchemeKvaerno3(
     allocator,
     resolvent=resolvent,
 )
-executor = Executor(tolerance=ExecutorTolerance(atol=1.0e-6, rtol=1.0e-5))
-marcher = Marcher(scheme, executor)
+Configuration = Configuration(scheme_tolerance=Tolerance(atol=1.0e-6, rtol=1.0e-5))
+stepper = IntegratorStepper(scheme)
 ```
 
 For Anderson or Broyden, replace `ResolventNewton(...)` with
@@ -593,7 +593,7 @@ The current package layout mirrors that structure directly:
 - `stark.schemes`
 - `stark.resolvents`
 - `stark.inverters`
-- `stark.executor`
+- `stark.Configuration`
 - `stark.comparison`
 - `stark.contracts`
 
@@ -636,5 +636,4 @@ performance-oriented extension point.
 
 Formal performance-regression tracking belongs in an ASV suite, not in these
 comparison reports. See [`docs/benchmarking.md`](benchmarking.md).
-
 

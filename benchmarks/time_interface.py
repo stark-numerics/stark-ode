@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark import Executor, Integrator, Interval, Marcher, ExecutorSafety, ExecutorTolerance
+from stark import Executor, Integrator, Interval, IntegratorStepper, ExecutorSafety, ExecutorTolerance
 from stark.carriers import CarrierNumpy
 from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.interface.derivative import StarkDerivative as InterfaceDerivative
@@ -44,14 +44,14 @@ def executor() -> Executor:
 
 
 class CoreFPUTCase:
-    __slots__ = ("integrator", "interval", "marcher", "state")
+    __slots__ = ("integrator", "interval", "stepper", "state")
 
     def __init__(self, problem: FPUTParameters) -> None:
         derivative = FPUTDerivative(problem)
         allocator = FPUTAllocator(problem)
         run_executor = executor()
         scheme = SchemeCashKarp(derivative, allocator)
-        self.marcher = Marcher(scheme, run_executor)
+        self.stepper = IntegratorStepper(scheme, run_executor)
         self.integrator = Integrator(executor=run_executor)
         self.interval = Interval(problem.t0, problem.initial_step, problem.t1)
         self.state = initial_fput_state(problem)
@@ -59,12 +59,12 @@ class CoreFPUTCase:
     def solve_once(self) -> None:
         interval = self.interval.copy()
         state = self.state.copy()
-        for _interval, _state in self.integrator.live(self.marcher, interval, state):
+        for _interval, _state in self.integrator.live(self.stepper, interval, state):
             pass
 
 
 class VectorCoreFPUTCase:
-    __slots__ = ("carrier", "initial_value", "integrator", "interval", "marcher")
+    __slots__ = ("carrier", "initial_value", "integrator", "interval", "stepper")
 
     def __init__(self, problem: FPUTParameters, initial: object, derivative: object) -> None:
         carrier = CarrierNumpy(initial)
@@ -72,7 +72,7 @@ class VectorCoreFPUTCase:
         bound_derivative = InterfaceDerivative.in_place(derivative).bind(carrier)
         run_executor = executor()
         scheme = SchemeCashKarp(bound_derivative, allocator)
-        self.marcher = Marcher(scheme, run_executor)
+        self.stepper = IntegratorStepper(scheme, run_executor)
         self.integrator = Integrator(executor=run_executor)
         self.interval = Interval(problem.t0, problem.initial_step, problem.t1)
         self.carrier = carrier
@@ -81,7 +81,7 @@ class VectorCoreFPUTCase:
     def solve_once(self) -> None:
         interval = self.interval.copy()
         state = StarkVector(self.initial_value.copy(), self.carrier)
-        for _interval, _state in self.integrator.live(self.marcher, interval, state):
+        for _interval, _state in self.integrator.live(self.stepper, interval, state):
             pass
 
 
@@ -105,7 +105,7 @@ class InterfaceFPUTCase:
     def solve_once(self) -> None:
         interval = self.interval.copy()
         state = StarkVector(self.initial_value.copy(), self.carrier)
-        for _interval, _state in self.build.integrator.live(self.build.marcher, interval, state):
+        for _interval, _state in self.build.integrator.live(self.build.stepper, interval, state):
             pass
 
 

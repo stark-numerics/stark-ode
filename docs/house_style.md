@@ -21,7 +21,7 @@ phase, and `__call__` plays the role of the runtime kernel.
 
 This is why STARK leans so heavily on objects such as:
 
-- `Marcher`
+- `IntegratorStepper`
 - `Integrator`
 - `Auditor`
 - accelerators
@@ -91,7 +91,7 @@ That means:
 - keep the main numerical routine readable as mathematics;
 - use jitted kernels where they buy something real.
 
-ExecutorSafety checks are welcome at the boundary. They should not be smeared across
+ConfigurationSafety checks are welcome at the boundary. They should not be smeared across
 the core loop unless they are essential to correctness.
 
 ## Naming
@@ -105,9 +105,9 @@ Naming is a serious part of the style.
 
 STARK generally prefers:
 
-- `marcher.py`
+- `stepper.py`
 - `integrate.py`
-- `ExecutorAdaptivity.py`
+- `ConfigurationAdaptivity.py`
 - `butcher_tableau.py`
 
 over names that feel temporary or apologetic.
@@ -155,8 +155,8 @@ STARK methods are built by composing workers.
 Examples:
 
 - an accelerator swaps one configured worker variant for another;
-- a `Marcher` couples a scheme to tolerances;
-- an `Integrator` repeatedly drives a marcher;
+- a `IntegratorStepper` couples a scheme to tolerances;
+- an `Integrator` repeatedly drives a stepper;
 - a resolver can be combined with different schemes;
 - an inverter can be swapped beneath a resolver;
 - problem-specific derivatives, linearizers, and fast paths plug into the same

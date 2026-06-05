@@ -11,7 +11,8 @@ from statistics import median
 from time import perf_counter
 from typing import Callable
 
-from stark import Executor, Integrator, Interval, Marcher, ExecutorTolerance
+from stark import Executor, Integrator, Interval, IntegratorStepper, ExecutorTolerance
+from stark.accelerators import AcceleratorNone
 from stark.resolvents import ResolventPicard
 from stark.resolvents.method.policy import ResolventPolicy
 from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
@@ -101,10 +102,10 @@ class SchemeSmokeCase:
 
     This benchmark is a local smoke check, not a CI gate. Each timed sample
     gets a fresh interval and state while reusing the configured scheme,
-    marcher, and integrator.
+    stepper, and integrator.
     """
 
-    __slots__ = ("integrator", "interval", "marcher", "name", "state")
+    __slots__ = ("integrator", "interval", "stepper", "name", "state")
 
     def __init__(
         self,
@@ -115,7 +116,7 @@ class SchemeSmokeCase:
         run_executor: Executor,
     ) -> None:
         self.name = name
-        self.marcher = Marcher(scheme, run_executor)
+        self.stepper = IntegratorStepper(scheme, run_executor)
         self.integrator = Integrator()
         self.interval = interval
         self.state = state
@@ -125,7 +126,7 @@ class SchemeSmokeCase:
         state = self.state.copy()
 
         for _snapshot_interval, _snapshot_state in self.integrator.live(
-            self.marcher,
+            self.stepper,
             interval,
             state,
         ):
@@ -216,7 +217,7 @@ def make_resolvent(
         allocator,
         ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
         policy=ResolventPolicy(max_iterations=16),
-        accelerator=Accelerator.none(),
+        accelerator=AcceleratorNone(),
         tableau=tableau,
     )
 

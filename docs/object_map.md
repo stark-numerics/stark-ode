@@ -51,17 +51,17 @@ fast paths.
   pair. Users choose schemes. Advanced users can supply custom scheme objects
   if they satisfy the scheme contract.
 
-- **Executor**
-  Runtime policy: tolerances, adaptive regulation, ExecutorSafety checks, and selected
+- **Configuration**
+  Runtime policy: tolerances, adaptive regulation checks, and selected
   accelerator. Users may supply one when they need non-default tolerances or
   execution policy.
 
-- **Marcher**
-  Couples a scheme and executor into one accepted-step operation. Users touch
+- **IntegratorStepper**
+  Couples a scheme and Configuration into one accepted-step operation. Users touch
   this when using the core API directly.
 
 - **Integrator**
-  Repeatedly calls a marcher over an interval. Users touch this when using the
+  Repeatedly calls a stepper over an interval. Users touch this when using the
   core API directly or when they need snapshot/live iteration control.
 
 ## Algebra and performance objects
@@ -91,7 +91,7 @@ is known.
 
 - **Accelerator**
   A configured compiler/backend worker such as no acceleration, Numba, or JAX.
-  Users may provide one through an executor or Algebraist when they want
+  Users may provide one through an Configuration or Algebraist when they want
   accelerated generated kernels.
 
 ## Implicit-solver objects
