@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from stark import StarkField, StarkLayout
+from stark import StarkLayout, StarkLayoutField
 from stark.algebraist.layout import AlgebraistLayoutLooped
 
 
 def test_stark_layout_converts_to_algebraist_layout() -> None:
     layout = StarkLayout(
         fields=(
-            StarkField("u", translation="du", shape=(2, 2)),
-            StarkField("v", translation="dv", shape=(2, 2)),
+            StarkLayoutField("u", translation="du", shape=(2, 2)),
+            StarkLayoutField("v", translation="dv", shape=(2, 2)),
         )
     )
 
@@ -35,9 +35,18 @@ def test_stark_layout_accepts_single_string_field() -> None:
     assert tuple(str(path) for path in algebraist_layout.translation_paths) == ("uv",)
 
 
-def test_stark_field_rejects_invalid_shape() -> None:
+def test_stark_layout_accepts_field_mapping() -> None:
+    layout = StarkLayout({"u": {"translation": "du", "shape": (2, 2)}})
+    algebraist_layout = layout.to_algebraist_layout()
+
+    assert tuple(str(path) for path in algebraist_layout.state_paths) == ("u",)
+    assert tuple(str(path) for path in algebraist_layout.translation_paths) == ("du",)
+    assert all(isinstance(field.policy, AlgebraistLayoutLooped) for field in algebraist_layout)
+
+
+def test_stark_layout_field_rejects_invalid_shape() -> None:
     try:
-        StarkField("u", shape=(2, 0)).to_algebraist_field()
+        StarkLayoutField("u", shape=(2, 0)).to_algebraist_field()
     except ValueError as exc:
         assert "shape dimensions must be positive" in str(exc)
     else:  # pragma: no cover - defensive failure branch

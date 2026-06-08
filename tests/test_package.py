@@ -9,9 +9,13 @@ from stark import (
     Integrator,
     Interval,
     IntegratorStepper,
-    StarkField,
+    StarkDerivative,
+    StarkDerivativeSignature,
+    StarkDerivativeStyle,
     StarkLayout,
+    StarkLayoutField,
     StarkMethod,
+    StarkSystem,
     Tolerance,
 )
 from stark.accelerators import Accelerator, AcceleratorNone, AcceleratorJax, AcceleratorNumba
@@ -84,9 +88,13 @@ def test_package_imports() -> None:
     assert AcceleratorNumba is not None
     assert DerivativeIMEX is not None
     assert Resolvent is not None
-    assert StarkField is not None
+    assert StarkDerivative is not None
+    assert StarkDerivativeSignature is not None
+    assert StarkDerivativeStyle is not None
     assert StarkLayout is not None
+    assert StarkLayoutField is not None
     assert StarkMethod is not None
+    assert StarkSystem is not None
     assert not hasattr(stark, "StarkEngineNumpy")
     assert not hasattr(stark, "Algebraist")
     assert not hasattr(stark, "ResolventNewton")
@@ -108,9 +116,9 @@ def test_algebraist_package_imports() -> None:
     """The algebraist package should expose generated-kernel helpers."""
     algebraist = importlib.import_module("stark.algebraist")
 
-    assert algebraist.AlgebraistRuntimeGeneral is not None
+    assert algebraist.AlgebraistRuntimeLinearCombine is not None
     assert algebraist.AlgebraistRuntimeSpecialist is not None
-    assert algebraist.AlgebraistGeneratorGeneral is not None
+    assert algebraist.AlgebraistGeneratorLinearCombine is not None
     assert algebraist.AlgebraistGeneratorSpecialist is not None
     assert algebraist.AlgebraistLayoutField is not None
     assert algebraist.AlgebraistLayoutLooped is not None
@@ -401,6 +409,6 @@ def test_scheme_classes_can_display_their_resolvent_problems() -> None:
 
 
 def test_benchmark_packages_import() -> None:
-    assert importlib.import_module("examples.comparison.brusselator_2d.common") is not None
-    assert importlib.import_module("examples.comparison.fitzhugh_nagumo_1d.common") is not None
-    assert importlib.import_module("examples.comparison.fput.common") is not None
+    assert importlib.import_module("competition.brusselator_2d.common") is not None
+    assert importlib.import_module("competition.fitzhugh_nagumo_1d.common") is not None
+    assert importlib.import_module("competition.fput.common") is not None

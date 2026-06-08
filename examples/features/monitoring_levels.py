@@ -2,127 +2,89 @@ from __future__ import annotations
 
 """Record scheme, resolvent, and inverter evidence with one Monitor.
 
-Monitoring is opt-in at each numerical layer. The top-level `Monitor` owns
-three narrow recording surfaces:
-
-* `monitor.scheme` records accepted scheme steps;
-* `monitor.resolvent` records nonlinear solve attempts;
-* `monitor.inverter` records linear inverse-action attempts.
-
-The stepper and integrator do not receive the monitor. Each worker receives
-only the surface it knows how to write to.
+Monitoring is opt-in at each numerical layer. Schemes receive
+`monitor.scheme` through the method options used to build an IVP. Resolvents
+and inverters receive their own monitor surfaces when they are exercised
+directly.
 """
 
-from dataclasses import dataclass
+import numpy as np
 
-from stark import Integrator, Interval, IntegratorStepper, Monitor
+from stark import Configuration, Interval, Monitor, StarkLayout, StarkMethod, StarkSystem, Tolerance
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
-from stark.contracts import BlockLike, BlockOperatorLike
+from stark.engines import StarkEngineNumpy
 from stark.inverters.relaxation import InverterRelaxationRichardson
-from stark import Configuration, Tolerance
 from stark.resolvents import ResolventPicard
+from stark.resolvents.requests.inverter import ResolventInverterRequest
 from stark.schemes import SchemeEuler
 from stark.schemes.requests.resolvent import SchemeResolventRequest
 
 
-@dataclass(slots=True)
-class ScalarState:
-    value: float = 0.0
+LAYOUT = StarkLayout({"x": {"translation": "dx", "shape": (1,)}})
 
 
-@dataclass(slots=True)
-class ScalarTranslation:
-    value: float = 0.0
-
-    def __call__(self, origin: ScalarState, result: ScalarState) -> None:
-        result.value = origin.value + self.value
-
-    def norm(self) -> float:
-        return abs(self.value)
-
-    def __add__(self, other: "ScalarTranslation") -> "ScalarTranslation":
-        return ScalarTranslation(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> "ScalarTranslation":
-        return ScalarTranslation(scalar * self.value)
+def constant_rhs(t: float, state, out) -> None:
+    del t, state
+    out.dx[0] = 1.0
 
 
-class ScalarAllocator:
-    def allocate_state(self) -> ScalarState:
-        return ScalarState()
-
-    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
-        out.value = source.value
-
-    def allocate_translation(self) -> ScalarTranslation:
-        return ScalarTranslation()
-
-
-@dataclass(slots=True)
-class ExampleInverterRequest:
-    operator: BlockOperatorLike[ScalarTranslation]
-    residual: BlockLike[ScalarTranslation]
-
-
-def constant_rhs(
-    interval: Interval,
-    state: ScalarState,
-    out: ScalarTranslation,
-) -> None:
+def zero_rhs(interval, state, out) -> None:
     del interval, state
-    out.value = 1.0
+    out.dx[:] = 0.0
 
 
-def zero_rhs(
-    interval: Interval,
-    state: ScalarState,
-    out: ScalarTranslation,
-) -> None:
-    del interval, state
-    out.value = 0.0
-
-
-def scale_by_two(source: ScalarTranslation, target: ScalarTranslation) -> None:
-    target.value = 2.0 * source.value
+def scale_by_two(source, target) -> None:
+    target.dx[:] = 2.0 * source.dx
 
 
 def record_scheme_level(monitor: Monitor) -> None:
-    allocator = ScalarAllocator()
-    scheme = SchemeEuler(constant_rhs, allocator, monitor=monitor.scheme)
-    stepper = IntegratorStepper(scheme)
-    interval = Interval(present=0.0, step=0.1, stop=0.3)
-    state = ScalarState()
+    system = StarkSystem(derivative=constant_rhs, layout=LAYOUT)
+    ivp = system.ivp(
+        initial={"x": np.array([0.0])},
+        interval=Interval(present=0.0, step=0.1, stop=0.3),
+        method=StarkMethod(scheme=SchemeEuler, scheme_options={"monitor": monitor.scheme}),
+        engine=StarkEngineNumpy,
+        configuration=Configuration(check_progress=False),
+    )
 
-    list(Integrator().live(stepper, interval, state))
+    list(ivp.mutating_trajectory())
 
 
 def record_resolvent_level(monitor: Monitor) -> None:
-    allocator = ScalarAllocator()
-    resolvent = ResolventPicard(allocator)
+    engine = StarkEngineNumpy(LAYOUT)
+    resolvent = ResolventPicard(engine.allocator)
     resolvent.assign_monitor(monitor.resolvent)
 
-    problem = SchemeResolventRequest(
+    request = SchemeResolventRequest(
         derivative=zero_rhs,
         interval=Interval(present=0.0, step=0.1, stop=1.0),
-        origin=ScalarState(),
+        origin=engine.allocator.allocate_state(),
         rhs=None,
         alpha=0.1,
     )
-    out = Block([ScalarTranslation()])
+    delta = Block([engine.allocator.allocate_translation()])
 
-    resolvent(problem, out)
+    resolvent(request, delta)
 
 
 def record_inverter_level(monitor: Monitor) -> None:
-    request = ExampleInverterRequest(
+    engine = StarkEngineNumpy(LAYOUT)
+    residual = engine.allocator.allocate_translation()
+    residual.dx[0] = 6.0
+    output_delta = engine.allocator.allocate_translation()
+
+    request = ResolventInverterRequest(
         operator=BlockOperatorDiagonal.repeated(scale_by_two, size=1),
-        residual=Block([ScalarTranslation(6.0)]),
+        residual=Block([residual]),
     )
-    output = Block([ScalarTranslation(0.0)])
-    inverter = InverterRelaxationRichardson[ScalarTranslation](
+    output = Block([output_delta])
+    inverter = InverterRelaxationRichardson(
         damping=0.5,
-        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=4),
+        configuration=Configuration(
+            inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0),
+            inverter_maximum_steps=4,
+        ),
         monitor=monitor.inverter,
     )
 

@@ -366,7 +366,7 @@ def test_esdirk_adaptive_monitoring_records_existing_adaptive_fields(
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(0.0)
 
-    list(Integrator().live(stepper, interval, state))
+    list(Integrator().mutating_trajectory(stepper, interval, state))
 
     assert len(monitor.scheme.adaptive_steps) == 2
 

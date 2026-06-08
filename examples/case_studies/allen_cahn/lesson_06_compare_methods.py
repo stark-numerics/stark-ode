@@ -20,10 +20,9 @@ from __future__ import annotations
 #
 #     python -m examples.case_studies.allen_cahn.lesson_06_compare_methods
 
-from stark import IntegratorStepper, Tolerance
-from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
+from stark import Configuration, IntegratorStepper, StarkMethod, Tolerance
+from stark.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblem
 from stark.contracts import DerivativeIMEX
-from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.inverters import InverterBiCGStab, InverterPolicy
 from stark.resolvents import ResolventNewton
 from stark.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7, SchemeSDIRK21
@@ -32,12 +31,9 @@ from examples.case_studies.allen_cahn.lesson_01_problem import (
     ACCELERATOR,
     DIFFUSIVITY,
     Configuration_TOLERANCE,
-    AllenCahnRHS,
     Geometry,
-    initial_profile,
-    make_interval,
+    make_ivp,
     state_diagnostics,
-    state_difference,
 )
 from examples.case_studies.allen_cahn.lesson_04_implicit_newton import (
     AllenCahnLinearizer,
@@ -54,22 +50,17 @@ if __name__ == "__main__":
     geometry = Geometry()
     configuration = Configuration(scheme_tolerance=Configuration_TOLERANCE)
 
-    # Prepare the vector-space boundary once. All three methods below solve the
-    # same semidiscrete Allen-Cahn problem on the same carrier.
+    # Prepare the layout-backed boundary once. All three methods below solve
+    # the same semidiscrete Allen-Cahn problem on the same engine allocator.
 
-    template = StarkIVP(
-        derivative=StarkDerivative.in_place(
-            AllenCahnRHS(geometry, DIFFUSIVITY),
-        ),
-        initial=initial_profile(geometry),
-        interval=make_interval(),
-        scheme=SchemeCashKarp,
-        configuration=Configuration,
-    ).build()
+    template = make_ivp(
+        geometry,
+        method=StarkMethod(scheme=SchemeCashKarp),
+        configuration=configuration,
+    )
 
-    carrier = template.initial.carrier
-    full_derivative = template.derivative
-    allocator = template.allocator
+    full_derivative = template.scheme.derivative
+    allocator = template.engine.allocator
 
     # 1. Explicit baseline: simple to configure, but lesson 3 showed that it
     # may take conservative steps on this problem.
@@ -115,17 +106,15 @@ if __name__ == "__main__":
     )
 
     problem = ComparisonProblem(
-        name="Allen-Cahn method comparison",
-        build_state=lambda: StarkVector(initial_profile(geometry), carrier),
-        build_interval=make_interval,
-        difference=state_difference,
+        "Allen-Cahn method comparison",
+        template,
         diagnostics=state_diagnostics,
     )
 
     entries = [
-        ComparisonEntry("Cash-Karp explicit", IntegratorStepper(explicit_scheme)),
-        ComparisonEntry("SDIRK21 Newton", IntegratorStepper(implicit_scheme)),
-        ComparisonEntry("KC43-7 IMEX spectral", IntegratorStepper(imex_scheme)),
+        ComparisonEntryStepper("Cash-Karp explicit", IntegratorStepper(explicit_scheme)),
+        ComparisonEntryStepper("SDIRK21 Newton", IntegratorStepper(implicit_scheme)),
+        ComparisonEntryStepper("KC43-7 IMEX spectral", IntegratorStepper(imex_scheme)),
     ]
 
     report = ComparisonRunner(problem, entries, repeats=3)()

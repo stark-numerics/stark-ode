@@ -253,7 +253,7 @@ def test_scheme_matches_time_dependent_riccati_solution(case: SchemeCase) -> Non
     integrate = Integrator()
 
     steps = 0
-    for _interval, _state in integrate.live(stepper, interval, state):
+    for _interval, _state in integrate.mutating_trajectory(stepper, interval, state):
         steps += 1
 
     expected = exact_solution(STOP)

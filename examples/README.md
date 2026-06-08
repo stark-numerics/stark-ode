@@ -35,10 +35,9 @@ Longer teaching examples:
 
 ```powershell
 python -m examples.case_studies.three_body
-python -m examples.case_studies.allen_cahn
 ```
 
 ## Comparison
 
 Comparison reports and backend-oriented experiments live under
-`examples/comparison/`.
+`competition/`.

@@ -8,14 +8,14 @@ from stark.algebraist.arity import AlgebraistArity
 from stark.contracts.translation import Translation
 
 TranslationType = TypeVar("TranslationType", bound=Translation)
-AlgebraistGeneralKernel = Callable[..., TranslationType]
+AlgebraistLinearCombineKernel = Callable[..., TranslationType]
 
 
-class AlgebraistGeneral(Algebraist[AlgebraistArity, AlgebraistGeneralKernel[TranslationType]], Protocol[TranslationType]):
+class AlgebraistLinearCombine(Algebraist[AlgebraistArity, AlgebraistLinearCombineKernel[TranslationType]], Protocol[TranslationType]):
     """Provider of general arity-based linear-combination kernels."""
 
-    def provide(self, request: AlgebraistArity) -> AlgebraistGeneralKernel[TranslationType]:
+    def provide(self, request: AlgebraistArity) -> AlgebraistLinearCombineKernel[TranslationType]:
         ...
 
 
-__all__ = ["AlgebraistGeneral", "AlgebraistGeneralKernel"]
+__all__ = ["AlgebraistLinearCombine", "AlgebraistLinearCombineKernel"]

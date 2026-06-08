@@ -80,7 +80,7 @@ def zero_rhs(
     out.value = 0.0
 
 
-def run_live(
+def run_mutating_trajectory(
     scheme,
     *,
     state: ScalarState,
@@ -90,7 +90,7 @@ def run_live(
     stepper = IntegratorStepper(scheme or Configuration())
     outputs = [
         (snapshot_interval.present, snapshot_interval.step, snapshot_state.value)
-        for snapshot_interval, snapshot_state in Integrator().live(stepper, interval, state)
+        for snapshot_interval, snapshot_state in Integrator().mutating_trajectory(stepper, interval, state)
     ]
     return outputs, state, interval
 
@@ -100,7 +100,7 @@ def test_rk4_fixed_explicit_characterization() -> None:
     interval = Interval(present=0.0, step=0.125, stop=0.25)
     state = ScalarState(1.0)
 
-    outputs, final_state, final_interval = run_live(
+    outputs, final_state, final_interval = run_mutating_trajectory(
         scheme,
         state=state,
         interval=interval,
@@ -120,7 +120,7 @@ def test_bogacki_shampine_adaptive_explicit_characterization() -> None:
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
 
-    outputs, final_state, final_interval = run_live(
+    outputs, final_state, final_interval = run_mutating_trajectory(
         scheme,
         state=state,
         interval=interval,
@@ -154,7 +154,7 @@ def test_kennedy_carpenter32_adaptive_imex_characterization() -> None:
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
 
-    outputs, final_state, final_interval = run_live(
+    outputs, final_state, final_interval = run_mutating_trajectory(
         scheme,
         state=state,
         interval=interval,
@@ -184,7 +184,7 @@ def test_backward_euler_implicit_fixed_characterization() -> None:
     interval = Interval(present=0.0, step=0.125, stop=0.25)
     state = ScalarState(0.0)
 
-    outputs, final_state, final_interval = run_live(
+    outputs, final_state, final_interval = run_mutating_trajectory(
         scheme,
         state=state,
         interval=interval,

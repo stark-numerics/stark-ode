@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from examples.comparison.fitzhugh_nagumo_1d.stark import FitzHughNagumoParameters, run_inverter_example
+from competition.fitzhugh_nagumo_1d.stark import FitzHughNagumoParameters, run_inverter_example
 from stark.inverters.relaxation import InverterRelaxationRichardson
 
 

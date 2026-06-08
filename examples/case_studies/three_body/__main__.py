@@ -512,7 +512,7 @@ stark_trajectory = ThreeBodyTrajectory("STARK Dormand-Prince")
 stark_trajectory.record(state)
 
 checkpoint_outputs = 0
-for _checkpoint_interval, checkpoint_state in integrate.live(
+for _checkpoint_interval, checkpoint_state in integrate.mutating_trajectory(
     stepper,
     interval,
     state,
@@ -606,7 +606,7 @@ print(f"Saved {comparison_plot_path}")
 #   derivative contract.
 # - `Configuration` carries the runtime policy used by `IntegratorStepper` and `Integrator`.
 # - `Auditor` checks that this interface is complete.
-# - `Integrator().live(..., checkpoints=...)` gives display-ready samples
+# - `Integrator().mutating_trajectory(..., checkpoints=...)` gives display-ready samples
 #   without forcing the adaptive solver to use a fixed display step.
 #
 # That is the core STARK pattern: keep the rich state model, add a small

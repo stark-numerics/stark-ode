@@ -11,10 +11,10 @@ from time import perf_counter
 
 
 REPORT_MODULES = (
-    "examples.comparison.brusselator_2d.report",
-    "examples.comparison.fitzhugh_nagumo_1d.report",
-    "examples.comparison.fput.report",
-    "examples.comparison.robertson.report",
+    "competition.brusselator_2d.report",
+    "competition.fitzhugh_nagumo_1d.report",
+    "competition.fput.report",
+    "competition.robertson.report",
 )
 
 COMPLETED_ROW = re.compile(
@@ -272,16 +272,16 @@ def selected_modules(names: tuple[str, ...]) -> tuple[str, ...]:
         if name in REPORT_MODULES:
             selected.append(name)
             continue
-        module = f"examples.comparison.{name}.report"
+        module = f"competition.{name}.report"
         if module not in REPORT_MODULES:
-            raise ValueError(f"Unknown comparison report {name!r}.")
+            raise ValueError(f"Unknown competition report {name!r}.")
         selected.append(module)
     return tuple(selected)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Run comparison reports with timeout and optional local baseline checks."
+        description="Run competition reports with timeout and optional local baseline checks."
     )
     parser.add_argument("reports", nargs="*", help="Report names such as robertson or full module names.")
     parser.add_argument("--timeout", type=float, default=180.0, help="Per-report timeout in seconds.")
@@ -328,13 +328,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if failures:
         print()
-        print("Comparison check failed:")
+        print("Competition check failed:")
         for failure in failures:
             print(f"  {failure}")
         return 1
 
     print()
-    print("Comparison check passed.")
+    print("Competition check passed.")
     return 0
 
 

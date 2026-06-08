@@ -1,60 +1,48 @@
 from __future__ import annotations
 
-"""Inspect the accepted steps recorded by scheme monitoring.
-
-`Monitor` is the top-level object a user passes to an integration run. The
-scheme itself only receives `monitor.scheme`, a narrow recording surface for
-accepted scheme steps. This keeps monitored schemes lightly coupled to the
-monitor implementation while still giving users concrete records to inspect.
-
-At this stage of the monitor refactor, scheme monitoring records two distinct
-kinds of evidence:
-
-* `monitor.scheme.fixed_steps` for fixed-step schemes
-* `monitor.scheme.adaptive_steps` for adaptive schemes
-
-The records are intentionally about accepted steps. They are useful for
-understanding what happened during one observed run; comparison timing should
-still come from unmonitored runs.
-"""
+"""Inspect the accepted steps recorded by scheme monitoring."""
 
 import numpy as np
 
-from stark import Interval, IntegratorStepper
-from stark.interface import StarkIVP
+from stark import (
+    Configuration,
+    Interval,
+    StarkLayout,
+    StarkMethod,
+    StarkSystem,
+)
+from stark.engines import StarkEngineNumpy
 from stark.monitor import Monitor
 from stark.schemes import SchemeCashKarp, SchemeRK4
-from stark.core import Configuration
 
-def oscillator_rhs(t: float, y: np.ndarray) -> np.ndarray:
+
+def oscillator_rhs(t: float, state, out) -> None:
     del t
-    return np.array([y[1], -y[0]])
+    out.dy[0] = state.y[1]
+    out.dy[1] = -state.y[0]
 
 
-def build_problem(scheme, monitor: Monitor) -> object:
-    build = StarkIVP(
-        derivative=oscillator_rhs,
-        initial=np.array([1.0, 0.0]),
+system = StarkSystem(
+    derivative=oscillator_rhs,
+    layout=StarkLayout({"y": {"translation": "dy", "shape": (2,)}}),
+)
+
+
+def build_problem(scheme_type, monitor: Monitor):
+    return system.ivp(
+        initial={"y": np.array([1.0, 0.0])},
         interval=Interval(present=0.0, step=0.2, stop=1.0),
-        configuration=Configuration(),
-        scheme=scheme,
-    ).build()
-    build.scheme = scheme(build.derivative, build.allocator, monitor=monitor.scheme)
-    build.stepper = IntegratorStepper(build.scheme)
-    return build
-
-
-def run_with_monitor(scheme) -> Monitor:
-    monitor = Monitor()
-    build = build_problem(scheme, monitor)
-
-    list(
-        build.integrator.live(
-            build.stepper,
-            build.interval,
-            build.initial,
-        )
+        method=StarkMethod(scheme=scheme_type, scheme_options={"monitor": monitor.scheme}),
+        engine=StarkEngineNumpy,
+        configuration=Configuration(check_progress=False),
     )
+
+
+def run_with_monitor(scheme_type) -> Monitor:
+    monitor = Monitor()
+    ivp = build_problem(scheme_type, monitor)
+
+    list(ivp.mutating_trajectory())
 
     return monitor
 

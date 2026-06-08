@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol
 
 from stark.core.tolerance import Tolerance
 
+
 @dataclass(frozen=True, slots=True)
 class Configuration:
-    """Immutable init-time configuration for STARK components."""
+    """
+    Immutable configuration shared by schemes, resolvents, and inverters.
+
+    The scheme fields control adaptive step-size tolerance and safety factors.
+    Resolvent and inverter fields control nonlinear and linear solve tolerances.
+    `check_progress` enables the integrator guard that detects stalled time
+    advancement after an accepted step.
+    """
 
     scheme_tolerance: Tolerance = field(default_factory=Tolerance)
     adaptive_scheme_safety: float = 0.8
@@ -44,5 +51,4 @@ class Configuration:
 
 __all__ = [
     "Configuration",
-    "IntegratorConfiguration",
 ]

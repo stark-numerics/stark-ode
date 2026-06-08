@@ -16,7 +16,7 @@ TranslationType = TypeVar("TranslationType")
 
 
 @dataclass(frozen=True, slots=True)
-class AlgebraistGeneratorGeneral(Generic[TranslationType]):
+class AlgebraistGeneratorLinearCombine(Generic[TranslationType]):
     """Generated provider of general arity-based linear-combination kernels."""
 
     translation: TranslationType

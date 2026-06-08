@@ -32,18 +32,14 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 
-from stark import IntegratorStepper
-from stark.interface import StarkDerivative, StarkIVP
+from stark import Configuration, StarkMethod
 from stark.monitor import Monitor
 from stark.schemes import SchemeCashKarp
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
-    DIFFUSIVITY,
     Configuration_TOLERANCE,
-    AllenCahnRHS,
     Geometry,
-    initial_profile,
-    make_interval,
+    make_ivp,
 )
 
 
@@ -54,28 +50,19 @@ if __name__ == "__main__":
     geometry = Geometry()
     monitor = Monitor()
 
-    # Monitoring is opt-in. We build the same explicit problem as lesson 1,
-    # then pass the scheme monitor only to this one observed integration.
+    # Monitoring is opt-in. We build the same explicit problem as lesson 1 and
+    # pass the scheme monitor through the method recipe.
 
-    build = StarkIVP(
-        derivative=StarkDerivative.in_place(
-            AllenCahnRHS(geometry, DIFFUSIVITY),
+    ivp = make_ivp(
+        geometry,
+        method=StarkMethod(
+            scheme=SchemeCashKarp,
+            scheme_options={"monitor": monitor.scheme},
         ),
-        initial=initial_profile(geometry),
-        interval=make_interval(),
-        scheme=SchemeCashKarp,
         configuration=Configuration(scheme_tolerance=Configuration_TOLERANCE),
-    ).build()
-    build.scheme = SchemeCashKarp(build.derivative, build.allocator, monitor=monitor.scheme)
-    build.stepper = IntegratorStepper(build.scheme)
-
-    list(
-        build.integrator.live(
-            stepper=build.stepper,
-            interval=build.interval,
-            state=build.initial,
-        )
     )
+
+    list(ivp.mutating_trajectory())
 
     # The monitor records one piece of evidence per accepted adaptive step.
     # Here we extract the time, local error ratio, and total rejected proposals.

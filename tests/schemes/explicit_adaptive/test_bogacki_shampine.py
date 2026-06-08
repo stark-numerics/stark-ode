@@ -217,7 +217,7 @@ def test_bogacki_shampine_integration_matches_characterized_step_count() -> None
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
 
-    outputs = list(Integrator().live(stepper, interval, state))
+    outputs = list(Integrator().mutating_trajectory(stepper, interval, state))
 
     assert len(outputs) == 2
     assert interval.present == pytest.approx(0.3)
@@ -232,7 +232,7 @@ def test_bogacki_shampine_monitoring_records_existing_adaptive_fields() -> None:
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     state = ScalarState(2.0)
 
-    list(Integrator().live(stepper, interval, state))
+    list(Integrator().mutating_trajectory(stepper, interval, state))
 
     assert len(monitor.scheme.adaptive_steps) == 2
     first = monitor.scheme.adaptive_steps[0]

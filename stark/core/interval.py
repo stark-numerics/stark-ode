@@ -9,6 +9,11 @@ from dataclasses import dataclass
 class Interval:
     """
     Concrete rolling integration interval.
+
+    Schemes read `present`, `step`, and `stop`, then advance `present` by the
+    accepted step. Integrators mutate this object during a solve; snapshot
+    integration yields copies so collected trajectories do not all point at the
+    same rolling interval.
     """
 
     present: float

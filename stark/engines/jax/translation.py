@@ -15,6 +15,7 @@ class StarkEngineTranslationJax:
     algebraist_layout: AlgebraistLayout = field(repr=False)
     carriers: tuple[CarrierJax, ...] = field(repr=False)
     allocator: Any = field(repr=False)
+    norm_kernel: Any = field(default=None, repr=False)
 
     @property
     def linear_combine(self) -> tuple[Any, ...]:
@@ -65,9 +66,12 @@ class StarkEngineTranslationJax:
         return self.__rmul__(scalar)
 
     def norm(self) -> float:
+        if self.norm_kernel is not None:
+            return float(self.norm_kernel(self))
+
         total = 0.0
         for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
-            if not field.include_in_norm:
+            if not field.norm.include:
                 continue
             field_norm = carrier.norm(field.translation_path.get(self))
             total += field_norm * field_norm

@@ -1,6 +1,6 @@
-# Comparison Reports
+# Competition Reports
 
-STARK currently includes four public comparison cases:
+STARK currently includes four public competition cases:
 
 - `brusselator_2d`: a periodic two-species reaction-diffusion problem.
 - `fitzhugh_nagumo_1d`: a periodic stiff excitable-medium reaction-diffusion problem.
@@ -10,29 +10,29 @@ STARK currently includes four public comparison cases:
 Run them with:
 
 ```powershell
-python -m examples.comparison.brusselator_2d.report
-python -m examples.comparison.fitzhugh_nagumo_1d.report
-python -m examples.comparison.fput.report
-python -m examples.comparison.robertson.report
+python -m competition.brusselator_2d.report
+python -m competition.fitzhugh_nagumo_1d.report
+python -m competition.fput.report
+python -m competition.robertson.report
 ```
 
 To run every report as a guard against timeouts and large local regressions:
 
 ```powershell
-python -m examples.comparison.check_reports --timeout 180
+python -m competition.check_reports --timeout 180
 ```
 
 The guard can also compare against a local machine-specific baseline. The
-`examples/local/` directory is git-ignored, so it is a good place to keep these
-results:
+`competition/local/` directory is git-ignored, so it is a good place to keep
+these results:
 
 ```powershell
-python -m examples.comparison.check_reports --write-baseline examples/local/comparison-baseline.json
-python -m examples.comparison.check_reports --baseline examples/local/comparison-baseline.json
+python -m competition.check_reports --write-baseline competition/local/competition-baseline.json
+python -m competition.check_reports --baseline competition/local/competition-baseline.json
 ```
 
 Each report generates a tight SciPy reference solution, runs the methods used
-for that comparison case, then prints:
+for that competition case, then prints:
 
 - an error table against the reference solution
 - a preparation timing table for setup plus one untimed warmup solve
@@ -42,9 +42,9 @@ for that comparison case, then prints:
 Reference generation is reported separately and is not included in the solver
 timing tables.
 
-## Comparison Layout
+## Competition Layout
 
-Each comparison case directory follows the same structure:
+Each competition case directory follows the same structure:
 
 - `common.py` contains plain dictionaries and NumPy arrays for problem
   parameters, tolerances, timing settings, and initial conditions.
@@ -59,11 +59,11 @@ Each comparison case directory follows the same structure:
 - `report.py` owns reference generation, timing, table rendering, and the
   human-readable benchmark description.
 
-The comparison modules intentionally avoid a shared runner abstraction. The
+The competition modules intentionally avoid a shared runner abstraction. The
 point is to show each library in the coding style it naturally encourages, not
 to force all solvers through one generic harness.
 
-## Comparison Principles
+## Competition Principles
 
 Where they are included, STARK is compared with SciPy and Diffrax because they
 represent three different ways to build ODE solves in Python:

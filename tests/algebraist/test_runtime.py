@@ -5,8 +5,15 @@ from dataclasses import dataclass
 import pytest
 
 from stark.algebraist.arity import AlgebraistArity
+from stark.algebraist.layout import (
+    AlgebraistLayout,
+    AlgebraistLayoutField,
+    AlgebraistLayoutNormExcluded,
+    AlgebraistLayoutScalar,
+)
 from stark.algebraist.runtime import (
-    AlgebraistRuntimeGeneral,
+    AlgebraistRuntimeLinearCombine,
+    AlgebraistRuntimeNorm,
     AlgebraistRuntimeSpecialist,
 )
 from stark.schemes.specialization.stencil import SchemeStencil
@@ -82,7 +89,7 @@ def test_arity_validates_value() -> None:
 
 
 def test_runtime_general_uses_return_fallback_without_linear_combine() -> None:
-    general = AlgebraistRuntimeGeneral(
+    general = AlgebraistRuntimeLinearCombine(
         translation=Translation(),
         allocator=Allocator(),
     )
@@ -104,7 +111,7 @@ def test_runtime_general_uses_return_fallback_without_linear_combine() -> None:
 
 
 def test_runtime_general_synthesizes_higher_arity_from_direct_combine2() -> None:
-    general = AlgebraistRuntimeGeneral(
+    general = AlgebraistRuntimeLinearCombine(
         translation=TranslationWithLinearCombine(),
         allocator=Allocator(),
     )
@@ -128,7 +135,7 @@ def test_runtime_general_synthesizes_higher_arity_from_direct_combine2() -> None
 
 
 def test_runtime_general_accepts_explicit_linear_combine_override() -> None:
-    general = AlgebraistRuntimeGeneral(
+    general = AlgebraistRuntimeLinearCombine(
         translation=Translation(),
         allocator=Allocator(),
         linear_combine=(scale, combine2),
@@ -143,7 +150,7 @@ def test_runtime_general_accepts_explicit_linear_combine_override() -> None:
 
 
 def test_runtime_general_as_tuple_provides_requested_arity_family() -> None:
-    general = AlgebraistRuntimeGeneral(
+    general = AlgebraistRuntimeLinearCombine(
         translation=TranslationWithLinearCombine(),
         allocator=Allocator(),
     )
@@ -197,3 +204,30 @@ def test_runtime_specialist_binds_empty_stencil_as_zero_delta() -> None:
 
     assert result is out
     assert out.value == pytest.approx(0.0)
+
+
+def test_runtime_norm_uses_layout_norm_fields() -> None:
+    norm = AlgebraistRuntimeNorm(
+        layout=AlgebraistLayout(
+            (
+                AlgebraistLayoutField(
+                    translation_path="value",
+                    state_path="value",
+                    policy=AlgebraistLayoutScalar(),
+                ),
+                AlgebraistLayoutField(
+                    translation_path="ignored",
+                    state_path="ignored",
+                    policy=AlgebraistLayoutScalar(),
+                    norm=AlgebraistLayoutNormExcluded(),
+                ),
+            )
+        ),
+        field_norms=(abs, abs),
+    ).provide()
+
+    translation = type("RuntimeNormTranslation", (), {})()
+    translation.value = -3.0
+    translation.ignored = 100.0
+
+    assert norm(translation) == pytest.approx(3.0)

@@ -217,16 +217,16 @@ class AlgebraistRuntimeSupport(Generic[TranslationType]):
     def allocate_translation(self) -> TranslationType:
         return self.allocator.allocate_translation()
 
-    def provide_general(self, request: AlgebraistArity) -> RuntimeKernel[TranslationType]:
+    def provide_linear_combine(self, request: AlgebraistArity) -> RuntimeKernel[TranslationType]:
         if request.value not in self._kernels:
-            self._kernels[request.value] = self._build_general(request)
+            self._kernels[request.value] = self._build_linear_combine(request)
         return self._kernels[request.value]
 
     def provide_tuple(self, max_arity: int = 12) -> tuple[RuntimeKernel[TranslationType], ...]:
         if max_arity < 1:
             raise ValueError("max_arity must be at least 1.")
         return tuple(
-            self.provide_general(AlgebraistArity(arity))
+            self.provide_linear_combine(AlgebraistArity(arity))
             for arity in range(1, max_arity + 1)
         )
 
@@ -245,10 +245,10 @@ class AlgebraistRuntimeSupport(Generic[TranslationType]):
         if coefficients is None:
             coefficients = _validate_coefficients(request.coefficients)
         if not coefficients:
-            combine = self.provide_general(AlgebraistArity(1))
+            combine = self.provide_linear_combine(AlgebraistArity(1))
             kernel = AlgebraistRuntimeZeroDeltaKernel(combine=combine)
             return self.accelerate(kernel, label="runtime.delta.zero", arity=0)
-        combine = self.provide_general(AlgebraistArity(len(coefficients)))
+        combine = self.provide_linear_combine(AlgebraistArity(len(coefficients)))
         kernel = AlgebraistRuntimeDeltaKernel(
             scale=float(request.scale),
             coefficients=coefficients,
@@ -299,7 +299,7 @@ class AlgebraistRuntimeSupport(Generic[TranslationType]):
             kernels.append(cast(RuntimeKernel[TranslationType], kernel))
         return tuple(kernels)
 
-    def _build_general(self, request: AlgebraistArity) -> RuntimeKernel[TranslationType]:
+    def _build_linear_combine(self, request: AlgebraistArity) -> RuntimeKernel[TranslationType]:
         arity = request.value
         if not self._has_direct_combine2:
             return self.accelerate(
@@ -321,9 +321,9 @@ class AlgebraistRuntimeSupport(Generic[TranslationType]):
             arity=arity,
             left_arity=left_arity,
             right_arity=right_arity,
-            left_kernel=self.provide_general(AlgebraistArity(left_arity)),
-            right_kernel=self.provide_general(AlgebraistArity(right_arity)),
-            combine2=self.provide_general(AlgebraistArity(2)),
+            left_kernel=self.provide_linear_combine(AlgebraistArity(left_arity)),
+            right_kernel=self.provide_linear_combine(AlgebraistArity(right_arity)),
+            combine2=self.provide_linear_combine(AlgebraistArity(2)),
             left=self.allocate_translation(),
             right=self.allocate_translation(),
         )

@@ -10,7 +10,7 @@ import numpy as np
 from stark import Configuration, DerivativeIMEX, Integrator, Interval, IntegratorStepper, Tolerance
 from stark.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
+from stark.algebraist.generator import AlgebraistGeneratorLinearCombine, AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
 from stark.inverters.relaxation import InverterRelaxationRichardson
 from stark.resolvents import ResolventAnderson, ResolventNewton
@@ -267,7 +267,7 @@ class FitzHughNagumoAllocator:
         return specialist
 
     def _install_algebraist(self) -> None:
-        general = AlgebraistGeneratorGeneral(
+        general = AlgebraistGeneratorLinearCombine(
             translation=self.allocate_translation(),
             allocator=self,
             layout=ALGEBRAIST_LAYOUT,
@@ -437,7 +437,7 @@ def initial_state(parameters: FitzHughNagumoParameters) -> tuple[np.ndarray, Fit
     return x, FitzHughNagumoState(u.astype(np.float64), v.astype(np.float64))
 
 
-class ComparisonMarcherCounting:
+class ComparisonStepperCounting:
     __slots__ = ("stepper", "steps")
 
     def __init__(self, stepper: IntegratorStepper) -> None:
@@ -552,7 +552,7 @@ def _build_anderson_solver(label, scheme_type, parameters: FitzHughNagumoParamet
         configuration=_scheme_configuration(scheme_type, parameters),
         specialist=allocator.specialist,
     )
-    stepper = ComparisonMarcherCounting(IntegratorStepper(scheme))
+    stepper = ComparisonStepperCounting(IntegratorStepper(scheme))
     integrator = Integrator(configuration=configuration)
     return label, integrator, stepper
 
@@ -569,7 +569,7 @@ def _build_imex_spectral_solver(label, scheme_type, parameters: FitzHughNagumoPa
         configuration=_scheme_configuration(scheme_type, parameters),
         specialist=allocator.specialist,
     )
-    stepper = ComparisonMarcherCounting(IntegratorStepper(scheme))
+    stepper = ComparisonStepperCounting(IntegratorStepper(scheme))
     integrator = Integrator(configuration=configuration)
     return label, integrator, stepper
 
@@ -582,7 +582,7 @@ def prepare_quasi_newton(name, scheme_type, builder, problem_parameters, stark_p
         state = FitzHughNagumoState(initial_conditions["u"].copy(), initial_conditions["v"].copy())
         interval = Interval(parameters.t_start, parameters.initial_step, parameters.t_stop)
         stepper.steps = 0
-        for _interval, _state in integrator.live(stepper, interval, state):
+        for _interval, _state in integrator.mutating_trajectory(stepper, interval, state):
             pass
         return {
             "library": "STARK",
@@ -650,7 +650,7 @@ def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParamet
         specialist=allocator.specialist,
     )
     integrate = Integrator(configuration=configuration)
-    stepper = ComparisonMarcherCounting(IntegratorStepper(scheme))
+    stepper = ComparisonStepperCounting(IntegratorStepper(scheme))
     _x, state = initial_state(parameters)
     interval = Interval(parameters.t_start, parameters.initial_step, parameters.t_stop)
 

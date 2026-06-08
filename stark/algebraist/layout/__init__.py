@@ -1,5 +1,11 @@
 from stark.algebraist.layout.field import AlgebraistLayoutField
 from stark.algebraist.layout.layout import AlgebraistLayout
+from stark.algebraist.layout.norm import (
+    AlgebraistLayoutNormExcluded,
+    AlgebraistLayoutNormMax,
+    AlgebraistLayoutNormPolicy,
+    AlgebraistLayoutNormRMS,
+)
 from stark.algebraist.layout.path import AlgebraistLayoutPath
 from stark.algebraist.layout.policy import (
     MAX_UNRAVEL_SIZE,
@@ -13,6 +19,10 @@ from stark.algebraist.layout.policy import (
 __all__ = [
     "AlgebraistLayout",
     "AlgebraistLayoutField",
+    "AlgebraistLayoutNormExcluded",
+    "AlgebraistLayoutNormMax",
+    "AlgebraistLayoutNormPolicy",
+    "AlgebraistLayoutNormRMS",
     "AlgebraistLayoutPath",
     "AlgebraistLayoutPolicy",
     "AlgebraistLayoutScalar",

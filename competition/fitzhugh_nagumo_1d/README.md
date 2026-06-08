@@ -34,7 +34,7 @@ It compares:
 Run it with:
 
 ```powershell
-python -m examples.comparison.fitzhugh_nagumo_1d.report
+python -m competition.fitzhugh_nagumo_1d.report
 ```
 
 

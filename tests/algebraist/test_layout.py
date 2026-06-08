@@ -9,6 +9,7 @@ from stark.algebraist.layout import (
     AlgebraistLayoutBroadcast,
     AlgebraistLayoutField,
     AlgebraistLayoutLooped,
+    AlgebraistLayoutNormExcluded,
     AlgebraistLayoutPath,
     AlgebraistLayoutUnravel,
 )
@@ -124,8 +125,12 @@ def test_layout_rejects_duplicate_state_paths() -> None:
 
 
 def test_layout_exposes_norm_fields_and_paths() -> None:
-    first = AlgebraistLayoutField("delta_a", "state_a", include_in_norm=True)
-    second = AlgebraistLayoutField("delta_b", "state_b", include_in_norm=False)
+    first = AlgebraistLayoutField("delta_a", "state_a")
+    second = AlgebraistLayoutField(
+        "delta_b",
+        "state_b",
+        norm=AlgebraistLayoutNormExcluded(),
+    )
 
     layout = AlgebraistLayout(fields=(first, second))
 

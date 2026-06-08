@@ -6,12 +6,12 @@ from typing import Any
 
 import numpy as np
 
-from stark import Configuration, Interval, IntegratorStepper, Tolerance
+from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
 from stark.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.algebraist.generator import AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutUnravel
 from stark.block import BlockBasis, BlockSpecialist
-from stark.interface import StarkDerivative, StarkIVP, StarkVector
+from stark.interface import StarkVector
 from stark.interface.vector import StarkVectorAllocator, StarkVectorTranslation
 from stark.inverters import InverterRelaxationJacobi
 from stark.inverters.dense import InverterDense, InverterProviderDenseNative
@@ -224,6 +224,14 @@ class RobertsonFullDerivative:
         _full_rhs_kernel(state.y, out.dy)
 
 
+@dataclass(slots=True)
+class RobertsonDerivativeVectorAdapter:
+    derivative: RobertsonFullDerivative
+
+    def __call__(self, interval: Interval, state: StarkVector, out: StarkVectorTranslation) -> None:
+        self.derivative(interval.present, state.value, out.value)
+
+
 class RobertsonFullLinearizer:
     __slots__ = ()
     _compiled = False
@@ -381,6 +389,15 @@ class RobertsonCubicRoot:
 
 
 @dataclass(slots=True)
+class RobertsonTemplate:
+    allocator: StarkVectorAllocator
+    derivative: RobertsonDerivativeVectorAdapter
+    integrator: Integrator
+    initial: StarkVector
+    interval: Interval
+
+
+@dataclass(slots=True)
 class RobertsonStarkSolver:
     name: str
     build: Any
@@ -398,7 +415,7 @@ class RobertsonStarkSolver:
         )
         steps = 0
 
-        for _interval, _state in self.build.integrator.live(self.stepper, interval, state):
+        for _interval, _state in self.build.integrator.mutating_trajectory(self.stepper, interval, state):
             steps += 1
 
         result: dict[str, Any] = {
@@ -433,19 +450,21 @@ class RobertsonInverterDiagnostics:
 
 
 def build_template(problem_parameters, stark_parameters, initial_conditions):
-    return StarkIVP(
-        derivative=StarkDerivative.in_place(RobertsonFullDerivative()),
-        initial=RobertsonState(initial_conditions["y"].copy()),
-        interval=Interval(problem_parameters["t0"], stark_parameters["step"], problem_parameters["t1"]),
-        carrier=RobertsonCarrier(),
-        configuration=Configuration(
-            scheme_tolerance=Tolerance(
-                atol=stark_parameters["tolerance_atol"],
-                rtol=stark_parameters["tolerance_rtol"],
-            ),
-            check_progress=False,
+    carrier = RobertsonCarrier()
+    configuration = Configuration(
+        scheme_tolerance=Tolerance(
+            atol=stark_parameters["tolerance_atol"],
+            rtol=stark_parameters["tolerance_rtol"],
         ),
-    ).build()
+        check_progress=False,
+    )
+    return RobertsonTemplate(
+        allocator=StarkVectorAllocator(carrier),
+        derivative=RobertsonDerivativeVectorAdapter(RobertsonFullDerivative()),
+        integrator=Integrator(configuration=configuration),
+        initial=StarkVector(RobertsonState(initial_conditions["y"].copy()), carrier),
+        interval=Interval(problem_parameters["t0"], stark_parameters["step"], problem_parameters["t1"]),
+    )
 
 
 def build_specialist(allocator: StarkVectorAllocator):

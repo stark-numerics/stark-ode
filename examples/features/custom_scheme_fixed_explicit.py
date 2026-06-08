@@ -1,87 +1,67 @@
-"""Minimal fixed-step explicit scheme example.
+"""Use a custom fixed-step explicit scheme through `StarkSystem`.
 
-This example shows the public shape expected from a STARK scheme:
+Custom schemes do not need a separate runner path. If the scheme accepts the
+same constructor ingredients as the built-in schemes, `StarkMethod` can select
+it and `StarkSystem` can build the IVP in the usual way.
+
+The essential scheme surface is still small:
 
 - `__call__(interval, state) -> float`
 - `snapshot_state(state)`
-
-The example uses `StarkVector`, STARK's simple vector-space carrier. In this
-case the state and the increment both live in the same mathematical vector
-space, even though STARK still distinguishes the state wrapper from the
-translation wrapper internally.
 """
 
 from __future__ import annotations
 
-from stark import Integrator, Interval, IntegratorStepper
-from stark.carriers import CarrierNative
-from stark.interface.vector import (
-    StarkVector,
-    StarkVectorTranslation,
-    StarkVectorAllocator,
-)
+import numpy as np
+
+from stark import Configuration, Interval, StarkLayout, StarkMethod, StarkSystem
+from stark.engines import StarkEngineNumpy
 
 
-def derivative(
-    interval: Interval,
-    state: StarkVector,
-    out: StarkVectorTranslation,
-) -> None:
-    del interval
-    out.value[:] = state.value
+def derivative(t: float, state, out) -> None:
+    del t
+    out.dy[:] = state.y
 
 
 class ForwardEuler:
     """Minimal custom fixed-step explicit scheme.
 
     STARK already includes a production `SchemeEuler`; this class exists only to
-    show the public scheme contract in the smallest possible form.
-
-    `SchemeRK4` is a richer built-in example of a fixed explicit scheme with
-    reusable buffers and optional generated stage algebra.
+    show how a user scheme can be constructed by the high-level method stack.
     """
 
-    def __init__(self) -> None:
-        carrier = CarrierNative([1.0])
-        self.allocator = StarkVectorAllocator(carrier)
-        self.delta = self.allocator.allocate_translation()
+    def __init__(self, derivative, allocator) -> None:
+        self.derivative = derivative
+        self.allocator = allocator
+        self.delta = allocator.allocate_translation()
 
-    def __call__(
-        self,
-        interval: Interval,
-        state: StarkVector,
-    ) -> float:
-
+    def __call__(self, interval, state) -> float:
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return 0.0
 
         dt = interval.step if interval.step <= remaining else remaining
-
-        derivative(interval, state, self.delta)
-
-        update = dt * self.delta
-        update(state, state)
-
+        self.derivative(interval, state, self.delta)
+        (dt * self.delta)(state, state)
         return dt
 
-    def snapshot_state(self, state: StarkVector) -> StarkVector:
+    def snapshot_state(self, state):
         snapshot = self.allocator.allocate_state()
         self.allocator.copy_state(state, snapshot)
         return snapshot
 
-def main() -> None:
-    scheme = ForwardEuler()
-    stepper = IntegratorStepper(scheme)
 
-    carrier = scheme.allocator.carrier
-    interval = Interval(present=0.0, step=0.1, stop=0.3)
-    state = StarkVector([1.0], carrier)
+system = StarkSystem(
+    derivative=derivative,
+    layout=StarkLayout({"y": {"translation": "dy", "shape": (1,)}}),
+)
+ivp = system.ivp(
+    initial={"y": np.array([1.0])},
+    interval=Interval(present=0.0, step=0.1, stop=0.3),
+    method=StarkMethod(scheme=ForwardEuler),
+    engine=StarkEngineNumpy,
+    configuration=Configuration(check_progress=False),
+)
 
-    for snapshot_interval, snapshot_state in Integrator().live(stepper, interval, state):
-        y = snapshot_state.value[0]
-        print(f"t={snapshot_interval.present:.1f}, y={y:.6f}")
-
-
-if __name__ == "__main__":
-    main()
+for interval, state in ivp.stable_trajectory():
+    print(f"t={interval.present:.1f}, y={state.y[0]:.6f}")

@@ -74,6 +74,6 @@ interval = Interval(present=0.0, step=0.1, stop=0.5)
 state = Particle(position=1.0, velocity=0.0)
 
 print("Structured particle state")
-for interval, state in Integrator().live(stepper, interval, state):
+for interval, state in Integrator().mutating_trajectory(stepper, interval, state):
     print(f"t={interval.present:.1f}, x={state.position:.6f}, v={state.velocity:.6f}")
 

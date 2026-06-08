@@ -40,7 +40,7 @@ class AlgebraistLayout:
     def norm_fields(self) -> tuple[AlgebraistLayoutField, ...]:
         """Fields included in generated/runtime norm handling."""
 
-        return tuple(field for field in self.fields if field.include_in_norm)
+        return tuple(field for field in self.fields if field.norm.include)
 
     @property
     def translation_paths(self) -> tuple[AlgebraistLayoutPath, ...]:

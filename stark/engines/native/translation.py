@@ -15,12 +15,18 @@ class StarkEngineTranslationNative:
     algebraist_layout: AlgebraistLayout = field(repr=False)
     carriers: tuple[CarrierNativeArray, ...] = field(repr=False)
     allocator: Any = field(repr=False)
+    apply_translation: Any = field(default=None, repr=False)
+    norm_kernel: Any = field(default=None, repr=False)
 
     @property
     def linear_combine(self) -> tuple[Any, ...]:
         return ()
 
     def __call__(self, origin: object, result: object) -> None:
+        if self.apply_translation is not None:
+            self.apply_translation(origin, self, result)
+            return
+
         for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
             carrier.arithmetic.translate(
                 field.state_path.get(origin),
@@ -56,9 +62,12 @@ class StarkEngineTranslationNative:
         return self.__rmul__(scalar)
 
     def norm(self) -> float:
+        if self.norm_kernel is not None:
+            return float(self.norm_kernel(self))
+
         total = 0.0
         for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
-            if not field.include_in_norm:
+            if not field.norm.include:
                 continue
             field_norm = carrier.norm(field.translation_path.get(self))
             total += field_norm * field_norm

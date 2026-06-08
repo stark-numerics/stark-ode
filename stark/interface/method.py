@@ -13,7 +13,16 @@ class StarkMethodError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class StarkMethod:
-    """Declarative recipe for a scheme, resolvent, and inverter stack."""
+    """
+    Declarative recipe for the numerical method stack.
+
+    A method names the scheme class to construct and, when needed, the
+    resolvent and inverter classes that support it. The scheme is required; the
+    resolvent is used for implicit or coupled solves; the inverter is used by
+    linearising resolvents. The option mappings are passed to the corresponding
+    component constructors after the current system, engine, and configuration
+    have supplied the standard ingredients.
+    """
 
     scheme: type[Any]
     resolvent: type[Any] | None = None

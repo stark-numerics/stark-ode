@@ -11,14 +11,15 @@ from stark.monitor import MonitorSummary
 Checkpoints = int | Iterable[float]
 StateBuilder = Callable[[], Any]
 IntervalBuilder = Callable[[], Any]
-MarcherBuilder = Callable[[], Any]
+StepperBuilder = Callable[[], Any]
+ObservedStepperBuilder = Callable[[Any], Any]
 Difference = Callable[[Any, Any], float]
 Diagnostics = Callable[[Any], Any]
 TrajectoryDifference = Callable[[list[Any], list[Any]], float]
 ProfileCategory = Callable[[str, int, str], str | None]
 
 
-def _normalize_stepper_builder(source: Any) -> MarcherBuilder:
+def _normalize_stepper_builder(source: Any) -> StepperBuilder:
     if _accepts_zero_arguments(source):
         return source
     return lambda: source
@@ -40,9 +41,12 @@ def _accepts_zero_arguments(candidate: Any) -> bool:
     return True
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, init=False)
 class ComparisonProblem:
+    """Comparison problem built from a prepared `StarkSystemIVP`."""
+
     name: str
+    ivp: Any
     build_state: StateBuilder
     build_interval: IntervalBuilder
     difference: Difference
@@ -51,11 +55,124 @@ class ComparisonProblem:
     checkpoints: Checkpoints | None = None
     trajectory_difference: TrajectoryDifference | None = None
 
+    def __init__(
+        self,
+        name: str,
+        ivp: Any,
+        *,
+        difference: Difference | None = None,
+        diagnostics: Diagnostics | None = None,
+        description: str | None = None,
+        checkpoints: Checkpoints | None = None,
+        trajectory_difference: TrajectoryDifference | None = None,
+    ) -> None:
+        self.name = name
+        self.ivp = ivp
+        self.build_state = lambda: _copy_ivp_initial(ivp)
+        self.build_interval = lambda: _copy_ivp_interval(ivp)
+        self.difference = difference if difference is not None else _ivp_state_difference(ivp)
+        self.diagnostics = diagnostics
+        self.description = description
+        self.checkpoints = checkpoints
+        self.trajectory_difference = trajectory_difference
+
+
+@dataclass(slots=True, init=False)
+class ComparisonProblemManual:
+    """Low-level comparison problem with user-supplied state and interval builders."""
+
+    name: str
+    ivp: Any | None
+    build_state: StateBuilder
+    build_interval: IntervalBuilder
+    difference: Difference
+    diagnostics: Diagnostics | None = None
+    description: str | None = None
+    checkpoints: Checkpoints | None = None
+    trajectory_difference: TrajectoryDifference | None = None
+
+    def __init__(
+        self,
+        name: str,
+        *,
+        build_state: StateBuilder,
+        build_interval: IntervalBuilder,
+        difference: Difference,
+        diagnostics: Diagnostics | None = None,
+        description: str | None = None,
+        checkpoints: Checkpoints | None = None,
+        trajectory_difference: TrajectoryDifference | None = None,
+    ) -> None:
+        self.name = name
+        self.ivp = None
+        self.build_state = build_state
+        self.build_interval = build_interval
+        self.difference = difference
+        self.diagnostics = diagnostics
+        self.description = description
+        self.checkpoints = checkpoints
+        self.trajectory_difference = trajectory_difference
+
 
 @dataclass(slots=True, init=False)
 class ComparisonEntry:
+    """Comparison entry selected by a `StarkMethod` for the problem IVP."""
+
     name: str
-    build_stepper: MarcherBuilder = field(repr=False)
+    build_stepper: Callable[[Any], Any] = field(repr=False)
+    build_observed_stepper: Callable[[Any, Any], Any] | None = field(default=None, repr=False)
+    build_integrator: Callable[[Any], Any] | None = None
+    profile_category: ProfileCategory | None = None
+    metadata: dict[str, Any] | None = None
+
+    def __init__(
+        self,
+        name: str,
+        method: Any,
+        *,
+        configuration: Any | None = None,
+        profile_category: ProfileCategory | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        self.name = name
+        self.build_stepper = lambda ivp: _ivp_method_stepper(ivp, method, configuration=configuration)
+        self.build_observed_stepper = lambda monitor, ivp: _ivp_method_stepper(
+            ivp,
+            _method_with_scheme_monitor(method, monitor),
+            configuration=configuration,
+        )
+        self.build_integrator = lambda ivp: ivp.integrator
+        self.profile_category = profile_category
+        self.metadata = metadata
+
+    def make_stepper(self, ivp: Any | None = None) -> Any:
+        if ivp is None:
+            raise TypeError("ComparisonEntry requires a ComparisonProblem built from a StarkSystemIVP.")
+        return self.build_stepper(ivp)
+
+    def make_observed_stepper(self, monitor: Any, ivp: Any | None = None) -> Any:
+        if ivp is None:
+            raise TypeError("ComparisonEntry requires a ComparisonProblem built from a StarkSystemIVP.")
+        source = self.build_observed_stepper
+        if source is None:
+            return self.make_stepper(ivp)
+        return source(monitor, ivp)
+
+    def make_integrator(self, ivp: Any | None = None) -> Any | None:
+        if self.build_integrator is None:
+            return None
+        if ivp is None:
+            raise TypeError("ComparisonEntry requires a ComparisonProblem built from a StarkSystemIVP.")
+        return self.build_integrator(ivp)
+
+
+@dataclass(slots=True, init=False)
+class ComparisonEntryStepper:
+    """Low-level comparison entry backed by a user-supplied stepper."""
+
+    name: str
+    build_stepper: StepperBuilder = field(repr=False)
+    build_observed_stepper: ObservedStepperBuilder | None = field(default=None, repr=False)
     build_integrator: Callable[[], Any] | None = None
     profile_category: ProfileCategory | None = None
     metadata: dict[str, Any] | None = None
@@ -64,21 +181,41 @@ class ComparisonEntry:
         self,
         name: str,
         stepper: Any,
+        build_observed_stepper: ObservedStepperBuilder | None = None,
         build_integrator: Callable[[], Any] | None = None,
-        profile_category: ProfileCategory | None = None,
         metadata: dict[str, Any] | None = None,
+        profile_category: ProfileCategory | None = None,
     ) -> None:
         self.name = name
         self.build_stepper = _normalize_stepper_builder(stepper)
+        self.build_observed_stepper = build_observed_stepper
         self.build_integrator = build_integrator
         self.profile_category = profile_category
         self.metadata = metadata
 
-    def make_stepper(self) -> Any:
+    def make_stepper(self, ivp: Any | None = None) -> Any:
+        del ivp
         source = self.build_stepper
         if _accepts_zero_arguments(source):
             return source()
         return source
+
+    def make_observed_stepper(self, monitor: Any, ivp: Any | None = None) -> Any:
+        del ivp
+        source = self.build_observed_stepper
+        if source is None:
+            return self.make_stepper()
+        return source(monitor)
+
+    def make_integrator(self, ivp: Any | None = None) -> Any | None:
+        del ivp
+        if self.build_integrator is None:
+            return None
+        return self.build_integrator()
+
+
+ComparisonProblemLike = ComparisonProblem | ComparisonProblemManual
+ComparisonEntryLike = ComparisonEntry | ComparisonEntryStepper
 
 
 @dataclass(slots=True)
@@ -334,9 +471,74 @@ class ComparisonReport:
         }
 
 
+def _copy_ivp_initial(ivp: Any) -> Any:
+    state = ivp.engine.allocator.allocate_state()
+    ivp.engine.allocator.copy_state(ivp.initial, state)
+    return state
+
+
+def _copy_ivp_interval(ivp: Any) -> Any:
+    copy = getattr(ivp.interval, "copy", None)
+    if callable(copy):
+        return copy()
+    return ivp.interval
+
+
+def _ivp_state_difference(ivp: Any) -> Difference:
+    def difference(left: Any, right: Any) -> float:
+        delta = ivp.engine.allocator.allocate_translation()
+        for field, carrier in zip(ivp.engine.algebraist_layout.fields, ivp.engine.carriers, strict=True):
+            carrier.arithmetic.combine2(
+                1.0,
+                field.state_path.get(right),
+                -1.0,
+                field.state_path.get(left),
+                field.translation_path.get(delta),
+            )
+        return delta.norm()
+
+    return difference
+
+
+def _ivp_method_stepper(
+    ivp: Any,
+    method: Any,
+    *,
+    configuration: Any | None = None,
+) -> Any:
+    from stark.integrator.stepper import IntegratorStepper
+
+    scheme = ivp.system.prepare_scheme(
+        method,
+        ivp.engine,
+        ivp.scheme.derivative,
+        ivp.configuration if configuration is None else configuration,
+    )
+    return IntegratorStepper(scheme)
+
+
+def _method_with_scheme_monitor(method: Any, monitor: Any) -> Any:
+    from stark.interface import StarkMethod
+
+    scheme_options = dict(method.scheme_options)
+    scheme_options["monitor"] = monitor.scheme
+    return StarkMethod(
+        scheme=method.scheme,
+        resolvent=method.resolvent,
+        inverter=method.inverter,
+        scheme_options=scheme_options,
+        resolvent_options=method.resolvent_options,
+        inverter_options=method.inverter_options,
+    )
+
+
 __all__ = [
     "ComparisonEntry",
+    "ComparisonEntryLike",
+    "ComparisonEntryStepper",
     "ComparisonProblem",
+    "ComparisonProblemLike",
+    "ComparisonProblemManual",
     "ComparisonReport",
     "Comparison",
     "ComparisonBreakdown",
@@ -348,7 +550,8 @@ __all__ = [
     "Difference",
     "Diagnostics",
     "IntervalBuilder",
-    "MarcherBuilder",
+    "StepperBuilder",
+    "ObservedStepperBuilder",
     "ProfileCategory",
     "StateBuilder",
     "TrajectoryDifference",

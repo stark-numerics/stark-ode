@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from types import SimpleNamespace
+from typing import Any
 
 from stark.algebraist.layout import AlgebraistLayout
 from stark.carriers.numpy import CarrierNumpy
@@ -14,6 +15,9 @@ class StarkEngineAllocatorNumpy:
 
     algebraist_layout: AlgebraistLayout
     carriers: tuple[CarrierNumpy, ...] = field(repr=False)
+    linear_combine: tuple[Any, ...] = field(default=(), repr=False)
+    apply_translation: Any = field(default=None, repr=False)
+    norm: Any = field(default=None, repr=False)
 
     def allocate_state(self) -> SimpleNamespace:
         state = SimpleNamespace()
@@ -34,6 +38,9 @@ class StarkEngineAllocatorNumpy:
             algebraist_layout=self.algebraist_layout,
             carriers=self.carriers,
             allocator=self,
+            linear_combine=self.linear_combine,
+            apply_translation=self.apply_translation,
+            norm_kernel=self.norm,
         )
         for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
             field.translation_path.set(translation, carrier.allocation.zero_translation())

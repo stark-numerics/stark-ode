@@ -3,7 +3,7 @@ from __future__ import annotations
 from statistics import median
 from time import perf_counter
 
-from examples.comparison.robertson import common, diffrax, scipy, stark
+from competition.robertson import common, diffrax, scipy, stark
 
 
 def prewarm_runner(prepare_runner, problem, parameters, initial_conditions, reference) -> None:
@@ -129,7 +129,7 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
             else "selected accelerator: numba, but it is unavailable here so the benchmark is using pure Python kernels"
         )
     )
-    print("  STARK Robertson uses StarkIVP to prepare the carrier, allocator, derivative, and integrator")
+    print("  STARK Robertson prepares the carrier, allocator, derivative, and integrator explicitly")
     print("  STARK Robertson includes a fully implicit Kvaerno4 solve with a custom exact cubic resolvent")
     print("  STARK Robertson also includes Kvaerno4 Newton rows using the new inverter request path")
     print("  one Newton row uses Jacobi relaxation with a materialized local 3x3 entry inverse")

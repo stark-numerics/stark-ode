@@ -18,8 +18,8 @@ ROOT = Path(__file__).resolve().parents[2]
         (("examples.getting_started",), "All getting started examples completed."),
         (("examples.features",), "All feature examples completed."),
         (("examples.case_studies",), "Case study examples"),
-        (("examples.comparison",), "Comparison examples"),
-        (("examples.comparison.check_reports", "--help"), "Run comparison reports"),
+        (("competition",), "Competition examples"),
+        (("competition.check_reports", "--help"), "Run competition reports"),
     ),
 )
 def test_cheap_examples_run_without_traceback(

@@ -1,173 +1,117 @@
 from dataclasses import dataclass
 
-import numpy as np
 import pytest
 
-from stark.carriers import CarrierNative, CarrierNumpy
-from stark.interface import StarkDerivative, StarkVector
-from stark.interface.vector import StarkVectorTranslation
+from stark.accelerators import AcceleratorNone
+from stark.interface import StarkDerivative, StarkDerivativeStyle
 from stark.interface.derivative import (
-    DerivativeRuntimeReturn,
-    DerivativeRuntimeInPlace,
-    DerivativeConventionReturn,
-    DerivativeConventionInPlace
+    StarkDerivativeIntervalInPlace,
+    StarkDerivativeKernel,
+    StarkDerivativeTimeInPlace,
 )
 
 
-@dataclass
+@dataclass(slots=True)
 class DummyInterval:
     present: float
 
 
-def test_explicit_stark_derivative_construction():
-    def rhs(t, y):
-        return y
-
-    derivative = StarkDerivative(rhs, DerivativeConventionReturn())
-
-    assert derivative.function is rhs
-    assert isinstance(derivative.convention, DerivativeConventionReturn)
+@dataclass(slots=True)
+class DummyState:
+    y: float
 
 
-def test_stark_derivative_returning_decorator():
-    @StarkDerivative.returning
-    def rhs(t, y):
-        return y
-
-    assert isinstance(rhs, StarkDerivative)
-    assert isinstance(rhs.convention, DerivativeConventionReturn)
+@dataclass(slots=True)
+class DummyTranslation:
+    dy: float = 0.0
 
 
-def test_stark_derivative_in_place_decorator():
-    @StarkDerivative.in_place
-    def rhs(t, y, dy):
+def test_plain_callable_is_recognised_as_time_in_place() -> None:
+    def rhs(t, state, out) -> None:
+        out.dy = t * state.y
+
+    derivative = StarkDerivative(rhs)
+    out = DummyTranslation()
+
+    assert isinstance(derivative.implementation, StarkDerivativeTimeInPlace)
+
+    derivative(DummyInterval(2.0), DummyState(3.0), out)
+
+    assert out.dy == 6.0
+
+
+def test_interval_in_place_signature_passes_interval_object() -> None:
+    def rhs(interval, state, out) -> None:
+        out.dy = interval.present + state.y
+
+    derivative = StarkDerivative(StarkDerivativeStyle.interval_in_place(rhs))
+    out = DummyTranslation()
+
+    assert isinstance(derivative.implementation, StarkDerivativeIntervalInPlace)
+
+    derivative(DummyInterval(2.0), DummyState(3.0), out)
+
+    assert out.dy == 5.0
+
+
+def test_kernel_signature_calls_field_level_function() -> None:
+    calls = []
+
+    def kernel(y, dy, scale) -> None:
+        calls.append((y, scale))
+        dy[0] = scale * y[0]
+
+    derivative = StarkDerivative(
+        StarkDerivativeStyle.kernel(
+            kernel,
+            state=("y",),
+            translation=("dy",),
+            parameters=(2.0,),
+        )
+    )
+    state = DummyState([3.0])
+    out = DummyTranslation([0.0])
+
+    assert isinstance(derivative.implementation, StarkDerivativeKernel)
+
+    derivative(DummyInterval(0.0), state, out)
+
+    assert calls == [([3.0], 2.0)]
+    assert out.dy == [6.0]
+
+
+def test_kernel_signature_can_be_declared_as_decorator() -> None:
+    @StarkDerivativeStyle.kernel(state=("y",), translation=("dy",))
+    def kernel(y, dy, scale) -> None:
+        dy[0] = scale * y[0]
+
+    derivative = StarkDerivative(kernel.with_parameters(3.0))
+    state = DummyState([4.0])
+    out = DummyTranslation([0.0])
+
+    assert isinstance(derivative.implementation, StarkDerivativeKernel)
+
+    derivative(DummyInterval(0.0), state, out)
+
+    assert out.dy == [12.0]
+
+
+def test_kernel_derivative_can_be_accelerated() -> None:
+    def kernel(y, dy) -> None:
         dy[0] = y[0]
 
-    assert isinstance(rhs, StarkDerivative)
-    assert isinstance(rhs.convention, DerivativeConventionInPlace)
+    derivative = StarkDerivative(
+        StarkDerivativeStyle.kernel(kernel, state=("y",), translation=("dy",))
+    )
+
+    accelerated = derivative.accelerate(AcceleratorNone())
+
+    assert isinstance(accelerated, StarkDerivativeKernel)
 
 
-def test_stark_derivative_from_callable_uses_return_convention():
-    def rhs(t, y):
-        return y
+def test_two_argument_callable_requires_explicit_signature() -> None:
+    def rhs(t, state):
+        return t * state.y
 
-    derivative = StarkDerivative.from_callable(rhs)
-
-    assert derivative.function is rhs
-    assert isinstance(derivative.convention, DerivativeConventionReturn)
-
-
-def test_native_return_derivative_updates_out_value():
-    carrier = CarrierNative([1.0, 2.0])
-
-    @StarkDerivative.returning
-    def rhs(t, y):
-        return [t * y[0], t * y[1]]
-
-    runtime = rhs.bind(carrier)
-
-    interval = DummyInterval(present=2.0)
-    state = StarkVector([3.0, 4.0], carrier)
-    out = StarkVectorTranslation([0.0, 0.0], carrier)
-
-    returned = runtime(interval, state, out)
-
-    assert returned is None
-    assert out.value == [6.0, 8.0]
-
-
-def test_numpy_return_derivative_updates_out_value():
-    carrier = CarrierNumpy(np.array([1.0, 2.0]))
-
-    @StarkDerivative.returning
-    def rhs(t, y):
-        return t * y
-
-    runtime = rhs.bind(carrier)
-
-    interval = DummyInterval(present=2.0)
-    state = StarkVector(np.array([3.0, 4.0]), carrier)
-    out = StarkVectorTranslation(np.zeros(2), carrier)
-
-    runtime(interval, state, out)
-
-    np.testing.assert_allclose(out.value, np.array([6.0, 8.0]))
-
-
-def test_numpy_in_place_derivative_updates_out_value():
-    carrier = CarrierNumpy(np.array([1.0, 2.0]))
-
-    @StarkDerivative.in_place
-    def rhs(t, y, dy):
-        dy[:] = t * y
-
-    runtime = rhs.bind(carrier)
-
-    interval = DummyInterval(present=2.0)
-    state = StarkVector(np.array([3.0, 4.0]), carrier)
-    original_out_value = np.zeros(2)
-    out = StarkVectorTranslation(original_out_value, carrier)
-
-    runtime(interval, state, out)
-
-    assert out.value is original_out_value
-    np.testing.assert_allclose(out.value, np.array([6.0, 8.0]))
-
-
-def test_wrong_numpy_shape_raises():
-    carrier = CarrierNumpy(np.array([1.0, 2.0]))
-
-    @StarkDerivative.returning
-    def rhs(t, y):
-        return np.array([1.0, 2.0, 3.0])
-
-    runtime = rhs.bind(carrier)
-
-    interval = DummyInterval(present=0.0)
-    state = StarkVector(np.array([1.0, 2.0]), carrier)
-    out = StarkVectorTranslation(np.zeros(2), carrier)
-
-    with pytest.raises(ValueError):
-        runtime(interval, state, out)
-
-
-def test_prepared_return_derivative_has_core_compatible_call_shape():
-    carrier = CarrierNative(1.0)
-
-    def rhs(t, y):
-        return -y
-
-    derivative = StarkDerivative.returning(rhs)
-    runtime = derivative.bind(carrier)
-
-    interval = DummyInterval(present=0.0)
-    state = StarkVector(2.0, carrier)
-    out = StarkVectorTranslation(0.0, carrier)
-
-    runtime(interval, state, out)
-
-    assert out.value == -2.0
-
-
-def test_returning_derivative_prepares_specialized_return_runtime():
-    carrier = CarrierNative(1.0)
-
-    def rhs(t, y):
-        return -y
-
-    derivative = StarkDerivative.returning(rhs)
-    runtime = derivative.bind(carrier)
-
-    assert isinstance(runtime, DerivativeRuntimeReturn)
-
-
-def test_in_place_derivative_prepares_specialized_in_place_runtime():
-    carrier = CarrierNative([1.0])
-
-    def rhs(t, y, dy):
-        dy[0] = -y[0]
-
-    derivative = StarkDerivative.in_place(rhs)
-    runtime = derivative.bind(carrier)
-
-    assert isinstance(runtime, DerivativeRuntimeInPlace)
+    with pytest.raises(TypeError, match="function\\(t, state, out\\)"):
+        StarkDerivative(rhs)

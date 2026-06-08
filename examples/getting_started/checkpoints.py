@@ -4,29 +4,36 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Interval
-from stark.interface import StarkIVP
-
-
-def oscillator_rhs(t: float, y: np.ndarray) -> np.ndarray:
-    del t
-    return np.array([y[1], -y[0]])
-
-
-ivp = StarkIVP(
-    derivative=oscillator_rhs,
-    initial=np.array([1.0, 0.0]),
-    interval=Interval(present=0.0, step=0.05, stop=1.0),
+from stark import (
+    Configuration,
+    Interval,
+    StarkLayout,
+    StarkMethod,
+    StarkSystem,
 )
-build = ivp.build()
+from stark.engines import StarkEngineNumpy
+from stark.schemes import SchemeCashKarp
+
+
+def oscillator_rhs(t: float, state, out) -> None:
+    del t
+    out.dy[0] = state.y[1]
+    out.dy[1] = -state.y[0]
+
+
+system = StarkSystem(
+    derivative=oscillator_rhs,
+    layout=StarkLayout({"y": {"translation": "dy", "shape": (2,)}}),
+)
+ivp = system.ivp(
+    initial={"y": np.array([1.0, 0.0])},
+    interval=Interval(present=0.0, step=0.05, stop=1.0),
+    method=StarkMethod(scheme=SchemeCashKarp),
+    engine=StarkEngineNumpy,
+    configuration=Configuration(check_progress=False),
+)
 
 print("Checkpointed harmonic oscillator")
-for interval, state in build.integrator(
-    build.stepper,
-    build.interval,
-    build.initial,
-    checkpoints=4,
-):
-    position, velocity = state.value
+for interval, state in ivp.integrate(checkpoints=4):
+    position, velocity = state.y
     print(f"checkpoint t={interval.present:.2f}, x={position:.6f}, v={velocity:.6f}")
-

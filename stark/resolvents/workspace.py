@@ -5,7 +5,7 @@ from math import sqrt
 from typing import Callable
 
 from stark.accelerators import AcceleratorNone
-from stark.algebraist.runtime import AlgebraistRuntimeGeneral
+from stark.algebraist.runtime import AlgebraistRuntimeLinearCombine
 from stark.block import Block
 from stark.contracts import Accelerator, InnerProduct, Translation, Allocator
 from stark.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
@@ -51,7 +51,7 @@ class ResolventWorkspace:
 
     def bind_accelerator(self, accelerator: Accelerator) -> None:
         self.accelerator = accelerator
-        algebraist = AlgebraistRuntimeGeneral(
+        algebraist = AlgebraistRuntimeLinearCombine(
             translation=self.translation,
             allocator=self,
             accelerator=accelerator,

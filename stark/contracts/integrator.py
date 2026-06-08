@@ -15,8 +15,8 @@ class IntegratorLike(Protocol):
     Protocol for trajectory-building workers built on top of a stepper.
 
     Integrators repeatedly call a stepper until the interval reaches its stop
-    time, yielding either snapshot copies or live mutable objects along the
-    way.
+    time, yielding either stable snapshot copies or the mutating working
+    objects themselves.
     """
 
     def __call__(
@@ -28,7 +28,16 @@ class IntegratorLike(Protocol):
     ) -> Iterator[tuple[IntervalLike, State]]:
         ...
 
-    def live(
+    def stable_trajectory(
+        self,
+        stepper: IntegratorStepperLike,
+        interval: IntervalLike,
+        state: State,
+        checkpoints: Any | None = None,
+    ) -> Iterator[tuple[IntervalLike, State]]:
+        ...
+
+    def mutating_trajectory(
         self,
         stepper: IntegratorStepperLike,
         interval: IntervalLike,

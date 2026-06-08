@@ -2,8 +2,8 @@ from __future__ import annotations
 
 # Lesson 2: compare two explicit adaptive schemes
 #
-# Lesson 1 used `StarkIVP` to prepare a NumPy Allen-Cahn problem as a
-# `StarkVector` solve. Now we reuse that prepared vector boundary and ask a
+# Lesson 1 used `StarkSystem` to prepare a NumPy Allen-Cahn problem as a
+# layout-backed solve. Now we reuse that prepared boundary and ask a
 # different question: do two explicit embedded Runge-Kutta schemes agree on the
 # final state?
 #
@@ -16,20 +16,15 @@ from __future__ import annotations
 #
 #     python -m examples.case_studies.allen_cahn.lesson_02_compare_explicit
 
-from stark import IntegratorStepper
+from stark import Configuration, StarkMethod
 from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
-from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp, SchemeDormandPrince
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
-    DIFFUSIVITY,
     Configuration_TOLERANCE,
-    AllenCahnRHS,
     Geometry,
-    initial_profile,
-    make_interval,
+    make_ivp,
     state_diagnostics,
-    state_difference,
 )
 
 
@@ -37,49 +32,28 @@ if __name__ == "__main__":
     geometry = Geometry()
     configuration = Configuration(scheme_tolerance=Configuration_TOLERANCE)
 
-    # We ask `StarkIVP` to prepare the vector-space boundary once, then reuse
-    # the prepared derivative/allocator with two different schemes. This keeps
-    # the comparison focused on method behaviour rather than interface setup.
+    # We ask `StarkSystem` to prepare the problem once, then compare two method
+    # recipes against that same IVP boundary. This keeps the comparison focused
+    # on method behaviour rather than interface setup.
 
-    template = StarkIVP(
-        derivative=StarkDerivative.in_place(
-            AllenCahnRHS(geometry, DIFFUSIVITY),
-        ),
-        initial=initial_profile(geometry),
-        interval=make_interval(),
-        scheme=SchemeCashKarp,
-        configuration=Configuration,
-    ).build()
-
-    carrier = template.initial.carrier
-    derivative = template.derivative
-    allocator = template.allocator
-
-    # ComparisonRunner needs fresh states and intervals for each warmup, timed repeat,
-    # and profiling pass. The carrier prepared by `StarkIVP` knows how to treat
-    # these NumPy arrays as STARK vectors.
+    template = make_ivp(
+        geometry,
+        method=StarkMethod(scheme=SchemeCashKarp),
+        configuration=configuration,
+    )
 
     problem = ComparisonProblem(
-        name="Allen-Cahn explicit",
-        build_state=lambda: StarkVector(initial_profile(geometry), carrier),
-        build_interval=make_interval,
-        difference=state_difference,
+        "Allen-Cahn explicit",
+        template,
         diagnostics=state_diagnostics,
     )
 
-    # Both entries share the same prepared derivative and allocator. That is
-    # acceptable here because the derivative owns only reusable scratch storage
-    # for one sequential comparison run.
+    # Each entry is a method recipe. The runner asks the IVP to build fresh
+    # steppers and fresh states for warmup, timing, and profiling passes.
 
     entries = [
-        ComparisonEntry(
-            "Cash-Karp",
-            IntegratorStepper(SchemeCashKarp(derivative, allocator)),
-        ),
-        ComparisonEntry(
-            "Dormand-Prince",
-            IntegratorStepper(SchemeDormandPrince(derivative, allocator)),
-        ),
+        ComparisonEntry("Cash-Karp", StarkMethod(scheme=SchemeCashKarp)),
+        ComparisonEntry("Dormand-Prince", StarkMethod(scheme=SchemeDormandPrince)),
     ]
 
     # The final-state difference table is the main result here. Small
@@ -92,4 +66,4 @@ if __name__ == "__main__":
     print()
     print("What to notice:")
     print("- Agreement between the two explicit schemes is a sanity check on the model.")
-    print("- This comparison still uses the high-level StarkIVP-prepared vector path.")
+    print("- This comparison uses the high-level StarkSystem-prepared layout path.")

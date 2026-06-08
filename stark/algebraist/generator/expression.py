@@ -41,6 +41,7 @@ class AlgebraistGeneratorEmitterExpression:
         coefficients: tuple[float, ...],
         sources: tuple[str, ...],
         coefficient_prefix: str = "_a",
+        inline_coefficients: bool = False,
     ) -> "AlgebraistGeneratorEmitterExpression":
         if len(coefficients) != len(sources):
             raise ValueError("coefficients and sources must have the same length.")
@@ -48,9 +49,13 @@ class AlgebraistGeneratorEmitterExpression:
         for index, coefficient in enumerate(coefficients):
             if isclose(coefficient, 0.0, abs_tol=0.0):
                 continue
+            if inline_coefficients:
+                coefficient_source = repr(float(coefficient))
+            else:
+                coefficient_source = f"{coefficient_prefix}{index}"
             terms.append(
                 AlgebraistGeneratorEmitterTerm(
-                    coefficient=f"{coefficient_prefix}{index}",
+                    coefficient=coefficient_source,
                     source=sources[index],
                 )
             )

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.algebraist.runtime import AlgebraistRuntimeGeneral
+from stark.algebraist.runtime import AlgebraistRuntimeLinearCombine
 from stark.contracts import Allocator, State, Translation
 from stark.schemes.execution.interval import SchemeShiftedInterval
 
@@ -32,7 +32,7 @@ class SchemeStepSupport:
         self.allocate_translation = allocator.allocate_translation
         self.copy_state = allocator.copy_state
         self.interval_at = SchemeShiftedInterval()
-        algebraist = AlgebraistRuntimeGeneral(
+        algebraist = AlgebraistRuntimeLinearCombine(
             translation,
             allocator=allocator,
         )

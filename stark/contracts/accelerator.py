@@ -10,7 +10,7 @@ reason about.
 """
 
 from collections.abc import Callable
-from typing import Any, Protocol, TypeVar, overload
+from typing import Any, ClassVar, Protocol, TypeVar, overload
 
 from stark.contracts.contract_audit import AuditRecorder
 
@@ -20,7 +20,7 @@ AcceleratorTarget = TypeVar("AcceleratorTarget", bound=Callable[..., Any])
 class Accelerator(Protocol):
     """Public protocol for STARK acceleration workers."""
 
-    name: str
+    name: ClassVar[str]
     strict: bool
 
     @overload

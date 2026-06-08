@@ -3,7 +3,7 @@ from __future__ import annotations
 from statistics import median
 from time import perf_counter
 
-from examples.comparison.fput import common, diffrax, scipy, stark
+from competition.brusselator_2d import common, diffrax, scipy, stark
 
 
 def prewarm_runner(prepare_runner, problem, tolerances, initial_conditions, reference, allow_failure=False) -> None:
@@ -60,8 +60,8 @@ def timed_runner(
         }
 
     return {
-        "library": result["library"],
-        "solver": result["solver"],
+        "library": library,
+        "solver": solver,
         "error": result["error"],
         "steps": result["steps"],
         "setup": float(setup_elapsed),
@@ -89,22 +89,23 @@ def render_table(headers, rows):
 
 
 def describe_problem(problem, tolerances, reference_tolerances, reference, reference_elapsed):
-    print("FPUT-Beta Benchmark")
+    grid_size = problem["grid_size"]
+    print("2D Brusselator Benchmark")
     print()
-    print("This benchmark solves the Fermi-Pasta-Ulam-Tsingou beta lattice with fixed endpoints:")
-    print("  dq_i/dt = p_i")
-    print("  dp_i/dt = q_{i+1} - 2 q_i + q_{i-1} + beta[(q_{i+1} - q_i)^3 - (q_i - q_{i-1})^3]")
-    print("  q_0 = q_{N+1} = 0")
+    print("This benchmark solves a periodic two-species Brusselator reaction-diffusion system:")
+    print("  u_t = alpha laplacian(u) + A + u^2 v - (B + 1) u")
+    print("  v_t = alpha laplacian(v) + B u - u^2 v")
     print()
     print("Problem parameters:")
-    print(f"  chain size: {problem['chain_size']}")
+    print(f"  grid: {grid_size} x {grid_size}")
+    print(f"  domain length: {problem['domain_length']}")
     print(f"  time interval: [{problem['t0']}, {problem['t1']}]")
-    print(f"  beta={problem['beta']}")
-    print(f"  amplitude={problem['amplitude']}")
+    print(f"  alpha={problem['alpha']}, A={problem['a']}, B={problem['b']}")
+    print(f"  dx={problem['dx']:.6g}")
     print()
     print("Initial condition:")
-    print("  q_i = amplitude * sin(pi i / (N + 1))")
-    print("  p_i = 0")
+    print("  u = A + 0.1 sin(2 pi x) sin(2 pi y)")
+    print("  v = B/A + 0.1 cos(2 pi x) cos(2 pi y)")
     print()
     print("Reference solution:")
     print("  generated with SciPy solve_ivp using DOP853")
@@ -117,11 +118,7 @@ def describe_problem(problem, tolerances, reference_tolerances, reference, refer
     print(f"  STARK initial step: {tolerances['initial_step']:.0e}")
     print(
         "  STARK acceleration: "
-        + (
-            "selected accelerator: numba, with compiled RHS and fused translation kernels active"
-            if stark.USE_NUMBA_ACCELERATION
-            else "selected accelerator: numba, but it is unavailable here so NumPy fallback kernels are active"
-        )
+        "StarkEngineNumpy selects Numba when it is installed and otherwise uses unaccelerated callables"
     )
     print("  all compared solver stacks are prewarmed once before timed rows")
     print("  each method performs setup once, then one complete untimed warmup solve")

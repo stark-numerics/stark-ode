@@ -1,26 +1,41 @@
 from __future__ import annotations
 
-"""High-level STARK solve with a NumPy vector state."""
+"""High-level STARK solve with one NumPy vector field."""
 
 import numpy as np
 
-from stark import Interval
-from stark.interface import StarkIVP
+from stark import (
+    Configuration,
+    Interval,
+    StarkDerivativeStyle,
+    StarkLayout,
+    StarkMethod,
+    StarkSystem,
+)
+from stark.engines import StarkEngineNumpy
+from stark.schemes import SchemeCashKarp
 
 
-def harmonic_oscillator(t: float, y: np.ndarray) -> np.ndarray:
+def harmonic_oscillator(t: float, state, out) -> None:
     del t
-    return np.array([y[1], -y[0]])
+    out.dy[0] = state.y[1]
+    out.dy[1] = -state.y[0]
 
 
-ivp = StarkIVP(
-    derivative=harmonic_oscillator,
-    initial=np.array([1.0, 0.0]),
+layout = StarkLayout({"y": {"translation": "dy", "shape": (2,)}})
+system = StarkSystem(
+    derivative=StarkDerivativeStyle.in_place(harmonic_oscillator),
+    layout=layout,
+)
+ivp = system.ivp(
+    initial={"y": np.array([1.0, 0.0])},
     interval=Interval(present=0.0, step=0.05, stop=0.5),
+    method=StarkMethod(scheme=SchemeCashKarp),
+    engine=StarkEngineNumpy,
+    configuration=Configuration(check_progress=False),
 )
 
 print("NumPy harmonic oscillator")
 for interval, state in ivp.integrate():
-    position, velocity = state.value
+    position, velocity = state.y
     print(f"t={interval.present:.2f}, x={position:.6f}, v={velocity:.6f}")
-

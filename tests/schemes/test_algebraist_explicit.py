@@ -162,7 +162,7 @@ def run_adaptive_solve(scheme_type, *, specialist=None) -> tuple[ArrayState, int
     integrator = Integrator(configuration=Configuration())
 
     steps = 0
-    for _interval, _state in integrator.live(stepper, interval, state):
+    for _interval, _state in integrator.mutating_trajectory(stepper, interval, state):
         del _interval, _state
         steps += 1
 

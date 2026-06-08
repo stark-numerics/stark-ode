@@ -2,9 +2,9 @@ from __future__ import annotations
 
 # Lesson 4: fully implicit Newton solve
 #
-# Explicit adaptive methods are easy to set up through `StarkIVP`, but diffusion
+# Explicit adaptive methods are easy to set up through `StarkSystem`, but diffusion
 # can make them conservative. This lesson drops down to the prepared
-# `StarkVector` boundary and treats the full Allen-Cahn right-hand side
+# engine boundary and treats the full Allen-Cahn right-hand side
 # implicitly with SDIRK21 and a Newton resolvent.
 #
 # A Newton resolvent needs two problem-specific pieces:
@@ -23,10 +23,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Interval, IntegratorStepper, Tolerance
-from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
-from stark.interface import StarkDerivative, StarkIVP, StarkVector
-from stark.interface.vector import StarkVectorTranslation
+from stark import Configuration, Interval, IntegratorStepper, StarkMethod, Tolerance
+from stark.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblem
 from stark.inverters import InverterBiCGStab, InverterPolicy
 from stark.resolvents import ResolventNewton
 from stark.schemes import SchemeCashKarp, SchemeSDIRK21
@@ -37,10 +35,8 @@ from examples.case_studies.allen_cahn.lesson_01_problem import (
     Configuration_TOLERANCE,
     AllenCahnRHS,
     Geometry,
-    initial_profile,
-    make_interval,
+    make_ivp,
     state_diagnostics,
-    state_difference,
 )
 
 
@@ -75,10 +71,10 @@ class AllenCahnJacobianOperator:
         self.laplacian_u = np.zeros(geometry.grid_size, dtype=np.float64)
         self.u: np.ndarray | None = None
 
-    def configure(self, state: StarkVector) -> None:
+    def configure(self, state) -> None:
         # The resolvent configures the linearizer at the current trial state
         # before asking the inverter to apply the operator.
-        self.u = state.value
+        self.u = state.u
 
     @staticmethod
     @ACCELERATOR.compile
@@ -87,21 +83,21 @@ class AllenCahnJacobianOperator:
 
     def __call__(
         self,
-        translation: StarkVectorTranslation,
-        out: StarkVectorTranslation,
+        translation,
+        out,
     ) -> None:
         u = self.u
         assert u is not None
         AllenCahnRHS.laplacian_periodic(
-            translation.value,
+            translation.du,
             self.laplacian_u,
             self.inv_dx2,
         )
         self.jacobian_apply(
             u,
-            translation.value,
+            translation.du,
             self.laplacian_u,
-            out.value,
+            out.du,
             self.diffusivity,
         )
 
@@ -121,7 +117,7 @@ class AllenCahnLinearizer:
             )
             self.__class__._compiled = True
 
-    def __call__(self, interval: Interval, state: StarkVector, out) -> None:
+    def __call__(self, interval: Interval, state, out) -> None:
         del interval
         # `out` is STARK's operator probe. Setting `out.apply` gives the Newton
         # resolvent a callable matrix-free linear operator.
@@ -130,10 +126,10 @@ class AllenCahnLinearizer:
 
 
 def allen_cahn_inner_product(
-    left: StarkVectorTranslation,
-    right: StarkVectorTranslation,
+    left,
+    right,
 ) -> float:
-    return float(np.dot(left.value, right.value))
+    return float(np.dot(left.du, right.du))
 
 
 if __name__ == "__main__":
@@ -144,19 +140,14 @@ if __name__ == "__main__":
     # derivative and allocator. Fully implicit methods need those lower-level
     # pieces because the resolvent and inverter work in translation space.
 
-    template = StarkIVP(
-        derivative=StarkDerivative.in_place(
-            AllenCahnRHS(geometry, DIFFUSIVITY),
-        ),
-        initial=initial_profile(geometry),
-        interval=make_interval(),
-        scheme=SchemeCashKarp,
-        configuration=Configuration,
-    ).build()
+    template = make_ivp(
+        geometry,
+        method=StarkMethod(scheme=SchemeCashKarp),
+        configuration=configuration,
+    )
 
-    carrier = template.initial.carrier
-    derivative = template.derivative
-    allocator = template.allocator
+    derivative = template.scheme.derivative
+    allocator = template.engine.allocator
 
     # BiCGStab is a matrix-free Krylov inverter. It needs an inner product on
     # translations; for a NumPy grid field we use the ordinary dot product.
@@ -191,16 +182,14 @@ if __name__ == "__main__":
     # and linear iterations.
 
     problem = ComparisonProblem(
-        name="Allen-Cahn implicit Newton",
-        build_state=lambda: StarkVector(initial_profile(geometry), carrier),
-        build_interval=make_interval,
-        difference=state_difference,
+        "Allen-Cahn implicit Newton",
+        template,
         diagnostics=state_diagnostics,
     )
 
     entries = [
-        ComparisonEntry("SDIRK21 Newton", IntegratorStepper(implicit_scheme)),
-        ComparisonEntry("Cash-Karp", IntegratorStepper(explicit_scheme)),
+        ComparisonEntryStepper("SDIRK21 Newton", IntegratorStepper(implicit_scheme)),
+        ComparisonEntryStepper("Cash-Karp", IntegratorStepper(explicit_scheme)),
     ]
 
     # The interesting part of this report is the tradeoff. SDIRK21 may take

@@ -8,11 +8,12 @@ stencils for scheme stages, accepted increments, and embedded error estimates.
 
 from stark.algebraist.algebraist import Algebraist, AlgebraistKernel, AlgebraistRequest
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.general import AlgebraistGeneral, AlgebraistGeneralKernel
+from stark.algebraist.linear_combine import AlgebraistLinearCombine, AlgebraistLinearCombineKernel
 from stark.algebraist.generator import (
     AlgebraistGeneratorCompiler,
     AlgebraistGeneratorEmitter,
-    AlgebraistGeneratorGeneral,
+    AlgebraistGeneratorLinearCombine,
+    AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
 from stark.algebraist.layout import (
@@ -21,12 +22,21 @@ from stark.algebraist.layout import (
     AlgebraistLayoutBroadcast,
     AlgebraistLayoutField,
     AlgebraistLayoutLooped,
+    AlgebraistLayoutNormExcluded,
+    AlgebraistLayoutNormMax,
+    AlgebraistLayoutNormPolicy,
+    AlgebraistLayoutNormRMS,
     AlgebraistLayoutPath,
     AlgebraistLayoutPolicy,
     AlgebraistLayoutScalar,
     AlgebraistLayoutUnravel,
 )
-from stark.algebraist.runtime import AlgebraistRuntimeGeneral, AlgebraistRuntimeSpecialist
+from stark.algebraist.norm import AlgebraistNorm, AlgebraistNormKernel
+from stark.algebraist.runtime import (
+    AlgebraistRuntimeLinearCombine,
+    AlgebraistRuntimeNorm,
+    AlgebraistRuntimeSpecialist,
+)
 from stark.algebraist.specialist import AlgebraistSpecialist
 from stark.algebraist.stencil import AlgebraistStencil
 from stark.algebraist.allocator import AlgebraistAllocator
@@ -35,23 +45,31 @@ __all__ = [
     "MAX_UNRAVEL_SIZE",
     "Algebraist",
     "AlgebraistArity",
-    "AlgebraistGeneral",
-    "AlgebraistGeneralKernel",
+    "AlgebraistLinearCombine",
+    "AlgebraistLinearCombineKernel",
     "AlgebraistGeneratorCompiler",
     "AlgebraistGeneratorEmitter",
-    "AlgebraistGeneratorGeneral",
+    "AlgebraistGeneratorLinearCombine",
+    "AlgebraistGeneratorNorm",
     "AlgebraistGeneratorSpecialist",
     "AlgebraistKernel",
     "AlgebraistLayout",
     "AlgebraistLayoutBroadcast",
     "AlgebraistLayoutField",
     "AlgebraistLayoutLooped",
+    "AlgebraistLayoutNormExcluded",
+    "AlgebraistLayoutNormMax",
+    "AlgebraistLayoutNormPolicy",
+    "AlgebraistLayoutNormRMS",
     "AlgebraistLayoutPath",
     "AlgebraistLayoutPolicy",
     "AlgebraistLayoutScalar",
     "AlgebraistLayoutUnravel",
+    "AlgebraistNorm",
+    "AlgebraistNormKernel",
     "AlgebraistRequest",
-    "AlgebraistRuntimeGeneral",
+    "AlgebraistRuntimeLinearCombine",
+    "AlgebraistRuntimeNorm",
     "AlgebraistRuntimeSpecialist",
     "AlgebraistSpecialist",
     "AlgebraistStencil",

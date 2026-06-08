@@ -33,6 +33,9 @@ class AlgebraistGeneratorSpecialist(Generic[StateType, TranslationType]):
     def source_string(self, stencil: AlgebraistStencil) -> str:
         return AlgebraistGeneratorEmitter(self.layout).specialist(stencil)
 
+    def source_unit_apply(self) -> str:
+        return AlgebraistGeneratorEmitter(self.layout).unit_apply()
+
     def compile(self, source: str) -> Callable[..., object]:
         return cast(
             Callable[..., object],
@@ -41,6 +44,9 @@ class AlgebraistGeneratorSpecialist(Generic[StateType, TranslationType]):
 
     def provide(self, stencil: AlgebraistStencil) -> Callable[..., object]:
         return self.compile(self.source_string(stencil))
+
+    def provide_unit_apply(self) -> Callable[..., object]:
+        return self.compile(self.source_unit_apply())
 
 
 __all__ = ["AlgebraistGeneratorSpecialist"]

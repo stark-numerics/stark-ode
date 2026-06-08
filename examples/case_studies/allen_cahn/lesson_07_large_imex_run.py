@@ -29,16 +29,15 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from stark import Integrator, Interval, IntegratorStepper, Tolerance
+from stark import Configuration, Integrator, Interval, IntegratorStepper, StarkMethod, Tolerance
 from stark.contracts import DerivativeIMEX
-from stark.interface import StarkDerivative, StarkIVP, StarkVector
 from stark.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     DIFFUSIVITY,
-    AllenCahnRHS,
     Geometry,
     initial_profile,
+    make_ivp,
 )
 from examples.case_studies.allen_cahn.lesson_05_imex_spectral import (
     AllenCahnExplicitDerivative,
@@ -58,18 +57,15 @@ if __name__ == "__main__":
     initial_step = 1.5e-3
     configuration = Configuration(scheme_tolerance=configuration_tolerance)
 
-    # We still let `StarkIVP` prepare the vector carrier and allocator, even
-    # though the solve itself uses a hand-assembled IMEX scheme.
+    # We still let `StarkSystem` prepare the carrier and allocator, even though
+    # the solve itself uses a hand-assembled IMEX scheme.
 
-    template = StarkIVP(
-        derivative=StarkDerivative.in_place(
-            AllenCahnRHS(geometry, DIFFUSIVITY),
-        ),
-        initial=initial_profile(geometry),
+    template = make_ivp(
+        geometry,
+        method=StarkMethod(scheme=SchemeCashKarp),
+        configuration=configuration,
         interval=Interval(present=start_time, step=initial_step, stop=stop_time),
-        scheme=SchemeCashKarp,
-        configuration=Configuration,
-    ).build()
+    )
 
     implicit_derivative = AllenCahnImplicitDerivative(geometry, DIFFUSIVITY)
     explicit_derivative = AllenCahnExplicitDerivative(geometry)
@@ -78,7 +74,7 @@ if __name__ == "__main__":
         explicit=explicit_derivative,
     )
 
-    allocator = template.allocator
+    allocator = template.engine.allocator
     resolvent = AllenCahnSpectralResolvent(geometry, DIFFUSIVITY)
 
     scheme = SchemeKennedyCarpenter43_7(
@@ -90,7 +86,7 @@ if __name__ == "__main__":
     stepper = IntegratorStepper(scheme)
 
     initial = initial_profile(geometry)
-    state = StarkVector(initial.copy(), template.initial.carrier)
+    state = template.fresh_state()
     interval = Interval(present=start_time, step=initial_step, stop=stop_time)
     checkpoints = np.linspace(start_time, stop_time, 120)[1:]
 
@@ -98,7 +94,7 @@ if __name__ == "__main__":
     # mutates its state in place as it advances.
 
     times = [start_time]
-    frames = [state.value.copy()]
+    frames = [state.u.copy()]
 
     for snapshot_interval, snapshot_state in integrate(
         stepper,
@@ -107,7 +103,7 @@ if __name__ == "__main__":
         checkpoints=checkpoints,
     ):
         times.append(float(snapshot_interval.present))
-        frames.append(snapshot_state.value.copy())
+        frames.append(snapshot_state.u.copy())
 
     times = np.asarray(times)
     frames = np.asarray(frames)

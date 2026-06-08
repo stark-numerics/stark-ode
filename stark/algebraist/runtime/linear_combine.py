@@ -6,7 +6,7 @@ from typing import Generic, TypeVar
 
 from stark.accelerators.none import AcceleratorNone
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.general import AlgebraistGeneralKernel
+from stark.algebraist.linear_combine import AlgebraistLinearCombineKernel
 from stark.algebraist.runtime.support import AlgebraistRuntimeSupport
 from stark.algebraist.allocator import AlgebraistAllocator
 from stark.contracts.accelerator import Accelerator
@@ -21,7 +21,7 @@ TranslationType = TypeVar("TranslationType", bound=Translation)
 
 
 @dataclass(slots=True)
-class AlgebraistRuntimeGeneral(Generic[TranslationType]):
+class AlgebraistRuntimeLinearCombine(Generic[TranslationType]):
     """Runtime provider of general arity-based linear-combination kernels."""
 
     translation: TranslationType
@@ -40,11 +40,11 @@ class AlgebraistRuntimeGeneral(Generic[TranslationType]):
             accelerator=self.accelerator,
         )
 
-    def provide(self, request: AlgebraistArity) -> AlgebraistGeneralKernel[TranslationType]:
-        return self._support.provide_general(request)
+    def provide(self, request: AlgebraistArity) -> AlgebraistLinearCombineKernel[TranslationType]:
+        return self._support.provide_linear_combine(request)
 
-    def as_tuple(self, max_arity: int = 12) -> tuple[AlgebraistGeneralKernel[TranslationType], ...]:
+    def as_tuple(self, max_arity: int = 12) -> tuple[AlgebraistLinearCombineKernel[TranslationType], ...]:
         return self._support.provide_tuple(max_arity)
 
 
-__all__ = ["AlgebraistRuntimeGeneral"]
+__all__ = ["AlgebraistRuntimeLinearCombine"]

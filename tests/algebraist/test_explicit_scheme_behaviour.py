@@ -211,7 +211,7 @@ def run_adaptive_solve(
     integrator = Integrator(configuration=Configuration())
 
     steps = 0
-    for _snapshot_interval, _snapshot_state in integrator.live(stepper, interval, state):
+    for _snapshot_interval, _snapshot_state in integrator.mutating_trajectory(stepper, interval, state):
         del _snapshot_interval, _snapshot_state
         steps += 1
 

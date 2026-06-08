@@ -8,8 +8,8 @@ from time import perf_counter
 from typing import Any
 
 from stark.comparison.models import (
-    ComparisonEntry,
-    ComparisonProblem,
+    ComparisonEntryLike,
+    ComparisonProblemLike,
     ComparisonBreakdown,
     ComparisonDiagnostics,
     ComparisonHotspot,
@@ -40,7 +40,7 @@ class ComparisonEntryEvaluation:
     monitor_summary: MonitorSummary | None
 
 
-class ComparisonMarcherCounting:
+class ComparisonStepperCounting:
     __slots__ = ("stepper", "steps")
 
     def __init__(self, stepper: Any) -> None:
@@ -177,21 +177,23 @@ class ComparisonProfileSurvey:
 class ComparisonEntryRunner:
     __slots__ = ("announce", "problem", "profile_survey", "repeats")
 
-    def __init__(self, problem: ComparisonProblem, repeats: int, announce: Any | None = None) -> None:
+    def __init__(self, problem: ComparisonProblemLike, repeats: int, announce: Any | None = None) -> None:
         self.problem = problem
         self.repeats = repeats
         self.announce = announce
         self.profile_survey = ComparisonProfileSurvey()
 
-    def __call__(self, entry: ComparisonEntry) -> ComparisonEntryEvaluation:
+    def __call__(self, entry: ComparisonEntryLike) -> ComparisonEntryEvaluation:
         self._announce(f"Comparing {entry.name}...")
 
         started = perf_counter()
-        stepper = ComparisonMarcherCounting(entry.make_stepper())
-        integrator = entry.build_integrator() if entry.build_integrator is not None else Integrator()
+        stepper = ComparisonStepperCounting(entry.make_stepper(self.problem.ivp))
+        integrator = entry.make_integrator(self.problem.ivp)
+        if integrator is None:
+            integrator = Integrator()
         setup_elapsed = perf_counter() - started
 
-        observed_state, observed_checkpoints, observed_steps, monitor_summary = self._observe_once(stepper, integrator)
+        observed_state, observed_checkpoints, observed_steps, monitor_summary = self._observe_once(entry, integrator)
         self._announce(f"Observed {entry.name}: steps={observed_steps}")
 
         warmup = self._run_once(stepper, integrator)
@@ -226,36 +228,24 @@ class ComparisonEntryRunner:
 
     def _observe_once(
         self,
-        stepper: ComparisonMarcherCounting,
+        entry: ComparisonEntryLike,
         integrator: Integrator,
     ) -> tuple[Any, list[Any], int, MonitorSummary | None]:
         monitor = Monitor()
-        assign_monitor = getattr(stepper.stepper, "assign_monitor", None)
-        if not callable(assign_monitor):
-            observed = self._run_once(stepper, integrator)
+        stepper = ComparisonStepperCounting(entry.make_observed_stepper(monitor, self.problem.ivp))
+        observed = self._run_once(stepper, integrator)
+        if entry.build_observed_stepper is None:
             return observed.state, observed.checkpoints, observed.steps, None
-
-        try:
-            assign_monitor(monitor)
-        except TypeError:
-            observed = self._run_once(stepper, integrator)
-            return observed.state, observed.checkpoints, observed.steps, None
-
-        try:
-            observed = self._run_once(stepper, integrator)
+        else:
             return observed.state, observed.checkpoints, observed.steps, monitor.summary()
-        finally:
-            unassign_monitor = getattr(stepper.stepper, "unassign_monitor", None)
-            if callable(unassign_monitor):
-                unassign_monitor()
 
-    def _run_once(self, stepper: ComparisonMarcherCounting, integrator: Integrator) -> ComparisonRunRecord:
+    def _run_once(self, stepper: ComparisonStepperCounting, integrator: Integrator) -> ComparisonRunRecord:
         state = self.problem.build_state()
         interval = self.problem.build_interval()
         stepper.steps = 0
         checkpoints: list[Any] = []
         started = perf_counter()
-        for _interval, _state in integrator.live(stepper, interval, state, checkpoints=self.problem.checkpoints):
+        for _interval, _state in integrator.mutating_trajectory(stepper, interval, state, checkpoints=self.problem.checkpoints):
             if self.problem.checkpoints is not None:
                 checkpoints.append(stepper.snapshot_state(state))
         elapsed = perf_counter() - started
@@ -263,7 +253,7 @@ class ComparisonEntryRunner:
 
     def _profile_once(
         self,
-        stepper: ComparisonMarcherCounting,
+        stepper: ComparisonStepperCounting,
         integrator: Integrator,
         profile_category: ProfileCategory | None,
     ) -> ComparisonProfile:
@@ -273,7 +263,7 @@ class ComparisonEntryRunner:
         profiler = cProfile.Profile()
         profiler.enable()
         try:
-            for _interval, _state in integrator.live(stepper, interval, state, checkpoints=self.problem.checkpoints):
+            for _interval, _state in integrator.mutating_trajectory(stepper, interval, state, checkpoints=self.problem.checkpoints):
                 pass
         finally:
             profiler.disable()
@@ -315,7 +305,7 @@ def _profile_stats(profiler: cProfile.Profile):
         )
 
 
-__all__ = ["ComparisonEntryEvaluation", "ComparisonRunRecord", "ComparisonEntryRunner", "ComparisonMarcherCounting", "ComparisonProfileSurvey"]
+__all__ = ["ComparisonEntryEvaluation", "ComparisonRunRecord", "ComparisonEntryRunner", "ComparisonStepperCounting", "ComparisonProfileSurvey"]
 
 
 

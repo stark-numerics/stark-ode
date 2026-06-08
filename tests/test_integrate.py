@@ -14,7 +14,7 @@ class DummyInterval:
         self.present += dt
 
 
-class MarcherByStep:
+class StepperByStep:
     def __call__(self, interval: DummyInterval, state: object) -> None:
         if isinstance(state, dict):
             state["value"] += interval.step
@@ -26,7 +26,7 @@ class MarcherByStep:
         return state
 
 
-class StalledMarcher:
+class StalledStepper:
     def __call__(self, interval: DummyInterval, state: object) -> None:
         del interval, state
 
@@ -34,7 +34,7 @@ class StalledMarcher:
         return state
 
 
-class MarcherByClampedStep:
+class StepperByClampedStep:
     def __call__(self, interval: DummyInterval, state: object) -> None:
         dt = min(interval.step, interval.stop - interval.present)
         if isinstance(state, dict):
@@ -47,7 +47,7 @@ class MarcherByClampedStep:
         return state
 
 
-class MarcherAndZeroNextStep(MarcherByClampedStep):
+class StepperAndZeroNextStep(StepperByClampedStep):
     def __call__(self, interval: DummyInterval, state: object) -> None:
         super().__call__(interval, state)
         if interval.present == interval.stop:
@@ -56,7 +56,7 @@ class MarcherAndZeroNextStep(MarcherByClampedStep):
 
 def test_integrate_with_safety_rails_advances() -> None:
     integrate = Integrator()
-    iterator = integrate(MarcherByStep(), DummyInterval(0.0, 0.25, 1.0), {"value": 0.0})
+    iterator = integrate(StepperByStep(), DummyInterval(0.0, 0.25, 1.0), {"value": 0.0})
     history = list(iterator)
 
     assert len(history) == 4
@@ -68,7 +68,7 @@ def test_integrate_with_safety_rails_advances() -> None:
 
 
 def test_integrate_with_safety_rails_raises_on_no_progress() -> None:
-    iterator = Integrator(configuration=Configuration())(StalledMarcher(), DummyInterval(0.0, 0.25, 1.0), object())
+    iterator = Integrator(configuration=Configuration())(StalledStepper(), DummyInterval(0.0, 0.25, 1.0), object())
 
     try:
         next(iterator)
@@ -79,8 +79,8 @@ def test_integrate_with_safety_rails_raises_on_no_progress() -> None:
 
 
 def test_integrate_without_safety_rails_can_skip_progress_check() -> None:
-    iterator = Integrator(configuration=Configuration(check_progress=False)).live(
-        StalledMarcher(),
+    iterator = Integrator(configuration=Configuration(check_progress=False)).mutating_trajectory(
+        StalledStepper(),
         DummyInterval(0.0, 0.25, 1.0),
         object(),
     )
@@ -89,11 +89,11 @@ def test_integrate_without_safety_rails_can_skip_progress_check() -> None:
     assert interval.present == 0.0
 
 
-def test_integrate_live_yields_mutating_objects() -> None:
+def test_integrate_mutating_trajectory_yields_mutating_objects() -> None:
     integrate = Integrator()
     interval = DummyInterval(0.0, 0.25, 1.0)
     state = {"value": 0.0}
-    iterator = integrate.live(MarcherByStep(), interval, state)
+    iterator = integrate.mutating_trajectory(StepperByStep(), interval, state)
 
     first_interval, first_state = next(iterator)
     second_interval, second_state = next(iterator)
@@ -111,7 +111,7 @@ def test_integrate_snapshot_yields_integer_checkpoints() -> None:
     interval = DummyInterval(0.0, 0.3, 1.0)
     state = {"value": 0.0}
 
-    history = list(integrate(MarcherByClampedStep(), interval, state, checkpoints=4))
+    history = list(integrate(StepperByClampedStep(), interval, state, checkpoints=4))
 
     assert [round(item[0].present, 12) for item in history] == [0.25, 0.5, 0.75, 1.0]
     assert [round(item[1]["value"], 12) for item in history] == [0.25, 0.5, 0.75, 1.0]
@@ -120,14 +120,14 @@ def test_integrate_snapshot_yields_integer_checkpoints() -> None:
     assert interval.stop == 1.0
 
 
-def test_integrate_live_yields_only_explicit_checkpoints_and_final_stop() -> None:
+def test_integrate_mutating_trajectory_yields_only_explicit_checkpoints_and_final_stop() -> None:
     integrate = Integrator()
     interval = DummyInterval(0.0, 0.2, 1.0)
     state = {"value": 0.0}
 
     observed = []
-    for checkpoint_interval, checkpoint_state in integrate.live(
-        MarcherByClampedStep(),
+    for checkpoint_interval, checkpoint_state in integrate.mutating_trajectory(
+        StepperByClampedStep(),
         interval,
         state,
         checkpoints=[0.35, 0.8],
@@ -147,8 +147,8 @@ def test_integrate_checkpoints_reuse_positive_step_after_exact_landing() -> None
 
     observed = [
         round(checkpoint_interval.present, 12)
-        for checkpoint_interval, _state in integrate.live(
-            MarcherAndZeroNextStep(),
+        for checkpoint_interval, _state in integrate.mutating_trajectory(
+            StepperAndZeroNextStep(),
             interval,
             state,
             checkpoints=4,
@@ -162,8 +162,8 @@ def test_integrate_checkpoints_reuse_positive_step_after_exact_landing() -> None
 
 def test_integrate_rejects_unordered_checkpoints() -> None:
     integrate = Integrator()
-    iterator = integrate.live(
-        MarcherByClampedStep(),
+    iterator = integrate.mutating_trajectory(
+        StepperByClampedStep(),
         DummyInterval(0.0, 0.2, 1.0),
         {"value": 0.0},
         checkpoints=[0.5, 0.25],

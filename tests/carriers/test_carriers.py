@@ -101,6 +101,18 @@ def test_numpy_arithmetic_writes_into_result() -> None:
     np.testing.assert_allclose(result, [20.0, 23.0, 26.0])
 
 
+def test_numpy_translate_allows_state_result_aliasing() -> None:
+    carrier = CarrierNumpy(np.array([0.0, 0.0, 0.0]))
+
+    state = np.array([1.0, 2.0, 3.0])
+    derivative = np.array([4.0, 5.0, 6.0])
+
+    returned = carrier.arithmetic.translate(state, 2.0, derivative, state)
+
+    assert returned is None
+    np.testing.assert_allclose(state, [9.0, 12.0, 15.0])
+
+
 def test_numpy_norms_rms_default() -> None:
     carrier = CarrierNumpy(np.array([0.0, 0.0]))
 
@@ -121,6 +133,20 @@ def test_cupy_carrier_optional() -> None:
     )
 
     np.testing.assert_allclose(cp.asnumpy(result), [14.0, 19.0, 24.0])
+
+
+def test_cupy_translate_allows_state_result_aliasing_optional() -> None:
+    cp = pytest.importorskip("cupy")
+    from stark.carriers import CarrierCupy
+
+    carrier = CarrierCupy(cp.asarray([1.0, 2.0, 3.0]))
+
+    state = cp.asarray([1.0, 2.0, 3.0])
+    derivative = cp.asarray([4.0, 5.0, 6.0])
+    returned = carrier.arithmetic.translate(state, 2.0, derivative, state)
+
+    assert returned is None
+    np.testing.assert_allclose(cp.asnumpy(state), [9.0, 12.0, 15.0])
 
 
 def test_jax_carrier_optional() -> None:

@@ -27,8 +27,8 @@ class CarrierArithmeticNumpy:
         derivative: Array,
         result: Array,
     ) -> None:
-        np.multiply(derivative, step, out=result)
-        np.add(state, result, out=result)
+        np.multiply(derivative, step, out=self.scratch)
+        np.add(state, self.scratch, out=result)
 
     def add(self, left: Array, right: Array, result: Array) -> None:
         np.add(left, right, out=result)

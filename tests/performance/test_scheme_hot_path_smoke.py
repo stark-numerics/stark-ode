@@ -54,7 +54,7 @@ def run_rk4_steps(n_steps: int) -> float:
     state = ScalarState(1.0)
 
     start = perf_counter()
-    for _interval, _state in Integrator().live(stepper, interval, state):
+    for _interval, _state in Integrator().mutating_trajectory(stepper, interval, state):
         pass
     return perf_counter() - start
 

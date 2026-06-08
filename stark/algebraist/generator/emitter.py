@@ -34,6 +34,11 @@ class AlgebraistGeneratorEmitter:
         kind: Kind = "update" if stencil.apply else "delta"
         return self._emit(kind=kind, coefficients=coefficients, stencil_scale=float(stencil.scale))
 
+    def unit_apply(self) -> str:
+        """Emit `result = origin + translation` without a runtime step argument."""
+
+        return self._emit_unit_apply()
+
     def _emit(
         self,
         *,
@@ -51,12 +56,12 @@ class AlgebraistGeneratorEmitter:
         else:
             if coefficients is None:
                 raise ValueError("specialist emission requires coefficients.")
-            source_count = len(coefficients)
-            coefficient_names = tuple(f"_a{index}" for index in range(source_count))
             hoist_lines = [
                 f"    _a{index} = step * {stencil_scale * coefficient!r}"
                 for index, coefficient in enumerate(coefficients)
             ]
+            source_count = len(coefficients)
+            coefficient_names = tuple(f"_a{index}" for index in range(source_count))
 
         flat_parameters = self._flat_parameters(kind=kind, source_count=source_count)
         flat_lines: list[str] = [f"def _kernel_flat({', '.join(flat_parameters)}):"]
@@ -84,7 +89,44 @@ class AlgebraistGeneratorEmitter:
         else:
             flat_lines.append("    return None")
 
-        wrapper_lines = self._wrapper_lines(kind=kind, source_count=source_count, scalar_fields=tuple(scalar_fields))
+        wrapper_lines = self._wrapper_lines(
+            kind=kind,
+            source_count=source_count,
+            scalar_fields=tuple(scalar_fields),
+        )
+        return "\n".join(flat_lines + [""] + wrapper_lines) + "\n"
+
+    def _emit_unit_apply(self) -> str:
+        source_count = 1
+        flat_parameters = self._flat_parameters_unit_apply(source_count=source_count)
+        flat_lines: list[str] = [f"def _kernel_flat({', '.join(flat_parameters)}):"]
+
+        scalar_fields: list[AlgebraistLayoutField] = []
+        for layout_field in self.layout.fields:
+            field_lines, is_scalar = self._field_lines(
+                kind="update",
+                field=layout_field,
+                source_count=source_count,
+                coefficient_names=("_a0",),
+                fixed_coefficients=(1.0,),
+                inline_fixed_coefficients=True,
+            )
+            flat_lines.extend(field_lines)
+            if is_scalar:
+                scalar_fields.append(layout_field)
+
+        if scalar_fields:
+            returns = ", ".join(f"_scalar_{self._target_name('update', field)}" for field in scalar_fields)
+            if len(scalar_fields) == 1:
+                returns = returns + ","
+            flat_lines.append(f"    return ({returns})")
+        else:
+            flat_lines.append("    return None")
+
+        wrapper_lines = self._wrapper_lines_unit_apply(
+            source_count=source_count,
+            scalar_fields=tuple(scalar_fields),
+        )
         return "\n".join(flat_lines + [""] + wrapper_lines) + "\n"
 
     def _flat_parameters(self, *, kind: Kind, source_count: int) -> list[str]:
@@ -100,6 +142,15 @@ class AlgebraistGeneratorEmitter:
             parameters.extend(f"x{index}_{field.translation_name}" for index in range(source_count))
             if not isinstance(field.policy, AlgebraistLayoutScalar):
                 parameters.append(self._target_name(kind, field))
+        return parameters
+
+    def _flat_parameters_unit_apply(self, *, source_count: int) -> list[str]:
+        parameters: list[str] = []
+        for field in self.layout.fields:
+            parameters.append(self._origin_name(field))
+            parameters.extend(f"x{index}_{field.translation_name}" for index in range(source_count))
+            if not isinstance(field.policy, AlgebraistLayoutScalar):
+                parameters.append(self._target_name("update", field))
         return parameters
 
     def _wrapper_lines(
@@ -138,6 +189,24 @@ class AlgebraistGeneratorEmitter:
             lines.append("    return out")
         return lines
 
+    def _wrapper_lines_unit_apply(
+        self,
+        *,
+        source_count: int,
+        scalar_fields: tuple[AlgebraistLayoutField, ...],
+    ) -> list[str]:
+        lines = [f"def kernel({self._update_wrapper_signature_unit_apply(source_count)}):"]
+        flat_args = self._flat_arguments_unit_apply(source_count=source_count)
+        call = f"_kernel_flat({', '.join(flat_args)})"
+        if scalar_fields:
+            lines.append(f"    _scalars = {call}")
+            for index, field in enumerate(scalar_fields):
+                lines.append(f"    {field.state_expression('result')} = _scalars[{index}]")
+        else:
+            lines.append(f"    {call}")
+        lines.append("    return result")
+        return lines
+
     @staticmethod
     def _general_wrapper_signature(source_count: int) -> str:
         parameters: list[str] = []
@@ -154,6 +223,10 @@ class AlgebraistGeneratorEmitter:
     @staticmethod
     def _update_wrapper_signature(source_count: int) -> str:
         return ", ".join(("step", "origin", *(f"x{index}" for index in range(source_count)), "result"))
+
+    @staticmethod
+    def _update_wrapper_signature_unit_apply(source_count: int) -> str:
+        return ", ".join(("origin", *(f"x{index}" for index in range(source_count)), "result"))
 
     def _flat_arguments(self, *, kind: Kind, source_count: int) -> list[str]:
         arguments: list[str] = []
@@ -177,6 +250,16 @@ class AlgebraistGeneratorEmitter:
                 arguments.append(expression)
         return arguments
 
+    def _flat_arguments_unit_apply(self, *, source_count: int) -> list[str]:
+        arguments: list[str] = []
+        for field in self.layout.fields:
+            arguments.append(field.state_expression("origin"))
+            for index in range(source_count):
+                arguments.append(field.translation_expression(f"x{index}"))
+            if not isinstance(field.policy, AlgebraistLayoutScalar):
+                arguments.append(field.state_expression("result"))
+        return arguments
+
     def _field_lines(
         self,
         *,
@@ -185,6 +268,7 @@ class AlgebraistGeneratorEmitter:
         source_count: int,
         coefficient_names: tuple[str, ...],
         fixed_coefficients: tuple[float, ...] | None,
+        inline_fixed_coefficients: bool = False,
     ) -> tuple[list[str], bool]:
         target_name = self._target_name(kind, field)
         origin_name = self._origin_name(field)
@@ -200,6 +284,7 @@ class AlgebraistGeneratorEmitter:
             expression = AlgebraistGeneratorEmitterExpression.from_fixed_coefficients(
                 coefficients=fixed_coefficients,
                 sources=source_names,
+                inline_coefficients=inline_fixed_coefficients,
             ).source()
         if kind == "update":
             expression = f"{origin_name} + {expression}"
@@ -210,9 +295,9 @@ class AlgebraistGeneratorEmitter:
         if isinstance(policy, AlgebraistLayoutBroadcast):
             return [f"    {target_name}[...] = {expression}"], False
         if isinstance(policy, AlgebraistLayoutLooped):
-            return self._looped_lines(policy=policy, target=target_name, origin=origin_name, sources=source_names, coefficients=coefficient_names, fixed_coefficients=fixed_coefficients, kind=kind), False
+            return self._looped_lines(policy=policy, target=target_name, origin=origin_name, sources=source_names, coefficients=coefficient_names, fixed_coefficients=fixed_coefficients, inline_fixed_coefficients=inline_fixed_coefficients, kind=kind), False
         if isinstance(policy, AlgebraistLayoutUnravel):
-            return self._unravel_lines(policy=policy, target=target_name, origin=origin_name, sources=source_names, coefficients=coefficient_names, fixed_coefficients=fixed_coefficients, kind=kind), False
+            return self._unravel_lines(policy=policy, target=target_name, origin=origin_name, sources=source_names, coefficients=coefficient_names, fixed_coefficients=fixed_coefficients, inline_fixed_coefficients=inline_fixed_coefficients, kind=kind), False
         raise TypeError(f"Unsupported Algebraist layout policy: {policy!r}")
 
     @staticmethod
@@ -234,6 +319,7 @@ class AlgebraistGeneratorEmitter:
         sources: tuple[str, ...],
         coefficients: tuple[str, ...],
         fixed_coefficients: tuple[float, ...] | None,
+        inline_fixed_coefficients: bool = False,
         kind: Kind,
     ) -> list[str]:
         rank = policy.rank
@@ -256,6 +342,7 @@ class AlgebraistGeneratorEmitter:
             sources=sources,
             coefficients=coefficients,
             fixed_coefficients=fixed_coefficients,
+            inline_fixed_coefficients=inline_fixed_coefficients,
         )
         if kind == "update":
             expression = f"{origin}{index} + {expression}"
@@ -271,6 +358,7 @@ class AlgebraistGeneratorEmitter:
         sources: tuple[str, ...],
         coefficients: tuple[str, ...],
         fixed_coefficients: tuple[float, ...] | None,
+        inline_fixed_coefficients: bool = False,
         kind: Kind,
     ) -> list[str]:
         lines: list[str] = []
@@ -282,6 +370,7 @@ class AlgebraistGeneratorEmitter:
                 sources=sources,
                 coefficients=coefficients,
                 fixed_coefficients=fixed_coefficients,
+                inline_fixed_coefficients=inline_fixed_coefficients,
             )
             if kind == "update":
                 expression = f"{origin}{index} + {expression}"
@@ -296,6 +385,7 @@ class AlgebraistGeneratorEmitter:
         sources: tuple[str, ...],
         coefficients: tuple[str, ...],
         fixed_coefficients: tuple[float, ...] | None,
+        inline_fixed_coefficients: bool = False,
     ) -> str:
         indexed_sources = tuple(f"{source}{index}" for source in sources)
         if kind == "general":
@@ -308,6 +398,7 @@ class AlgebraistGeneratorEmitter:
         return AlgebraistGeneratorEmitterExpression.from_fixed_coefficients(
             coefficients=fixed_coefficients,
             sources=indexed_sources,
+            inline_coefficients=inline_fixed_coefficients,
         ).source()
 
     @staticmethod

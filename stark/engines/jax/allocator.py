@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from types import SimpleNamespace
+from typing import Any
 
 from stark.algebraist.layout import AlgebraistLayout
 from stark.carriers.jax import CarrierJax
@@ -14,6 +15,7 @@ class StarkEngineAllocatorJax:
 
     algebraist_layout: AlgebraistLayout
     carriers: tuple[CarrierJax, ...] = field(repr=False)
+    norm: Any = field(default=None, repr=False)
 
     def allocate_state(self) -> SimpleNamespace:
         state = SimpleNamespace()
@@ -34,6 +36,7 @@ class StarkEngineAllocatorJax:
             algebraist_layout=self.algebraist_layout,
             carriers=self.carriers,
             allocator=self,
+            norm_kernel=self.norm,
         )
         for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
             field.translation_path.set(translation, carrier.allocation.zero_translation())

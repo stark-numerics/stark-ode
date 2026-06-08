@@ -24,10 +24,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Integrator, Interval, IntegratorStepper
+from stark import Configuration, Integrator, Interval, IntegratorStepper, StarkMethod
 from stark.contracts import DerivativeIMEX
-from stark.interface import StarkDerivative, StarkIVP, StarkVector
-from stark.interface.vector import StarkVectorTranslation
 from stark.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
@@ -35,8 +33,7 @@ from examples.case_studies.allen_cahn.lesson_01_problem import (
     Configuration_TOLERANCE,
     AllenCahnRHS,
     Geometry,
-    initial_profile,
-    make_interval,
+    make_ivp,
     state_diagnostics,
 )
 
@@ -65,16 +62,16 @@ class AllenCahnImplicitDerivative:
     def __call__(
         self,
         interval: Interval,
-        state: StarkVector,
-        out: StarkVectorTranslation,
+        state,
+        out,
     ) -> None:
         del interval
         AllenCahnRHS.laplacian_periodic(
-            state.value,
+            state.u,
             self.laplacian_u,
             self.inv_dx2,
         )
-        out.value[:] = self.diffusivity * self.laplacian_u
+        out.du[:] = self.diffusivity * self.laplacian_u
 
 
 class AllenCahnExplicitDerivative:
@@ -86,11 +83,11 @@ class AllenCahnExplicitDerivative:
     def __call__(
         self,
         interval: Interval,
-        state: StarkVector,
-        out: StarkVectorTranslation,
+        state,
+        out,
     ) -> None:
         del interval
-        out.value[:] = state.value - state.value**3
+        out.du[:] = state.u - state.u**3
 
 
 class AllenCahnSpectralResolvent:
@@ -102,14 +99,14 @@ class AllenCahnSpectralResolvent:
         self.operator_symbol = diffusivity * 2.0 * (np.cos(theta) - 1.0) * inv_dx2
         self.spectrum = np.zeros(geometry.grid_size, dtype=np.complex128)
 
-    def bind(self, interval: Interval, state: StarkVector) -> None:
+    def bind(self, interval: Interval, state) -> None:
         # The current resolvent contract passes the stage problem directly to
         # `__call__`; this method remains as a no-op for older display text and
         # custom resolvent examples that still mention binding.
         del interval, state
 
     def __call__(self, problem, out) -> None:
-        base_u = problem.origin.value
+        base_u = problem.origin.u
         alpha = problem.alpha
         rhs = problem.rhs
 
@@ -129,10 +126,10 @@ class AllenCahnSpectralResolvent:
         self.spectrum[:] *= alpha * self.operator_symbol
 
         if rhs is not None:
-            self.spectrum[:] += np.fft.fft(rhs[0].value)
+            self.spectrum[:] += np.fft.fft(rhs[0].du)
 
         self.spectrum[:] /= 1.0 - alpha * self.operator_symbol
-        out[0].value[:] = np.fft.ifft(self.spectrum).real
+        out[0].du[:] = np.fft.ifft(self.spectrum).real
 
 
 if __name__ == "__main__":
@@ -147,19 +144,15 @@ if __name__ == "__main__":
     geometry = Geometry()
     configuration = Configuration(scheme_tolerance=Configuration_TOLERANCE)
 
-    # `StarkIVP` prepares the carrier/allocator machinery. We then replace the
-    # derivative with an IMEX pair because this lesson is about the split, not
-    # about reimplementing vector carriers by hand.
+    # `StarkSystem` prepares the carrier/allocator machinery. We then replace
+    # the derivative with an IMEX pair because this lesson is about the split,
+    # not about reimplementing carriers by hand.
 
-    template = StarkIVP(
-        derivative=StarkDerivative.in_place(
-            AllenCahnRHS(geometry, DIFFUSIVITY),
-        ),
-        initial=initial_profile(geometry),
-        interval=make_interval(),
-        scheme=SchemeCashKarp,
-        configuration=Configuration,
-    ).build()
+    template = make_ivp(
+        geometry,
+        method=StarkMethod(scheme=SchemeCashKarp),
+        configuration=configuration,
+    )
 
     implicit_derivative = AllenCahnImplicitDerivative(geometry, DIFFUSIVITY)
     explicit_derivative = AllenCahnExplicitDerivative(geometry)
@@ -168,7 +161,7 @@ if __name__ == "__main__":
         explicit=explicit_derivative,
     )
 
-    allocator = template.allocator
+    allocator = template.engine.allocator
     resolvent = AllenCahnSpectralResolvent(geometry, DIFFUSIVITY)
 
     # Kennedy-Carpenter 4(3) 7-stage is an adaptive IMEX method. The explicit
@@ -183,8 +176,8 @@ if __name__ == "__main__":
     integrate = Integrator(configuration=configuration)
     stepper = IntegratorStepper(scheme)
 
-    interval = make_interval()
-    state = StarkVector(initial_profile(geometry), template.initial.carrier)
+    interval = template.fresh_interval()
+    state = template.fresh_state()
 
     # Snapshot integration copies the state at each checkpoint. That is the
     # safer choice when the caller wants to keep all yielded states.

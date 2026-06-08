@@ -135,7 +135,7 @@ def test_unmonitored_integration_creates_no_scheme_monitor_records() -> None:
     interval = Interval(present=0.0, step=0.1, stop=0.3)
     monitor = Monitor()
 
-    list(Integrator().live(stepper, interval, ScalarState()))
+    list(Integrator().mutating_trajectory(stepper, interval, ScalarState()))
 
     assert monitor.scheme.fixed_steps == []
     assert monitor.scheme.adaptive_steps == []
@@ -149,7 +149,7 @@ def test_direct_scheme_monitor_remains_available_after_integration_exception() -
 
     with pytest.raises(RuntimeError, match="intentional example failure"):
         list(
-            Integrator().live(
+            Integrator().mutating_trajectory(
                 stepper,
                 Interval(present=0.0, step=0.1, stop=0.2),
                 ScalarState(),

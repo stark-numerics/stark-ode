@@ -527,7 +527,7 @@ def test_sdirk21_advances_linear_decay_with_adaptive_control() -> None:
     interval = Interval(present=0.0, step=0.1, stop=0.1)
     state = ScalarState(1.0)
 
-    for _interval, _state in integrate.live(stepper, interval, state):
+    for _interval, _state in integrate.mutating_trajectory(stepper, interval, state):
         pass
 
     assert abs(state.value - 0.36787944117144233) < 5.0e-4
@@ -553,7 +553,7 @@ def test_kvaerno3_advances_linear_decay_with_adaptive_control() -> None:
     interval = Interval(present=0.0, step=0.1, stop=0.1)
     state = ScalarState(1.0)
 
-    for _interval, _state in integrate.live(stepper, interval, state):
+    for _interval, _state in integrate.mutating_trajectory(stepper, interval, state):
         pass
 
     assert abs(state.value - 0.36787944117144233) < 1.0e-4
@@ -579,7 +579,7 @@ def test_kvaerno4_advances_linear_decay_with_adaptive_control() -> None:
     interval = Interval(present=0.0, step=0.1, stop=0.1)
     state = ScalarState(1.0)
 
-    for _interval, _state in integrate.live(stepper, interval, state):
+    for _interval, _state in integrate.mutating_trajectory(stepper, interval, state):
         pass
 
     assert abs(state.value - 0.36787944117144233) < 5.0e-5
@@ -605,7 +605,7 @@ def test_bdf2_advances_linear_decay_with_adaptive_control() -> None:
     interval = Interval(present=0.0, step=0.05, stop=0.2)
     state = ScalarState(1.0)
 
-    for _interval, _state in integrate.live(stepper, interval, state):
+    for _interval, _state in integrate.mutating_trajectory(stepper, interval, state):
         pass
 
     assert abs(state.value - 0.1353352832366127) < 2.0e-2

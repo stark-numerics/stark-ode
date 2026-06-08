@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-# Lesson 1: problem definition and first StarkIVP solve
+# Lesson 1: problem definition and first StarkSystem solve
 #
 # This script is the foundation for the Allen-Cahn example series. The problem
 # state is a NumPy array, so the modern STARK entry point is the interface layer:
-# `StarkIVP` prepares the matching `StarkVector` state, allocator, derivative
-# adapter, and carrier routing for us.
+# `StarkSystem` prepares the matching layout-backed state, allocator,
+# derivative adapter, and carrier routing for us.
 #
 # We solve the one-dimensional periodic Allen-Cahn equation
 #
@@ -18,11 +18,11 @@ from __future__ import annotations
 #
 # In this first lesson we treat the whole right-hand side explicitly with an
 # adaptive Cash-Karp method. Later lessons compare explicit methods, inspect
-# monitoring data, drop down to the StarkVector boundary for implicit solves,
+# monitoring data, drop down to the engine boundary for implicit solves,
 # and then split the PDE into an IMEX method with a custom spectral resolvent.
 #
 # The point of this first run is not to claim Cash-Karp is the right Allen-Cahn
-# solver. It is to establish a baseline: with `StarkIVP`, an array-valued PDE
+# solver. It is to establish a baseline: with `StarkSystem`, an array-valued PDE
 # can be integrated without hand-writing STARK state, translation, and allocator
 # classes.
 #
@@ -41,9 +41,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from stark import Interval, Tolerance
+from stark import Configuration, Interval, StarkLayout, StarkMethod, StarkSystem, Tolerance
 from stark.accelerators import AcceleratorNone, AcceleratorNumba
-from stark.interface import StarkDerivative, StarkIVP, StarkVector
+from stark.engines import StarkEngineNumpy
 from stark.schemes import SchemeCashKarp
 
 
@@ -113,7 +113,7 @@ def initial_profile(geometry: Geometry) -> np.ndarray:
 
 
 def make_interval() -> Interval:
-    # `StarkIVP` expects an explicit interval object. It deliberately does not
+    # STARK expects an explicit interval object. It deliberately does not
     # accept a bare tuple, because the solver mutates `present` and `step`.
     return Interval(
         present=START_TIME,
@@ -130,21 +130,19 @@ def profile_diagnostics(profile: np.ndarray) -> dict[str, float]:
     }
 
 
-def state_difference(left: StarkVector, right: StarkVector) -> float:
+def state_difference(left, right) -> float:
     # ComparisonRunner examples work with final STARK states, so the difference
-    # function receives `StarkVector` objects and looks at their raw values.
-    diff = left.value - right.value
+    # function receives layout-backed objects and looks at their `u` fields.
+    diff = left.u - right.u
     return float((diff @ diff / diff.size) ** 0.5)
 
 
-def state_diagnostics(state: StarkVector) -> dict[str, float]:
-    return profile_diagnostics(state.value)
+def state_diagnostics(state) -> dict[str, float]:
+    return profile_diagnostics(state.u)
 
 
-# The derivative is written in the in-place convention used by `StarkIVP`.
-# STARK passes raw carrier values to this function: time, current NumPy array,
-# and output NumPy array. That keeps the PDE formula visible while avoiding the
-# hand-written state/translation/allocator classes the old notebook needed.
+# The derivative kernel works on raw NumPy arrays. `make_derivative(...)` adapts
+# it to the layout-backed objects that `StarkSystem` gives to schemes.
 
 
 class AllenCahnRHS:
@@ -199,6 +197,43 @@ class AllenCahnRHS:
         out_u[:] = diffusivity * laplacian_u
 
 
+def make_derivative(geometry: Geometry, diffusivity: float = DIFFUSIVITY):
+    rhs = AllenCahnRHS(geometry, diffusivity)
+
+    def derivative(time: float, state, out) -> None:
+        rhs(time, state.u, out.du)
+
+    return derivative
+
+
+def make_layout(geometry: Geometry) -> StarkLayout:
+    return StarkLayout({"u": {"translation": "du", "shape": (geometry.grid_size,)}})
+
+
+def make_system(geometry: Geometry, diffusivity: float = DIFFUSIVITY) -> StarkSystem:
+    return StarkSystem(
+        derivative=make_derivative(geometry, diffusivity),
+        layout=make_layout(geometry),
+    )
+
+
+def make_ivp(
+    geometry: Geometry,
+    *,
+    method: StarkMethod | None = None,
+    configuration: Configuration | None = None,
+    initial: np.ndarray | None = None,
+    interval: Interval | None = None,
+):
+    return make_system(geometry).ivp(
+        initial={"u": initial_profile(geometry) if initial is None else initial},
+        interval=make_interval() if interval is None else interval,
+        method=StarkMethod(scheme=SchemeCashKarp) if method is None else method,
+        engine=StarkEngineNumpy,
+        configuration=Configuration(scheme_tolerance=Configuration_TOLERANCE) if configuration is None else configuration,
+    )
+
+
 if __name__ == "__main__":
     geometry = Geometry()
     initial = initial_profile(geometry)
@@ -221,40 +256,19 @@ if __name__ == "__main__":
     plt.close(fig)
     print(f"Saved {initial_plot_path}")
 
-    # `StarkIVP` is the high-level path for vector-space states. Given a raw
-    # NumPy array, it chooses a carrier, wraps the value as a `StarkVector`,
-    # builds a matching allocator, and binds the derivative convention.
-    #
-    # `StarkDerivative.in_place(...)` says that our RHS writes into the output
-    # array it receives. That avoids allocating a new array on every derivative
-    # call and keeps the PDE kernel close to normal numerical Python.
+    # `StarkSystem` is the high-level path for shaped NumPy states. The layout
+    # names the state field `u` and its matching translation `du`; the engine
+    # owns the carrier, allocator, and generated algebra.
 
-    ivp = StarkIVP(
-        derivative=StarkDerivative.in_place(
-            AllenCahnRHS(geometry, DIFFUSIVITY),
-        ),
-        initial=initial,
-        interval=make_interval(),
-        scheme=SchemeCashKarp,
-        configuration=Configuration(scheme_tolerance=Configuration_TOLERANCE),
-    )
-    build = ivp.build()
-
-    # The build object exposes the lower-level pieces that `StarkIVP` prepared.
-    # We do not need to assemble them by hand in this lesson, but later lessons
-    # will reuse this boundary when they introduce resolvents and inverters.
+    ivp = make_ivp(geometry, initial=initial)
 
     fig, ax = plt.subplots(figsize=(8, 4), constrained_layout=True)
     ax.plot(geometry.x, initial, label=f"t={START_TIME:g}")
 
-    # `live(..., checkpoints=5)` yields the same mutable state object at five
-    # evenly spaced output times. That is convenient for plotting, but it means
-    # we should read or copy values immediately inside the loop.
+    # Stable trajectory mode yields copied snapshots at the requested
+    # checkpoints, which is the right default for plotting.
 
-    for snapshot_interval, snapshot_state in build.integrator.live(
-        build.stepper,
-        build.interval,
-        build.initial,
+    for snapshot_interval, snapshot_state in ivp.stable_trajectory(
         checkpoints=5,
     ):
         diagnostics = state_diagnostics(snapshot_state)
@@ -266,7 +280,7 @@ if __name__ == "__main__":
         )
         ax.plot(
             geometry.x,
-            snapshot_state.value,
+            snapshot_state.u,
             label=f"t={snapshot_interval.present:.2f}",
         )
 
@@ -282,4 +296,4 @@ if __name__ == "__main__":
     print("What to notice:")
     print("- The mean stays near zero because the initial condition is symmetric.")
     print("- The extrema change smoothly as diffusion and reaction compete.")
-    print("- We reached this first result through StarkIVP, not custom adapter classes.")
+    print("- We reached this first result through StarkSystem, not custom adapter classes.")

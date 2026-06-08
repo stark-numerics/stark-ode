@@ -1,16 +1,26 @@
 """Public interface-layer STARK objects."""
 
-from .derivative import StarkDerivative
-from .ivp import StarkIVP
+from .derivative import (
+    StarkDerivative,
+    StarkDerivativeSignature,
+    StarkDerivativeStyle,
+)
 from .layout import (
     AlgebraistLayoutBroadcast,
     AlgebraistLayoutLooped,
     AlgebraistLayoutScalar,
     AlgebraistLayoutUnravel,
-    StarkField,
     StarkLayout,
+    StarkLayoutField,
 )
 from .method import StarkMethod, StarkMethodError
+from .norm import (
+    StarkLayoutNormExcluded,
+    StarkLayoutNormMax,
+    StarkLayoutNormPolicy,
+    StarkLayoutNormRMS,
+)
+from .system import StarkSystem, StarkSystemIVP
 from .vector import StarkVector
 
 __all__ = [
@@ -19,10 +29,17 @@ __all__ = [
     "AlgebraistLayoutScalar",
     "AlgebraistLayoutUnravel",
     "StarkDerivative",
-    "StarkField",
-    "StarkIVP",
+    "StarkDerivativeSignature",
+    "StarkDerivativeStyle",
     "StarkLayout",
+    "StarkLayoutField",
+    "StarkLayoutNormExcluded",
+    "StarkLayoutNormMax",
+    "StarkLayoutNormPolicy",
+    "StarkLayoutNormRMS",
     "StarkMethod",
     "StarkMethodError",
+    "StarkSystem",
+    "StarkSystemIVP",
     "StarkVector",
 ]

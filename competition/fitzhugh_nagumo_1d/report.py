@@ -3,7 +3,7 @@ from __future__ import annotations
 from statistics import median
 from time import perf_counter
 
-from examples.comparison.fitzhugh_nagumo_1d import common, diffrax, scipy, stark
+from competition.fitzhugh_nagumo_1d import common, diffrax, scipy, stark
 
 
 def announce(message: str) -> None:

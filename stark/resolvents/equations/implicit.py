@@ -4,7 +4,7 @@ from collections.abc import MutableSequence
 from typing import cast
 
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.runtime.general import AlgebraistRuntimeGeneral
+from stark.algebraist.runtime.linear_combine import AlgebraistRuntimeLinearCombine
 from stark.block import Block, BlockOperatorDiagonal
 from stark.contracts import Accelerator, Derivative, IntervalLike, Linearizer, State, Translation, Allocator
 from stark.contracts.translation_basis import TranslationBasis
@@ -188,7 +188,7 @@ class ResolventImplicitEquation:
     ) -> None:
         self.method_name = method_name
         translation_probe = allocator.allocate_translation()
-        general = AlgebraistRuntimeGeneral(
+        general = AlgebraistRuntimeLinearCombine(
             translation=translation_probe,
             allocator=allocator,
             accelerator=accelerator,
@@ -323,7 +323,7 @@ class ResolventImplicitEquationCoupled:
     ) -> None:
         self.method_name = method_name
         translation_probe = allocator.allocate_translation()
-        general = AlgebraistRuntimeGeneral(
+        general = AlgebraistRuntimeLinearCombine(
             translation=translation_probe,
             allocator=allocator,
             accelerator=accelerator,

@@ -1,8 +1,8 @@
 """Assemble a solver manually from an initial vector state.
 
-`StarkIVP` is the usual high-level interface for solving an initial value
-problem. It is the right starting point when you want to describe an ODE problem
-and let STARK build the usual integration workflow.
+`StarkSystem` is the high-level interface for solving an initial value problem.
+It is the right starting point when you want to describe an ODE problem and let
+STARK build the usual integration workflow.
 
 Sometimes it is useful to work one level lower:
 
@@ -54,15 +54,15 @@ def main() -> None:
     print(f"  after displacement: {displaced_state.value}")
     print()
 
-    # Manual solver assembly. StarkIVP would normally hide this wiring.
+    # Manual solver assembly. StarkSystem would normally hide this wiring.
     scheme = SchemeRK4(growth, allocator)
     stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
 
-    print("Manual marching with RK4:")
+    print("Manual stepping with RK4:")
     print(f"  t=0.0, y={state.value[0]:.6f}")
 
-    for step_interval, step_state in Integrator().live(stepper, interval, state):
+    for step_interval, step_state in Integrator().mutating_trajectory(stepper, interval, state):
         print(f"  t={step_interval.present:.1f}, y={step_state.value[0]:.6f}")
 
 

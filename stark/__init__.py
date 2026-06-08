@@ -9,10 +9,19 @@ from stark.core.interval import Interval
 from stark.integrator.stepper import IntegratorStepper
 from stark.inverters.configuration import InverterConfiguration
 from stark.interface import (
-    StarkField,
+    StarkDerivative,
+    StarkDerivativeSignature,
+    StarkDerivativeStyle,
     StarkLayout,
+    StarkLayoutField,
+    StarkLayoutNormExcluded,
+    StarkLayoutNormMax,
+    StarkLayoutNormPolicy,
+    StarkLayoutNormRMS,
     StarkMethod,
     StarkMethodError,
+    StarkSystem,
+    StarkSystemIVP,
 )
 from stark.monitor import Monitor
 from stark.resolvents.configuration import ResolventConfiguration
@@ -31,9 +40,18 @@ __all__ = [
     "Monitor",
     "ResolventConfiguration",
     "SchemeConfiguration",
-    "StarkField",
+    "StarkDerivative",
+    "StarkDerivativeSignature",
+    "StarkDerivativeStyle",
     "StarkLayout",
+    "StarkLayoutField",
+    "StarkLayoutNormExcluded",
+    "StarkLayoutNormMax",
+    "StarkLayoutNormPolicy",
+    "StarkLayoutNormRMS",
     "StarkMethod",
     "StarkMethodError",
+    "StarkSystem",
+    "StarkSystemIVP",
     "Tolerance",
 ]

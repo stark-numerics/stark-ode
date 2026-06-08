@@ -17,12 +17,45 @@ from stark.contracts.allocator import Allocator
 class StarkEngine(Protocol):
     """Backend bundle for a declared STARK layout."""
 
-    layout: Any
-    algebraist_layout: Any
-    accelerator: Accelerator
-    allocator: Allocator
-    algebraist_general: Any
-    algebraist_specialist: Any
+    @property
+    def layout(self) -> Any:
+        """User-facing layout used to construct this backend bundle."""
+        ...
+
+    @property
+    def algebraist_layout(self) -> Any:
+        """Algebraist layout derived from the user-facing layout."""
+        ...
+
+    @property
+    def accelerator(self) -> Accelerator:
+        """Accelerator used for generated or user-supplied kernels."""
+        ...
+
+    @property
+    def allocator(self) -> Allocator:
+        """Allocator for backend-owned state and translation objects."""
+        ...
+
+    @property
+    def carriers(self) -> tuple[Any, ...]:
+        """Carrier objects corresponding to the algebraist layout fields."""
+        ...
+
+    @property
+    def algebraist_linear_combine(self) -> Any:
+        """Provider for backend linear-combine kernels."""
+        ...
+
+    @property
+    def algebraist_norm(self) -> Any:
+        """Provider for backend norm kernels."""
+        ...
+
+    @property
+    def algebraist_specialist(self) -> Any:
+        """Provider for backend specialist kernels."""
+        ...
 
 
 __all__ = ["StarkEngine"]

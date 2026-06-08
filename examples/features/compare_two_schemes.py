@@ -1,62 +1,53 @@
 from __future__ import annotations
 
-"""Compare two built-in schemes on one small vector problem."""
+"""Compare two built-in schemes on one small vector-field problem."""
 
 import numpy as np
 
-from stark import Interval, IntegratorStepper
-from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
-from stark.interface import StarkIVP, StarkVector
+from stark import (
+    Configuration,
+    Interval,
+    StarkLayout,
+    StarkMethod,
+    StarkSystem,
+)
+from stark.comparison import ComparisonEntry, ComparisonProblem, ComparisonRunner
+from stark.engines import StarkEngineNumpy
 from stark.schemes import SchemeCashKarp, SchemeDormandPrince
-from stark.core import Configuration
 
-def oscillator_rhs(t: float, y: np.ndarray) -> np.ndarray:
+
+def oscillator_rhs(t: float, state, out) -> None:
     del t
-    return np.array([y[1], -y[0]])
+    out.dy[0] = state.y[1]
+    out.dy[1] = -state.y[0]
 
 
-template = StarkIVP(
+system = StarkSystem(
     derivative=oscillator_rhs,
-    initial=np.array([1.0, 0.0]),
+    layout=StarkLayout({"y": {"translation": "dy", "shape": (2,)}}),
+)
+template = system.ivp(
+    initial={"y": np.array([1.0, 0.0])},
     interval=Interval(present=0.0, step=0.05, stop=1.0),
-).build()
+    method=StarkMethod(scheme=SchemeCashKarp),
+    engine=StarkEngineNumpy,
+    configuration=Configuration(check_progress=False),
+)
 
 
-def build_state() -> StarkVector:
-    return StarkVector(np.array([1.0, 0.0]), template.initial.carrier)
-
-
-def build_interval() -> Interval:
-    return Interval(present=0.0, step=0.05, stop=1.0)
-
-
-def difference(left: StarkVector, right: StarkVector) -> float:
-    return float(np.linalg.norm(left.value - right.value))
-
-
-def diagnostics(state: StarkVector) -> dict[str, float]:
-    position, velocity = state.value
+def diagnostics(state) -> dict[str, float]:
+    position, velocity = state.y
     return {"position": float(position), "velocity": float(velocity)}
 
 
-configuration = Configuration()
 problem = ComparisonProblem(
-    name="harmonic oscillator",
-    build_state=build_state,
-    build_interval=build_interval,
-    difference=difference,
+    "harmonic oscillator",
+    template,
     diagnostics=diagnostics,
 )
 entries = [
-    ComparisonEntry(
-        "Cash-Karp",
-        IntegratorStepper(SchemeCashKarp(template.derivative, template.allocator)),
-    ),
-    ComparisonEntry(
-        "Dormand-Prince",
-        IntegratorStepper(SchemeDormandPrince(template.derivative, template.allocator)),
-    ),
+    ComparisonEntry("Cash-Karp", StarkMethod(scheme=SchemeCashKarp)),
+    ComparisonEntry("Dormand-Prince", StarkMethod(scheme=SchemeDormandPrince)),
 ]
 
 print(ComparisonRunner(problem, entries, repeats=1)())
-

@@ -5,7 +5,7 @@ import numpy as np
 from stark import IntegratorStepper
 from stark.accelerators import AcceleratorNone
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorGeneral
+from stark.algebraist.generator import AlgebraistGeneratorLinearCombine
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField
 from stark.core.auditor import Auditor
 from stark.integrator.integrator import Integrator
@@ -217,7 +217,7 @@ def test_scheme_step_support_consumes_algebraist_linear_combine_contract() -> No
             return AlgebraistTranslation()
 
     allocator = AlgebraistAllocator()
-    provider = AlgebraistGeneratorGeneral(
+    provider = AlgebraistGeneratorLinearCombine(
         translation=AlgebraistTranslation([1.0, 2.0]),
         allocator=allocator,
         layout=AlgebraistLayout(
@@ -469,7 +469,7 @@ def test_scheme_monitor_collects_adaptive_step_payloads_during_integration() -> 
     stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
 
-    list(Integrator().live(stepper, interval, object()))
+    list(Integrator().mutating_trajectory(stepper, interval, object()))
 
     assert len(monitor.scheme.adaptive_steps) == 2
     assert [round(step.t_start, 12) for step in monitor.scheme.adaptive_steps] == [0.0, 0.1]

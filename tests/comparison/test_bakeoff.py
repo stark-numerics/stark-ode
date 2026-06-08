@@ -1,7 +1,7 @@
 import pytest
 
 from stark import Interval, IntegratorStepper, Tolerance
-from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
+from stark.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblemManual
 from stark.schemes import SchemeCashKarp, SchemeEuler
 
 
@@ -18,7 +18,7 @@ class DummyInterval:
         self.present += dt
 
 
-class WeightedMarcher:
+class WeightedStepper:
     def __init__(self, weight: float) -> None:
         self.weight = weight
 
@@ -30,10 +30,10 @@ class WeightedMarcher:
         return dict(state)
 
 
-class MonitorableWeightedMarcher(WeightedMarcher):
-    def __init__(self, weight: float) -> None:
+class MonitorableWeightedStepper(WeightedStepper):
+    def __init__(self, weight: float, monitor) -> None:
         super().__init__(weight)
-        self.monitor = None
+        self.monitor = monitor
 
     def __call__(self, interval: DummyInterval, state: dict[str, float]) -> None:
         t_start = interval.present
@@ -41,12 +41,6 @@ class MonitorableWeightedMarcher(WeightedMarcher):
         if self.monitor is not None:
             self.monitor.scheme.record_fixed_step("Weighted", t_start, interval.step)
             self.monitor.inverter.record_solve("Direct", True, None, None, None, None)
-
-    def assign_monitor(self, monitor) -> None:
-        self.monitor = monitor
-
-    def unassign_monitor(self) -> None:
-        self.monitor = None
 
 
 class ScalarState:
@@ -88,7 +82,7 @@ def unit_rhs(interval: Interval, state: ScalarState, out: ScalarTranslation) -> 
 
 
 def test_bakeoff_reports_pairwise_differences() -> None:
-    problem = ComparisonProblem(
+    problem = ComparisonProblemManual(
         name="Dummy",
         build_state=lambda: {"value": 0.0},
         build_interval=lambda: DummyInterval(0.0, 0.25, 1.0),
@@ -96,8 +90,8 @@ def test_bakeoff_reports_pairwise_differences() -> None:
         diagnostics=lambda state: {"value": state["value"]},
     )
     entries = [
-        ComparisonEntry("baseline", lambda: WeightedMarcher(1.0), metadata={"variant": "baseline", "accelerator": "none"}),
-        ComparisonEntry("slow", lambda: WeightedMarcher(0.5), metadata={"variant": "slow", "accelerator": "none"}),
+        ComparisonEntryStepper("baseline", lambda: WeightedStepper(1.0), metadata={"variant": "baseline", "accelerator": "none"}),
+        ComparisonEntryStepper("slow", lambda: WeightedStepper(0.5), metadata={"variant": "slow", "accelerator": "none"}),
     ]
 
     report = ComparisonRunner(problem, entries, repeats=2)()
@@ -121,15 +115,15 @@ def test_bakeoff_reports_pairwise_differences() -> None:
 
 
 def test_bakeoff_accepts_direct_steppers() -> None:
-    problem = ComparisonProblem(
+    problem = ComparisonProblemManual(
         name="Dummy",
         build_state=lambda: {"value": 0.0},
         build_interval=lambda: DummyInterval(0.0, 0.25, 1.0),
         difference=lambda left, right: abs(left["value"] - right["value"]),
     )
     entries = [
-        ComparisonEntry("baseline", WeightedMarcher(1.0)),
-        ComparisonEntry("slow", lambda: WeightedMarcher(0.5)),
+        ComparisonEntryStepper("baseline", WeightedStepper(1.0)),
+        ComparisonEntryStepper("slow", lambda: WeightedStepper(0.5)),
     ]
 
     report = ComparisonRunner(problem, entries, repeats=1)()
@@ -139,7 +133,7 @@ def test_bakeoff_accepts_direct_steppers() -> None:
 
 
 def test_bakeoff_reports_pairwise_trajectory_differences() -> None:
-    problem = ComparisonProblem(
+    problem = ComparisonProblemManual(
         name="Dummy",
         build_state=lambda: {"value": 0.0},
         build_interval=lambda: DummyInterval(0.0, 0.25, 1.0),
@@ -147,8 +141,8 @@ def test_bakeoff_reports_pairwise_trajectory_differences() -> None:
         checkpoints=2,
     )
     entries = [
-        ComparisonEntry("baseline", lambda: WeightedMarcher(1.0), metadata={"variant": "baseline"}),
-        ComparisonEntry("slow", lambda: WeightedMarcher(0.5), metadata={"variant": "slow"}),
+        ComparisonEntryStepper("baseline", lambda: WeightedStepper(1.0), metadata={"variant": "baseline"}),
+        ComparisonEntryStepper("slow", lambda: WeightedStepper(0.5), metadata={"variant": "slow"}),
     ]
 
     report = ComparisonRunner(problem, entries, repeats=1)()
@@ -162,15 +156,15 @@ def test_bakeoff_reports_pairwise_trajectory_differences() -> None:
 
 
 def test_bakeoff_skips_diagnostics_table_when_problem_has_none() -> None:
-    problem = ComparisonProblem(
+    problem = ComparisonProblemManual(
         name="Dummy",
         build_state=lambda: {"value": 0.0},
         build_interval=lambda: DummyInterval(0.0, 0.25, 1.0),
         difference=lambda left, right: abs(left["value"] - right["value"]),
     )
     entries = [
-        ComparisonEntry("baseline", lambda: WeightedMarcher(1.0)),
-        ComparisonEntry("slow", lambda: WeightedMarcher(0.5)),
+        ComparisonEntryStepper("baseline", lambda: WeightedStepper(1.0)),
+        ComparisonEntryStepper("slow", lambda: WeightedStepper(0.5)),
     ]
 
     report = ComparisonRunner(problem, entries, repeats=1)()
@@ -179,15 +173,19 @@ def test_bakeoff_skips_diagnostics_table_when_problem_has_none() -> None:
 
 
 def test_bakeoff_uses_monitored_observation_without_monitoring_timed_repeats() -> None:
-    problem = ComparisonProblem(
+    problem = ComparisonProblemManual(
         name="Dummy",
         build_state=lambda: {"value": 0.0},
         build_interval=lambda: DummyInterval(0.0, 0.25, 1.0),
         difference=lambda left, right: abs(left["value"] - right["value"]),
     )
     entries = [
-        ComparisonEntry("baseline", lambda: MonitorableWeightedMarcher(1.0)),
-        ComparisonEntry("slow", lambda: WeightedMarcher(0.5)),
+        ComparisonEntryStepper(
+            "baseline",
+            lambda: WeightedStepper(1.0),
+            build_observed_stepper=lambda monitor: MonitorableWeightedStepper(1.0, monitor),
+        ),
+        ComparisonEntryStepper("slow", lambda: WeightedStepper(0.5)),
     ]
 
     report = ComparisonRunner(problem, entries, repeats=2)()
@@ -205,7 +203,7 @@ def test_bakeoff_uses_monitored_observation_without_monitoring_timed_repeats() -
 
 
 def test_bakeoff_requires_two_entries() -> None:
-    problem = ComparisonProblem(
+    problem = ComparisonProblemManual(
         name="Dummy",
         build_state=lambda: {"value": 0.0},
         build_interval=lambda: DummyInterval(0.0, 0.25, 1.0),
@@ -213,7 +211,7 @@ def test_bakeoff_requires_two_entries() -> None:
     )
 
     try:
-        ComparisonRunner(problem, [ComparisonEntry("only", lambda: WeightedMarcher(1.0))])
+        ComparisonRunner(problem, [ComparisonEntryStepper("only", lambda: WeightedStepper(1.0))])
     except ValueError as exc:
         assert "at least two entries" in str(exc)
     else:  # pragma: no cover - defensive failure branch

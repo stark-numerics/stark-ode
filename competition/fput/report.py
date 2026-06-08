@@ -3,7 +3,7 @@ from __future__ import annotations
 from statistics import median
 from time import perf_counter
 
-from examples.comparison.brusselator_2d import common, diffrax, scipy, stark
+from competition.fput import common, diffrax, scipy, stark
 
 
 def prewarm_runner(prepare_runner, problem, tolerances, initial_conditions, reference, allow_failure=False) -> None:
@@ -60,8 +60,8 @@ def timed_runner(
         }
 
     return {
-        "library": library,
-        "solver": solver,
+        "library": result["library"],
+        "solver": result["solver"],
         "error": result["error"],
         "steps": result["steps"],
         "setup": float(setup_elapsed),
@@ -89,23 +89,22 @@ def render_table(headers, rows):
 
 
 def describe_problem(problem, tolerances, reference_tolerances, reference, reference_elapsed):
-    grid_size = problem["grid_size"]
-    print("2D Brusselator Benchmark")
+    print("FPUT-Beta Benchmark")
     print()
-    print("This benchmark solves a periodic two-species Brusselator reaction-diffusion system:")
-    print("  u_t = alpha laplacian(u) + A + u^2 v - (B + 1) u")
-    print("  v_t = alpha laplacian(v) + B u - u^2 v")
+    print("This benchmark solves the Fermi-Pasta-Ulam-Tsingou beta lattice with fixed endpoints:")
+    print("  dq_i/dt = p_i")
+    print("  dp_i/dt = q_{i+1} - 2 q_i + q_{i-1} + beta[(q_{i+1} - q_i)^3 - (q_i - q_{i-1})^3]")
+    print("  q_0 = q_{N+1} = 0")
     print()
     print("Problem parameters:")
-    print(f"  grid: {grid_size} x {grid_size}")
-    print(f"  domain length: {problem['domain_length']}")
+    print(f"  chain size: {problem['chain_size']}")
     print(f"  time interval: [{problem['t0']}, {problem['t1']}]")
-    print(f"  alpha={problem['alpha']}, A={problem['a']}, B={problem['b']}")
-    print(f"  dx={problem['dx']:.6g}")
+    print(f"  beta={problem['beta']}")
+    print(f"  amplitude={problem['amplitude']}")
     print()
     print("Initial condition:")
-    print("  u = A + 0.1 sin(2 pi x) sin(2 pi y)")
-    print("  v = B/A + 0.1 cos(2 pi x) cos(2 pi y)")
+    print("  q_i = amplitude * sin(pi i / (N + 1))")
+    print("  p_i = 0")
     print()
     print("Reference solution:")
     print("  generated with SciPy solve_ivp using DOP853")
@@ -174,16 +173,18 @@ def main() -> None:
     reference = scipy.run_reference(problem, reference_tolerances, initial_conditions)
     reference_elapsed = perf_counter() - started
 
-    prewarm_runner(stark.prepare_rkck, problem, tolerances, initial_conditions, reference)
-    prewarm_runner(stark.prepare_rkdp, problem, tolerances, initial_conditions, reference)
+    stark_problem = stark.FPUTStarkProblem(problem)
+
+    prewarm_runner(stark_problem.prepare_rkck, problem, tolerances, initial_conditions, reference)
+    prewarm_runner(stark_problem.prepare_rkdp, problem, tolerances, initial_conditions, reference)
     prewarm_runner(scipy.prepare_rk45, problem, tolerances, initial_conditions, reference)
     prewarm_runner(scipy.prepare_dop853, problem, tolerances, initial_conditions, reference)
     prewarm_runner(diffrax.prepare_tsit5, problem, tolerances, initial_conditions, reference, allow_failure=True)
     prewarm_runner(diffrax.prepare_dopri5, problem, tolerances, initial_conditions, reference, allow_failure=True)
 
     rows = [
-        timed_runner("STARK", "RKCK", stark.prepare_rkck, repeats, problem, tolerances, initial_conditions, reference),
-        timed_runner("STARK", "RKDP", stark.prepare_rkdp, repeats, problem, tolerances, initial_conditions, reference),
+        timed_runner("STARK", "RKCK", stark_problem.prepare_rkck, repeats, problem, tolerances, initial_conditions, reference),
+        timed_runner("STARK", "RKDP", stark_problem.prepare_rkdp, repeats, problem, tolerances, initial_conditions, reference),
         timed_runner("SciPy", "RK45", scipy.prepare_rk45, repeats, problem, tolerances, initial_conditions, reference),
         timed_runner("SciPy", "DOP853", scipy.prepare_dop853, repeats, problem, tolerances, initial_conditions, reference),
         timed_runner(

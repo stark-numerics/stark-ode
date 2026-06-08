@@ -5,8 +5,8 @@ from math import sqrt
 from typing import Any
 
 from stark.comparison.models import (
-    ComparisonEntry,
-    ComparisonProblem,
+    ComparisonEntryLike,
+    ComparisonProblemLike,
     ComparisonReport,
     Comparison,
     ComparisonResult,
@@ -19,8 +19,8 @@ class ComparisonRunner:
 
     def __init__(
         self,
-        problem: ComparisonProblem,
-        entries: Iterable[ComparisonEntry],
+        problem: ComparisonProblemLike,
+        entries: Iterable[ComparisonEntryLike],
         repeats: int = 5,
         prewarm_builders: bool = True,
         announce: Any | None = None,
@@ -80,9 +80,8 @@ class ComparisonRunner:
     def _prewarm_builders(self) -> None:
         self._announce("Prewarming entry builders...")
         for entry in self.entries:
-            entry.make_stepper()
-            if entry.build_integrator is not None:
-                entry.build_integrator()
+            entry.make_stepper(self.problem.ivp)
+            entry.make_integrator(self.problem.ivp)
 
     def _pairwise_final_differences(self, baked: list[ComparisonEntryEvaluation]) -> list[list[float]]:
         return [[self.problem.difference(left.state, right.state) for right in baked] for left in baked]

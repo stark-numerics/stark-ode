@@ -27,7 +27,7 @@ class Allocator(Protocol):
     def allocate_state(self) -> State:
         ...
 
-    def copy_state(self, source: State, out: State) -> None:
+    def copy_state(self, source: State, out: State) -> Any:
         ...
 
     def allocate_translation(self) -> Translation:

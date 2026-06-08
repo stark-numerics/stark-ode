@@ -1,58 +1,44 @@
 """Use the built-in Richardson relaxation inverter.
 
-The new inverter call shape keeps the linear problem request separate from the
-output block that is improved in place:
-
-    inverter(request, output)
-
-Richardson relaxation is intentionally simple. It is useful here as the first
-built-in example of the new inverter surface before projection and recurrence
-families are introduced.
+The inverter acts on translation blocks. In ordinary user-facing code those
+translations should come from an engine allocator, just like scheme workspaces
+do, rather than from hand-written scalar wrapper classes.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
+from stark import Configuration, StarkLayout, Tolerance
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
+from stark.engines import StarkEngineNumpy
 from stark.inverters.relaxation import InverterRelaxationRichardson
-from stark import Configuration, Tolerance
 from stark.inverters.support import InverterDefect
 from stark.resolvents.requests.inverter import ResolventInverterRequest
 
 
-@dataclass(slots=True)
-class ScalarTranslation:
-    value: float = 0.0
-
-    def __call__(self, origin, result) -> None:
-        result.value = origin.value + self.value
-
-    def norm(self) -> float:
-        return abs(self.value)
-
-    def __add__(self, other: "ScalarTranslation") -> "ScalarTranslation":
-        return ScalarTranslation(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> "ScalarTranslation":
-        return ScalarTranslation(scalar * self.value)
-
-
-def scale_by_two(source: ScalarTranslation, target: ScalarTranslation) -> None:
-    target.value = 2.0 * source.value
+def scale_by_two(source, target) -> None:
+    target.dx[:] = 2.0 * source.dx
 
 
 def main() -> None:
+    engine = StarkEngineNumpy(StarkLayout({"x": {"translation": "dx", "shape": (1,)}}))
+
+    residual = engine.allocator.allocate_translation()
+    residual.dx[0] = 6.0
+    output_delta = engine.allocator.allocate_translation()
+
     request = ResolventInverterRequest(
         operator=BlockOperatorDiagonal.repeated(scale_by_two, size=1),
-        residual=Block([ScalarTranslation(6.0)]),
+        residual=Block([residual]),
     )
-    output = Block([ScalarTranslation(0.0)])
-    defect = InverterDefect[ScalarTranslation]()
-    inverter = InverterRelaxationRichardson[ScalarTranslation](
+    output = Block([output_delta])
+    defect = InverterDefect()
+    inverter = InverterRelaxationRichardson(
         damping=0.5,
-        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=4),
+        configuration=Configuration(
+            inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0),
+            inverter_maximum_steps=4,
+        ),
     )
 
     initial_defect = defect(request, output)
@@ -64,7 +50,7 @@ def main() -> None:
     print("problem:        2 * output = 6")
     print("initial output: 0")
     print(f"initial defect: {initial_defect:.6g}")
-    print(f"final output:   {output[0].value:.6g}")
+    print(f"final output:   {output[0].dx[0]:.6g}")
     print(f"final defect:   {final_defect:.6g}")
 
 
