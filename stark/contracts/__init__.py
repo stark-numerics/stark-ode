@@ -21,9 +21,9 @@ from stark.contracts.carrier import (
     CarrierValidation,
 )
 from stark.contracts.derivative_imex import DerivativeIMEX, DerivativeIMEXAudit
-from stark.contracts.derivative import Derivative, DerivativeAudit
+from stark.contracts.derivative import DerivativeAudit, DerivativeLike
 from stark.contracts.errors import StarkError, StarkErrorRecoverable
-from stark.contracts.engine import StarkEngine
+from stark.contracts.engine import Engine
 from stark.contracts.inner_product import InnerProduct
 from stark.contracts.integrator import IntegratorLike
 from stark.contracts.interval import IntervalLike
@@ -96,11 +96,11 @@ __all__ = [
     "Combine10",
     "Combine11",
     "Combine12",
-    "Derivative",
     "DerivativeIMEX",
     "DerivativeIMEXAudit",
     "DerivativeAudit",
-    "StarkEngine",
+    "DerivativeLike",
+    "Engine",
     "StarkError",
     "StarkErrorRecoverable",
     "InnerProduct",

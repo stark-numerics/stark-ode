@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from competition.robertson import common
+
 try:
     import jax
 
@@ -28,7 +30,7 @@ def vector_field(t, y, args):
     )
 
 
-def prepare_kvaerno5(problem_parameters, tolerance_parameters, diffrax_parameters, initial_conditions, reference):
+def kvaerno5_solver(problem_parameters, tolerance_parameters, diffrax_parameters, initial_conditions, reference):
     if not DIFFRAX_AVAILABLE:
         raise RuntimeError("Diffrax/JAX is not installed.")
 
@@ -70,8 +72,14 @@ def prepare_kvaerno5(problem_parameters, tolerance_parameters, diffrax_parameter
     return solve_once
 
 
-def run_kvaerno5(problem_parameters, tolerance_parameters, diffrax_parameters, initial_conditions, reference):
-    return prepare_kvaerno5(problem_parameters, tolerance_parameters, diffrax_parameters, initial_conditions, reference)()
+def prepare_kvaerno5(problem_parameters, tolerance_parameters, initial_conditions, reference):
+    return kvaerno5_solver(
+        problem_parameters,
+        tolerance_parameters,
+        common.DIFFRAX_PARAMETERS,
+        initial_conditions,
+        reference,
+    )
 
 
 

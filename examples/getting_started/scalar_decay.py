@@ -7,13 +7,13 @@ import numpy as np
 from stark import (
     Configuration,
     Interval,
-    StarkDerivativeStyle,
-    StarkLayout,
-    StarkMethod,
-    StarkSystem,
+    DerivativeStyle,
+    Layout,
+    Method,
+    System,
 )
-from stark.engines import StarkEngineNumpy
-from stark.schemes import SchemeCashKarp
+from stark.engines import EngineNumpy
+from stark.methods.schemes import SchemeCashKarp
 
 
 def exponential_decay(t: float, state, out) -> None:
@@ -21,16 +21,16 @@ def exponential_decay(t: float, state, out) -> None:
     out.dy[0] = -0.5 * state.y[0]
 
 
-layout = StarkLayout({"y": {"translation": "dy", "shape": (1,)}})
-system = StarkSystem(
-    derivative=StarkDerivativeStyle.in_place(exponential_decay),
+layout = Layout({"y": {"translation": "dy", "shape": (1,)}})
+system = System(
+    derivative=DerivativeStyle.in_place(exponential_decay),
     layout=layout,
 )
 ivp = system.ivp(
     initial={"y": np.array([2.0])},
     interval=Interval(present=0.0, step=0.1, stop=1.0),
-    method=StarkMethod(scheme=SchemeCashKarp),
-    engine=StarkEngineNumpy,
+    method=Method(scheme=SchemeCashKarp),
+    engine=EngineNumpy,
     configuration=Configuration(check_progress=False),
 )
 

@@ -10,7 +10,7 @@ STARK has two different kinds of timing material:
 - **ASV benchmarks** track whether internal changes make STARK faster or
   slower over time.
 
-The comparison reports live in `examples/comparison/`. They are written to be
+The competition reports live in `competition/`. They are written to be
 read by users and to show each solver in its natural style.
 
 The ASV suite lives in `benchmarks/`. It is written for repeatable timing and

@@ -10,18 +10,18 @@ directly.
 
 import numpy as np
 
-from stark import Configuration, Interval, Monitor, StarkLayout, StarkMethod, StarkSystem, Tolerance
+from stark import Configuration, Interval, Monitor, Layout, Method, System, Tolerance
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
-from stark.engines import StarkEngineNumpy
-from stark.inverters.relaxation import InverterRelaxationRichardson
-from stark.resolvents import ResolventPicard
-from stark.resolvents.requests.inverter import ResolventInverterRequest
-from stark.schemes import SchemeEuler
-from stark.schemes.requests.resolvent import SchemeResolventRequest
+from stark.engines import EngineNumpy
+from stark.methods.inverters.relaxation import InverterRelaxationRichardson
+from stark.methods.resolvents import ResolventPicard
+from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
+from stark.methods.schemes import SchemeEuler
+from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
 
 
-LAYOUT = StarkLayout({"x": {"translation": "dx", "shape": (1,)}})
+LAYOUT = Layout({"x": {"translation": "dx", "shape": (1,)}})
 
 
 def constant_rhs(t: float, state, out) -> None:
@@ -39,20 +39,20 @@ def scale_by_two(source, target) -> None:
 
 
 def record_scheme_level(monitor: Monitor) -> None:
-    system = StarkSystem(derivative=constant_rhs, layout=LAYOUT)
+    system = System(derivative=constant_rhs, layout=LAYOUT)
     ivp = system.ivp(
         initial={"x": np.array([0.0])},
         interval=Interval(present=0.0, step=0.1, stop=0.3),
-        method=StarkMethod(scheme=SchemeEuler, scheme_options={"monitor": monitor.scheme}),
-        engine=StarkEngineNumpy,
+        method=Method(scheme=SchemeEuler, scheme_options={"monitor": monitor.scheme}),
+        engine=EngineNumpy,
         configuration=Configuration(check_progress=False),
     )
 
-    list(ivp.mutating_trajectory())
+    ivp.final_result()
 
 
 def record_resolvent_level(monitor: Monitor) -> None:
-    engine = StarkEngineNumpy(LAYOUT)
+    engine = EngineNumpy(LAYOUT)
     resolvent = ResolventPicard(engine.allocator)
     resolvent.assign_monitor(monitor.resolvent)
 
@@ -69,7 +69,7 @@ def record_resolvent_level(monitor: Monitor) -> None:
 
 
 def record_inverter_level(monitor: Monitor) -> None:
-    engine = StarkEngineNumpy(LAYOUT)
+    engine = EngineNumpy(LAYOUT)
     residual = engine.allocator.allocate_translation()
     residual.dx[0] = 6.0
     output_delta = engine.allocator.allocate_translation()

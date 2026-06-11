@@ -6,9 +6,9 @@ import pytest
 
 from stark import Interval, Tolerance
 from stark.accelerators import AcceleratorNone
-from stark.resolvents import ResolventPicard
+from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
-from stark.schemes.imex.fixed.euler import SchemeIMEXEuler
+from stark.methods.schemes.imex.fixed.euler import SchemeIMEXEuler
 
 
 @dataclass(slots=True)

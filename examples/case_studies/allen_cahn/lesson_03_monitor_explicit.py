@@ -32,9 +32,9 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 
-from stark import Configuration, StarkMethod
+from stark import Configuration, Method
 from stark.monitor import Monitor
-from stark.schemes import SchemeCashKarp
+from stark.methods.schemes import SchemeCashKarp
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     Configuration_TOLERANCE,
@@ -55,14 +55,14 @@ if __name__ == "__main__":
 
     ivp = make_ivp(
         geometry,
-        method=StarkMethod(
+        method=Method(
             scheme=SchemeCashKarp,
             scheme_options={"monitor": monitor.scheme},
         ),
         configuration=Configuration(scheme_tolerance=Configuration_TOLERANCE),
     )
 
-    list(ivp.mutating_trajectory())
+    ivp.final_result()
 
     # The monitor records one piece of evidence per accepted adaptive step.
     # Here we extract the time, local error ratio, and total rejected proposals.

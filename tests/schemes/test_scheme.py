@@ -12,27 +12,27 @@ from stark.integrator.integrator import Integrator
 from stark.monitor import Monitor
 from stark import Tolerance
 from stark.core.interval import Interval
-from stark.resolvents import ResolventPicard
-from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
-from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
-from stark.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
-from stark.schemes.explicit.adaptive.fehlberg45 import SchemeFehlberg45
-from stark.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
-from stark.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
-from stark.schemes.imex.adaptive.kennedy_carpenter43_6 import SchemeKennedyCarpenter43_6
-from stark.schemes.imex.adaptive.kennedy_carpenter43_7 import SchemeKennedyCarpenter43_7
-from stark.schemes.imex.adaptive.kennedy_carpenter54 import SchemeKennedyCarpenter54
-from stark.schemes.imex.adaptive.kennedy_carpenter54b import SchemeKennedyCarpenter54b
-from stark.schemes.imex.fixed.euler import SchemeIMEXEuler
-from stark.schemes.explicit.fixed.euler import SchemeEuler
-from stark.schemes.explicit.fixed.heun import SchemeHeun
-from stark.schemes.explicit.fixed.kutta3 import SchemeKutta3
-from stark.schemes.explicit.fixed.midpoint import SchemeMidpoint
-from stark.schemes.explicit.fixed.ralston import SchemeRalston
-from stark.schemes.explicit.fixed.rk4 import SchemeRK4
-from stark.schemes.explicit.fixed.rk38 import SchemeRK38
-from stark.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
-from stark.schemes.execution.step_support import SchemeStepSupport
+from stark.methods.resolvents import ResolventPicard
+from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
+from stark.methods.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
+from stark.methods.schemes.explicit.adaptive.fehlberg45 import SchemeFehlberg45
+from stark.methods.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter43_6 import SchemeKennedyCarpenter43_6
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter43_7 import SchemeKennedyCarpenter43_7
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter54 import SchemeKennedyCarpenter54
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter54b import SchemeKennedyCarpenter54b
+from stark.methods.schemes.imex.fixed.euler import SchemeIMEXEuler
+from stark.methods.schemes.explicit.fixed.euler import SchemeEuler
+from stark.methods.schemes.explicit.fixed.heun import SchemeHeun
+from stark.methods.schemes.explicit.fixed.kutta3 import SchemeKutta3
+from stark.methods.schemes.explicit.fixed.midpoint import SchemeMidpoint
+from stark.methods.schemes.explicit.fixed.ralston import SchemeRalston
+from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.methods.schemes.explicit.fixed.rk38 import SchemeRK38
+from stark.methods.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
+from stark.methods.schemes.execution.step_support import SchemeStepSupport
 from stark import DerivativeIMEX
 
 
@@ -122,7 +122,7 @@ class DummyScheme:
     def snapshot_state(self, state):
         return self.workspace.snapshot_state(state)
 
-    def __call__(self, interval, state: Configuration) -> float:
+    def __call__(self, interval, state) -> float:
         del interval, state
         return 0.0
 

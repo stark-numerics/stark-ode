@@ -20,12 +20,12 @@ from __future__ import annotations
 #
 #     python -m examples.case_studies.allen_cahn.lesson_06_compare_methods
 
-from stark import Configuration, IntegratorStepper, StarkMethod, Tolerance
+from stark import Configuration, IntegratorStepper, Method, Tolerance
 from stark.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblem
 from stark.contracts import DerivativeIMEX
-from stark.inverters import InverterBiCGStab, InverterPolicy
-from stark.resolvents import ResolventNewton
-from stark.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7, SchemeSDIRK21
+from stark.methods.inverters import InverterBiCGStab, InverterLegacyAdapter, InverterPolicy
+from stark.methods.resolvents import ResolventNewton
+from stark.methods.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7, SchemeSDIRK21
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     ACCELERATOR,
@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
     template = make_ivp(
         geometry,
-        method=StarkMethod(scheme=SchemeCashKarp),
+        method=Method(scheme=SchemeCashKarp),
         configuration=configuration,
     )
 
@@ -68,20 +68,29 @@ if __name__ == "__main__":
     explicit_scheme = SchemeCashKarp(full_derivative, allocator)
 
     # 2. Fully implicit Newton: fewer macro steps may be possible, but each
-    # step carries nonlinear and Krylov linear-solve work.
+    # step carries nonlinear and Krylov linear-solve work. The Krylov inverter
+    # is still on the older bind-then-solve API, so the adapter exposes it to
+    # the request-shaped inverter protocol used by ResolventNewton.
 
     linearizer = AllenCahnLinearizer(geometry, DIFFUSIVITY)
-    inverter = InverterBiCGStab(
-        allocator,
-        allen_cahn_inner_product,
-        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7)),
-        policy=InverterPolicy(max_iterations=24, restart=12),
+    inverter = InverterLegacyAdapter(
+        InverterBiCGStab(
+            allocator,
+            allen_cahn_inner_product,
+            configuration=Configuration(
+                inverter_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
+            ),
+            policy=InverterPolicy(max_iterations=24, restart=12),
+        )
     )
     newton_resolvent = ResolventNewton(
         allocator,
         linearizer=linearizer,
         inverter=inverter,
-        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7), resolvent_maximum_steps=12),
+        configuration=Configuration(
+            resolvent_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
+            resolvent_maximum_steps=12,
+        ),
         accelerator=ACCELERATOR,
         tableau=SchemeSDIRK21.tableau,
     )

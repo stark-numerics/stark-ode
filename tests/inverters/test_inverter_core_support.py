@@ -6,12 +6,12 @@ import pytest
 
 from stark import Configuration, Tolerance
 from stark.contracts import InverterRequest
-from stark.inverters.support import (
+from stark.methods.inverters.support import (
     InverterDescriptor,
     with_inverter_monitoring,
 )
 from stark.monitor import MonitorInverter
-from stark.resolvents.requests.inverter import ResolventInverterRequest
+from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 
 
 @dataclass(slots=True)

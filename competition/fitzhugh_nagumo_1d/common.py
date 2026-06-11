@@ -34,10 +34,6 @@ STARK_PARAMETERS = {
     "resolution_atol": 1.0e-7,
     "resolution_rtol": 1.0e-7,
     "resolution_max_iterations": 24,
-    "inversion_atol": 1.0e-7,
-    "inversion_rtol": 1.0e-7,
-    "inversion_max_iterations": 24,
-    "inversion_restart": 12,
 }
 
 DIFFRAX_PARAMETERS = {

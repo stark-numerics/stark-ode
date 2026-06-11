@@ -2,7 +2,7 @@ from __future__ import annotations
 
 # Lesson 4: fully implicit Newton solve
 #
-# Explicit adaptive methods are easy to set up through `StarkSystem`, but diffusion
+# Explicit adaptive methods are easy to set up through `System`, but diffusion
 # can make them conservative. This lesson drops down to the prepared
 # engine boundary and treats the full Allen-Cahn right-hand side
 # implicitly with SDIRK21 and a Newton resolvent.
@@ -23,11 +23,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Configuration, Interval, IntegratorStepper, StarkMethod, Tolerance
+from stark import Configuration, Interval, IntegratorStepper, Method, Tolerance
 from stark.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblem
-from stark.inverters import InverterBiCGStab, InverterPolicy
-from stark.resolvents import ResolventNewton
-from stark.schemes import SchemeCashKarp, SchemeSDIRK21
+from stark.methods.inverters import InverterBiCGStab, InverterLegacyAdapter, InverterPolicy
+from stark.methods.resolvents import ResolventNewton
+from stark.methods.schemes import SchemeCashKarp, SchemeSDIRK21
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     ACCELERATOR,
@@ -142,7 +142,7 @@ if __name__ == "__main__":
 
     template = make_ivp(
         geometry,
-        method=StarkMethod(scheme=SchemeCashKarp),
+        method=Method(scheme=SchemeCashKarp),
         configuration=configuration,
     )
 
@@ -151,13 +151,19 @@ if __name__ == "__main__":
 
     # BiCGStab is a matrix-free Krylov inverter. It needs an inner product on
     # translations; for a NumPy grid field we use the ordinary dot product.
+    # The Krylov inverters still use the older bind-then-solve API, so the
+    # adapter exposes them to ResolventNewton's request-shaped inverter API.
 
     linearizer = AllenCahnLinearizer(geometry, DIFFUSIVITY)
-    inverter = InverterBiCGStab(
-        allocator,
-        allen_cahn_inner_product,
-        configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7)),
-        policy=InverterPolicy(max_iterations=24, restart=12),
+    inverter = InverterLegacyAdapter(
+        InverterBiCGStab(
+            allocator,
+            allen_cahn_inner_product,
+            configuration=Configuration(
+                inverter_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
+            ),
+            policy=InverterPolicy(max_iterations=24, restart=12),
+        )
     )
 
     # `ResolventNewton` owns the nonlinear solve for each implicit stage.
@@ -168,7 +174,10 @@ if __name__ == "__main__":
         allocator,
         linearizer=linearizer,
         inverter=inverter,
-        configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7), resolvent_maximum_steps=12),
+        configuration=Configuration(
+            resolvent_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
+            resolvent_maximum_steps=12,
+        ),
         accelerator=ACCELERATOR,
         tableau=SchemeSDIRK21.tableau,
     )

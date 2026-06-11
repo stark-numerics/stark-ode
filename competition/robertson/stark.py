@@ -1,63 +1,55 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from math import acos, copysign, cos, pi, sqrt
 from typing import Any
 
 import numpy as np
 
-from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
-from stark.accelerators import AcceleratorNone, AcceleratorNumba
-from stark.algebraist.generator import AlgebraistGeneratorSpecialist
-from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutUnravel
 from stark.block import BlockBasis, BlockSpecialist
-from stark.interface import StarkVector
-from stark.interface.vector import StarkVectorAllocator, StarkVectorTranslation
-from stark.inverters import InverterRelaxationJacobi
-from stark.inverters.dense import InverterDense, InverterProviderDenseNative
+from stark.comparison import Comparison
+from stark.core.configuration import Configuration
+from stark.core.interval import Interval
+from stark.core.tolerance import Tolerance
+from stark.engines import EngineNumpy
+from stark.interface.derivative import DerivativeStyle
+from stark.interface.layout import Layout
+from stark.methods.method import Method
+from stark.interface.system import System
+from stark.methods.inverters import InverterRelaxationJacobi
+from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
 from stark.monitor import MonitorInverter
-from stark.resolvents import ResolventNewton
-from stark.schemes import SchemeKvaerno4
+from stark.methods.resolvents import ResolventNewton
+from stark.methods.schemes import SchemeKvaerno4
 
-try:
-    ACCELERATOR = AcceleratorNumba()
-    USE_NUMBA_ACCELERATION = True
-except ModuleNotFoundError:
-    ACCELERATOR = AcceleratorNone()
-    USE_NUMBA_ACCELERATION = False
+
+ROBERTSON_LAYOUT = Layout({"y": {"translation": "dy", "shape": (3,)}})
 
 Array = Any
 
-ROBERTSON_LAYOUT = AlgebraistLayout(
-    fields=(AlgebraistLayoutField("value.dy", "value.y", policy=AlgebraistLayoutUnravel(shape=(3,))),),
-)
 
-
-@ACCELERATOR.compile
-def _full_rhs_kernel(state_y: Array, out_y: Array) -> None:
-    y1 = state_y[0]
-    y2 = state_y[1]
-    y3 = state_y[2]
+@DerivativeStyle.kernel(state=("y",), translation=("dy",))
+def robertson_rhs(y: Array, dy: Array) -> None:
+    y1 = y[0]
+    y2 = y[1]
+    y3 = y[2]
     coupling = 1.0e4 * y2 * y3
     quadratic = 3.0e7 * y2 * y2
-    out_y[0] = -0.04 * y1 + coupling
-    out_y[1] = 0.04 * y1 - coupling - quadratic
-    out_y[2] = quadratic
+    dy[0] = -0.04 * y1 + coupling
+    dy[1] = 0.04 * y1 - coupling - quadratic
+    dy[2] = quadratic
 
 
-@ACCELERATOR.compile
-def _jacobian_kernel(state_y: Array, dy: Array, out_y: Array) -> None:
+def robertson_jacobian_apply(state_y: Array, source_dy: Array, out_dy: Array) -> None:
     y2 = state_y[1]
     y3 = state_y[2]
-    coupling = 1.0e4 * (dy[1] * y3 + y2 * dy[2])
-    quadratic = 6.0e7 * y2 * dy[1]
-    out_y[0] = -0.04 * dy[0] + coupling
-    out_y[1] = 0.04 * dy[0] - coupling - quadratic
-    out_y[2] = quadratic
+    coupling = 1.0e4 * (source_dy[1] * y3 + y2 * source_dy[2])
+    quadratic = 6.0e7 * y2 * source_dy[1]
+    out_dy[0] = -0.04 * source_dy[0] + coupling
+    out_dy[1] = 0.04 * source_dy[0] - coupling - quadratic
+    out_dy[2] = quadratic
 
 
-@ACCELERATOR.compile
-def _jacobian_dense_kernel(
+def robertson_jacobian_dense(
     state_y: Array,
     matrix: Array,
     row_offset: int,
@@ -80,230 +72,35 @@ def _jacobian_dense_kernel(
     matrix[(row_offset + 2) * stride + column_offset + 2] = 0.0
 
 
-@ACCELERATOR.compile
-def _state_error_kernel(y: Array, reference_y: Array) -> float:
-    dy0 = y[0] - reference_y[0]
-    dy1 = y[1] - reference_y[1]
-    dy2 = y[2] - reference_y[2]
-    return ((dy0 * dy0 + dy1 * dy1 + dy2 * dy2) / 3.0) ** 0.5
+class RobertsonLinearizer:
+    __slots__ = ("apply_kernel", "dense_kernel")
 
+    def __init__(self, accelerator) -> None:
+        self.apply_kernel = accelerator.compile(
+            robertson_jacobian_apply,
+            label="competition-robertson-jacobian-apply",
+        )
+        self.dense_kernel = accelerator.compile(
+            robertson_jacobian_dense,
+            label="competition-robertson-jacobian-dense",
+        )
 
-@dataclass(slots=True)
-class RobertsonState:
-    y: np.ndarray
-
-
-@dataclass(slots=True)
-class RobertsonTranslation:
-    dy: np.ndarray
-
-    def __call__(self, origin: RobertsonState, result: RobertsonState) -> None:
-        np.add(origin.y, self.dy, out=result.y)
-
-    def norm(self) -> float:
-        return float(((self.dy[0] * self.dy[0] + self.dy[1] * self.dy[1] + self.dy[2] * self.dy[2]) / 3.0) ** 0.5)
-
-
-class RobertsonCarrierValidation:
-    def validate_state(self, value: RobertsonState) -> RobertsonState:
-        if not isinstance(value, RobertsonState):
-            raise TypeError("Robertson state must be a RobertsonState.")
-        return value
-
-    def validate_translation(self, value: RobertsonTranslation) -> RobertsonTranslation:
-        if not isinstance(value, RobertsonTranslation):
-            raise TypeError("Robertson translation must be a RobertsonTranslation.")
-        return value
-
-    def coerce_translation(self, value: object) -> RobertsonTranslation:
-        return self.validate_translation(value)  # type: ignore[arg-type]
-
-
-class RobertsonCarrierAllocation:
-    def zero_state(self) -> RobertsonState:
-        return RobertsonState(np.zeros(3, dtype=np.float64))
-
-    def zero_translation(self) -> RobertsonTranslation:
-        return RobertsonTranslation(np.zeros(3, dtype=np.float64))
-
-    def allocate_translation(self) -> RobertsonTranslation:
-        return self.zero_translation()
-
-    def copy_state(self, value: RobertsonState) -> RobertsonState:
-        return RobertsonState(value.y.copy())
-
-    def copy_translation(self, value: RobertsonTranslation) -> RobertsonTranslation:
-        return RobertsonTranslation(value.dy.copy())
-
-
-class RobertsonCarrierArithmetic:
-    preference = "into"
-
-    def translate(
-        self,
-        state: RobertsonState,
-        step: float,
-        derivative: RobertsonTranslation,
-        result: RobertsonState,
-    ) -> None:
-        result.y[:] = state.y + step * derivative.dy
-
-    def add(self, left: RobertsonTranslation, right: RobertsonTranslation, result: RobertsonTranslation) -> None:
-        np.add(left.dy, right.dy, out=result.dy)
-
-    def scale(self, factor: float, value: RobertsonTranslation, result: RobertsonTranslation) -> None:
-        np.multiply(value.dy, factor, out=result.dy)
-
-    def add_scaled(self, result: RobertsonTranslation, factor: float, value: RobertsonTranslation) -> None:
-        result.dy += factor * value.dy
-
-    def combine2(self, a0, x0, a1, x1, result):
-        np.multiply(x0.dy, a0, out=result.dy)
-        self.add_scaled(result, a1, x1)
-
-    def combine3(self, a0, x0, a1, x1, a2, x2, result):
-        self.combine2(a0, x0, a1, x1, result)
-        self.add_scaled(result, a2, x2)
-
-    def combine4(self, a0, x0, a1, x1, a2, x2, a3, x3, result):
-        self.combine3(a0, x0, a1, x1, a2, x2, result)
-        self.add_scaled(result, a3, x3)
-
-    def combine5(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, result):
-        self.combine4(a0, x0, a1, x1, a2, x2, a3, x3, result)
-        self.add_scaled(result, a4, x4)
-
-    def combine6(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, result):
-        self.combine5(a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, result)
-        self.add_scaled(result, a5, x5)
-
-    def combine7(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, result):
-        self.combine6(a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, result)
-        self.add_scaled(result, a6, x6)
-
-    def combine8(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, result):
-        self.combine7(a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, result)
-        self.add_scaled(result, a7, x7)
-
-    def combine9(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, result):
-        self.combine8(a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, result)
-        self.add_scaled(result, a8, x8)
-
-    def combine10(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, a9, x9, result):
-        self.combine9(a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, result)
-        self.add_scaled(result, a9, x9)
-
-    def combine11(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, a9, x9, a10, x10, result):
-        self.combine10(a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, a9, x9, result)
-        self.add_scaled(result, a10, x10)
-
-    def combine12(self, a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, a9, x9, a10, x10, a11, x11, result):
-        self.combine11(a0, x0, a1, x1, a2, x2, a3, x3, a4, x4, a5, x5, a6, x6, a7, x7, a8, x8, a9, x9, a10, x10, result)
-        self.add_scaled(result, a11, x11)
-
-
-class RobertsonCarrier:
-    def __init__(self) -> None:
-        self.validation = RobertsonCarrierValidation()
-        self.allocation = RobertsonCarrierAllocation()
-        self.arithmetic = RobertsonCarrierArithmetic()
-        self.norm = lambda value: value.norm()
-
-
-class RobertsonFullDerivative:
-    __slots__ = ()
-    _compiled = False
-
-    def __init__(self) -> None:
-        if not self.__class__._compiled:
-            probe = np.zeros(3, dtype=np.float64)
-            ACCELERATOR.compile_examples(_full_rhs_kernel, (probe, probe))
-            self.__class__._compiled = True
-
-    def __call__(self, _time: float, state: RobertsonState, out: RobertsonTranslation) -> None:
-        _full_rhs_kernel(state.y, out.dy)
-
-
-@dataclass(slots=True)
-class RobertsonDerivativeVectorAdapter:
-    derivative: RobertsonFullDerivative
-
-    def __call__(self, interval: Interval, state: StarkVector, out: StarkVectorTranslation) -> None:
-        self.derivative(interval.present, state.value, out.value)
-
-
-class RobertsonFullLinearizer:
-    __slots__ = ()
-    _compiled = False
-
-    def __init__(self) -> None:
-        if not self.__class__._compiled:
-            probe = np.zeros(3, dtype=np.float64)
-            probe_matrix = [0.0 for _ in range(9)]
-            ACCELERATOR.compile_examples(_jacobian_kernel, (probe, probe, probe))
-            ACCELERATOR.compile_examples(_jacobian_dense_kernel, (probe, probe_matrix, 0, 0, 3))
-            self.__class__._compiled = True
-
-    def __call__(self, interval, state: StarkVector, out) -> None:
+    def __call__(self, interval, state, out) -> None:
         del interval
-        state_y = state.value.y
+        state_y = state.y
 
-        def apply(translation: StarkVectorTranslation, result: StarkVectorTranslation) -> None:
-            _jacobian_kernel(state_y, translation.value.dy, result.value.dy)
+        def apply(translation, result) -> None:
+            self.apply_kernel(state_y, translation.dy, result.dy)
 
         def dense_fill(_basis, matrix, row_offset, column_offset, stride) -> None:
-            _jacobian_dense_kernel(state_y, matrix, row_offset, column_offset, stride)
+            self.dense_kernel(state_y, matrix, row_offset, column_offset, stride)
 
         out.apply = apply
         out.dense_fill = dense_fill
 
 
-class RobertsonVectorBasis:
-    """Coordinate basis for the wrapped Robertson vector translation."""
-
-    dimension = 3
-
-    def vector(self, index: int, output: StarkVectorTranslation) -> StarkVectorTranslation:
-        output.value.dy[:] = 0.0
-        output.value.dy[index] = 1.0
-        return output
-
-    def coordinate(self, index: int, translation: StarkVectorTranslation) -> float:
-        return float(translation.value.dy[index])
-
-    def coordinates(self, translation: StarkVectorTranslation, output: list[float]) -> list[float]:
-        output[:] = [float(value) for value in translation.value.dy]
-        return output
-
-    def synthesize(self, coordinates: list[float], output: StarkVectorTranslation) -> StarkVectorTranslation:
-        output.value.dy[:] = coordinates
-        return output
-
-
-class RobertsonEntryOperatorInverse:
-    __slots__ = ("basis", "image", "matrix")
-
-    def __init__(self, allocator: StarkVectorAllocator) -> None:
-        self.basis = allocator.allocate_translation()
-        self.image = allocator.allocate_translation()
-        self.matrix = np.zeros((3, 3), dtype=np.float64)
-
-    def __call__(self, operator, source: StarkVectorTranslation, target: StarkVectorTranslation) -> None:
-        basis = self.basis
-        image = self.image
-        matrix = self.matrix
-
-        for column in range(3):
-            basis.value.dy[:] = 0.0
-            basis.value.dy[column] = 1.0
-            operator(basis, image)
-            matrix[:, column] = image.value.dy
-
-        target.value.dy[:] = np.linalg.solve(matrix, source.value.dy)
-
-
 class RobertsonFullCubicResolvent:
-    __slots__ = ("tableau", "cubic")
+    __slots__ = ("cubic", "tableau")
 
     def __init__(self, tableau=None) -> None:
         self.tableau = tableau
@@ -313,19 +110,19 @@ class RobertsonFullCubicResolvent:
         del interval, state
 
     def __call__(self, problem, out) -> None:
-        state_y = problem.origin.value.y
+        state_y = problem.origin.y
         alpha = problem.alpha
         rhs = problem.rhs
 
         delta = out[0]
         if alpha == 0.0:
             if rhs is None:
-                delta.value.dy[:] = 0.0
+                delta.dy[:] = 0.0
             else:
-                np.copyto(delta.value.dy, rhs[0].value.dy)
+                np.copyto(delta.dy, rhs[0].dy)
             return
 
-        rhs_y = rhs[0].value.dy if rhs is not None else None
+        rhs_y = rhs[0].dy if rhs is not None else None
         rhs0 = float(rhs_y[0]) if rhs_y is not None else 0.0
         rhs1 = float(rhs_y[1]) if rhs_y is not None else 0.0
         rhs2 = float(rhs_y[2]) if rhs_y is not None else 0.0
@@ -351,16 +148,16 @@ class RobertsonFullCubicResolvent:
         z3 = shifted_y3 + alpha * 3.0e7 * z2 * z2
         z1 = total - z2 - z3
 
-        delta.value.dy[0] = z1 - state_y[0]
-        delta.value.dy[1] = z2 - state_y[1]
-        delta.value.dy[2] = z3 - state_y[2]
+        delta.dy[0] = z1 - state_y[0]
+        delta.dy[1] = z2 - state_y[1]
+        delta.dy[2] = z3 - state_y[2]
 
 
 class RobertsonCubicRoot:
     __slots__ = ()
 
     @staticmethod
-    def _cbrt(value: float) -> float:
+    def cube_root(value: float) -> float:
         if value == 0.0:
             return 0.0
         return copysign(abs(value) ** (1.0 / 3.0), value)
@@ -376,7 +173,7 @@ class RobertsonCubicRoot:
         discriminant = half_q * half_q + third_p * third_p * third_p
 
         if discriminant >= 0.0:
-            root = self._cbrt(-half_q + sqrt(discriminant)) + self._cbrt(-half_q - sqrt(discriminant))
+            root = self.cube_root(-half_q + sqrt(discriminant)) + self.cube_root(-half_q - sqrt(discriminant))
             return root - a / 3.0
 
         radius = 2.0 * sqrt(-third_p)
@@ -388,45 +185,48 @@ class RobertsonCubicRoot:
         return min(roots, key=lambda root: abs(root - target))
 
 
-@dataclass(slots=True)
-class RobertsonTemplate:
-    allocator: StarkVectorAllocator
-    derivative: RobertsonDerivativeVectorAdapter
-    integrator: Integrator
-    initial: StarkVector
-    interval: Interval
+class RobertsonEntryOperatorInverse:
+    __slots__ = ("basis", "image", "matrix")
+
+    def __init__(self, allocator) -> None:
+        self.basis = allocator.allocate_translation()
+        self.image = allocator.allocate_translation()
+        self.matrix = np.zeros((3, 3), dtype=np.float64)
+
+    def __call__(self, operator, source, target) -> None:
+        basis = self.basis
+        image = self.image
+        matrix = self.matrix
+
+        for column in range(3):
+            basis.dy[:] = 0.0
+            basis.dy[column] = 1.0
+            operator(basis, image)
+            matrix[:, column] = image.dy
+
+        target.dy[:] = np.linalg.solve(matrix, source.dy)
 
 
-@dataclass(slots=True)
-class RobertsonStarkSolver:
-    name: str
-    build: Any
-    stepper: IntegratorStepper
-    problem_parameters: dict[str, float]
-    initial_conditions: dict[str, np.ndarray]
-    reference: dict[str, Any]
-    diagnostics: Any | None = None
+class RobertsonTranslationBasis:
+    """Coordinate basis for the Robertson translation field."""
 
-    def __call__(self) -> dict[str, Any]:
-        interval = self.build.interval.copy()
-        state = StarkVector(
-            RobertsonState(self.initial_conditions["y"].copy()),
-            self.build.initial.carrier,
-        )
-        steps = 0
+    dimension = 3
 
-        for _interval, _state in self.build.integrator.mutating_trajectory(self.stepper, interval, state):
-            steps += 1
+    def vector(self, index: int, output) -> object:
+        output.dy[:] = 0.0
+        output.dy[index] = 1.0
+        return output
 
-        result: dict[str, Any] = {
-            "library": "STARK",
-            "solver": self.name,
-            "error": float(_state_error_kernel(state.value.y, self.reference["y"])),
-            "steps": steps,
-        }
-        if self.diagnostics is not None:
-            result.update(self.diagnostics())
-        return result
+    def coordinate(self, index: int, translation) -> float:
+        return float(translation.dy[index])
+
+    def coordinates(self, translation, output: list[float]) -> list[float]:
+        output[:] = [float(value) for value in translation.dy]
+        return output
+
+    def synthesize(self, coordinates: list[float], output) -> object:
+        output.dy[:] = coordinates
+        return output
 
 
 class RobertsonInverterDiagnostics:
@@ -449,135 +249,149 @@ class RobertsonInverterDiagnostics:
         }
 
 
-def build_template(problem_parameters, stark_parameters, initial_conditions):
-    carrier = RobertsonCarrier()
-    configuration = Configuration(
+def stark_configuration(stark_parameters) -> Configuration:
+    return Configuration(
+        check_progress=False,
         scheme_tolerance=Tolerance(
             atol=stark_parameters["tolerance_atol"],
             rtol=stark_parameters["tolerance_rtol"],
         ),
-        check_progress=False,
-    )
-    return RobertsonTemplate(
-        allocator=StarkVectorAllocator(carrier),
-        derivative=RobertsonDerivativeVectorAdapter(RobertsonFullDerivative()),
-        integrator=Integrator(configuration=configuration),
-        initial=StarkVector(RobertsonState(initial_conditions["y"].copy()), carrier),
-        interval=Interval(problem_parameters["t0"], stark_parameters["step"], problem_parameters["t1"]),
-    )
-
-
-def build_specialist(allocator: StarkVectorAllocator):
-    return AlgebraistGeneratorSpecialist(
-        translation=allocator.allocate_translation(),
-        allocator=allocator,
-        layout=ROBERTSON_LAYOUT,
-        accelerator=ACCELERATOR,
-    )
-
-
-def build_scheme(build, resolvent, specialist):
-    return SchemeKvaerno4(build.derivative, build.allocator, resolvent=resolvent, specialist=specialist)
-
-
-def build_cubic_resolvent():
-    return RobertsonFullCubicResolvent(tableau=SchemeKvaerno4.tableau)
-
-
-def build_newton_jacobi_inverter(allocator, stark_parameters, monitor: MonitorInverter, specialist):
-    return InverterRelaxationJacobi(
-        RobertsonEntryOperatorInverse(allocator),
-        damping=1.0,
-        configuration=Configuration(inverter_tolerance=Tolerance(
+        resolvent_tolerance=Tolerance(
+            atol=stark_parameters["resolution_atol"],
+            rtol=stark_parameters["resolution_rtol"],
+        ),
+        resolvent_maximum_steps=stark_parameters["resolution_max_iterations"],
+        inverter_tolerance=Tolerance(
             atol=stark_parameters["inversion_atol"],
             rtol=stark_parameters["inversion_rtol"],
-        ), inverter_maximum_steps=stark_parameters["inversion_max_iterations"]),
+        ),
+        inverter_maximum_steps=stark_parameters["inversion_max_iterations"],
+    )
+
+
+def stark_runtime(stark_parameters):
+    engine = EngineNumpy(ROBERTSON_LAYOUT)
+    linearizer = RobertsonLinearizer(engine.accelerator)
+    system = System(
+        derivative=robertson_rhs,
+        layout=ROBERTSON_LAYOUT,
+        linearizer=linearizer,
+    )
+    return system, engine, linearizer, stark_configuration(stark_parameters)
+
+
+def stark_solver(
+    name: str,
+    problem_parameters,
+    stark_parameters,
+    initial_conditions,
+    reference,
+    resolvent_builder,
+):
+    system, engine, linearizer, configuration = stark_runtime(stark_parameters)
+    resolvent, diagnostics = resolvent_builder(engine, linearizer, configuration)
+    ivp = system.ivp(
+        initial=initial_conditions,
+        interval=Interval(problem_parameters["t0"], stark_parameters["step"], problem_parameters["t1"]),
+        method=Method(scheme=SchemeKvaerno4, resolvent=resolvent),
+        engine=lambda layout: engine,
+        configuration=configuration,
+    )
+
+    def solve_once() -> dict[str, Any]:
+        result = ivp.final_result()
+        row = {
+            "library": "STARK",
+            "solver": name,
+            "error": Comparison.fieldwise_rms_error(result.state, reference, ("y",)),
+            "steps": result.steps,
+        }
+        if diagnostics is not None:
+            row.update(diagnostics())
+        return row
+
+    return solve_once
+
+
+def cubic_resolvent(engine, linearizer, configuration):
+    del engine, linearizer, configuration
+    return RobertsonFullCubicResolvent(tableau=SchemeKvaerno4.tableau), None
+
+
+def newton_jacobi_resolvent(engine, linearizer, configuration):
+    monitor = MonitorInverter()
+    specialist = BlockSpecialist(engine.algebraist_specialist)
+    inverter = InverterRelaxationJacobi(
+        RobertsonEntryOperatorInverse(engine.allocator),
+        damping=1.0,
+        configuration=configuration,
         monitor=monitor,
-        specialist=BlockSpecialist(specialist),
+        specialist=specialist,
+    )
+    return (
+        ResolventNewton(
+            engine.allocator,
+            linearizer=linearizer,
+            inverter=inverter,
+            configuration=configuration,
+            accelerator=engine.accelerator,
+            specialist=specialist,
+            tableau=SchemeKvaerno4.tableau,
+        ),
+        RobertsonInverterDiagnostics(monitor),
     )
 
 
-def build_newton_jacobi_resolvent(build, stark_parameters, monitor: MonitorInverter, specialist):
-    return ResolventNewton(
-        build.allocator,
-        linearizer=RobertsonFullLinearizer(),
-        inverter=build_newton_jacobi_inverter(build.allocator, stark_parameters, monitor, specialist),
-        configuration=Configuration(resolvent_tolerance=Tolerance(
-            atol=stark_parameters["resolution_atol"],
-            rtol=stark_parameters["resolution_rtol"],
-        ), resolvent_maximum_steps=stark_parameters["resolution_max_iterations"]),
-        accelerator=ACCELERATOR,
-        specialist=BlockSpecialist(specialist),
-        tableau=SchemeKvaerno4.tableau,
-    )
-
-
-def build_newton_dense_inverter(monitor: MonitorInverter):
-    return InverterDense(
-        basis=BlockBasis([RobertsonVectorBasis()]),
-        provider=InverterProviderDenseNative(accelerator=ACCELERATOR),
+def newton_dense_resolvent(engine, linearizer, configuration):
+    monitor = MonitorInverter()
+    specialist = BlockSpecialist(engine.algebraist_specialist)
+    inverter = InverterDense(
+        basis=BlockBasis([RobertsonTranslationBasis()]),
+        provider=InverterProviderDenseNative(accelerator=engine.accelerator),
         monitor=monitor,
     )
-
-
-def build_newton_dense_resolvent(build, stark_parameters, monitor: MonitorInverter, specialist):
-    return ResolventNewton(
-        build.allocator,
-        linearizer=RobertsonFullLinearizer(),
-        inverter=build_newton_dense_inverter(monitor),
-        configuration=Configuration(resolvent_tolerance=Tolerance(
-            atol=stark_parameters["resolution_atol"],
-            rtol=stark_parameters["resolution_rtol"],
-        ), resolvent_maximum_steps=stark_parameters["resolution_max_iterations"]),
-        accelerator=ACCELERATOR,
-        specialist=BlockSpecialist(specialist),
-        tableau=SchemeKvaerno4.tableau,
+    return (
+        ResolventNewton(
+            engine.allocator,
+            linearizer=linearizer,
+            inverter=inverter,
+            configuration=configuration,
+            accelerator=engine.accelerator,
+            specialist=specialist,
+            tableau=SchemeKvaerno4.tableau,
+        ),
+        RobertsonInverterDiagnostics(monitor),
     )
 
 
 def prepare_kvaerno4_full_custom(problem_parameters, stark_parameters, initial_conditions, reference):
-    build = build_template(problem_parameters, stark_parameters, initial_conditions)
-    specialist = build_specialist(build.allocator)
-    scheme = build_scheme(build, build_cubic_resolvent(), specialist)
-    return RobertsonStarkSolver(
+    return stark_solver(
         "Kvaerno4 Full Cubic",
-        build,
-        IntegratorStepper(scheme),
         problem_parameters,
+        stark_parameters,
         initial_conditions,
         reference,
+        cubic_resolvent,
     )
 
 
 def prepare_kvaerno4_full_newton(problem_parameters, stark_parameters, initial_conditions, reference):
-    build = build_template(problem_parameters, stark_parameters, initial_conditions)
-    specialist = build_specialist(build.allocator)
-    inverter_monitor = MonitorInverter()
-    resolvent = build_newton_jacobi_resolvent(build, stark_parameters, inverter_monitor, specialist)
-    scheme = build_scheme(build, resolvent, specialist)
-    return RobertsonStarkSolver(
+    return stark_solver(
         "Kvaerno4 Full Newton Jacobi",
-        build,
-        IntegratorStepper(scheme),
         problem_parameters,
+        stark_parameters,
         initial_conditions,
         reference,
-        diagnostics=RobertsonInverterDiagnostics(inverter_monitor),
+        newton_jacobi_resolvent,
     )
 
 
 def prepare_kvaerno4_full_newton_dense(problem_parameters, stark_parameters, initial_conditions, reference):
-    build = build_template(problem_parameters, stark_parameters, initial_conditions)
-    specialist = build_specialist(build.allocator)
-    inverter_monitor = MonitorInverter()
-    resolvent = build_newton_dense_resolvent(build, stark_parameters, inverter_monitor, specialist)
-    scheme = build_scheme(build, resolvent, specialist)
-    return RobertsonStarkSolver(
+    return stark_solver(
         "Kvaerno4 Full Newton Dense",
-        build,
-        IntegratorStepper(scheme),
         problem_parameters,
+        stark_parameters,
         initial_conditions,
         reference,
-        diagnostics=RobertsonInverterDiagnostics(inverter_monitor),
+        newton_dense_resolvent,
     )

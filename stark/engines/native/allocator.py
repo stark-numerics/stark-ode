@@ -6,17 +6,18 @@ from typing import Any
 
 from stark.algebraist.layout import AlgebraistLayout
 from stark.carriers.native import CarrierNativeArray
-from stark.engines.native.translation import StarkEngineTranslationNative
+from stark.engines.native.translation import EngineTranslationNative
 
 
 @dataclass(frozen=True, slots=True)
-class StarkEngineAllocatorNative:
+class EngineAllocatorNative:
     """Allocate structured native state and translation objects."""
 
     algebraist_layout: AlgebraistLayout
     carriers: tuple[CarrierNativeArray, ...] = field(repr=False)
     apply_translation: Any = field(default=None, repr=False)
     norm: Any = field(default=None, repr=False)
+    inner_product: Any = field(default=None, repr=False)
 
     def allocate_state(self) -> SimpleNamespace:
         state = SimpleNamespace()
@@ -32,8 +33,8 @@ class StarkEngineAllocatorNative:
             )
         return out
 
-    def allocate_translation(self) -> StarkEngineTranslationNative:
-        translation = StarkEngineTranslationNative(
+    def allocate_translation(self) -> EngineTranslationNative:
+        translation = EngineTranslationNative(
             algebraist_layout=self.algebraist_layout,
             carriers=self.carriers,
             allocator=self,
@@ -45,4 +46,4 @@ class StarkEngineAllocatorNative:
         return translation
 
 
-__all__ = ["StarkEngineAllocatorNative"]
+__all__ = ["EngineAllocatorNative"]

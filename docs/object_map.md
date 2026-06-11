@@ -17,7 +17,7 @@ the core objects for you from an initial value and a derivative callable.
 - **Derivative**
   The right-hand side of the ODE. Users usually provide this. It can be a
   return-style callable such as `f(t, y) -> dy`, or an in-place callable marked
-  with `StarkDerivative.in_place`.
+  with `Derivative.in_place`.
 
 - **Interval**
   The current time, proposed step, and stop time. Users provide this directly

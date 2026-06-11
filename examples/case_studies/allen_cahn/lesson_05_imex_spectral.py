@@ -24,9 +24,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Configuration, Integrator, Interval, IntegratorStepper, StarkMethod
+from stark import Configuration, Integrator, Interval, IntegratorStepper, Method
 from stark.contracts import DerivativeIMEX
-from stark.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7
+from stark.methods.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     DIFFUSIVITY,
@@ -144,13 +144,13 @@ if __name__ == "__main__":
     geometry = Geometry()
     configuration = Configuration(scheme_tolerance=Configuration_TOLERANCE)
 
-    # `StarkSystem` prepares the carrier/allocator machinery. We then replace
+    # `System` prepares the carrier/allocator machinery. We then replace
     # the derivative with an IMEX pair because this lesson is about the split,
     # not about reimplementing carriers by hand.
 
     template = make_ivp(
         geometry,
-        method=StarkMethod(scheme=SchemeCashKarp),
+        method=Method(scheme=SchemeCashKarp),
         configuration=configuration,
     )
 

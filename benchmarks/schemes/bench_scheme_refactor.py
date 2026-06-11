@@ -11,15 +11,14 @@ from statistics import median
 from time import perf_counter
 from typing import Callable
 
-from stark import Executor, Integrator, Interval, IntegratorStepper, ExecutorTolerance
+from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
 from stark.accelerators import AcceleratorNone
-from stark.resolvents import ResolventPicard
-from stark.resolvents.method.policy import ResolventPolicy
-from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
-from stark.schemes.explicit.fixed.rk4 import SchemeRK4
-from stark.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
-from stark.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
-from stark.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
+from stark.methods.resolvents import ResolventPicard
+from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
+from stark.methods.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
+from stark.methods.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -91,9 +90,10 @@ def zero_rhs(
     out.value = 0.0
 
 
-def make_executor() -> Executor:
-    return Executor(
-        tolerance=ExecutorTolerance(atol=ATOL, rtol=RTOL),
+def make_configuration() -> Configuration:
+    return Configuration(
+        check_progress=False,
+        scheme_tolerance=Tolerance(atol=ATOL, rtol=RTOL),
     )
 
 
@@ -113,11 +113,11 @@ class SchemeSmokeCase:
         scheme,
         interval: Interval,
         state: ScalarState,
-        run_executor: Executor,
+        configuration: Configuration,
     ) -> None:
         self.name = name
-        self.stepper = IntegratorStepper(scheme, run_executor)
-        self.integrator = Integrator()
+        self.stepper = IntegratorStepper(scheme)
+        self.integrator = Integrator(configuration=configuration)
         self.interval = interval
         self.state = state
 
@@ -125,7 +125,7 @@ class SchemeSmokeCase:
         interval = self.interval.copy()
         state = self.state.copy()
 
-        for _snapshot_interval, _snapshot_state in self.integrator.live(
+        for _snapshot_interval, _snapshot_state in self.integrator.mutating_trajectory(
             self.stepper,
             interval,
             state,
@@ -215,8 +215,10 @@ def make_resolvent(
 ) -> ResolventPicard:
     return ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=16),
+        configuration=Configuration(
+            resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+            resolvent_maximum_steps=16,
+        ),
         accelerator=AcceleratorNone(),
         tableau=tableau,
     )
@@ -224,32 +226,35 @@ def make_resolvent(
 
 def make_rk4_case() -> SchemeSmokeCase:
     allocator = ScalarAllocator()
-    scheme = SchemeRK4(negative_decay, allocator)
+    configuration = make_configuration()
+    scheme = SchemeRK4(negative_decay, allocator, configuration=configuration)
 
     return SchemeSmokeCase(
         "fixed explicit / RK4",
         scheme,
         make_interval(),
         ScalarState(1.0),
-        make_executor(),
+        configuration,
     )
 
 
 def make_explicit_adaptive_case() -> SchemeSmokeCase:
     allocator = ScalarAllocator()
-    scheme = SchemeBogackiShampine(negative_decay, allocator)
+    configuration = make_configuration()
+    scheme = SchemeBogackiShampine(negative_decay, allocator, configuration=configuration)
 
     return SchemeSmokeCase(
         "adaptive explicit / Bogacki-Shampine",
         scheme,
         make_interval(),
         ScalarState(1.0),
-        make_executor(),
+        configuration,
     )
 
 
 def make_implicit_fixed_case() -> SchemeSmokeCase:
     allocator = ScalarAllocator()
+    configuration = make_configuration()
     resolvent = make_resolvent(
         negative_decay,
         allocator,
@@ -259,6 +264,7 @@ def make_implicit_fixed_case() -> SchemeSmokeCase:
         negative_decay,
         allocator,
         resolvent=resolvent,
+        configuration=configuration,
     )
 
     return SchemeSmokeCase(
@@ -266,12 +272,13 @@ def make_implicit_fixed_case() -> SchemeSmokeCase:
         scheme,
         make_interval(),
         ScalarState(1.0),
-        make_executor(),
+        configuration,
     )
 
 
 def make_implicit_adaptive_case() -> SchemeSmokeCase:
     allocator = ScalarAllocator()
+    configuration = make_configuration()
     resolvent = make_resolvent(
         negative_decay,
         allocator,
@@ -281,6 +288,7 @@ def make_implicit_adaptive_case() -> SchemeSmokeCase:
         negative_decay,
         allocator,
         resolvent=resolvent,
+        configuration=configuration,
     )
 
     return SchemeSmokeCase(
@@ -288,12 +296,13 @@ def make_implicit_adaptive_case() -> SchemeSmokeCase:
         scheme,
         make_interval(),
         ScalarState(1.0),
-        make_executor(),
+        configuration,
     )
 
 
 def make_imex_adaptive_case() -> SchemeSmokeCase:
     allocator = ScalarAllocator()
+    configuration = make_configuration()
     derivative = SplitDerivative(
         explicit=zero_rhs,
         implicit=negative_decay,
@@ -307,6 +316,7 @@ def make_imex_adaptive_case() -> SchemeSmokeCase:
         derivative,
         allocator,
         resolvent=resolvent,
+        configuration=configuration,
     )
 
     return SchemeSmokeCase(
@@ -314,7 +324,7 @@ def make_imex_adaptive_case() -> SchemeSmokeCase:
         scheme,
         make_interval(),
         ScalarState(1.0),
-        make_executor(),
+        configuration,
     )
 
 

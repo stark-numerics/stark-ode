@@ -9,7 +9,7 @@ from stark.carriers.native import CarrierNativeArray
 
 
 @dataclass
-class StarkEngineTranslationNative:
+class EngineTranslationNative:
     """Structured native translation using in-place array carrier arithmetic."""
 
     algebraist_layout: AlgebraistLayout = field(repr=False)
@@ -35,7 +35,7 @@ class StarkEngineTranslationNative:
                 field.state_path.get(result),
             )
 
-    def __add__(self, other: StarkEngineTranslationNative) -> StarkEngineTranslationNative:
+    def __add__(self, other: EngineTranslationNative) -> EngineTranslationNative:
         if self.allocator is not other.allocator:
             raise ValueError("Cannot add translations allocated by different engines.")
 
@@ -48,7 +48,7 @@ class StarkEngineTranslationNative:
             )
         return result
 
-    def __rmul__(self, scalar: float) -> StarkEngineTranslationNative:
+    def __rmul__(self, scalar: float) -> EngineTranslationNative:
         result = self.allocator.allocate_translation()
         for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
             carrier.arithmetic.scale(
@@ -58,7 +58,7 @@ class StarkEngineTranslationNative:
             )
         return result
 
-    def __mul__(self, scalar: float) -> StarkEngineTranslationNative:
+    def __mul__(self, scalar: float) -> EngineTranslationNative:
         return self.__rmul__(scalar)
 
     def norm(self) -> float:
@@ -74,4 +74,4 @@ class StarkEngineTranslationNative:
         return sqrt(total)
 
 
-__all__ = ["StarkEngineTranslationNative"]
+__all__ = ["EngineTranslationNative"]

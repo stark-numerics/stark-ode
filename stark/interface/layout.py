@@ -15,18 +15,18 @@ from stark.algebraist.layout import (
     AlgebraistLayoutUnravel,
 )
 from stark.algebraist.layout.path import AlgebraistLayoutPathLike
-from stark.interface.norm import StarkLayoutNormPolicy, StarkLayoutNormRMS
+from stark.interface.norm import LayoutNormPolicy, LayoutNormRMS
 
 
 @dataclass(frozen=True, slots=True)
-class StarkLayoutField:
+class LayoutField:
     """One user-facing state field in a STARK layout."""
 
     state: AlgebraistLayoutPathLike
     translation: AlgebraistLayoutPathLike | None = None
     shape: tuple[int, ...] | list[int] | None = None
-    norm: StarkLayoutNormPolicy | AlgebraistLayoutNormPolicy = field(
-        default_factory=StarkLayoutNormRMS
+    norm: LayoutNormPolicy | AlgebraistLayoutNormPolicy = field(
+        default_factory=LayoutNormRMS
     )
 
     def __post_init__(self) -> None:
@@ -57,70 +57,70 @@ class StarkLayoutField:
 
 
 @dataclass(frozen=True, slots=True)
-class StarkLayout:
+class Layout:
     """
     User-facing declaration of structured state and translation fields.
 
     A layout tells an engine which state paths exist, which translation paths
     hold their updates, what shape each field has, and how each field contributes
-    to norms. It accepts explicit `StarkLayoutField` objects, simple path names,
+    to norms. It accepts explicit `LayoutField` objects, simple path names,
     or a mapping such as `{"y": {"translation": "dy", "shape": (2,)}}`.
     """
 
-    fields: tuple[StarkLayoutField, ...]
+    fields: tuple[LayoutField, ...]
 
     def __init__(
         self,
-        fields: StarkLayoutField
+        fields: LayoutField
         | AlgebraistLayoutPathLike
         | Mapping[AlgebraistLayoutPathLike, Any]
-        | Iterable[StarkLayoutField | AlgebraistLayoutPathLike | Mapping[str, Any]],
+        | Iterable[LayoutField | AlgebraistLayoutPathLike | Mapping[str, Any]],
     ) -> None:
         if isinstance(fields, Mapping):
             normalized = tuple(
                 self._field_from_mapping_item(state, spec)
                 for state, spec in fields.items()
             )
-        elif isinstance(fields, StarkLayoutField) or isinstance(fields, str):
+        elif isinstance(fields, LayoutField) or isinstance(fields, str):
             normalized = (self._coerce_field(fields),)
         else:
             normalized = tuple(self._coerce_field(field) for field in fields)
         if not normalized:
-            raise ValueError("StarkLayout requires at least one field.")
+            raise ValueError("Layout requires at least one field.")
 
         object.__setattr__(self, "fields", normalized)
         self.to_algebraist_layout()
 
     @staticmethod
     def _coerce_field(
-        field: StarkLayoutField | AlgebraistLayoutPathLike | Mapping[str, Any],
-    ) -> StarkLayoutField:
-        if isinstance(field, StarkLayoutField):
+        field: LayoutField | AlgebraistLayoutPathLike | Mapping[str, Any],
+    ) -> LayoutField:
+        if isinstance(field, LayoutField):
             return field
         if isinstance(field, Mapping):
-            return StarkLayout._field_from_spec(field)
-        return StarkLayoutField(field)
+            return Layout._field_from_spec(field)
+        return LayoutField(field)
 
     @staticmethod
-    def _field_from_spec(spec: Mapping[str, Any]) -> StarkLayoutField:
+    def _field_from_spec(spec: Mapping[str, Any]) -> LayoutField:
         if "state" not in spec:
-            raise ValueError("StarkLayout field mappings require a 'state' entry.")
-        kwargs = StarkLayout._field_kwargs(spec)
-        return StarkLayoutField(spec["state"], **kwargs)
+            raise ValueError("Layout field mappings require a 'state' entry.")
+        kwargs = Layout._field_kwargs(spec)
+        return LayoutField(spec["state"], **kwargs)
 
     @staticmethod
     def _field_from_mapping_item(
         state: AlgebraistLayoutPathLike,
         spec: Any,
-    ) -> StarkLayoutField:
+    ) -> LayoutField:
         if spec is None:
-            return StarkLayoutField(state)
+            return LayoutField(state)
         if not isinstance(spec, Mapping):
             raise TypeError(
-                "StarkLayout mapping values must be field option mappings or None."
+                "Layout mapping values must be field option mappings or None."
             )
-        kwargs = StarkLayout._field_kwargs(spec)
-        return StarkLayoutField(state, **kwargs)
+        kwargs = Layout._field_kwargs(spec)
+        return LayoutField(state, **kwargs)
 
     @staticmethod
     def _field_kwargs(spec: Mapping[str, Any]) -> dict[str, Any]:
@@ -128,7 +128,7 @@ class StarkLayout:
         unsupported = tuple(name for name in spec if name not in allowed)
         if unsupported:
             names = ", ".join(str(name) for name in unsupported)
-            raise ValueError(f"Unsupported StarkLayout field option(s): {names}.")
+            raise ValueError(f"Unsupported Layout field option(s): {names}.")
         return {
             name: spec[name]
             for name in ("translation", "shape", "norm")
@@ -146,6 +146,6 @@ class StarkLayout:
 
 
 __all__ = [
-    "StarkLayout",
-    "StarkLayoutField",
+    "Layout",
+    "LayoutField",
 ]

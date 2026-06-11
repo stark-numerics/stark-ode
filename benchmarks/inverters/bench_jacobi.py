@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from statistics import median
 from time import perf_counter
 
+from stark import Configuration, Tolerance
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
-from stark.inverters.relaxation import InverterRelaxationJacobi
-from stark.inverters.support import InverterBudget, InverterTolerance
-from stark.resolvents.requests.inverter import ResolventInverterRequest
+from stark.methods.inverters.relaxation import InverterRelaxationJacobi
+from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 
 
 BLOCK_SIZE = 32
@@ -68,8 +68,10 @@ def time_sample() -> float:
     output = Block([ScalarTranslation(0.0) for _ in range(BLOCK_SIZE)])
     inverter = InverterRelaxationJacobi[ScalarTranslation](
         invert_entry,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=0.0),
-        budget=InverterBudget(maximum_steps=2),
+        configuration=Configuration(
+            inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0),
+            inverter_maximum_steps=2,
+        ),
     )
 
     start = perf_counter()

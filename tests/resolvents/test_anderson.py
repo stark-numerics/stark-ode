@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 from stark import Configuration, Interval, Tolerance
 from stark.block import Block
-from stark.resolvents import ResolventAnderson
-from stark.schemes.requests.resolvent import SchemeResolventRequest
+from stark.methods.resolvents import ResolventAnderson
+from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
 
 
 @dataclass(slots=True)

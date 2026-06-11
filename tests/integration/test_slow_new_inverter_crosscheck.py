@@ -16,13 +16,13 @@ except ImportError:  # Compatibility while developing this slow integration test
     from stark.block import BlockOperator as BlockOperatorDiagonal
 
 from stark.core.interval import Interval
-from stark.inverters.dense import InverterDense, InverterProviderDenseNative
-from stark.inverters.relaxation import InverterRelaxationJacobi, InverterRelaxationRichardson
+from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
+from stark.methods.inverters.relaxation import InverterRelaxationJacobi, InverterRelaxationRichardson
 from stark import Configuration, Tolerance
-from stark.resolvents import ResolventNewton
+from stark.methods.resolvents import ResolventNewton
 from stark import Configuration
 from stark import Tolerance
-from stark.schemes.implicit.fixed import SchemeBackwardEuler
+from stark.methods.schemes.implicit.fixed import SchemeBackwardEuler
 
 
 @dataclass(slots=True)
@@ -250,10 +250,10 @@ def optional_dense_provider_factories() -> list[tuple[str, Callable[[], object]]
     ]
 
     optional_classes = (
-        ("Dense NumPy", "stark.inverters.dense", "InverterProviderDenseNumpy"),
-        ("Dense SciPy", "stark.inverters.dense", "InverterProviderDenseScipy"),
-        ("Dense CuPy", "stark.inverters.dense", "InverterProviderDenseCupy"),
-        ("Dense JAX", "stark.inverters.dense", "InverterProviderDenseJax"),
+        ("Dense NumPy", "stark.methods.inverters.dense", "InverterProviderDenseNumpy"),
+        ("Dense SciPy", "stark.methods.inverters.dense", "InverterProviderDenseScipy"),
+        ("Dense CuPy", "stark.methods.inverters.dense", "InverterProviderDenseCupy"),
+        ("Dense JAX", "stark.methods.inverters.dense", "InverterProviderDenseJax"),
     )
 
     for label, module_name, class_name in optional_classes:

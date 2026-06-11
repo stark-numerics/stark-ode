@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, dataclass, field
+from math import sqrt
 from typing import Any
 
 from stark.monitor import MonitorSummary
@@ -43,7 +44,7 @@ def _accepts_zero_arguments(candidate: Any) -> bool:
 
 @dataclass(slots=True, init=False)
 class ComparisonProblem:
-    """Comparison problem built from a prepared `StarkSystemIVP`."""
+    """Comparison problem built from a prepared `SystemIVP`."""
 
     name: str
     ivp: Any
@@ -116,7 +117,7 @@ class ComparisonProblemManual:
 
 @dataclass(slots=True, init=False)
 class ComparisonEntry:
-    """Comparison entry selected by a `StarkMethod` for the problem IVP."""
+    """Comparison entry selected by a `Method` for the problem IVP."""
 
     name: str
     build_stepper: Callable[[Any], Any] = field(repr=False)
@@ -147,12 +148,12 @@ class ComparisonEntry:
 
     def make_stepper(self, ivp: Any | None = None) -> Any:
         if ivp is None:
-            raise TypeError("ComparisonEntry requires a ComparisonProblem built from a StarkSystemIVP.")
+            raise TypeError("ComparisonEntry requires a ComparisonProblem built from a SystemIVP.")
         return self.build_stepper(ivp)
 
     def make_observed_stepper(self, monitor: Any, ivp: Any | None = None) -> Any:
         if ivp is None:
-            raise TypeError("ComparisonEntry requires a ComparisonProblem built from a StarkSystemIVP.")
+            raise TypeError("ComparisonEntry requires a ComparisonProblem built from a SystemIVP.")
         source = self.build_observed_stepper
         if source is None:
             return self.make_stepper(ivp)
@@ -162,7 +163,7 @@ class ComparisonEntry:
         if self.build_integrator is None:
             return None
         if ivp is None:
-            raise TypeError("ComparisonEntry requires a ComparisonProblem built from a StarkSystemIVP.")
+            raise TypeError("ComparisonEntry requires a ComparisonProblem built from a SystemIVP.")
         return self.build_integrator(ivp)
 
 
@@ -347,6 +348,39 @@ class Comparison:
     values: list[list[float]]
     note: str | None = None
 
+    @classmethod
+    def fieldwise_rms_error(
+        cls,
+        observed: Any,
+        reference: Any,
+        fields: Iterable[str],
+        *,
+        sample_count: int | None = None,
+    ) -> float:
+        """
+        Return an RMS error over named state fields.
+
+        `observed` and `reference` may expose fields as attributes or mapping
+        keys. By default the RMS is normalised by the total number of values in
+        the selected fields. Pass `sample_count` when the fields are coupled
+        components of the same physical sample and the desired scale is
+        per-sample rather than per-stored-value.
+        """
+
+        total = 0.0
+        value_count = 0
+        for field in fields:
+            observed_value = _field_value(observed, field)
+            reference_value = _field_value(reference, field)
+            delta = observed_value - reference_value
+            total += _squared_norm(delta)
+            value_count += _value_count(delta)
+
+        denominator = value_count if sample_count is None else sample_count
+        if denominator == 0:
+            return 0.0
+        return sqrt(total / denominator)
+
     def rows(self) -> list[tuple[str, list[float]]]:
         return list(zip(self.labels, self.values, strict=True))
 
@@ -518,11 +552,11 @@ def _ivp_method_stepper(
 
 
 def _method_with_scheme_monitor(method: Any, monitor: Any) -> Any:
-    from stark.interface import StarkMethod
+    from stark.interface import Method
 
     scheme_options = dict(method.scheme_options)
     scheme_options["monitor"] = monitor.scheme
-    return StarkMethod(
+    return Method(
         scheme=method.scheme,
         resolvent=method.resolvent,
         inverter=method.inverter,
@@ -530,6 +564,41 @@ def _method_with_scheme_monitor(method: Any, monitor: Any) -> Any:
         resolvent_options=method.resolvent_options,
         inverter_options=method.inverter_options,
     )
+
+
+def _field_value(source: Any, field: str) -> Any:
+    if isinstance(source, Mapping):
+        return source[field]
+    return getattr(source, field)
+
+
+def _squared_norm(value: Any) -> float:
+    flat = _flatten_value(value)
+    dot = getattr(flat, "dot", None)
+    if callable(dot):
+        return float(dot(flat))
+    try:
+        return float(flat * flat)
+    except TypeError:
+        return float(sum(item * item for item in flat))
+
+
+def _value_count(value: Any) -> int:
+    flat = _flatten_value(value)
+    size = getattr(flat, "size", None)
+    if size is not None:
+        return int(size)
+    try:
+        return len(flat)
+    except TypeError:
+        return 1
+
+
+def _flatten_value(value: Any) -> Any:
+    ravel = getattr(value, "ravel", None)
+    if callable(ravel):
+        return ravel()
+    return value
 
 
 __all__ = [

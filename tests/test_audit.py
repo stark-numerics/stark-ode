@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from stark.accelerators import AcceleratorNone
-from stark import DerivativeIMEX
+from stark import DerivativeIMEX, Derivative, DerivativeStyle
 from stark.core.auditor import AuditError, Auditor
 from stark import Tolerance
 from stark.core.interval import Interval
@@ -179,6 +179,16 @@ def test_auditor_reports_ready_imex_derivative() -> None:
     report = str(auditor)
     assert "DerivativeIMEX provides implicit(interval, state, translation)" in report
     assert "DerivativeIMEX provides explicit(interval, state, translation)" in report
+
+
+def test_derivative_style_declares_imex_split() -> None:
+    styled = DerivativeStyle.imex(implicit=derivative, explicit=derivative)
+    direct = Derivative.imex(implicit=derivative, explicit=derivative)
+
+    assert isinstance(styled, DerivativeIMEX)
+    assert styled.implicit is derivative
+    assert styled.explicit is derivative
+    assert isinstance(direct, DerivativeIMEX)
 
 
 def test_require_imex_scheme_inputs_rejects_missing_explicit_part() -> None:

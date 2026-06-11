@@ -61,7 +61,7 @@ Repository = "https://github.com/stark-numerics/stark-ode"
 Issues = "https://github.com/stark-numerics/stark-ode/issues"
 
 [tool.setuptools.packages.find]
-include = ["stark*", "examples", "examples.comparison*"]
+include = ["stark*", "examples*", "competition*"]
 exclude = ["examples.local*"]
 
 [tool.pytest.ini_options]

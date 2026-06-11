@@ -6,12 +6,12 @@ import pytest
 
 from stark import Integrator, Interval, IntegratorStepper, Tolerance
 from stark.accelerators import AcceleratorNone
-from stark.resolvents import ResolventPicard
+from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
-from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
-from stark.schemes.explicit.fixed.rk4 import SchemeRK4
-from stark.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
-from stark.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
+from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
+from stark.methods.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
 
 
 @dataclass(slots=True)

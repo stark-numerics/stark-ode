@@ -8,12 +8,12 @@ import pytest
 
 from stark import DerivativeIMEX
 from stark.accelerators import AcceleratorNone
-from stark.resolvents import ResolventPicard
-from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
-from stark.schemes.explicit.fixed.euler import SchemeEuler
-from stark.schemes.explicit.fixed.rk4 import SchemeRK4
-from stark.schemes.imex.fixed.euler import SchemeIMEXEuler
-from stark.schemes.display.display import SchemeDisplay
+from stark.methods.resolvents import ResolventPicard
+from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.methods.schemes.explicit.fixed.euler import SchemeEuler
+from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.methods.schemes.imex.fixed.euler import SchemeIMEXEuler
+from stark.methods.schemes.display.display import SchemeDisplay
 
 
 @dataclass(slots=True)

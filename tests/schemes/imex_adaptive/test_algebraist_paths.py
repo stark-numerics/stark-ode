@@ -9,21 +9,21 @@ import pytest
 from stark import Interval, Tolerance
 from stark.accelerators import AcceleratorNone
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
-from stark.resolvents import ResolventPicard
+from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
-from stark.schemes.imex.adaptive.kennedy_carpenter32 import (
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter32 import (
     SchemeKennedyCarpenter32,
 )
-from stark.schemes.imex.adaptive.kennedy_carpenter43_6 import (
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter43_6 import (
     SchemeKennedyCarpenter43_6,
 )
-from stark.schemes.imex.adaptive.kennedy_carpenter43_7 import (
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter43_7 import (
     SchemeKennedyCarpenter43_7,
 )
-from stark.schemes.imex.adaptive.kennedy_carpenter54 import (
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter54 import (
     SchemeKennedyCarpenter54,
 )
-from stark.schemes.imex.adaptive.kennedy_carpenter54b import (
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter54b import (
     SchemeKennedyCarpenter54b,
 )
 

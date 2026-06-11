@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from stark import Configuration
-from stark.schemes.explicit.fixed.euler import SchemeEuler
-from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
-from stark.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
-from stark.schemes.imex.fixed.euler import SchemeIMEXEuler
-from stark.schemes.execution.step_control import SchemeStepControl
-from stark.schemes.explicit._support import explicit_snapshot_state
-from stark.schemes.implicit._support import implicit_snapshot_state
-from stark.schemes.imex._support import imex_snapshot_state
+from stark.methods.schemes.explicit.fixed.euler import SchemeEuler
+from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
+from stark.methods.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
+from stark.methods.schemes.imex.fixed.euler import SchemeIMEXEuler
+from stark.methods.schemes.execution.step_control import SchemeStepControl
+from stark.methods.schemes.explicit._support import explicit_snapshot_state
+from stark.methods.schemes.implicit._support import implicit_snapshot_state
+from stark.methods.schemes.imex._support import imex_snapshot_state
 
 
 def test_workspace_support_methods_are_visible_class_imports() -> None:

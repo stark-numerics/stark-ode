@@ -9,7 +9,7 @@ from stark.carriers.cupy import CarrierCupy
 
 
 @dataclass
-class StarkEngineTranslationCupy:
+class EngineTranslationCupy:
     """Structured CuPy translation using in-place field carrier arithmetic."""
 
     algebraist_layout: AlgebraistLayout = field(repr=False)
@@ -30,7 +30,7 @@ class StarkEngineTranslationCupy:
                 field.state_path.get(result),
             )
 
-    def __add__(self, other: StarkEngineTranslationCupy) -> StarkEngineTranslationCupy:
+    def __add__(self, other: EngineTranslationCupy) -> EngineTranslationCupy:
         if self.allocator is not other.allocator:
             raise ValueError("Cannot add translations allocated by different engines.")
 
@@ -43,7 +43,7 @@ class StarkEngineTranslationCupy:
             )
         return result
 
-    def __rmul__(self, scalar: float) -> StarkEngineTranslationCupy:
+    def __rmul__(self, scalar: float) -> EngineTranslationCupy:
         result = self.allocator.allocate_translation()
         for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
             carrier.arithmetic.scale(
@@ -53,7 +53,7 @@ class StarkEngineTranslationCupy:
             )
         return result
 
-    def __mul__(self, scalar: float) -> StarkEngineTranslationCupy:
+    def __mul__(self, scalar: float) -> EngineTranslationCupy:
         return self.__rmul__(scalar)
 
     def norm(self) -> float:
@@ -69,4 +69,4 @@ class StarkEngineTranslationCupy:
         return sqrt(total)
 
 
-__all__ = ["StarkEngineTranslationCupy"]
+__all__ = ["EngineTranslationCupy"]

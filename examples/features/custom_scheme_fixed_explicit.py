@@ -1,8 +1,8 @@
-"""Use a custom fixed-step explicit scheme through `StarkSystem`.
+"""Use a custom fixed-step explicit scheme through `System`.
 
 Custom schemes do not need a separate runner path. If the scheme accepts the
-same constructor ingredients as the built-in schemes, `StarkMethod` can select
-it and `StarkSystem` can build the IVP in the usual way.
+same constructor ingredients as the built-in schemes, `Method` can select
+it and `System` can build the IVP in the usual way.
 
 The essential scheme surface is still small:
 
@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Configuration, Interval, StarkLayout, StarkMethod, StarkSystem
-from stark.engines import StarkEngineNumpy
+from stark import Configuration, Interval, Layout, Method, System
+from stark.engines import EngineNumpy
 
 
 def derivative(t: float, state, out) -> None:
@@ -51,15 +51,15 @@ class ForwardEuler:
         return snapshot
 
 
-system = StarkSystem(
+system = System(
     derivative=derivative,
-    layout=StarkLayout({"y": {"translation": "dy", "shape": (1,)}}),
+    layout=Layout({"y": {"translation": "dy", "shape": (1,)}}),
 )
 ivp = system.ivp(
     initial={"y": np.array([1.0])},
     interval=Interval(present=0.0, step=0.1, stop=0.3),
-    method=StarkMethod(scheme=ForwardEuler),
-    engine=StarkEngineNumpy,
+    method=Method(scheme=ForwardEuler),
+    engine=EngineNumpy,
     configuration=Configuration(check_progress=False),
 )
 

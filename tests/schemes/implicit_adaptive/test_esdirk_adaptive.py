@@ -9,11 +9,11 @@ from stark import Integrator, Interval, IntegratorStepper, Tolerance
 from stark.accelerators import AcceleratorNone
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.monitor import Monitor
-from stark.resolvents import ResolventPicard
+from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
-from stark.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
-from stark.schemes.implicit.adaptive.kvaerno4 import SchemeKvaerno4
-from stark.schemes.implicit.adaptive.sdirk21 import SchemeSDIRK21
+from stark.methods.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
+from stark.methods.schemes.implicit.adaptive.kvaerno4 import SchemeKvaerno4
+from stark.methods.schemes.implicit.adaptive.sdirk21 import SchemeSDIRK21
 
 
 @dataclass(slots=True)

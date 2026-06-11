@@ -7,13 +7,13 @@ import numpy as np
 from stark import (
     Configuration,
     Interval,
-    StarkLayout,
-    StarkMethod,
-    StarkSystem,
+    Layout,
+    Method,
+    System,
 )
-from stark.engines import StarkEngineNumpy
+from stark.engines import EngineNumpy
 from stark.monitor import Monitor
-from stark.schemes import SchemeCashKarp, SchemeRK4
+from stark.methods.schemes import SchemeCashKarp, SchemeRK4
 
 
 def oscillator_rhs(t: float, state, out) -> None:
@@ -22,9 +22,9 @@ def oscillator_rhs(t: float, state, out) -> None:
     out.dy[1] = -state.y[0]
 
 
-system = StarkSystem(
+system = System(
     derivative=oscillator_rhs,
-    layout=StarkLayout({"y": {"translation": "dy", "shape": (2,)}}),
+    layout=Layout({"y": {"translation": "dy", "shape": (2,)}}),
 )
 
 
@@ -32,8 +32,8 @@ def build_problem(scheme_type, monitor: Monitor):
     return system.ivp(
         initial={"y": np.array([1.0, 0.0])},
         interval=Interval(present=0.0, step=0.2, stop=1.0),
-        method=StarkMethod(scheme=scheme_type, scheme_options={"monitor": monitor.scheme}),
-        engine=StarkEngineNumpy,
+        method=Method(scheme=scheme_type, scheme_options={"monitor": monitor.scheme}),
+        engine=EngineNumpy,
         configuration=Configuration(check_progress=False),
     )
 
@@ -41,8 +41,7 @@ def build_problem(scheme_type, monitor: Monitor):
 def run_with_monitor(scheme_type) -> Monitor:
     monitor = Monitor()
     ivp = build_problem(scheme_type, monitor)
-
-    list(ivp.mutating_trajectory())
+    ivp.final_result()
 
     return monitor
 

@@ -2,24 +2,23 @@ from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
-
+from stark.comparison import Comparison
 from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
-from stark.engines.numpy.engine import StarkEngineNumpy
-from stark.interface.derivative import StarkDerivativeStyle
-from stark.interface.layout import StarkLayout
-from stark.interface.method import StarkMethod
-from stark.interface.system import StarkSystem
-from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
-from stark.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
+from stark.engines.numpy.engine import EngineNumpy
+from stark.interface.derivative import DerivativeStyle
+from stark.interface.layout import Layout
+from stark.methods.method import Method
+from stark.interface.system import System
+from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
+from stark.methods.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
 
 
 Array = Any
 
 
-@StarkDerivativeStyle.kernel(state=("u", "v"), translation=("du", "dv"))
+@DerivativeStyle.kernel(state=("u", "v"), translation=("du", "dv"))
 def brusselator_rhs(
     u: Array,
     v: Array,
@@ -50,7 +49,7 @@ def brusselator_rhs(
             dv[i, j] = alpha * lap_v + b * u_ij - reaction
 
 
-def prepare_solver(
+def stark_solver(
     solver_name,
     scheme_type,
     problem_parameters,
@@ -69,14 +68,14 @@ def prepare_solver(
             rtol=float(tolerance_parameters["rtol"]),
         ),
     )
-    system = StarkSystem(
+    system = System(
         derivative=brusselator_rhs.with_parameters(
             float(problem_parameters["alpha"]),
             float(problem_parameters["a"]),
             float(problem_parameters["b"]),
             float(problem_parameters["inv_dx2"]),
         ),
-        layout=StarkLayout(
+        layout=Layout(
             {
                 "u": {"translation": "du", "shape": grid_shape},
                 "v": {"translation": "dv", "shape": grid_shape},
@@ -86,38 +85,31 @@ def prepare_solver(
     ivp = system.ivp(
         initial=initial_conditions,
         interval=Interval(t0, initial_step, t1),
-        method=StarkMethod(scheme=scheme_type),
-        engine=StarkEngineNumpy,
+        method=Method(scheme=scheme_type),
+        engine=EngineNumpy,
         configuration=configuration,
     )
 
     def solve_once() -> dict[str, Any]:
-        interval = ivp.fresh_interval()
-        state = ivp.fresh_state()
-        steps = 0
-
-        for _interval, _state in ivp.mutating_trajectory(interval=interval, state=state):
-            steps += 1
-
-        du = state.u - reference["u"]
-        dv = state.v - reference["v"]
-        error = np.sqrt(
-            (np.dot(du.ravel(), du.ravel()) + np.dot(dv.ravel(), dv.ravel()))
-            / state.u.size
-        )
+        result = ivp.final_result()
 
         return {
             "library": "STARK",
             "solver": solver_name,
-            "error": float(error),
-            "steps": steps,
+            "error": Comparison.fieldwise_rms_error(
+                result.state,
+                reference,
+                ("u", "v"),
+                sample_count=result.state.u.size,
+            ),
+            "steps": result.steps,
         }
 
     return solve_once
 
 
 def prepare_rkck(problem_parameters, tolerance_parameters, initial_conditions, reference):
-    return prepare_solver(
+    return stark_solver(
         "RKCK",
         SchemeCashKarp,
         problem_parameters,
@@ -126,13 +118,8 @@ def prepare_rkck(problem_parameters, tolerance_parameters, initial_conditions, r
         reference,
     )
 
-
-def run_rkck(problem_parameters, tolerance_parameters, initial_conditions, reference):
-    return prepare_rkck(problem_parameters, tolerance_parameters, initial_conditions, reference)()
-
-
 def prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, reference):
-    return prepare_solver(
+    return stark_solver(
         "RKDP",
         SchemeDormandPrince,
         problem_parameters,
@@ -140,7 +127,3 @@ def prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, r
         initial_conditions,
         reference,
     )
-
-
-def run_rkdp(problem_parameters, tolerance_parameters, initial_conditions, reference):
-    return prepare_rkdp(problem_parameters, tolerance_parameters, initial_conditions, reference)()

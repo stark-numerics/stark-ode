@@ -14,7 +14,7 @@ from stark.contracts.accelerator import Accelerator
 from stark.contracts.allocator import Allocator
 
 
-class StarkEngine(Protocol):
+class Engine(Protocol):
     """Backend bundle for a declared STARK layout."""
 
     @property
@@ -53,9 +53,14 @@ class StarkEngine(Protocol):
         ...
 
     @property
+    def algebraist_inner_product(self) -> Any:
+        """Provider for backend inner-product kernels."""
+        ...
+
+    @property
     def algebraist_specialist(self) -> Any:
         """Provider for backend specialist kernels."""
         ...
 
 
-__all__ = ["StarkEngine"]
+__all__ = ["Engine"]

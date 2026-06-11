@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from stark.block import Block, BlockSpecialist
-from stark.resolvents.specialization.stencil import ResolventStencilBlock
+from stark.methods.resolvents.specialization.stencil import ResolventStencilBlock
 
 
 class ItemSpecialist:

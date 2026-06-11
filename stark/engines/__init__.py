@@ -2,54 +2,54 @@
 
 __all__: list[str] = []
 
-from stark.contracts.engine import StarkEngine
+from stark.contracts.engine import Engine
 from stark.engines.native import (
-    StarkEngineAllocatorNative,
-    StarkEngineNative,
-    StarkEngineTranslationNative,
+    EngineAllocatorNative,
+    EngineNative,
+    EngineTranslationNative,
 )
 from stark.engines.numpy import (
-    StarkEngineAllocatorNumpy,
-    StarkEngineNumpy,
-    StarkEngineTranslationNumpy,
+    EngineAllocatorNumpy,
+    EngineNumpy,
+    EngineTranslationNumpy,
 )
 
 __all__ += [
-    "StarkEngine",
-    "StarkEngineAllocatorNative",
-    "StarkEngineAllocatorNumpy",
-    "StarkEngineNative",
-    "StarkEngineNumpy",
-    "StarkEngineTranslationNative",
-    "StarkEngineTranslationNumpy",
+    "Engine",
+    "EngineAllocatorNative",
+    "EngineAllocatorNumpy",
+    "EngineNative",
+    "EngineNumpy",
+    "EngineTranslationNative",
+    "EngineTranslationNumpy",
 ]
 
 try:
     from stark.engines.cupy import (
-        StarkEngineAllocatorCupy,
-        StarkEngineCupy,
-        StarkEngineTranslationCupy,
+        EngineAllocatorCupy,
+        EngineCupy,
+        EngineTranslationCupy,
     )
 except ImportError:
     pass
 else:
     __all__ += [
-        "StarkEngineAllocatorCupy",
-        "StarkEngineCupy",
-        "StarkEngineTranslationCupy",
+        "EngineAllocatorCupy",
+        "EngineCupy",
+        "EngineTranslationCupy",
     ]
 
 try:
     from stark.engines.jax import (
-        StarkEngineAllocatorJax,
-        StarkEngineJax,
-        StarkEngineTranslationJax,
+        EngineAllocatorJax,
+        EngineJax,
+        EngineTranslationJax,
     )
 except ImportError:
     pass
 else:
     __all__ += [
-        "StarkEngineAllocatorJax",
-        "StarkEngineJax",
-        "StarkEngineTranslationJax",
+        "EngineAllocatorJax",
+        "EngineJax",
+        "EngineTranslationJax",
     ]

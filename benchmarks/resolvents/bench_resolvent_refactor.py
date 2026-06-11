@@ -14,8 +14,8 @@ from stark import Interval
 from stark.accelerators import AcceleratorNone
 from stark.block import Block
 from stark.executor.safety import ExecutorSafety
-from stark.inverters import InverterGMRES, InverterPolicy, InverterTolerance
-from stark.resolvents import (
+from stark.methods.inverters import InverterGMRES, InverterPolicy, InverterTolerance
+from stark.methods.resolvents import (
     ResolventAnderson,
     ResolventBroyden,
     ResolventCoupledNewton,
@@ -25,7 +25,7 @@ from stark.resolvents import (
     ResolventPolicy,
     ResolventTolerance,
 )
-from stark.schemes.implicit.fixed import GAUSS_LEGENDRE4_TABLEAU
+from stark.methods.schemes.implicit.fixed import GAUSS_LEGENDRE4_TABLEAU
 
 
 ROOT = Path(__file__).resolve().parents[2]

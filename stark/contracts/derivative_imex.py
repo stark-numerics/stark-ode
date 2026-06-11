@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from stark.contracts.contract_audit import AuditRecorder
-from stark.contracts.derivative import Derivative
+from stark.contracts.derivative import DerivativeLike
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,15 +25,15 @@ class DerivativeIMEX:
     where both parts write into translation objects in place.
     """
 
-    implicit: Derivative
-    explicit: Derivative
+    implicit: DerivativeLike
+    explicit: DerivativeLike
 
     @property
-    def im(self) -> Derivative:
+    def im(self) -> DerivativeLike:
         return self.implicit
 
     @property
-    def ex(self) -> Derivative:
+    def ex(self) -> DerivativeLike:
         return self.explicit
 
 

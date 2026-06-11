@@ -1,91 +1,9 @@
 from __future__ import annotations
 
-from statistics import median
 from time import perf_counter
 
 from competition.fput import common, diffrax, scipy, stark
-
-
-def prewarm_runner(prepare_runner, problem, tolerances, initial_conditions, reference, allow_failure=False) -> None:
-    try:
-        solve_once = prepare_runner(problem, tolerances, initial_conditions, reference)
-        solve_once()
-    except Exception:
-        if not allow_failure:
-            raise
-
-
-def timed_runner(
-    library,
-    solver,
-    prepare_runner,
-    repeats,
-    problem,
-    tolerances,
-    initial_conditions,
-    reference,
-    allow_failure=False,
-):
-    setup_elapsed = None
-    warmup_elapsed = None
-    try:
-        started = perf_counter()
-        solve_once = prepare_runner(problem, tolerances, initial_conditions, reference)
-        setup_elapsed = perf_counter() - started
-
-        started = perf_counter()
-        solve_once()
-        warmup_elapsed = perf_counter() - started
-
-        durations = []
-        result = None
-        for _ in range(repeats):
-            started = perf_counter()
-            result = solve_once()
-            durations.append(perf_counter() - started)
-    except Exception as exc:  # pragma: no cover - optional solver stacks vary locally
-        if not allow_failure:
-            raise
-        return {
-            "library": library,
-            "solver": solver,
-            "error": None,
-            "steps": None,
-            "setup": setup_elapsed,
-            "warmup": warmup_elapsed,
-            "preparation": None if setup_elapsed is None else setup_elapsed + (warmup_elapsed or 0.0),
-            "median": None,
-            "min": None,
-            "note": f"{type(exc).__name__}: {exc}",
-        }
-
-    return {
-        "library": result["library"],
-        "solver": result["solver"],
-        "error": result["error"],
-        "steps": result["steps"],
-        "setup": float(setup_elapsed),
-        "warmup": float(warmup_elapsed),
-        "preparation": float(setup_elapsed + warmup_elapsed),
-        "median": float(median(durations)),
-        "min": float(min(durations)),
-        "note": "",
-    }
-
-
-def render_table(headers, rows):
-    widths = [len(header) for header in headers]
-    for row in rows:
-        for index, value in enumerate(row):
-            widths[index] = max(widths[index], len(value))
-
-    lines = [
-        " | ".join(header.ljust(width) for header, width in zip(headers, widths, strict=True)),
-        "-+-".join("-" * width for width in widths),
-    ]
-    for row in rows:
-        lines.append(" | ".join(value.ljust(width) for value, width in zip(row, widths, strict=True)))
-    return "\n".join(lines)
+from competition.runner import CompetitionData, CompetitionEntry, CompetitionRunner, render_table
 
 
 def describe_problem(problem, tolerances, reference_tolerances, reference, reference_elapsed):
@@ -117,11 +35,7 @@ def describe_problem(problem, tolerances, reference_tolerances, reference, refer
     print(f"  STARK initial step: {tolerances['initial_step']:.0e}")
     print(
         "  STARK acceleration: "
-        + (
-            "selected accelerator: numba, with compiled RHS and fused translation kernels active"
-            if stark.USE_NUMBA_ACCELERATION
-            else "selected accelerator: numba, but it is unavailable here so NumPy fallback kernels are active"
-        )
+        "StarkEngineNumpy selects Numba when it is installed and otherwise uses unaccelerated callables"
     )
     print("  all compared solver stacks are prewarmed once before timed rows")
     print("  each method performs setup once, then one complete untimed warmup solve")
@@ -174,42 +88,19 @@ def main() -> None:
     reference_elapsed = perf_counter() - started
 
     stark_problem = stark.FPUTStarkProblem(problem)
-
-    prewarm_runner(stark_problem.prepare_rkck, problem, tolerances, initial_conditions, reference)
-    prewarm_runner(stark_problem.prepare_rkdp, problem, tolerances, initial_conditions, reference)
-    prewarm_runner(scipy.prepare_rk45, problem, tolerances, initial_conditions, reference)
-    prewarm_runner(scipy.prepare_dop853, problem, tolerances, initial_conditions, reference)
-    prewarm_runner(diffrax.prepare_tsit5, problem, tolerances, initial_conditions, reference, allow_failure=True)
-    prewarm_runner(diffrax.prepare_dopri5, problem, tolerances, initial_conditions, reference, allow_failure=True)
-
-    rows = [
-        timed_runner("STARK", "RKCK", stark_problem.prepare_rkck, repeats, problem, tolerances, initial_conditions, reference),
-        timed_runner("STARK", "RKDP", stark_problem.prepare_rkdp, repeats, problem, tolerances, initial_conditions, reference),
-        timed_runner("SciPy", "RK45", scipy.prepare_rk45, repeats, problem, tolerances, initial_conditions, reference),
-        timed_runner("SciPy", "DOP853", scipy.prepare_dop853, repeats, problem, tolerances, initial_conditions, reference),
-        timed_runner(
-            "Diffrax",
-            "Tsit5",
-            diffrax.prepare_tsit5,
-            repeats,
-            problem,
-            tolerances,
-            initial_conditions,
-            reference,
-            allow_failure=True,
-        ),
-        timed_runner(
-            "Diffrax",
-            "Dopri5",
-            diffrax.prepare_dopri5,
-            repeats,
-            problem,
-            tolerances,
-            initial_conditions,
-            reference,
-            allow_failure=True,
-        ),
+    entries = [
+        CompetitionEntry("STARK", "RKCK", stark_problem.prepare_rkck, tolerances),
+        CompetitionEntry("STARK", "RKDP", stark_problem.prepare_rkdp, tolerances),
+        CompetitionEntry("SciPy", "RK45", scipy.prepare_rk45, tolerances),
+        CompetitionEntry("SciPy", "DOP853", scipy.prepare_dop853, tolerances),
+        CompetitionEntry("Diffrax", "Tsit5", diffrax.prepare_tsit5, tolerances, optional=True),
+        CompetitionEntry("Diffrax", "Dopri5", diffrax.prepare_dopri5, tolerances, optional=True),
     ]
+    rows = CompetitionRunner(
+        CompetitionData(problem, initial_conditions, reference),
+        entries,
+        repeats,
+    ).time_all()
 
     describe_problem(problem, tolerances, reference_tolerances, reference, reference_elapsed)
 
@@ -273,12 +164,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-

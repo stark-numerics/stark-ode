@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from stark import Executor, Integrator, Interval, IntegratorStepper, ExecutorSafety, ExecutorTolerance
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
-from stark.schemes.explicit.adaptive import SchemeCashKarp, SchemeDormandPrince
-from stark.schemes.explicit.fixed import SchemeEuler, SchemeRK4
+from stark.methods.schemes.explicit.adaptive import SchemeCashKarp, SchemeDormandPrince
+from stark.methods.schemes.explicit.fixed import SchemeEuler, SchemeRK4
 
 from benchmarks.common import (
     FPUT_ALGEBRAIST,

@@ -1,148 +1,121 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
-from time import perf_counter
 from typing import Any
 
 import numpy as np
 
-from stark import Configuration, DerivativeIMEX, Integrator, Interval, IntegratorStepper, Tolerance
-from stark.accelerators import AcceleratorNone, AcceleratorNumba
-from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorLinearCombine, AlgebraistGeneratorSpecialist
-from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
-from stark.inverters.relaxation import InverterRelaxationRichardson
-from stark.resolvents import ResolventAnderson, ResolventNewton
-from stark.schemes import SchemeKennedyCarpenter43_7, SchemeKvaerno3
-
-
-try:
-    ACCELERATOR = AcceleratorNumba()
-    USE_NUMBA_ACCELERATION = True
-except ModuleNotFoundError:
-    ACCELERATOR = AcceleratorNone()
-    USE_NUMBA_ACCELERATION = False
+from stark.comparison import Comparison
+from stark.core.configuration import Configuration
+from stark.core.interval import Interval
+from stark.core.tolerance import Tolerance
+from stark.engines.numpy.engine import EngineNumpy
+from stark.interface.derivative import DerivativeStyle
+from stark.interface.layout import Layout
+from stark.methods.method import Method
+from stark.interface.system import System
+from stark.methods.resolvents.secant.anderson import ResolventAnderson
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter43_7 import SchemeKennedyCarpenter43_7
+from stark.methods.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
 
 
 Array = Any
 
 
-ALGEBRAIST_LAYOUT = AlgebraistLayout(
-    fields=(
-        AlgebraistLayoutField("du", "u", policy=AlgebraistLayoutLooped(rank=1)),
-        AlgebraistLayoutField("dv", "v", policy=AlgebraistLayoutLooped(rank=1)),
-    ),
-)
-
-
-@ACCELERATOR.compile
-def _laplacian_periodic(field: Array, out: Array, inv_dx2: float) -> None:
-    size = field.size
-    for index in range(size):
-        left = field[index - 1 if index > 0 else size - 1]
-        centre = field[index]
-        right = field[index + 1 if index + 1 < size else 0]
-        out[index] = (left - 2.0 * centre + right) * inv_dx2
-
-
-@ACCELERATOR.compile
-def _rhs_kernel(
+@DerivativeStyle.kernel(state=("u", "v"), translation=("du", "dv"))
+def fitzhugh_nagumo_rhs(
     u: Array,
     v: Array,
-    laplacian_u: Array,
-    out_u: Array,
-    out_v: Array,
+    du: Array,
+    dv: Array,
     diffusivity_u: float,
     epsilon: float,
     a: float,
     b: float,
+    inv_dx2: float,
 ) -> None:
-    out_u[:] = diffusivity_u * laplacian_u + u - (u * u * u) / 3.0 - v
-    out_v[:] = epsilon * (u + a - b * v)
+    size = u.size
+    for index in range(size):
+        left = u[index - 1 if index > 0 else size - 1]
+        centre = u[index]
+        right = u[index + 1 if index + 1 < size else 0]
+        laplacian_u = (left - 2.0 * centre + right) * inv_dx2
+        du[index] = (
+            diffusivity_u * laplacian_u
+            + centre
+            - (centre * centre * centre) / 3.0
+            - v[index]
+        )
+        dv[index] = epsilon * (centre + a - b * v[index])
 
 
-@ACCELERATOR.compile
-def _explicit_rhs_kernel(u: Array, v: Array, out_u: Array, out_v: Array, epsilon: float, a: float, b: float) -> None:
-    out_u[:] = u - (u * u * u) / 3.0 - v
-    out_v[:] = epsilon * (u + a - b * v)
-
-
-@ACCELERATOR.compile
-def _implicit_rhs_kernel(laplacian_u: Array, out_u: Array, out_v: Array, diffusivity_u: float) -> None:
-    out_u[:] = diffusivity_u * laplacian_u
-    out_v[:] = 0.0
-
-
-@ACCELERATOR.compile
-def _apply_kernel(
+@DerivativeStyle.kernel(state=("u", "v"), translation=("du", "dv"))
+def fitzhugh_nagumo_explicit_rhs(
+    u: Array,
+    v: Array,
     du: Array,
     dv: Array,
-    origin_u: Array,
-    origin_v: Array,
-    result_u: Array,
-    result_v: Array,
+    epsilon: float,
+    a: float,
+    b: float,
 ) -> None:
-    size = du.size
-    for index in range(size):
-        result_u[index] = origin_u[index] + du[index]
-        result_v[index] = origin_v[index] + dv[index]
-
-
-@ACCELERATOR.compile
-def _norm_kernel(du: Array, dv: Array) -> float:
-    size = du.size
-    total = 0.0
-    for index in range(size):
-        total += du[index] * du[index] + dv[index] * dv[index]
-    return (total / size) ** 0.5
-
-
-@ACCELERATOR.compile
-def _inner_product_kernel(left_du: Array, left_dv: Array, right_du: Array, right_dv: Array) -> float:
-    size = left_du.size
-    total = 0.0
-    for index in range(size):
-        total += left_du[index] * right_du[index] + left_dv[index] * right_dv[index]
-    return total
-
-
-@ACCELERATOR.compile
-def _state_error_kernel(u: Array, v: Array, reference_u: Array, reference_v: Array) -> float:
     size = u.size
-    total = 0.0
     for index in range(size):
-        u_error = u[index] - reference_u[index]
-        v_error = v[index] - reference_v[index]
-        total += u_error * u_error + v_error * v_error
-    return (total / (size + size)) ** 0.5
+        centre = u[index]
+        du[index] = centre - (centre * centre * centre) / 3.0 - v[index]
+        dv[index] = epsilon * (centre + a - b * v[index])
 
 
-def _translation_inner_product(left, right):
-    return float(_inner_product_kernel(left.du, left.dv, right.du, right.dv))
+@DerivativeStyle.kernel(state=("u", "v"), translation=("du", "dv"))
+def fitzhugh_nagumo_implicit_rhs(
+    u: Array,
+    _v: Array,
+    du: Array,
+    dv: Array,
+    diffusivity_u: float,
+    inv_dx2: float,
+) -> None:
+    size = u.size
+    for index in range(size):
+        left = u[index - 1 if index > 0 else size - 1]
+        centre = u[index]
+        right = u[index + 1 if index + 1 < size else 0]
+        du[index] = diffusivity_u * (left - 2.0 * centre + right) * inv_dx2
+        dv[index] = 0.0
 
 
-@dataclass(slots=True)
 class FitzHughNagumoParameters:
-    grid_size: int = 128
-    length: float = 40.0
-    diffusivity_u: float = 1.0
-    epsilon: float = 0.08
-    a: float = 0.7
-    b: float = 0.8
-    t_start: float = 0.0
-    t_stop: float = 18.0
-    initial_step: float = 5.0e-3
-    checkpoint_count: int = 100
-    tolerance_atol: float = 1.0e-6
-    tolerance_rtol: float = 1.0e-5
-    resolution_atol: float = 1.0e-7
-    resolution_rtol: float = 1.0e-7
-    resolution_max_iterations: int = 24
-    inversion_atol: float = 1.0e-7
-    inversion_rtol: float = 1.0e-7
-    inversion_max_iterations: int = 24
-    inversion_restart: int = 12
+    __slots__ = (
+        "a",
+        "b",
+        "diffusivity_u",
+        "epsilon",
+        "grid_size",
+        "initial_step",
+        "length",
+        "resolution_atol",
+        "resolution_max_iterations",
+        "resolution_rtol",
+        "t_start",
+        "t_stop",
+        "tolerance_atol",
+        "tolerance_rtol",
+    )
+
+    def __init__(self, problem_parameters, stark_parameters) -> None:
+        self.grid_size = int(problem_parameters["grid_size"])
+        self.length = float(problem_parameters["length"])
+        self.diffusivity_u = float(problem_parameters["diffusivity_u"])
+        self.epsilon = float(problem_parameters["epsilon"])
+        self.a = float(problem_parameters["a"])
+        self.b = float(problem_parameters["b"])
+        self.t_start = float(problem_parameters["t0"])
+        self.t_stop = float(problem_parameters["t1"])
+        self.initial_step = float(stark_parameters["step"])
+        self.tolerance_atol = float(stark_parameters["tolerance_atol"])
+        self.tolerance_rtol = float(stark_parameters["tolerance_rtol"])
+        self.resolution_atol = float(stark_parameters["resolution_atol"])
+        self.resolution_rtol = float(stark_parameters["resolution_rtol"])
+        self.resolution_max_iterations = int(stark_parameters["resolution_max_iterations"])
 
     @property
     def dx(self) -> float:
@@ -153,361 +126,51 @@ class FitzHughNagumoParameters:
         return 1.0 / (self.dx * self.dx)
 
 
-def parameters_from_benchmark(problem_parameters, stark_parameters):
-    return FitzHughNagumoParameters(
-        grid_size=problem_parameters["grid_size"],
-        length=problem_parameters["length"],
-        diffusivity_u=problem_parameters["diffusivity_u"],
-        epsilon=problem_parameters["epsilon"],
-        a=problem_parameters["a"],
-        b=problem_parameters["b"],
-        t_start=problem_parameters["t0"],
-        t_stop=problem_parameters["t1"],
-        initial_step=stark_parameters["step"],
-        checkpoint_count=stark_parameters.get("checkpoints", 100),
-        tolerance_atol=stark_parameters["tolerance_atol"],
-        tolerance_rtol=stark_parameters["tolerance_rtol"],
-        resolution_atol=stark_parameters["resolution_atol"],
-        resolution_rtol=stark_parameters["resolution_rtol"],
-        resolution_max_iterations=stark_parameters["resolution_max_iterations"],
-        inversion_atol=stark_parameters.get("inversion_atol", 1.0e-7),
-        inversion_rtol=stark_parameters.get("inversion_rtol", 1.0e-7),
-        inversion_max_iterations=stark_parameters.get("inversion_max_iterations", 24),
-        inversion_restart=stark_parameters.get("inversion_restart", 12),
+def full_derivative(parameters: FitzHughNagumoParameters):
+    return fitzhugh_nagumo_rhs.with_parameters(
+        parameters.diffusivity_u,
+        parameters.epsilon,
+        parameters.a,
+        parameters.b,
+        parameters.inv_dx2,
     )
 
 
-@dataclass(slots=True)
-class FitzHughNagumoState:
-    u: np.ndarray
-    v: np.ndarray
-
-    def __repr__(self) -> str:
-        return f"FitzHughNagumoState(size={self.u.size!r})"
-
-    __str__ = __repr__
-
-
-class FitzHughNagumoTranslation:
-    __slots__ = ("du", "dv")
-
-    linear_combine: tuple[Callable[..., Any], ...] = ()
-
-    def __init__(self, du: np.ndarray, dv: np.ndarray) -> None:
-        self.du = du
-        self.dv = dv
-
-    def __repr__(self) -> str:
-        return f"FitzHughNagumoTranslation(size={self.du.size!r})"
-
-    __str__ = __repr__
-
-    def __add__(self, other: FitzHughNagumoTranslation) -> FitzHughNagumoTranslation:
-        return FitzHughNagumoTranslation(self.du + other.du, self.dv + other.dv)
-
-    def __rmul__(self, scalar: float) -> FitzHughNagumoTranslation:
-        return FitzHughNagumoTranslation(scalar * self.du, scalar * self.dv)
-
-    def __mul__(self, scalar: float) -> FitzHughNagumoTranslation:
-        return self.__rmul__(scalar)
-
-    def __call__(self, origin: FitzHughNagumoState, result: FitzHughNagumoState) -> None:
-        _apply_kernel(
-            self.du,
-            self.dv,
-            origin.u,
-            origin.v,
-            result.u,
-            result.v,
-        )
-
-    def norm(self) -> float:
-        return float(_norm_kernel(self.du, self.dv))
-
-
-class FitzHughNagumoAllocator:
-    __slots__ = ("grid_size",)
-
-    _algebraist_installed = False
-    _specialist: AlgebraistGeneratorSpecialist | None = None
-
-    def __init__(self, grid_size: int) -> None:
-        self.grid_size = grid_size
-        if not self.__class__._algebraist_installed:
-            probe = np.zeros(grid_size, dtype=np.float64)
-            ACCELERATOR.compile_examples(_laplacian_periodic, (probe, probe, 1.0))
-            self._install_algebraist()
-
-    def __repr__(self) -> str:
-        return f"FitzHughNagumoAllocator(grid_size={self.grid_size!r})"
-
-    __str__ = __repr__
-
-    def allocate_state(self) -> FitzHughNagumoState:
-        return FitzHughNagumoState(
-            np.zeros(self.grid_size, dtype=np.float64),
-            np.zeros(self.grid_size, dtype=np.float64),
-        )
-
-    def copy_state(self, source: FitzHughNagumoState, out: FitzHughNagumoState) -> None:
-        np.copyto(out.u, source.u)
-        np.copyto(out.v, source.v)
-
-    def allocate_translation(self) -> FitzHughNagumoTranslation:
-        return FitzHughNagumoTranslation(
-            np.zeros(self.grid_size, dtype=np.float64),
-            np.zeros(self.grid_size, dtype=np.float64),
-        )
-
-    @property
-    def specialist(self):
-        specialist = self.__class__._specialist
-        if specialist is None:
-            raise RuntimeError("FitzHughNagumoAllocator Algebraist support was not installed.")
-        return specialist
-
-    def _install_algebraist(self) -> None:
-        general = AlgebraistGeneratorLinearCombine(
-            translation=self.allocate_translation(),
-            allocator=self,
-            layout=ALGEBRAIST_LAYOUT,
-            accelerator=ACCELERATOR,
-        )
-        FitzHughNagumoTranslation.linear_combine = tuple(
-            general.provide(AlgebraistArity(arity))
-            for arity in range(1, 13)
-        )
-        self.__class__._specialist = AlgebraistGeneratorSpecialist(
-            translation=self.allocate_translation(),
-            allocator=self,
-            layout=ALGEBRAIST_LAYOUT,
-            accelerator=ACCELERATOR,
-        )
-        self.__class__._algebraist_installed = True
-
-
-class FitzHughNagumoDerivative:
-    __slots__ = ("parameters", "laplacian_u")
-    _compiled = False
-
-    def __init__(self, parameters: FitzHughNagumoParameters) -> None:
-        self.parameters = parameters
-        self.laplacian_u = np.zeros(parameters.grid_size, dtype=np.float64)
-        if not self.__class__._compiled:
-            probe = np.zeros(parameters.grid_size, dtype=np.float64)
-            ACCELERATOR.compile_examples(
-                _rhs_kernel,
-                (
-                    probe,
-                    probe,
-                    probe,
-                    probe,
-                    probe,
-                    parameters.diffusivity_u,
-                    parameters.epsilon,
-                    parameters.a,
-                    parameters.b,
-                ),
-            )
-            ACCELERATOR.compile_examples(
-                _explicit_rhs_kernel,
-                (
-                    probe,
-                    probe,
-                    probe,
-                    probe,
-                    parameters.epsilon,
-                    parameters.a,
-                    parameters.b,
-                ),
-            )
-            ACCELERATOR.compile_examples(
-                _implicit_rhs_kernel,
-                (
-                    probe,
-                    probe,
-                    probe,
-                    parameters.diffusivity_u,
-                ),
-            )
-            self.__class__._compiled = True
-
-    def __repr__(self) -> str:
-        return "FitzHughNagumoDerivative()"
-
-    __str__ = __repr__
-
-    def __call__(self, interval: Interval, state: FitzHughNagumoState, out: FitzHughNagumoTranslation) -> None:
-        del interval
-        parameters = self.parameters
-        _laplacian_periodic(state.u, self.laplacian_u, parameters.inv_dx2)
-        _rhs_kernel(
-            state.u,
-            state.v,
-            self.laplacian_u,
-            out.du,
-            out.dv,
+def imex_derivative(parameters: FitzHughNagumoParameters):
+    return DerivativeStyle.imex(
+        implicit=fitzhugh_nagumo_implicit_rhs.with_parameters(
             parameters.diffusivity_u,
-            parameters.epsilon,
-            parameters.a,
-            parameters.b,
-        )
-
-
-class FitzHughNagumoExplicitDerivative:
-    __slots__ = ("parameters",)
-
-    def __init__(self, parameters: FitzHughNagumoParameters) -> None:
-        self.parameters = parameters
-
-    def __repr__(self) -> str:
-        return "FitzHughNagumoExplicitDerivative()"
-
-    __str__ = __repr__
-
-    def __call__(self, interval: Interval, state: FitzHughNagumoState, out: FitzHughNagumoTranslation) -> None:
-        del interval
-        parameters = self.parameters
-        _explicit_rhs_kernel(
-            state.u,
-            state.v,
-            out.du,
-            out.dv,
-            parameters.epsilon,
-            parameters.a,
-            parameters.b,
-        )
-
-
-class FitzHughNagumoImplicitDerivative:
-    __slots__ = ("parameters", "laplacian_u")
-
-    def __init__(self, parameters: FitzHughNagumoParameters) -> None:
-        self.parameters = parameters
-        self.laplacian_u = np.zeros(parameters.grid_size, dtype=np.float64)
-
-    def __repr__(self) -> str:
-        return "FitzHughNagumoImplicitDerivative()"
-
-    __str__ = __repr__
-
-    def __call__(self, interval: Interval, state: FitzHughNagumoState, out: FitzHughNagumoTranslation) -> None:
-        del interval
-        parameters = self.parameters
-        _laplacian_periodic(state.u, self.laplacian_u, parameters.inv_dx2)
-        _implicit_rhs_kernel(
-            self.laplacian_u,
-            out.du,
-            out.dv,
-            parameters.diffusivity_u,
-        )
-
-
-class FitzHughNagumoLinearizer:
-    __slots__ = ("parameters", "laplacian_du")
-
-    def __init__(self, parameters: FitzHughNagumoParameters) -> None:
-        self.parameters = parameters
-        self.laplacian_du = np.zeros(parameters.grid_size, dtype=np.float64)
-
-    def __repr__(self) -> str:
-        return "FitzHughNagumoLinearizer()"
-
-    __str__ = __repr__
-
-    def __call__(self, interval, state, out):
-        del interval
-        parameters = self.parameters
-        base_u = state.u
-
-        def apply(translation, result):
-            du = translation.du
-            dv = translation.dv
-            _laplacian_periodic(du, self.laplacian_du, parameters.inv_dx2)
-            result.du[:] = parameters.diffusivity_u * self.laplacian_du + (1.0 - base_u * base_u) * du - dv
-            result.dv[:] = parameters.epsilon * du - parameters.epsilon * parameters.b * dv
-
-        out.apply = apply
-
-
-def initial_state(parameters: FitzHughNagumoParameters) -> tuple[np.ndarray, FitzHughNagumoState]:
-    x = np.linspace(0.0, parameters.length, parameters.grid_size, endpoint=False)
-    u = -1.2 + 2.4 * np.exp(-((x - 0.3 * parameters.length) ** 2) / 1.5)
-    v = -0.62 + 0.1 * np.exp(-((x - 0.3 * parameters.length) ** 2) / 1.5)
-    return x, FitzHughNagumoState(u.astype(np.float64), v.astype(np.float64))
-
-
-class ComparisonStepperCounting:
-    __slots__ = ("stepper", "steps")
-
-    def __init__(self, stepper: IntegratorStepper) -> None:
-        self.stepper = stepper
-        self.steps = 0
-
-    def __call__(self, interval, state) -> float:
-        self.steps += 1
-        return self.stepper(interval, state)
-
-    def snapshot_state(self, state):
-        return self.stepper.snapshot_state(state)
-
-
-@dataclass(slots=True)
-class FitzHughNagumoTrajectory:
-    u_snapshots: list[np.ndarray]
-    v_snapshots: list[np.ndarray]
-    steps: int
-    runtime: float
-
-
-def _error_against_reference(state: FitzHughNagumoState, reference) -> float:
-    return float(_state_error_kernel(state.u, state.v, reference["u"], reference["v"]))
-
-
-def _scheme_configuration(scheme_type, parameters: FitzHughNagumoParameters) -> Configuration:
-    common = {
-        "scheme_tolerance": Tolerance(
-            atol=parameters.tolerance_atol,
-            rtol=parameters.tolerance_rtol,
+            parameters.inv_dx2,
         ),
-        "adaptive_scheme_safety": 0.95,
-    }
-    if scheme_type is SchemeKennedyCarpenter43_7:
-        return Configuration(**common, adaptive_scheme_error_exponent=0.25)
-    if scheme_type is SchemeKvaerno3:
-        return Configuration(**common, adaptive_scheme_error_exponent=1.0 / 3.0)
-    return Configuration(**common, adaptive_scheme_error_exponent=0.45)
-
-
-def _imex_derivative(parameters: FitzHughNagumoParameters) -> DerivativeIMEX:
-    return DerivativeIMEX(
-        implicit=FitzHughNagumoImplicitDerivative(parameters),
-        explicit=FitzHughNagumoExplicitDerivative(parameters),
+        explicit=fitzhugh_nagumo_explicit_rhs.with_parameters(
+            parameters.epsilon,
+            parameters.a,
+            parameters.b,
+        ),
     )
 
 
 class FitzHughNagumoSpectralResolvent:
-    __slots__ = ("tableau", "operator_symbol", "u_hat")
+    __slots__ = ("operator_symbol", "tableau", "u_hat")
 
     def __init__(self, parameters: FitzHughNagumoParameters, tableau=None) -> None:
         self.tableau = tableau
-        theta = 2.0 * np.pi * np.fft.fftfreq(parameters.grid_size)
-        self.operator_symbol = parameters.diffusivity_u * 2.0 * (np.cos(theta) - 1.0) * parameters.inv_dx2
-        self.u_hat = np.zeros(parameters.grid_size, dtype=np.complex128)
-
-    def __repr__(self) -> str:
-        return f"FitzHughNagumoSpectralResolvent(tableau={self.tableau!r})"
-
-    __str__ = __repr__
-
-    def bind(self, interval: Interval, state: FitzHughNagumoState) -> None:
-        del interval, state
+        grid_size = int(parameters.grid_size)
+        theta = 2.0 * np.pi * np.fft.fftfreq(grid_size, d=1.0)
+        self.operator_symbol = (
+            parameters.diffusivity_u
+            * 2.0
+            * (np.cos(theta) - 1.0)
+            * parameters.inv_dx2
+        )
+        self.u_hat = np.zeros(grid_size, dtype=np.complex128)
 
     def __call__(self, problem, out) -> None:
         state = problem.origin
         alpha = problem.alpha
         rhs = problem.rhs
         delta = out[0]
+
         if rhs is None:
             delta.dv.fill(0.0)
         else:
@@ -524,157 +187,136 @@ class FitzHughNagumoSpectralResolvent:
             np.copyto(self.u_hat, np.fft.fft(state.u))
         else:
             np.copyto(self.u_hat, np.fft.fft(state.u + rhs[0].du))
-        denominator = 1.0 - alpha * self.operator_symbol
-        self.u_hat /= denominator
-        resolved_u = np.fft.ifft(self.u_hat).real
-        delta.du[:] = resolved_u - state.u
+
+        self.u_hat /= 1.0 - alpha * self.operator_symbol
+        delta.du[:] = np.fft.ifft(self.u_hat).real - state.u
 
 
-def _build_anderson_solver(label, scheme_type, parameters: FitzHughNagumoParameters):
-    configuration = Configuration(check_progress=False)
-    allocator = FitzHughNagumoAllocator(parameters.grid_size)
-    derivative = FitzHughNagumoDerivative(parameters)
-    resolvent = ResolventAnderson(
-        allocator,
-        _translation_inner_product,
-        configuration=Configuration(resolvent_tolerance=Tolerance(
+def stark_layout(parameters: FitzHughNagumoParameters) -> Layout:
+    shape = (parameters.grid_size,)
+    return Layout(
+        {
+            "u": {"translation": "du", "shape": shape},
+            "v": {"translation": "dv", "shape": shape},
+        }
+    )
+
+
+def stark_configuration(
+    scheme_type,
+    parameters: FitzHughNagumoParameters,
+) -> Configuration:
+    exponent = 0.45
+    if scheme_type is SchemeKennedyCarpenter43_7:
+        exponent = 0.25
+    elif scheme_type is SchemeKvaerno3:
+        exponent = 1.0 / 3.0
+
+    return Configuration(
+        check_progress=False,
+        scheme_tolerance=Tolerance(
+            atol=parameters.tolerance_atol,
+            rtol=parameters.tolerance_rtol,
+        ),
+        adaptive_scheme_safety=0.95,
+        adaptive_scheme_error_exponent=exponent,
+        resolvent_tolerance=Tolerance(
             atol=parameters.resolution_atol,
             rtol=parameters.resolution_rtol,
-        ), resolvent_maximum_steps=parameters.resolution_max_iterations),
-        depth=4,
-        accelerator=ACCELERATOR,
-        tableau=scheme_type.tableau,
+        ),
+        resolvent_maximum_steps=parameters.resolution_max_iterations,
     )
-    scheme = scheme_type(
-        derivative,
-        allocator,
-        resolvent=resolvent,
-        configuration=_scheme_configuration(scheme_type, parameters),
-        specialist=allocator.specialist,
+
+
+def stark_ivp(
+    parameters: FitzHughNagumoParameters,
+    *,
+    method: Method,
+    initial_values: dict[str, np.ndarray],
+    derivative: object | None = None,
+):
+    system = System(
+        derivative=full_derivative(parameters) if derivative is None else derivative,
+        layout=stark_layout(parameters),
     )
-    stepper = ComparisonStepperCounting(IntegratorStepper(scheme))
-    integrator = Integrator(configuration=configuration)
-    return label, integrator, stepper
-
-
-def _build_imex_spectral_solver(label, scheme_type, parameters: FitzHughNagumoParameters):
-    configuration = Configuration(check_progress=False)
-    allocator = FitzHughNagumoAllocator(parameters.grid_size)
-    derivative = _imex_derivative(parameters)
-    resolvent = FitzHughNagumoSpectralResolvent(parameters, tableau=scheme_type.tableau)
-    scheme = scheme_type(
-        derivative,
-        allocator,
-        resolvent=resolvent,
-        configuration=_scheme_configuration(scheme_type, parameters),
-        specialist=allocator.specialist,
+    return system.ivp(
+        initial=initial_values,
+        interval=Interval(parameters.t_start, parameters.initial_step, parameters.t_stop),
+        method=method,
+        engine=EngineNumpy,
+        configuration=stark_configuration(method.scheme, parameters),
     )
-    stepper = ComparisonStepperCounting(IntegratorStepper(scheme))
-    integrator = Integrator(configuration=configuration)
-    return label, integrator, stepper
 
 
-def prepare_quasi_newton(name, scheme_type, builder, problem_parameters, stark_parameters, initial_conditions, reference):
-    parameters = parameters_from_benchmark(problem_parameters, stark_parameters)
-    _label, integrator, stepper = builder(name, scheme_type, parameters)
+def stark_solver(
+    name: str,
+    method: Method,
+    parameters: FitzHughNagumoParameters,
+    initial_conditions,
+    reference,
+    *,
+    derivative: object | None = None,
+):
+    ivp = stark_ivp(
+        parameters,
+        method=method,
+        derivative=derivative,
+        initial_values=initial_conditions,
+    )
 
-    def solve_once():
-        state = FitzHughNagumoState(initial_conditions["u"].copy(), initial_conditions["v"].copy())
-        interval = Interval(parameters.t_start, parameters.initial_step, parameters.t_stop)
-        stepper.steps = 0
-        for _interval, _state in integrator.mutating_trajectory(stepper, interval, state):
-            pass
+    def solve_once() -> dict[str, Any]:
+        result = ivp.final_result()
         return {
             "library": "STARK",
             "solver": name,
-            "error": _error_against_reference(state, reference),
-            "steps": stepper.steps,
+            "error": Comparison.fieldwise_rms_error(result.state, reference, ("u", "v")),
+            "steps": result.steps,
         }
 
     return solve_once
 
 
-def prepare_kvaerno3_anderson(problem_parameters, stark_parameters, initial_conditions, reference):
-    return prepare_quasi_newton("Kvaerno3 Anderson", SchemeKvaerno3, _build_anderson_solver, problem_parameters, stark_parameters, initial_conditions, reference)
-
-
-def prepare_kc43_imex_spectral(problem_parameters, stark_parameters, initial_conditions, reference):
-    return prepare_quasi_newton(
-        "KC43_7 IMEX Spectral",
-        SchemeKennedyCarpenter43_7,
-        _build_imex_spectral_solver,
-        problem_parameters,
-        stark_parameters,
+def prepare_kvaerno3_anderson(
+    problem_parameters,
+    stark_parameters,
+    initial_conditions,
+    reference,
+):
+    parameters = FitzHughNagumoParameters(problem_parameters, stark_parameters)
+    return stark_solver(
+        "Kvaerno3 Anderson",
+        Method(
+            scheme=SchemeKvaerno3,
+            resolvent=ResolventAnderson,
+            resolvent_options={
+                "depth": 4,
+                "tableau": SchemeKvaerno3.tableau,
+            },
+        ),
+        parameters,
         initial_conditions,
         reference,
     )
 
 
-def run_inverter_example(name, inverter_class, parameters: FitzHughNagumoParameters) -> FitzHughNagumoTrajectory:
-    del name
-    configuration = Configuration(check_progress=False)
-    allocator = FitzHughNagumoAllocator(parameters.grid_size)
-    derivative = FitzHughNagumoDerivative(parameters)
-    linearizer = FitzHughNagumoLinearizer(parameters)
-    if inverter_class is not InverterRelaxationRichardson:
-        raise TypeError(
-            "FitzHugh-Nagumo inverter comparison now expects a new-style inverter; "
-            "use InverterRelaxationRichardson until projection/recurrence inverters are rebuilt."
-        )
-    inverter = inverter_class(
-        damping=1.0,
-        configuration=Configuration(
-            inverter_tolerance=Tolerance(
-                atol=parameters.inversion_atol,
-                rtol=parameters.inversion_rtol,
+def prepare_kc43_imex_spectral(
+    problem_parameters,
+    stark_parameters,
+    initial_conditions,
+    reference,
+):
+    parameters = FitzHughNagumoParameters(problem_parameters, stark_parameters)
+    return stark_solver(
+        "KC43_7 IMEX Spectral",
+        Method(
+            scheme=SchemeKennedyCarpenter43_7,
+            resolvent=FitzHughNagumoSpectralResolvent(
+                parameters,
+                tableau=SchemeKennedyCarpenter43_7.tableau,
             ),
-            inverter_maximum_steps=parameters.inversion_max_iterations,
         ),
+        parameters,
+        initial_conditions,
+        reference,
+        derivative=imex_derivative(parameters),
     )
-    resolvent = ResolventNewton(
-        allocator,
-        linearizer=linearizer,
-        inverter=inverter,
-        configuration=Configuration(resolvent_tolerance=Tolerance(
-            atol=parameters.resolution_atol,
-            rtol=parameters.resolution_rtol,
-        ), resolvent_maximum_steps=parameters.resolution_max_iterations),
-        accelerator=ACCELERATOR,
-        tableau=SchemeKvaerno3.tableau,
-    )
-    scheme = SchemeKvaerno3(
-        derivative,
-        allocator,
-        resolvent=resolvent,
-        configuration=_scheme_configuration(SchemeKvaerno3, parameters),
-        specialist=allocator.specialist,
-    )
-    integrate = Integrator(configuration=configuration)
-    stepper = ComparisonStepperCounting(IntegratorStepper(scheme))
-    _x, state = initial_state(parameters)
-    interval = Interval(parameters.t_start, parameters.initial_step, parameters.t_stop)
-
-    u_snapshots = [state.u.copy()]
-    v_snapshots = [state.v.copy()]
-    started = perf_counter()
-    for _interval, snapshot_state in integrate(
-        stepper,
-        interval,
-        state,
-        checkpoints=parameters.checkpoint_count,
-    ):
-        u_snapshots.append(snapshot_state.u.copy())
-        v_snapshots.append(snapshot_state.v.copy())
-    runtime = perf_counter() - started
-
-    return FitzHughNagumoTrajectory(
-        u_snapshots=u_snapshots,
-        v_snapshots=v_snapshots,
-        steps=stepper.steps,
-        runtime=runtime,
-    )
-
-
-
-
-

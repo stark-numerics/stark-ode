@@ -10,19 +10,18 @@ from typing import Callable
 
 import numpy as np
 
-from stark import Executor, Integrator, Interval, IntegratorStepper, ExecutorSafety, ExecutorTolerance
+from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
 from stark.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
+from stark.algebraist.generator import AlgebraistGeneratorLinearCombine, AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import (
     AlgebraistLayout,
     AlgebraistLayoutBroadcast,
     AlgebraistLayoutField,
     AlgebraistLayoutLooped,
 )
-from stark.resolvents import ResolventPicard
-from stark.resolvents.method.policy import ResolventPolicy
-from stark.schemes.imex.adaptive import SchemeKennedyCarpenter32
+from stark.methods.resolvents import ResolventPicard
+from stark.methods.schemes.imex.adaptive import SchemeKennedyCarpenter32
 
 
 IMEX_ADAPTIVE_CASES = (
@@ -116,7 +115,7 @@ def make_algebraist(policy, allocator: ArrayAllocator, accelerator=None) -> Arra
     layout = AlgebraistLayout(
         fields=(AlgebraistLayoutField("value", "value", policy=policy),),
     )
-    general = AlgebraistGeneratorGeneral(
+    general = AlgebraistGeneratorLinearCombine(
         translation=allocator.allocate_translation(),
         allocator=allocator,
         layout=layout,
@@ -140,18 +139,20 @@ def numba_accelerator():
         return None
 
 
-def make_executor() -> Executor:
-    return Executor(
-        tolerance=ExecutorTolerance(atol=1.0e-8, rtol=1.0e-6),
-        safety=ExecutorSafety.fast(),
+def make_configuration() -> Configuration:
+    return Configuration(
+        check_progress=False,
+        scheme_tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6),
     )
 
 
 def make_resolvent(scheme_cls, allocator: ArrayAllocator) -> ResolventPicard:
     return ResolventPicard(
         allocator,
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=16),
+        configuration=Configuration(
+            resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+            resolvent_maximum_steps=16,
+        ),
         accelerator=AcceleratorNone(),
         tableau=scheme_cls.tableau,
     )
@@ -167,18 +168,18 @@ class BenchmarkCase:
         scheme,
         state: ArrayState,
         interval: Interval,
-        executor: Executor,
+        configuration: Configuration,
     ) -> None:
         self.name = name
-        self.stepper = IntegratorStepper(scheme, executor)
-        self.integrator = Integrator(executor=executor)
+        self.stepper = IntegratorStepper(scheme)
+        self.integrator = Integrator(configuration=configuration)
         self.state = state
         self.interval = interval
 
     def solve_once(self) -> ArrayState:
         state = self.state.copy()
         interval = self.interval.copy()
-        for _interval, _state in self.integrator.live(self.stepper, interval, state):
+        for _interval, _state in self.integrator.mutating_trajectory(self.stepper, interval, state):
             pass
         return state
 
@@ -236,7 +237,7 @@ def make_case(
         scheme=scheme,
         state=make_initial_state(count),
         interval=Interval(present=0.0, step=step, stop=steps * step),
-        executor=make_executor(),
+        configuration=make_configuration(),
     )
 
 

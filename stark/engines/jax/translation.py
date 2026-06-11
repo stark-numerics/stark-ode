@@ -9,7 +9,7 @@ from stark.carriers.jax import CarrierJax
 
 
 @dataclass
-class StarkEngineTranslationJax:
+class EngineTranslationJax:
     """Structured JAX translation using return-style field carrier arithmetic."""
 
     algebraist_layout: AlgebraistLayout = field(repr=False)
@@ -33,7 +33,7 @@ class StarkEngineTranslationJax:
                 ),
             )
 
-    def __add__(self, other: StarkEngineTranslationJax) -> StarkEngineTranslationJax:
+    def __add__(self, other: EngineTranslationJax) -> EngineTranslationJax:
         if self.allocator is not other.allocator:
             raise ValueError("Cannot add translations allocated by different engines.")
 
@@ -49,7 +49,7 @@ class StarkEngineTranslationJax:
             )
         return result
 
-    def __rmul__(self, scalar: float) -> StarkEngineTranslationJax:
+    def __rmul__(self, scalar: float) -> EngineTranslationJax:
         result = self.allocator.allocate_translation()
         for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
             field.translation_path.set(
@@ -62,7 +62,7 @@ class StarkEngineTranslationJax:
             )
         return result
 
-    def __mul__(self, scalar: float) -> StarkEngineTranslationJax:
+    def __mul__(self, scalar: float) -> EngineTranslationJax:
         return self.__rmul__(scalar)
 
     def norm(self) -> float:
@@ -78,4 +78,4 @@ class StarkEngineTranslationJax:
         return sqrt(total)
 
 
-__all__ = ["StarkEngineTranslationJax"]
+__all__ = ["EngineTranslationJax"]

@@ -3,32 +3,34 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from stark import StarkLayout, StarkLayoutField
+from stark import Layout, LayoutField
 from stark.accelerators import AcceleratorNone
 from stark.algebraist.generator import (
+    AlgebraistGeneratorInnerProduct,
     AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
 from stark.algebraist.runtime import (
+    AlgebraistRuntimeInnerProduct,
     AlgebraistRuntimeLinearCombine,
     AlgebraistRuntimeNorm,
     AlgebraistRuntimeSpecialist,
 )
 from stark.carriers import CarrierNumpy
-from stark.engines import StarkEngineNative, StarkEngineNumpy
+from stark.engines import EngineNative, EngineNumpy
 
 
 def test_stark_engine_numpy_exposes_backend_bundle() -> None:
     accelerator = AcceleratorNone()
-    layout = StarkLayout(
+    layout = Layout(
         (
-            StarkLayoutField("u", translation="du", shape=(2, 3)),
-            StarkLayoutField("v", translation="dv", shape=(2, 3)),
+            LayoutField("u", translation="du", shape=(2, 3)),
+            LayoutField("v", translation="dv", shape=(2, 3)),
         )
     )
 
-    engine = StarkEngineNumpy(layout, accelerator=accelerator)
+    engine = EngineNumpy(layout, accelerator=accelerator)
 
     assert engine.layout is layout
     assert engine.accelerator is accelerator
@@ -38,11 +40,11 @@ def test_stark_engine_numpy_exposes_backend_bundle() -> None:
 
 
 def test_stark_engine_numpy_allocator_builds_owned_structures() -> None:
-    engine = StarkEngineNumpy(
-        StarkLayout(
+    engine = EngineNumpy(
+        Layout(
             (
-                StarkLayoutField("u", translation="du", shape=(2, 2)),
-                StarkLayoutField("v", translation="dv", shape=(2, 2)),
+                LayoutField("u", translation="du", shape=(2, 2)),
+                LayoutField("v", translation="dv", shape=(2, 2)),
             )
         ),
         dtype=np.float32,
@@ -58,11 +60,11 @@ def test_stark_engine_numpy_allocator_builds_owned_structures() -> None:
 
 
 def test_stark_engine_numpy_translation_applies_fieldwise_delta() -> None:
-    engine = StarkEngineNumpy(
-        StarkLayout(
+    engine = EngineNumpy(
+        Layout(
             (
-                StarkLayoutField("u", translation="du", shape=(2,)),
-                StarkLayoutField("v", translation="dv", shape=(2,)),
+                LayoutField("u", translation="du", shape=(2,)),
+                LayoutField("v", translation="dv", shape=(2,)),
             )
         )
     )
@@ -83,26 +85,47 @@ def test_stark_engine_numpy_translation_applies_fieldwise_delta() -> None:
 
 
 def test_stark_engine_numpy_exposes_algebraist_providers() -> None:
-    engine = StarkEngineNumpy(
-        StarkLayout(
+    engine = EngineNumpy(
+        Layout(
             (
-                StarkLayoutField("u", translation="du", shape=(2,)),
-                StarkLayoutField("v", translation="dv", shape=(2,)),
+                LayoutField("u", translation="du", shape=(2,)),
+                LayoutField("v", translation="dv", shape=(2,)),
             )
         )
     )
 
     assert isinstance(engine.algebraist_linear_combine, AlgebraistGeneratorLinearCombine)
+    assert isinstance(engine.algebraist_inner_product, AlgebraistGeneratorInnerProduct)
     assert isinstance(engine.algebraist_norm, AlgebraistGeneratorNorm)
     assert isinstance(engine.algebraist_specialist, AlgebraistGeneratorSpecialist)
 
 
-def test_stark_engine_native_uses_array_backed_fields() -> None:
-    engine = StarkEngineNative(
-        StarkLayout(
+def test_stark_engine_numpy_exposes_layout_inner_product() -> None:
+    engine = EngineNumpy(
+        Layout(
             (
-                StarkLayoutField("u", translation="du", shape=(2,)),
-                StarkLayoutField("v", translation="dv", shape=(2,)),
+                LayoutField("u", translation="du", shape=(2,)),
+                LayoutField("v", translation="dv", shape=(2,)),
+            )
+        )
+    )
+    left = engine.allocator.allocate_translation()
+    right = engine.allocator.allocate_translation()
+
+    left.du[...] = (1.0, 2.0)
+    left.dv[...] = (3.0, 4.0)
+    right.du[...] = (10.0, 20.0)
+    right.dv[...] = (30.0, 40.0)
+
+    assert engine.allocator.inner_product(left, right) == pytest.approx(150.0)
+
+
+def test_stark_engine_native_uses_array_backed_fields() -> None:
+    engine = EngineNative(
+        Layout(
+            (
+                LayoutField("u", translation="du", shape=(2,)),
+                LayoutField("v", translation="dv", shape=(2,)),
             )
         )
     )
@@ -121,26 +144,28 @@ def test_stark_engine_native_uses_array_backed_fields() -> None:
     assert list(result.v) == [33.0, 44.0]
     assert delta.norm() == pytest.approx((250.0 + 1250.0) ** 0.5)
     assert isinstance(engine.algebraist_linear_combine, AlgebraistGeneratorLinearCombine)
+    assert isinstance(engine.algebraist_inner_product, AlgebraistGeneratorInnerProduct)
     assert isinstance(engine.algebraist_norm, AlgebraistGeneratorNorm)
     assert isinstance(engine.algebraist_specialist, AlgebraistGeneratorSpecialist)
+    assert engine.allocator.inner_product(delta, delta) == pytest.approx(1500.0)
 
 
 def test_stark_engine_native_rejects_multidimensional_shapes() -> None:
-    layout = StarkLayout((StarkLayoutField("u", translation="du", shape=(2, 2)),))
+    layout = Layout((LayoutField("u", translation="du", shape=(2, 2)),))
 
     with pytest.raises(ValueError, match="one-dimensional"):
-        StarkEngineNative(layout)
+        EngineNative(layout)
 
 
 def test_stark_engine_cupy_optional() -> None:
     cp = pytest.importorskip("cupy")
-    from stark.engines.cupy import StarkEngineCupy
+    from stark.engines.cupy import EngineCupy
 
-    engine = StarkEngineCupy(
-        StarkLayout(
+    engine = EngineCupy(
+        Layout(
             (
-                StarkLayoutField("u", translation="du", shape=(2,)),
-                StarkLayoutField("v", translation="dv", shape=(2,)),
+                LayoutField("u", translation="du", shape=(2,)),
+                LayoutField("v", translation="dv", shape=(2,)),
             )
         ),
         dtype=cp.float32,
@@ -160,19 +185,21 @@ def test_stark_engine_cupy_optional() -> None:
     np.testing.assert_array_equal(cp.asnumpy(result.v), np.array([33.0, 44.0]))
     assert delta.norm() == pytest.approx((250.0 + 1250.0) ** 0.5)
     assert isinstance(engine.algebraist_linear_combine, AlgebraistRuntimeLinearCombine)
+    assert isinstance(engine.algebraist_inner_product, AlgebraistRuntimeInnerProduct)
     assert isinstance(engine.algebraist_norm, AlgebraistRuntimeNorm)
     assert isinstance(engine.algebraist_specialist, AlgebraistRuntimeSpecialist)
+    assert engine.allocator.inner_product(delta, delta) == pytest.approx(1500.0)
 
 
 def test_stark_engine_jax_optional() -> None:
     jnp = pytest.importorskip("jax.numpy")
-    from stark.engines.jax import StarkEngineJax
+    from stark.engines.jax import EngineJax
 
-    engine = StarkEngineJax(
-        StarkLayout(
+    engine = EngineJax(
+        Layout(
             (
-                StarkLayoutField("u", translation="du", shape=(2,)),
-                StarkLayoutField("v", translation="dv", shape=(2,)),
+                LayoutField("u", translation="du", shape=(2,)),
+                LayoutField("v", translation="dv", shape=(2,)),
             )
         ),
         dtype=jnp.float32,
@@ -192,5 +219,7 @@ def test_stark_engine_jax_optional() -> None:
     np.testing.assert_array_equal(np.asarray(result.v), np.array([33.0, 44.0]))
     assert delta.norm() == pytest.approx((250.0 + 1250.0) ** 0.5)
     assert isinstance(engine.algebraist_linear_combine, AlgebraistRuntimeLinearCombine)
+    assert isinstance(engine.algebraist_inner_product, AlgebraistRuntimeInnerProduct)
     assert isinstance(engine.algebraist_norm, AlgebraistRuntimeNorm)
     assert isinstance(engine.algebraist_specialist, AlgebraistRuntimeSpecialist)
+    assert engine.allocator.inner_product(delta, delta) == pytest.approx(1500.0)

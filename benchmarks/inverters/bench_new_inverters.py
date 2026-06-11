@@ -9,12 +9,12 @@ from typing import Callable
 from stark import Executor, ExecutorTolerance, Interval, IntegratorStepper
 from stark.accelerators import AcceleratorNumba
 from stark.block import BlockBasis
-from stark.inverters.dense import InverterDense, InverterProviderDenseNative
-from stark.inverters.relaxation import InverterRelaxationJacobi, InverterRelaxationRichardson
-from stark.inverters.support import InverterBudget, InverterTolerance
+from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
+from stark.methods.inverters.relaxation import InverterRelaxationJacobi, InverterRelaxationRichardson
+from stark.methods.inverters.support import InverterBudget, InverterTolerance
 from stark.monitor import MonitorInverter
-from stark.resolvents import ResolventNewton, ResolventPolicy, ResolventTolerance
-from stark.schemes import SchemeBackwardEuler
+from stark.methods.resolvents import ResolventNewton, ResolventPolicy, ResolventTolerance
+from stark.methods.schemes import SchemeBackwardEuler
 
 DIMENSION = 128
 REPEATS = 5

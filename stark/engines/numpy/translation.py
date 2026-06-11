@@ -9,7 +9,7 @@ from stark.carriers.numpy import CarrierNumpy
 
 
 @dataclass
-class StarkEngineTranslationNumpy:
+class EngineTranslationNumpy:
     """Structured NumPy translation using in-place field carrier arithmetic."""
 
     algebraist_layout: AlgebraistLayout = field(repr=False)
@@ -32,7 +32,7 @@ class StarkEngineTranslationNumpy:
                 field.state_path.get(result),
             )
 
-    def __add__(self, other: StarkEngineTranslationNumpy) -> StarkEngineTranslationNumpy:
+    def __add__(self, other: EngineTranslationNumpy) -> EngineTranslationNumpy:
         if self.allocator is not other.allocator:
             raise ValueError("Cannot add translations allocated by different engines.")
 
@@ -45,7 +45,7 @@ class StarkEngineTranslationNumpy:
             )
         return result
 
-    def __rmul__(self, scalar: float) -> StarkEngineTranslationNumpy:
+    def __rmul__(self, scalar: float) -> EngineTranslationNumpy:
         result = self.allocator.allocate_translation()
         for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
             carrier.arithmetic.scale(
@@ -55,7 +55,7 @@ class StarkEngineTranslationNumpy:
             )
         return result
 
-    def __mul__(self, scalar: float) -> StarkEngineTranslationNumpy:
+    def __mul__(self, scalar: float) -> EngineTranslationNumpy:
         return self.__rmul__(scalar)
 
     def norm(self) -> float:
@@ -71,4 +71,4 @@ class StarkEngineTranslationNumpy:
         return sqrt(total)
 
 
-__all__ = ["StarkEngineTranslationNumpy"]
+__all__ = ["EngineTranslationNumpy"]

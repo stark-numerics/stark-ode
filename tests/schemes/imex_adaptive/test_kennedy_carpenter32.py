@@ -9,9 +9,9 @@ from stark import Interval, Tolerance
 from stark.accelerators import AcceleratorNone
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.monitor import Monitor
-from stark.resolvents import ResolventPicard
+from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
-from stark.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
 
 
 @dataclass(slots=True)

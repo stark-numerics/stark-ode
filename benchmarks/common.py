@@ -6,7 +6,7 @@ from math import sqrt
 import numpy as np
 
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorGeneral
+from stark.algebraist.generator import AlgebraistGeneratorLinearCombine
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
 
 
@@ -90,7 +90,7 @@ class FPUTAllocator:
 
 
 def _generated_fput_linear_combine(allocator: FPUTAllocator):
-    provider = AlgebraistGeneratorGeneral(
+    provider = AlgebraistGeneratorLinearCombine(
         translation=allocator.allocate_translation(),
         allocator=allocator,
         layout=FPUT_ALGEBRAIST_LAYOUT,

@@ -29,9 +29,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from stark import Configuration, Integrator, Interval, IntegratorStepper, StarkMethod, Tolerance
+from stark import Configuration, Integrator, Interval, IntegratorStepper, Method, Tolerance
 from stark.contracts import DerivativeIMEX
-from stark.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7
+from stark.methods.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
     DIFFUSIVITY,
@@ -57,12 +57,12 @@ if __name__ == "__main__":
     initial_step = 1.5e-3
     configuration = Configuration(scheme_tolerance=configuration_tolerance)
 
-    # We still let `StarkSystem` prepare the carrier and allocator, even though
+    # We still let `System` prepare the carrier and allocator, even though
     # the solve itself uses a hand-assembled IMEX scheme.
 
     template = make_ivp(
         geometry,
-        method=StarkMethod(scheme=SchemeCashKarp),
+        method=Method(scheme=SchemeCashKarp),
         configuration=configuration,
         interval=Interval(present=start_time, step=initial_step, stop=stop_time),
     )

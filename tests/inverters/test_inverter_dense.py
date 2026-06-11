@@ -6,7 +6,7 @@ from math import isclose, sqrt
 import pytest
 
 from stark.block import Block, BlockBasis
-from stark.inverters.dense import InverterDense, InverterProviderDenseNative
+from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
 
 
 @dataclass

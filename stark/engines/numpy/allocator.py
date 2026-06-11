@@ -6,11 +6,11 @@ from typing import Any
 
 from stark.algebraist.layout import AlgebraistLayout
 from stark.carriers.numpy import CarrierNumpy
-from stark.engines.numpy.translation import StarkEngineTranslationNumpy
+from stark.engines.numpy.translation import EngineTranslationNumpy
 
 
 @dataclass(frozen=True, slots=True)
-class StarkEngineAllocatorNumpy:
+class EngineAllocatorNumpy:
     """Allocate structured NumPy state and translation objects."""
 
     algebraist_layout: AlgebraistLayout
@@ -18,6 +18,7 @@ class StarkEngineAllocatorNumpy:
     linear_combine: tuple[Any, ...] = field(default=(), repr=False)
     apply_translation: Any = field(default=None, repr=False)
     norm: Any = field(default=None, repr=False)
+    inner_product: Any = field(default=None, repr=False)
 
     def allocate_state(self) -> SimpleNamespace:
         state = SimpleNamespace()
@@ -33,8 +34,8 @@ class StarkEngineAllocatorNumpy:
             )
         return out
 
-    def allocate_translation(self) -> StarkEngineTranslationNumpy:
-        translation = StarkEngineTranslationNumpy(
+    def allocate_translation(self) -> EngineTranslationNumpy:
+        translation = EngineTranslationNumpy(
             algebraist_layout=self.algebraist_layout,
             carriers=self.carriers,
             allocator=self,
@@ -47,4 +48,4 @@ class StarkEngineAllocatorNumpy:
         return translation
 
 
-__all__ = ["StarkEngineAllocatorNumpy"]
+__all__ = ["EngineAllocatorNumpy"]

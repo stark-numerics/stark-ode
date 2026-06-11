@@ -49,8 +49,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray
 
-from stark import Auditor, Integrator, Interval, IntegratorStepper, Tolerance
-from stark.schemes import SchemeDormandPrince
+from stark import Auditor, Configuration, Integrator, Interval, IntegratorStepper, Tolerance
+from stark.methods.schemes import SchemeDormandPrince
 
 
 G = 1.0
@@ -299,8 +299,9 @@ print(f"Saved {euler_plot_path}")
 # only the stepping machinery.
 #
 # If the user's state already lives naturally in one regular array, STARK has
-# simpler array/vector routes. This example is for the other common case: a
-# useful model already exists as structured Python objects.
+# simpler array/vector routes. This example intentionally does not use
+# `System`: it is for the other common case, where a useful model already
+# exists as structured Python objects and should plug into STARK directly.
 #
 # The STARK pieces below have separate jobs:
 #
@@ -476,7 +477,7 @@ audit = Auditor(
     allocator=allocator,
     interval=audit_interval,
     scheme=audit_scheme,
-    Tolerance=STARK_TOLERANCE,
+    tolerance=STARK_TOLERANCE,
 )
 print(audit)
 audit.raise_if_invalid()

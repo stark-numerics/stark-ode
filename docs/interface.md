@@ -38,8 +38,8 @@ for interval, state in ivp.integrate():
 Plain callables are treated as return-style derivatives by default.
 
 `StarkIVP.integrate()` returns the existing STARK integration iterator. Each
-yielded state is a `StarkVector`; the carried Python or array value is available
-as `state.value`.
+yielded state is a layout-backed state object with field values exposed as
+attributes.
 
 ## Explicit return-style derivative
 
@@ -47,10 +47,10 @@ as `state.value`.
 import numpy as np
 
 from stark import Interval
-from stark.interface import StarkDerivative, StarkIVP
+from stark.interface import Derivative, StarkIVP
 
 
-@StarkDerivative.returning
+@Derivative.returning
 def exponential_decay(t, y):
     return -0.5 * y
 
@@ -74,10 +74,10 @@ supplied output value.
 import numpy as np
 
 from stark import Interval
-from stark.interface import StarkDerivative, StarkIVP
+from stark.interface import Derivative, StarkIVP
 
 
-@StarkDerivative.in_place
+@Derivative.in_place
 def exponential_decay(t, y, dy):
     dy[:] = -0.5 * y
 
@@ -103,7 +103,7 @@ import numpy as np
 
 from stark import Interval
 from stark.interface import StarkIVP
-from stark.schemes import SchemeDormandPrince
+from stark.methods.schemes import SchemeDormandPrince
 
 
 def exponential_decay(t, y):
@@ -156,7 +156,7 @@ ivp = StarkIVP(
 - Tuple/list `t_span`-style intervals are not accepted.
 - Raw initial values are prepared through a carrier.
 - Plain derivative callables are treated as return-style callables.
-- Use `StarkDerivative.in_place` for explicit in-place derivative callables.
+- Use `Derivative.in_place` for explicit in-place derivative callables.
 - `StarkIVP.integrate()` returns the core STARK integration result directly.
 - The interface layer assembles the core STARK objects; it does not replace the core API.
 

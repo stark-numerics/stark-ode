@@ -2,12 +2,12 @@ from __future__ import annotations
 
 """Use an engine-generated specialist with a relaxation inverter."""
 
-from stark import Configuration, StarkLayout, Tolerance
+from stark import Configuration, Layout, Tolerance
 from stark.block import Block, BlockSpecialist
 from stark.block.operator import BlockOperatorDiagonal
-from stark.engines import StarkEngineNumpy
-from stark.inverters.relaxation import InverterRelaxationRichardson
-from stark.resolvents.requests.inverter import ResolventInverterRequest
+from stark.engines import EngineNumpy
+from stark.methods.inverters.relaxation import InverterRelaxationRichardson
+from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 
 
 def scale_by_two(source, target) -> None:
@@ -15,7 +15,7 @@ def scale_by_two(source, target) -> None:
 
 
 def main() -> None:
-    engine = StarkEngineNumpy(StarkLayout({"x": {"translation": "dx", "shape": (1,)}}))
+    engine = EngineNumpy(Layout({"x": {"translation": "dx", "shape": (1,)}}))
 
     residual = engine.allocator.allocate_translation()
     residual.dx[0] = 6.0

@@ -9,13 +9,13 @@ from stark import (
     Integrator,
     Interval,
     IntegratorStepper,
-    StarkDerivative,
-    StarkDerivativeSignature,
-    StarkDerivativeStyle,
-    StarkLayout,
-    StarkLayoutField,
-    StarkMethod,
-    StarkSystem,
+    Derivative,
+    DerivativeSignature,
+    DerivativeStyle,
+    Layout,
+    LayoutField,
+    Method,
+    System,
     Tolerance,
 )
 from stark.accelerators import Accelerator, AcceleratorNone, AcceleratorJax, AcceleratorNumba
@@ -31,10 +31,10 @@ from stark.comparison.models import (
 )
 from stark.block import Block
 from stark.contracts import Resolvent
-from stark.engines import StarkEngineNumpy
-from stark.inverters import InverterRelaxationJacobi, InverterRelaxationRichardson
-from stark.inverters.support import InverterDescriptor
-from stark.resolvents import (
+from stark.engines import EngineNumpy
+from stark.methods.inverters import InverterRelaxationJacobi, InverterRelaxationRichardson
+from stark.methods.inverters.support import InverterDescriptor
+from stark.methods.resolvents import (
     ResolventAnderson,
     ResolventBroyden,
     ResolventCoupledNewton,
@@ -42,8 +42,8 @@ from stark.resolvents import (
     ResolventNewton,
     ResolventPicard,
 )
-from stark.resolvents.method.descriptor import ResolventDescriptor
-from stark.schemes import (
+from stark.methods.resolvents.method.descriptor import ResolventDescriptor
+from stark.methods.schemes import (
     SchemeBackwardEuler,
     SchemeCrankNicolson,
     SchemeCrouzeixDIRK3,
@@ -58,15 +58,15 @@ from stark.schemes import (
     SchemeLobattoIIIC4,
     SchemeRadauIIA5,
 )
-from stark.schemes.imex.adaptive import (
+from stark.methods.schemes.imex.adaptive import (
     ARK324L2SA_TABLEAU,
     ARK436L2SA_TABLEAU,
     ARK437L2SA_TABLEAU,
     ARK548L2SAB_TABLEAU,
     ARK548L2SA_TABLEAU,
 )
-from stark.schemes.imex.fixed import IMEX_EULER_TABLEAU
-from stark.schemes.implicit.fixed import (
+from stark.methods.schemes.imex.fixed import IMEX_EULER_TABLEAU
+from stark.methods.schemes.implicit.fixed import (
     BE_TABLEAU,
     CRANK_NICOLSON_TABLEAU,
     CROUZEIX_DIRK3_TABLEAU,
@@ -75,7 +75,7 @@ from stark.schemes.implicit.fixed import (
     LOBATTO_IIIC4_TABLEAU,
     RADAU_IIA5_TABLEAU,
 )
-from stark.schemes.method.tableau import ButcherTableau, ButcherTableauImex
+from stark.methods.schemes.method.tableau import ButcherTableau, ButcherTableauImex
 
 
 def test_package_imports() -> None:
@@ -88,14 +88,14 @@ def test_package_imports() -> None:
     assert AcceleratorNumba is not None
     assert DerivativeIMEX is not None
     assert Resolvent is not None
-    assert StarkDerivative is not None
-    assert StarkDerivativeSignature is not None
-    assert StarkDerivativeStyle is not None
-    assert StarkLayout is not None
-    assert StarkLayoutField is not None
-    assert StarkMethod is not None
-    assert StarkSystem is not None
-    assert not hasattr(stark, "StarkEngineNumpy")
+    assert Derivative is not None
+    assert DerivativeSignature is not None
+    assert DerivativeStyle is not None
+    assert Layout is not None
+    assert LayoutField is not None
+    assert Method is not None
+    assert System is not None
+    assert not hasattr(stark, "EngineNumpy")
     assert not hasattr(stark, "Algebraist")
     assert not hasattr(stark, "ResolventNewton")
     assert not hasattr(stark, "InverterGMRES")
@@ -129,16 +129,16 @@ def test_Configuration_module_imports() -> None:
     assert importlib.import_module("stark.accelerators") is not None
     assert importlib.import_module("stark.core.configuration") is not None
     assert importlib.import_module("stark.core.tolerance") is not None
-    assert importlib.import_module("stark.schemes.configuration") is not None
-    assert importlib.import_module("stark.resolvents.configuration") is not None
-    assert importlib.import_module("stark.inverters.configuration") is not None
-    assert importlib.import_module("stark.schemes.method.tableau") is not None
-    assert importlib.import_module("stark.schemes.execution.step_support") is not None
+    assert importlib.import_module("stark.methods.schemes.configuration") is not None
+    assert importlib.import_module("stark.methods.resolvents.configuration") is not None
+    assert importlib.import_module("stark.methods.inverters.configuration") is not None
+    assert importlib.import_module("stark.methods.schemes.method.tableau") is not None
+    assert importlib.import_module("stark.methods.schemes.execution.step_support") is not None
     assert importlib.import_module("stark.engines") is not None
-    assert StarkEngineNumpy is not None
+    assert EngineNumpy is not None
     assert importlib.import_module("stark.algebraist.runtime") is not None
     assert importlib.import_module("stark.algebraist.generator") is not None
-    assert importlib.import_module("stark.schemes.display.display") is not None
+    assert importlib.import_module("stark.methods.schemes.display.display") is not None
 
 
 def test_integrate_module_imports() -> None:
@@ -153,7 +153,7 @@ def test_monitor_module_imports() -> None:
 
 def test_inverter_imports() -> None:
     """The inverter package should import cleanly."""
-    inverters = importlib.import_module("stark.inverters")
+    inverters = importlib.import_module("stark.methods.inverters")
 
     assert inverters.InverterRelaxationRichardson is not None
     assert inverters.InverterRelaxationJacobi is not None
@@ -161,8 +161,8 @@ def test_inverter_imports() -> None:
 
 def test_resolvent_imports() -> None:
     """The resolvent package should expose methods and metadata cleanly."""
-    resolvents = importlib.import_module("stark.resolvents")
-    equations = importlib.import_module("stark.resolvents.equations")
+    resolvents = importlib.import_module("stark.methods.resolvents")
+    equations = importlib.import_module("stark.methods.resolvents.equations")
 
     assert resolvents.ResolventConfiguration is not None
     assert resolvents.ResolventError is not None
@@ -177,13 +177,13 @@ def test_resolvent_imports() -> None:
 
 def test_scheme_imports() -> None:
     """The schemes package should expose aggregate and grouped public imports."""
-    schemes = importlib.import_module("stark.schemes")
-    adaptive = importlib.import_module("stark.schemes.explicit.adaptive")
-    adaptive_implicit = importlib.import_module("stark.schemes.implicit.adaptive")
-    fixed_step = importlib.import_module("stark.schemes.explicit.fixed")
-    imex_adaptive = importlib.import_module("stark.schemes.imex.adaptive")
-    imex_fixed = importlib.import_module("stark.schemes.imex.fixed")
-    implicit = importlib.import_module("stark.schemes.implicit.fixed")
+    schemes = importlib.import_module("stark.methods.schemes")
+    adaptive = importlib.import_module("stark.methods.schemes.explicit.adaptive")
+    adaptive_implicit = importlib.import_module("stark.methods.schemes.implicit.adaptive")
+    fixed_step = importlib.import_module("stark.methods.schemes.explicit.fixed")
+    imex_adaptive = importlib.import_module("stark.methods.schemes.imex.adaptive")
+    imex_fixed = importlib.import_module("stark.methods.schemes.imex.fixed")
+    implicit = importlib.import_module("stark.methods.schemes.implicit.fixed")
 
     assert schemes.SchemeDormandPrince is adaptive.SchemeDormandPrince
     assert schemes.SchemeCashKarp is adaptive.SchemeCashKarp
@@ -395,8 +395,8 @@ def test_core_objects_have_readable_representations() -> None:
 
 
 def test_scheme_classes_can_display_their_resolvent_problems() -> None:
-    from stark.schemes.implicit.adaptive import SchemeKvaerno3
-    from stark.schemes.imex.adaptive import SchemeKennedyCarpenter32
+    from stark.methods.schemes.implicit.adaptive import SchemeKvaerno3
+    from stark.methods.schemes.imex.adaptive import SchemeKennedyCarpenter32
 
     implicit_text = SchemeKvaerno3.display_resolvent_problem()
     imex_text = SchemeKennedyCarpenter32.display_resolvent_problem()

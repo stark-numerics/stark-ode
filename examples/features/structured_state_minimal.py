@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from math import sqrt
 
 from stark import Integrator, Interval, IntegratorStepper
-from stark.schemes import SchemeRK4
+from stark.methods.schemes import SchemeRK4
 
 
 @dataclass(slots=True)

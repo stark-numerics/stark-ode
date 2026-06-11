@@ -7,12 +7,12 @@ import numpy as np
 from stark import (
     Configuration,
     Interval,
-    StarkLayout,
-    StarkMethod,
-    StarkSystem,
+    Layout,
+    Method,
+    System,
 )
-from stark.engines import StarkEngineNumpy
-from stark.schemes import SchemeCashKarp
+from stark.engines import EngineNumpy
+from stark.methods.schemes import SchemeCashKarp
 
 
 def oscillator_rhs(t: float, state, out) -> None:
@@ -21,15 +21,15 @@ def oscillator_rhs(t: float, state, out) -> None:
     out.dy[1] = -state.y[0]
 
 
-system = StarkSystem(
+system = System(
     derivative=oscillator_rhs,
-    layout=StarkLayout({"y": {"translation": "dy", "shape": (2,)}}),
+    layout=Layout({"y": {"translation": "dy", "shape": (2,)}}),
 )
 ivp = system.ivp(
     initial={"y": np.array([1.0, 0.0])},
     interval=Interval(present=0.0, step=0.05, stop=1.0),
-    method=StarkMethod(scheme=SchemeCashKarp),
-    engine=StarkEngineNumpy,
+    method=Method(scheme=SchemeCashKarp),
+    engine=EngineNumpy,
     configuration=Configuration(check_progress=False),
 )
 

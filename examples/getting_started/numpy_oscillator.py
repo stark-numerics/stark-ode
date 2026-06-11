@@ -7,13 +7,13 @@ import numpy as np
 from stark import (
     Configuration,
     Interval,
-    StarkDerivativeStyle,
-    StarkLayout,
-    StarkMethod,
-    StarkSystem,
+    DerivativeStyle,
+    Layout,
+    Method,
+    System,
 )
-from stark.engines import StarkEngineNumpy
-from stark.schemes import SchemeCashKarp
+from stark.engines import EngineNumpy
+from stark.methods.schemes import SchemeCashKarp
 
 
 def harmonic_oscillator(t: float, state, out) -> None:
@@ -22,16 +22,16 @@ def harmonic_oscillator(t: float, state, out) -> None:
     out.dy[1] = -state.y[0]
 
 
-layout = StarkLayout({"y": {"translation": "dy", "shape": (2,)}})
-system = StarkSystem(
-    derivative=StarkDerivativeStyle.in_place(harmonic_oscillator),
+layout = Layout({"y": {"translation": "dy", "shape": (2,)}})
+system = System(
+    derivative=DerivativeStyle.in_place(harmonic_oscillator),
     layout=layout,
 )
 ivp = system.ivp(
     initial={"y": np.array([1.0, 0.0])},
     interval=Interval(present=0.0, step=0.05, stop=0.5),
-    method=StarkMethod(scheme=SchemeCashKarp),
-    engine=StarkEngineNumpy,
+    method=Method(scheme=SchemeCashKarp),
+    engine=EngineNumpy,
     configuration=Configuration(check_progress=False),
 )
 

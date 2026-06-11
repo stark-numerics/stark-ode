@@ -114,11 +114,11 @@ def tight_configuration() -> Configuration:
 import pytest
 
 from stark import Interval
-from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
-from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
-from stark.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
-from stark.schemes.explicit.adaptive.fehlberg45 import SchemeFehlberg45
-from stark.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
+from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
+from stark.methods.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
+from stark.methods.schemes.explicit.adaptive.fehlberg45 import SchemeFehlberg45
+from stark.methods.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
 
 
 @pytest.mark.parametrize(

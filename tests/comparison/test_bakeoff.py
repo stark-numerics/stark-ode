@@ -1,8 +1,9 @@
 import pytest
+import numpy as np
 
 from stark import Interval, IntegratorStepper, Tolerance
-from stark.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblemManual
-from stark.schemes import SchemeCashKarp, SchemeEuler
+from stark.comparison import Comparison, ComparisonRunner, ComparisonEntryStepper, ComparisonProblemManual
+from stark.methods.schemes import SchemeCashKarp, SchemeEuler
 
 
 class DummyInterval:
@@ -130,6 +131,25 @@ def test_bakeoff_accepts_direct_steppers() -> None:
 
     assert report.final_difference_map()["baseline"]["baseline"] == 0.0
     assert report.final_difference_map()["baseline"]["slow"] > 0.0
+
+
+def test_comparison_fieldwise_rms_error_supports_value_and_sample_scaling() -> None:
+    observed = {
+        "q": np.array([3.0, 4.0]),
+        "p": np.array([0.0, 12.0]),
+    }
+    reference = {
+        "q": np.array([0.0, 0.0]),
+        "p": np.array([0.0, 0.0]),
+    }
+
+    assert Comparison.fieldwise_rms_error(observed, reference, ("q", "p")) == 6.5
+    assert Comparison.fieldwise_rms_error(
+        observed,
+        reference,
+        ("q", "p"),
+        sample_count=2,
+    ) == pytest.approx((169.0 / 2.0) ** 0.5)
 
 
 def test_bakeoff_reports_pairwise_trajectory_differences() -> None:

@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from statistics import median
 from time import perf_counter
 
+from stark import Configuration, Tolerance
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
-from stark.inverters.relaxation import InverterRelaxationRichardson
-from stark.inverters.support import InverterBudget, InverterTolerance
-from stark.resolvents.requests.inverter import ResolventInverterRequest
+from stark.methods.inverters.relaxation import InverterRelaxationRichardson
+from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 
 
 REPEAT = 7
@@ -49,8 +49,10 @@ def build_case() -> tuple[
     output = Block([ScalarTranslation(0.0) for _ in range(BLOCK_SIZE)])
     inverter = InverterRelaxationRichardson[ScalarTranslation](
         damping=0.5,
-        tolerance=InverterTolerance(atol=1.0e-12, rtol=0.0),
-        budget=InverterBudget(maximum_steps=4),
+        configuration=Configuration(
+            inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0),
+            inverter_maximum_steps=4,
+        ),
     )
     return inverter, request, output
 

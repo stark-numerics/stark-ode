@@ -5,10 +5,10 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Interval
-from stark.schemes.execution.derivative import SchemeDerivative
-from stark.schemes.execution.step_support import SchemeStepSupport
-from stark.schemes.explicit.fixed.rk4 import SchemeRK4
-from stark.schemes.explicit._support import SchemeSupportExplicit
+from stark.methods.schemes.execution.derivative import SchemeDerivative
+from stark.methods.schemes.execution.step_support import SchemeStepSupport
+from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.methods.schemes.explicit._support import SchemeSupportExplicit
 
 
 @dataclass(slots=True)

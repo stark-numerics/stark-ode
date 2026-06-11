@@ -7,9 +7,9 @@ import pytest
 from stark import Integrator, Interval, IntegratorStepper, Tolerance
 from stark.accelerators import AcceleratorNone
 from stark.monitor import Monitor
-from stark.resolvents import ResolventPicard
+from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
-from stark.schemes.implicit.adaptive.bdf2 import SchemeBDF2
+from stark.methods.schemes.implicit.adaptive.bdf2 import SchemeBDF2
 
 
 @dataclass(slots=True)

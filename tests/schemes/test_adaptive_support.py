@@ -5,11 +5,11 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Configuration, Interval, Tolerance
-from stark.schemes.execution.step_control import (
+from stark.methods.schemes.execution.step_control import (
     SchemeStepAdaptiveAdvanceReport,
     SchemeStepControl,
 )
-from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
 
 
 @dataclass(slots=True)

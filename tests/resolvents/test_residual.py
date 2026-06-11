@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark.resolvents.equations.residual import ResolventResidual
+from stark.methods.resolvents.equations.residual import ResolventResidual
 
 
 @dataclass(slots=True)

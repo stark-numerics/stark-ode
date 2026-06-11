@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from array import array
 
-from stark import Configuration, Interval, StarkLayout, StarkMethod, StarkSystem
-from stark.engines import StarkEngineNative
-from stark.schemes import SchemeCashKarp
+from stark import Configuration, Interval, Layout, Method, System
+from stark.engines import EngineNative
+from stark.methods.schemes import SchemeCashKarp
 
 
 def exponential_decay(t, state, out):
@@ -14,15 +14,15 @@ def exponential_decay(t, state, out):
     out.dy[0] = -0.5 * state.y[0]
 
 
-system = StarkSystem(
+system = System(
     derivative=exponential_decay,
-    layout=StarkLayout({"y": {"translation": "dy", "shape": (1,)}}),
+    layout=Layout({"y": {"translation": "dy", "shape": (1,)}}),
 )
 ivp = system.ivp(
     initial={"y": array("d", [2.0])},
     interval=Interval(present=0.0, step=0.1, stop=2.0),
-    method=StarkMethod(scheme=SchemeCashKarp),
-    engine=StarkEngineNative,
+    method=Method(scheme=SchemeCashKarp),
+    engine=EngineNative,
     configuration=Configuration(check_progress=False),
 )
 

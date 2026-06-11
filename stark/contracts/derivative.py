@@ -10,7 +10,7 @@ from stark.contracts.state import State
 from stark.contracts.translation import Translation
 
 
-class Derivative(Protocol):
+class DerivativeLike(Protocol):
     """
     Fill `out` with the derivative at `(interval.present, state)`.
 
@@ -50,4 +50,4 @@ class DerivativeAudit:
             recorder.check(True, "Derivative(interval, state, translation) can be called.")
 
 
-__all__ = ["Derivative", "DerivativeAudit"]
+__all__ = ["DerivativeLike", "DerivativeAudit"]

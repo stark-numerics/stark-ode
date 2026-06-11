@@ -115,8 +115,8 @@ import pytest
 
 from stark import Integrator, Interval, IntegratorStepper
 from stark.monitor import Monitor
-from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
-from stark.schemes.explicit.adaptive.fehlberg45 import SchemeFehlberg45
+from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
+from stark.methods.schemes.explicit.adaptive.fehlberg45 import SchemeFehlberg45
 
 
 @pytest.mark.parametrize("scheme_cls", [SchemeCashKarp, SchemeFehlberg45])

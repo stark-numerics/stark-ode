@@ -10,25 +10,24 @@ from typing import Callable
 
 import numpy as np
 
-from stark import Executor, Integrator, Interval, IntegratorStepper, ExecutorTolerance
+from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
 from stark.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
+from stark.algebraist.generator import AlgebraistGeneratorLinearCombine, AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import (
     AlgebraistLayout,
     AlgebraistLayoutBroadcast,
     AlgebraistLayoutField,
     AlgebraistLayoutLooped,
 )
-from stark.resolvents import ResolventCoupledPicard, ResolventPicard
-from stark.resolvents.method.policy import ResolventPolicy
-from stark.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
-from stark.schemes.implicit.fixed.crank_nicolson import SchemeCrankNicolson
-from stark.schemes.implicit.fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
-from stark.schemes.implicit.fixed.gauss_legendre4 import SchemeGaussLegendre4
-from stark.schemes.implicit.fixed.implicit_midpoint import SchemeImplicitMidpoint
-from stark.schemes.implicit.fixed.lobatto_iiic4 import SchemeLobattoIIIC4
-from stark.schemes.implicit.fixed.radau_iia5 import SchemeRadauIIA5
+from stark.methods.resolvents import ResolventCoupledPicard, ResolventPicard
+from stark.methods.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
+from stark.methods.schemes.implicit.fixed.crank_nicolson import SchemeCrankNicolson
+from stark.methods.schemes.implicit.fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
+from stark.methods.schemes.implicit.fixed.gauss_legendre4 import SchemeGaussLegendre4
+from stark.methods.schemes.implicit.fixed.implicit_midpoint import SchemeImplicitMidpoint
+from stark.methods.schemes.implicit.fixed.lobatto_iiic4 import SchemeLobattoIIIC4
+from stark.methods.schemes.implicit.fixed.radau_iia5 import SchemeRadauIIA5
 
 
 GENERATED_CASES = (
@@ -115,7 +114,7 @@ def make_algebraist(policy, allocator: ArrayAllocator, accelerator=None) -> Arra
     layout = AlgebraistLayout(
         fields=(AlgebraistLayoutField("value", "value", policy=policy),),
     )
-    general = AlgebraistGeneratorGeneral(
+    general = AlgebraistGeneratorLinearCombine(
         translation=allocator.allocate_translation(),
         allocator=allocator,
         layout=layout,
@@ -141,8 +140,10 @@ def numba_accelerator():
 
 def make_resolvent(scheme_cls, allocator: ArrayAllocator, kind: str):
     kwargs = dict(
-        ExecutorTolerance=ExecutorTolerance(atol=1.0e-12, rtol=1.0e-12),
-        policy=ResolventPolicy(max_iterations=16),
+        configuration=Configuration(
+            resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
+            resolvent_maximum_steps=16,
+        ),
         accelerator=AcceleratorNone(),
         tableau=scheme_cls.tableau,
     )
@@ -165,15 +166,15 @@ class BenchmarkCase:
         interval: Interval,
     ) -> None:
         self.name = name
-        self.stepper = IntegratorStepper(scheme, Executor())
-        self.integrator = Integrator()
+        self.stepper = IntegratorStepper(scheme)
+        self.integrator = Integrator(configuration=Configuration(check_progress=False))
         self.state = state
         self.interval = interval
 
     def solve_once(self) -> ArrayState:
         state = self.state.copy()
         interval = self.interval.copy()
-        for _interval, _state in self.integrator.live(self.stepper, interval, state):
+        for _interval, _state in self.integrator.mutating_trajectory(self.stepper, interval, state):
             pass
         return state
 

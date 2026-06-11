@@ -70,7 +70,7 @@ The standard interface import path is:
 
 ```python
 from stark import Interval
-from stark.interface import StarkIVP, StarkDerivative
+from stark.interface import StarkIVP, Derivative
 ```
 
 ## Integration
@@ -149,7 +149,7 @@ and reports:
   scheme work, resolvent work, inverter work, and framework overhead
 
 This is meant for A/B testing schemes on one problem, not for replacing the
-problem-specific comparison reports under `examples/comparison/`.
+problem-specific competition reports under `competition/`.
 
 The returned `ComparisonReport` is also structured data, not just a printable
 report. Advanced users can inspect:
@@ -171,7 +171,7 @@ For a worked example, see
 
 ## Built-in schemes
 
-Built-in schemes are available from `stark.schemes`.
+Built-in schemes are available from `stark.methods.schemes`.
 
 Adaptive embedded schemes:
 
@@ -231,15 +231,15 @@ Implicit schemes:
 For clarity, the physical subpackages are also importable:
 
 ```python
-from stark.schemes.explicit.adaptive import SchemeDormandPrince
-from stark.schemes.explicit.fixed import SchemeRK4
-from stark.schemes.implicit.adaptive import SchemeKvaerno3
-from stark.schemes.imex.adaptive import SchemeKennedyCarpenter43_7
+from stark.methods.schemes.explicit.adaptive import SchemeDormandPrince
+from stark.methods.schemes.explicit.fixed import SchemeRK4
+from stark.methods.schemes.implicit.adaptive import SchemeKvaerno3
+from stark.methods.schemes.imex.adaptive import SchemeKennedyCarpenter43_7
 ```
 
 ## Built-in resolvents and inverters
 
-Resolvents live in `stark.resolvents`:
+Resolvents live in `stark.methods.resolvents`:
 
 | Class | Method |
 | --- | --- |
@@ -248,7 +248,7 @@ Resolvents live in `stark.resolvents`:
 | `ResolventBroyden` | Broyden quasi-Newton implicit resolution |
 | `ResolventNewton` | Newton implicit resolution |
 
-Inverters live in `stark.inverters`:
+Inverters live in `stark.methods.inverters`:
 
 | Class | Method |
 | --- | --- |
@@ -333,7 +333,7 @@ linear-combination kernels.
 
 Algebraist is STARK's generated-algebra layer. It has two common roles:
 
-- `AlgebraistGeneratorGeneral` provides arity-based translation combinations
+- `AlgebraistGeneratorLinearCombine` provides arity-based translation combinations
   such as `out = a0 * x0 + a1 * x1`.
 - `AlgebraistGeneratorSpecialist` provides fixed-coefficient scheme kernels
   for stages, accepted increments, and embedded error estimates.
@@ -344,7 +344,7 @@ problem wants generated kernels:
 ```python
 from stark.algebraist import (
     AlgebraistArity,
-    AlgebraistGeneratorGeneral,
+    AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorSpecialist,
     AlgebraistLayout,
     AlgebraistLayoutField,
@@ -399,7 +399,7 @@ class ArrayAllocator:
         return self.__class__._specialist
 
     def _install_algebraist(self):
-        general = AlgebraistGeneratorGeneral(
+        general = AlgebraistGeneratorLinearCombine(
             translation=self.allocate_translation(),
             allocator=self,
             layout=LAYOUT,
@@ -505,12 +505,12 @@ The `__call__` method should:
 `IntegratorStepper` will then increment `interval.present` by the returned step size.
 
 For built-in-style explicit schemes, the common pattern is to use the helpers under
-`stark.schemes.explicit._support`. They install the non-algorithmic parts that would
+`stark.methods.schemes.explicit._support`. They install the non-algorithmic parts that would
 otherwise clutter a scheme body: workspace construction, state snapshots,
 adaptive step control, monitoring hooks, and display metadata.
 
 ```python
-from stark.schemes.explicit._support import initialise_explicit_support
+from stark.methods.schemes.explicit._support import initialise_explicit_support
 
 
 class MyScheme:
@@ -545,11 +545,11 @@ The common implicit shape is:
 ```python
 from stark import IntegratorStepper, Tolerance
 from stark.accelerators import AcceleratorNone
-from stark.inverters import InverterBiCGStab
-from stark.inverters import InverterPolicy, Tolerance
-from stark.resolvents import ResolventNewton
-from stark.resolvents import Configuration, Tolerance
-from stark.schemes import SchemeKvaerno3
+from stark.methods.inverters import InverterBiCGStab
+from stark.methods.inverters import InverterPolicy, Tolerance
+from stark.methods.resolvents import ResolventNewton
+from stark.methods.resolvents import Configuration, Tolerance
+from stark.methods.schemes import SchemeKvaerno3
 
 allocator = MyAllocator()
 derivative = MyDerivative()
@@ -590,9 +590,9 @@ corrections are handed to the chosen resolvent.
 The current package layout mirrors that structure directly:
 
 - `stark.accelerators`
-- `stark.schemes`
-- `stark.resolvents`
-- `stark.inverters`
+- `stark.methods.schemes`
+- `stark.methods.resolvents`
+- `stark.methods.inverters`
 - `stark.Configuration`
 - `stark.comparison`
 - `stark.contracts`
@@ -609,9 +609,9 @@ contracts at once:
 For the mathematical meaning of those contracts, see
 [`docs/contracts_math.md`](contracts_math.md).
 
-## Comparison Reports
+## Competition Reports
 
-The comparison reports live under `examples/comparison/` and are intended to be readable
+The competition reports live under `competition/` and are intended to be readable
 examples of idiomatic STARK, SciPy, and Diffrax implementations of the same
 problems.
 
@@ -624,10 +624,10 @@ python -m pip install -e ".[comparison]"
 Run:
 
 ```powershell
-python -m examples.comparison.brusselator_2d.report
-python -m examples.comparison.fput.report
-python -m examples.comparison.fitzhugh_nagumo_1d.report
-python -m examples.comparison.robertson.report
+python -m competition.brusselator_2d.report
+python -m competition.fput.report
+python -m competition.fitzhugh_nagumo_1d.report
+python -m competition.robertson.report
 ```
 
 The STARK comparison implementations intentionally use `Algebraist`-generated
@@ -636,4 +636,3 @@ performance-oriented extension point.
 
 Formal performance-regression tracking belongs in an ASV suite, not in these
 comparison reports. See [`docs/benchmarking.md`](benchmarking.md).
-

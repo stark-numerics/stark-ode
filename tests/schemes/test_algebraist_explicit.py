@@ -6,19 +6,19 @@ import numpy as np
 import pytest
 
 from stark import Integrator, Interval, IntegratorStepper, Tolerance
-from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
-from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
-from stark.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
-from stark.schemes.explicit.adaptive.fehlberg45 import SchemeFehlberg45
-from stark.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
-from stark.schemes.explicit.fixed.euler import SchemeEuler
-from stark.schemes.explicit.fixed.heun import SchemeHeun
-from stark.schemes.explicit.fixed.kutta3 import SchemeKutta3
-from stark.schemes.explicit.fixed.midpoint import SchemeMidpoint
-from stark.schemes.explicit.fixed.ralston import SchemeRalston
-from stark.schemes.explicit.fixed.rk38 import SchemeRK38
-from stark.schemes.explicit.fixed.rk4 import SchemeRK4
-from stark.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
+from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
+from stark.methods.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
+from stark.methods.schemes.explicit.adaptive.fehlberg45 import SchemeFehlberg45
+from stark.methods.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
+from stark.methods.schemes.explicit.fixed.euler import SchemeEuler
+from stark.methods.schemes.explicit.fixed.heun import SchemeHeun
+from stark.methods.schemes.explicit.fixed.kutta3 import SchemeKutta3
+from stark.methods.schemes.explicit.fixed.midpoint import SchemeMidpoint
+from stark.methods.schemes.explicit.fixed.ralston import SchemeRalston
+from stark.methods.schemes.explicit.fixed.rk38 import SchemeRK38
+from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.methods.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
 from stark.core import Configuration
 
 @dataclass(slots=True)

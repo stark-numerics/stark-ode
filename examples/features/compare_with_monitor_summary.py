@@ -7,13 +7,13 @@ import numpy as np
 from stark import (
     Configuration,
     Interval,
-    StarkLayout,
-    StarkMethod,
-    StarkSystem,
+    Layout,
+    Method,
+    System,
 )
 from stark.comparison import ComparisonEntry, ComparisonProblem, ComparisonRunner
-from stark.engines import StarkEngineNumpy
-from stark.schemes import SchemeCashKarp, SchemeDormandPrince
+from stark.engines import EngineNumpy
+from stark.methods.schemes import SchemeCashKarp, SchemeDormandPrince
 
 
 def oscillator_rhs(t: float, state, out) -> None:
@@ -22,15 +22,15 @@ def oscillator_rhs(t: float, state, out) -> None:
     out.dy[1] = -state.y[0]
 
 
-system = StarkSystem(
+system = System(
     derivative=oscillator_rhs,
-    layout=StarkLayout({"y": {"translation": "dy", "shape": (2,)}}),
+    layout=Layout({"y": {"translation": "dy", "shape": (2,)}}),
 )
 template = system.ivp(
     initial={"y": np.array([1.0, 0.0])},
     interval=Interval(present=0.0, step=0.05, stop=1.0),
-    method=StarkMethod(scheme=SchemeCashKarp),
-    engine=StarkEngineNumpy,
+    method=Method(scheme=SchemeCashKarp),
+    engine=EngineNumpy,
     configuration=Configuration(check_progress=False),
 )
 
@@ -45,11 +45,11 @@ problem = ComparisonProblem(
 entries = [
     ComparisonEntry(
         "Cash-Karp",
-        StarkMethod(scheme=SchemeCashKarp),
+        Method(scheme=SchemeCashKarp),
     ),
     ComparisonEntry(
         "Dormand-Prince",
-        StarkMethod(scheme=SchemeDormandPrince),
+        Method(scheme=SchemeDormandPrince),
     ),
 ]
 

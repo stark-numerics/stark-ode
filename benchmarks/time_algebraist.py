@@ -4,10 +4,10 @@ import numpy as np
 
 from stark.accelerators import AcceleratorNumba
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorGeneral
+from stark.algebraist.generator import AlgebraistGeneratorLinearCombine
 from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
-from stark.carriers import CarrierNumpy
-from stark.interface.vector import StarkVectorTranslation
+from stark.engines.numpy import EngineNumpy
+from stark.interface.layout import Layout
 
 from benchmarks.common import FPUT_SIZES
 
@@ -41,7 +41,7 @@ def accelerated_context(size: int) -> tuple:
     linear_combine = _ACCELERATED_CONTEXTS.get(size)
     if linear_combine is None:
         allocator = AcceleratedAllocator(size)
-        provider = AlgebraistGeneratorGeneral(
+        provider = AlgebraistGeneratorLinearCombine(
             translation=allocator.allocate_translation(),
             allocator=allocator,
             layout=accelerated_layout(),
@@ -52,16 +52,17 @@ def accelerated_context(size: int) -> tuple:
     return linear_combine
 
 
-def vector_terms(size: int, arity: int) -> tuple[StarkVectorTranslation, ...]:
-    carrier = CarrierNumpy(np.zeros(2 * size, dtype=np.float64))
-    grid = np.linspace(0.0, 1.0, 2 * size, dtype=np.float64)
-    return tuple(
-        StarkVectorTranslation(
-            (index + 1.0) * grid.copy(),
-            carrier,
-        )
-        for index in range(arity)
+def engine_terms(size: int, arity: int) -> tuple:
+    engine = EngineNumpy(
+        Layout({"y": {"translation": "dy", "shape": (2 * size,)}}),
     )
+    grid = np.linspace(0.0, 1.0, 2 * size, dtype=np.float64)
+    terms = []
+    for index in range(arity):
+        term = engine.allocator.allocate_translation()
+        term.dy[...] = (index + 1.0) * grid
+        terms.append(term)
+    return tuple(terms)
 
 
 class AcceleratedTranslation:
@@ -110,19 +111,16 @@ class TimeAlgebraistCombine:
 
     def setup(self, chain_size: int, arity: int) -> None:
         self.coefficients = coefficients(arity)
-        self.vector_values = vector_terms(chain_size, arity)
-        self.vector_out = StarkVectorTranslation(
-            np.zeros(2 * chain_size, dtype=np.float64),
-            self.vector_values[0].carrier,
-        )
-        self.vector_combine = self.vector_out.linear_combine[arity - 1]
+        self.engine_values = engine_terms(chain_size, arity)
+        self.engine_out = self.engine_values[0].allocator.allocate_translation()
+        self.engine_combine = self.engine_out.linear_combine[arity - 1]
 
-    def time_vector_carrier_combine(self, chain_size: int, arity: int) -> None:
+    def time_engine_combine(self, chain_size: int, arity: int) -> None:
         del chain_size
         terms: list[object] = []
-        for coefficient, value in zip(self.coefficients, self.vector_values, strict=True):
+        for coefficient, value in zip(self.coefficients, self.engine_values, strict=True):
             terms.extend((coefficient, value))
-        self.vector_combine(*terms, self.vector_out)
+        self.engine_combine(*terms, self.engine_out)
 
 
 if numba_available():
@@ -157,7 +155,7 @@ if numba_available():
 
         def time_accelerated_algebraist_compile(self, chain_size: int) -> None:
             allocator = AcceleratedAllocator(chain_size)
-            provider = AlgebraistGeneratorGeneral(
+            provider = AlgebraistGeneratorLinearCombine(
                 translation=allocator.allocate_translation(),
                 allocator=allocator,
                 layout=accelerated_layout(),

@@ -12,6 +12,7 @@ from stark.algebraist.linear_combine import AlgebraistLinearCombine, AlgebraistL
 from stark.algebraist.generator import (
     AlgebraistGeneratorCompiler,
     AlgebraistGeneratorEmitter,
+    AlgebraistGeneratorInnerProduct,
     AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
@@ -33,6 +34,7 @@ from stark.algebraist.layout import (
 )
 from stark.algebraist.norm import AlgebraistNorm, AlgebraistNormKernel
 from stark.algebraist.runtime import (
+    AlgebraistRuntimeInnerProduct,
     AlgebraistRuntimeLinearCombine,
     AlgebraistRuntimeNorm,
     AlgebraistRuntimeSpecialist,
@@ -49,6 +51,7 @@ __all__ = [
     "AlgebraistLinearCombineKernel",
     "AlgebraistGeneratorCompiler",
     "AlgebraistGeneratorEmitter",
+    "AlgebraistGeneratorInnerProduct",
     "AlgebraistGeneratorLinearCombine",
     "AlgebraistGeneratorNorm",
     "AlgebraistGeneratorSpecialist",
@@ -68,6 +71,7 @@ __all__ = [
     "AlgebraistNorm",
     "AlgebraistNormKernel",
     "AlgebraistRequest",
+    "AlgebraistRuntimeInnerProduct",
     "AlgebraistRuntimeLinearCombine",
     "AlgebraistRuntimeNorm",
     "AlgebraistRuntimeSpecialist",

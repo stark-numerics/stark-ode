@@ -8,11 +8,11 @@ import pytest
 from stark import Interval, Tolerance
 from stark.accelerators import AcceleratorNone
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
-from stark.resolvents import ResolventCoupledPicard
+from stark.methods.resolvents import ResolventCoupledPicard
 from stark import Configuration
-from stark.schemes.implicit.fixed.gauss_legendre4 import SchemeGaussLegendre4
-from stark.schemes.implicit.fixed.lobatto_iiic4 import SchemeLobattoIIIC4
-from stark.schemes.implicit.fixed.radau_iia5 import SchemeRadauIIA5
+from stark.methods.schemes.implicit.fixed.gauss_legendre4 import SchemeGaussLegendre4
+from stark.methods.schemes.implicit.fixed.lobatto_iiic4 import SchemeLobattoIIIC4
+from stark.methods.schemes.implicit.fixed.radau_iia5 import SchemeRadauIIA5
 
 
 @dataclass(slots=True)

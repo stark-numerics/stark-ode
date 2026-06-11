@@ -115,8 +115,8 @@ import pytest
 
 from stark import Integrator, Interval, IntegratorStepper
 from stark.monitor import Monitor
-from stark.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
-from stark.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
+from stark.methods.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
+from stark.methods.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
 
 
 @pytest.mark.parametrize("scheme_cls", [SchemeDormandPrince, SchemeTsitouras5])

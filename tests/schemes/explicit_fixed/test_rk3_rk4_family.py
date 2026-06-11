@@ -5,10 +5,10 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Interval
-from stark.schemes.explicit.fixed.kutta3 import SchemeKutta3
-from stark.schemes.explicit.fixed.rk38 import SchemeRK38
-from stark.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
-from stark.schemes.specialization.stencil import SchemeStencil
+from stark.methods.schemes.explicit.fixed.kutta3 import SchemeKutta3
+from stark.methods.schemes.explicit.fixed.rk38 import SchemeRK38
+from stark.methods.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
+from stark.methods.schemes.specialization.stencil import SchemeStencil
 from stark.core import Configuration
 
 @dataclass(slots=True)

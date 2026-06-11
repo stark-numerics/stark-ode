@@ -135,7 +135,7 @@ class ComparisonProfileSurvey:
                 "separate method logic from resolvent and problem work."
             )
         module_name = type(scheme).__module__
-        if module_name.startswith("stark.schemes."):
+        if module_name.startswith("stark.methods.schemes."):
             return None
         return (
             f"Custom scheme {type(scheme).__name__}: the profile buckets are approximate and "

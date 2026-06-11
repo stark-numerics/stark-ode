@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-"""Choose a built-in scheme through `StarkMethod`."""
+"""Choose a built-in scheme through `Method`."""
 
 import numpy as np
 
 from stark import (
     Configuration,
     Interval,
-    StarkLayout,
-    StarkMethod,
-    StarkSystem,
+    Layout,
+    Method,
+    System,
 )
-from stark.engines import StarkEngineNumpy
-from stark.schemes import SchemeDormandPrince
+from stark.engines import EngineNumpy
+from stark.methods.schemes import SchemeDormandPrince
 
 
 def oscillator_rhs(t: float, state, out) -> None:
@@ -21,15 +21,15 @@ def oscillator_rhs(t: float, state, out) -> None:
     out.dy[1] = -state.y[0]
 
 
-system = StarkSystem(
+system = System(
     derivative=oscillator_rhs,
-    layout=StarkLayout({"y": {"translation": "dy", "shape": (2,)}}),
+    layout=Layout({"y": {"translation": "dy", "shape": (2,)}}),
 )
 ivp = system.ivp(
     initial={"y": np.array([1.0, 0.0])},
     interval=Interval(present=0.0, step=0.05, stop=0.5),
-    method=StarkMethod(scheme=SchemeDormandPrince),
-    engine=StarkEngineNumpy,
+    method=Method(scheme=SchemeDormandPrince),
+    engine=EngineNumpy,
     configuration=Configuration(check_progress=False),
 )
 

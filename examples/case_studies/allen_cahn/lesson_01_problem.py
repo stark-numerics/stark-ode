@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-# Lesson 1: problem definition and first StarkSystem solve
+# Lesson 1: problem definition and first System solve
 #
 # This script is the foundation for the Allen-Cahn example series. The problem
 # state is a NumPy array, so the modern STARK entry point is the interface layer:
-# `StarkSystem` prepares the matching layout-backed state, allocator,
+# `System` prepares the matching layout-backed state, allocator,
 # derivative adapter, and carrier routing for us.
 #
 # We solve the one-dimensional periodic Allen-Cahn equation
@@ -22,7 +22,7 @@ from __future__ import annotations
 # and then split the PDE into an IMEX method with a custom spectral resolvent.
 #
 # The point of this first run is not to claim Cash-Karp is the right Allen-Cahn
-# solver. It is to establish a baseline: with `StarkSystem`, an array-valued PDE
+# solver. It is to establish a baseline: with `System`, an array-valued PDE
 # can be integrated without hand-writing STARK state, translation, and allocator
 # classes.
 #
@@ -41,10 +41,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from stark import Configuration, Interval, StarkLayout, StarkMethod, StarkSystem, Tolerance
+from stark import Configuration, Interval, Layout, Method, System, Tolerance
 from stark.accelerators import AcceleratorNone, AcceleratorNumba
-from stark.engines import StarkEngineNumpy
-from stark.schemes import SchemeCashKarp
+from stark.engines import EngineNumpy
+from stark.methods.schemes import SchemeCashKarp
 
 
 # We keep the numerical choices near the top so later lessons can import them
@@ -142,7 +142,7 @@ def state_diagnostics(state) -> dict[str, float]:
 
 
 # The derivative kernel works on raw NumPy arrays. `make_derivative(...)` adapts
-# it to the layout-backed objects that `StarkSystem` gives to schemes.
+# it to the layout-backed objects that `System` gives to schemes.
 
 
 class AllenCahnRHS:
@@ -206,12 +206,12 @@ def make_derivative(geometry: Geometry, diffusivity: float = DIFFUSIVITY):
     return derivative
 
 
-def make_layout(geometry: Geometry) -> StarkLayout:
-    return StarkLayout({"u": {"translation": "du", "shape": (geometry.grid_size,)}})
+def make_layout(geometry: Geometry) -> Layout:
+    return Layout({"u": {"translation": "du", "shape": (geometry.grid_size,)}})
 
 
-def make_system(geometry: Geometry, diffusivity: float = DIFFUSIVITY) -> StarkSystem:
-    return StarkSystem(
+def make_system(geometry: Geometry, diffusivity: float = DIFFUSIVITY) -> System:
+    return System(
         derivative=make_derivative(geometry, diffusivity),
         layout=make_layout(geometry),
     )
@@ -220,7 +220,7 @@ def make_system(geometry: Geometry, diffusivity: float = DIFFUSIVITY) -> StarkSy
 def make_ivp(
     geometry: Geometry,
     *,
-    method: StarkMethod | None = None,
+    method: Method | None = None,
     configuration: Configuration | None = None,
     initial: np.ndarray | None = None,
     interval: Interval | None = None,
@@ -228,8 +228,8 @@ def make_ivp(
     return make_system(geometry).ivp(
         initial={"u": initial_profile(geometry) if initial is None else initial},
         interval=make_interval() if interval is None else interval,
-        method=StarkMethod(scheme=SchemeCashKarp) if method is None else method,
-        engine=StarkEngineNumpy,
+        method=Method(scheme=SchemeCashKarp) if method is None else method,
+        engine=EngineNumpy,
         configuration=Configuration(scheme_tolerance=Configuration_TOLERANCE) if configuration is None else configuration,
     )
 
@@ -256,7 +256,7 @@ if __name__ == "__main__":
     plt.close(fig)
     print(f"Saved {initial_plot_path}")
 
-    # `StarkSystem` is the high-level path for shaped NumPy states. The layout
+    # `System` is the high-level path for shaped NumPy states. The layout
     # names the state field `u` and its matching translation `du`; the engine
     # owns the carrier, allocator, and generated algebra.
 
@@ -296,4 +296,4 @@ if __name__ == "__main__":
     print("What to notice:")
     print("- The mean stays near zero because the initial condition is symmetric.")
     print("- The extrema change smoothly as diffusion and reaction compete.")
-    print("- We reached this first result through StarkSystem, not custom adapter classes.")
+    print("- We reached this first result through System, not custom adapter classes.")

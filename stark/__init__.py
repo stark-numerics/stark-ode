@@ -7,25 +7,26 @@ from stark.core.tolerance import Tolerance
 from stark.integrator.integrator import Integrator, IntegratorConfiguration
 from stark.core.interval import Interval
 from stark.integrator.stepper import IntegratorStepper
-from stark.inverters.configuration import InverterConfiguration
+from stark.methods import Method
 from stark.interface import (
-    StarkDerivative,
-    StarkDerivativeSignature,
-    StarkDerivativeStyle,
-    StarkLayout,
-    StarkLayoutField,
-    StarkLayoutNormExcluded,
-    StarkLayoutNormMax,
-    StarkLayoutNormPolicy,
-    StarkLayoutNormRMS,
-    StarkMethod,
-    StarkMethodError,
-    StarkSystem,
-    StarkSystemIVP,
+    Derivative,
+    DerivativeSignature,
+    DerivativeStyle,
+    Layout,
+    LayoutField,
+    LayoutNormExcluded,
+    LayoutNormMax,
+    LayoutNormPolicy,
+    LayoutNormRMS,
+    Method,
+    MethodError,
+    System,
+    SystemFinalResult,
+    SystemIVP,
 )
 from stark.monitor import Monitor
-from stark.resolvents.configuration import ResolventConfiguration
-from stark.schemes.configuration import SchemeConfiguration
+from stark.methods.resolvents.configuration import ResolventConfiguration
+from stark.methods.schemes.configuration import SchemeConfiguration
 
 __all__ = [
     "AuditError",
@@ -35,23 +36,24 @@ __all__ = [
     "Integrator",
     "IntegratorConfiguration",
     "Interval",
-    "InverterConfiguration",
+    "Method",
     "IntegratorStepper",
     "Monitor",
     "ResolventConfiguration",
     "SchemeConfiguration",
-    "StarkDerivative",
-    "StarkDerivativeSignature",
-    "StarkDerivativeStyle",
-    "StarkLayout",
-    "StarkLayoutField",
-    "StarkLayoutNormExcluded",
-    "StarkLayoutNormMax",
-    "StarkLayoutNormPolicy",
-    "StarkLayoutNormRMS",
-    "StarkMethod",
-    "StarkMethodError",
-    "StarkSystem",
-    "StarkSystemIVP",
+    "Derivative",
+    "DerivativeSignature",
+    "DerivativeStyle",
+    "Layout",
+    "LayoutField",
+    "LayoutNormExcluded",
+    "LayoutNormMax",
+    "LayoutNormPolicy",
+    "LayoutNormRMS",
+    "Method",
+    "MethodError",
+    "System",
+    "SystemFinalResult",
+    "SystemIVP",
     "Tolerance",
 ]

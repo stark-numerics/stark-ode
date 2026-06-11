@@ -12,6 +12,7 @@ python -m examples.getting_started.numpy_oscillator
 python -m examples.getting_started.in_place_derivative
 python -m examples.getting_started.choose_scheme
 python -m examples.getting_started.checkpoints
+python -m examples.getting_started.engine_acceleration
 python -m examples.getting_started.interface.native
 python -m examples.getting_started.interface.numpy
 ```

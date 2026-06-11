@@ -7,7 +7,7 @@ import pytest
 
 from stark import Integrator, IntegratorStepper, Tolerance
 from stark.core.interval import Interval
-from stark.resolvents import (
+from stark.methods.resolvents import (
     ResolventCoupledNewton,
     ResolventCoupledPicard,
     ResolventNewton,
@@ -16,8 +16,8 @@ from stark.resolvents import (
 from stark import Configuration
 from stark import Tolerance
 from stark.block import Block
-from stark.schemes import SchemeBDF2, SchemeKvaerno3, SchemeKvaerno4, SchemeSDIRK21
-from stark.schemes.implicit.fixed import (
+from stark.methods.schemes import SchemeBDF2, SchemeKvaerno3, SchemeKvaerno4, SchemeSDIRK21
+from stark.methods.schemes.implicit.fixed import (
     SchemeBackwardEuler,
     SchemeCrankNicolson,
     SchemeCrouzeixDIRK3,

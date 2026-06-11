@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 
 from stark import Integrator, Interval, IntegratorStepper, Monitor, Tolerance
-from stark.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
-from stark.schemes.explicit.fixed.euler import SchemeEuler
-from stark.schemes.specialization.stencil import SchemeStencil
+from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
+from stark.methods.schemes.explicit.fixed.euler import SchemeEuler
+from stark.methods.schemes.specialization.stencil import SchemeStencil
 
 
 ROOT = Path(__file__).resolve().parents[2]

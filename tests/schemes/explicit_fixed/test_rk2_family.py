@@ -5,10 +5,10 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Interval
-from stark.schemes.explicit.fixed.heun import SchemeHeun
-from stark.schemes.explicit.fixed.midpoint import SchemeMidpoint
-from stark.schemes.explicit.fixed.ralston import SchemeRalston
-from stark.schemes.specialization.stencil import SchemeStencil
+from stark.methods.schemes.explicit.fixed.heun import SchemeHeun
+from stark.methods.schemes.explicit.fixed.midpoint import SchemeMidpoint
+from stark.methods.schemes.explicit.fixed.ralston import SchemeRalston
+from stark.methods.schemes.specialization.stencil import SchemeStencil
 
 
 @dataclass(slots=True)

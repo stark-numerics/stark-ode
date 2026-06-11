@@ -23,7 +23,7 @@ htmlcov/
 examples/*.png
 examples/**/*.png
 examples/.ipynb_checkpoints/
-examples/local/
+competition/local/
 
 # Editors and OS files
 .vscode/

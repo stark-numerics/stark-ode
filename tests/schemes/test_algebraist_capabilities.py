@@ -5,7 +5,7 @@ from inspect import signature
 
 import pytest
 
-import stark.schemes as schemes
+import stark.methods.schemes as schemes
 
 SPECIALIST = "specialist"
 HOOK_ONLY = "hook-only"

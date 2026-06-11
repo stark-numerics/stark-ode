@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from stark.block import Block, BlockSpecialist
-from stark.schemes.specialization.stencil import SchemeStencil
+from stark.methods.schemes.specialization.stencil import SchemeStencil
 
 
 @dataclass

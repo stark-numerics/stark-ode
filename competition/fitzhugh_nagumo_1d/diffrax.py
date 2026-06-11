@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from competition.fitzhugh_nagumo_1d import common
+
 try:
     import jax
 
@@ -46,7 +48,7 @@ def _error(final: np.ndarray, reference: dict[str, np.ndarray], grid_size: int) 
     return float(np.sqrt((np.dot(du, du) + np.dot(dv, dv)) / (du.size + dv.size)))
 
 
-def prepare_kvaerno5(problem_parameters, tolerance_parameters, diffrax_parameters, initial_conditions, reference):
+def kvaerno5_solver(problem_parameters, tolerance_parameters, diffrax_parameters, initial_conditions, reference):
     if not DIFFRAX_AVAILABLE:
         raise RuntimeError("Diffrax/JAX is not installed.")
 
@@ -83,6 +85,16 @@ def prepare_kvaerno5(problem_parameters, tolerance_parameters, diffrax_parameter
         }
 
     return solve_once
+
+
+def prepare_kvaerno5(problem_parameters, tolerance_parameters, initial_conditions, reference):
+    return kvaerno5_solver(
+        problem_parameters,
+        tolerance_parameters,
+        common.DIFFRAX_PARAMETERS,
+        initial_conditions,
+        reference,
+    )
 
 
 

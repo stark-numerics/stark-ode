@@ -1,45 +1,44 @@
 """Public interface-layer STARK objects."""
 
 from .derivative import (
-    StarkDerivative,
-    StarkDerivativeSignature,
-    StarkDerivativeStyle,
+    Derivative,
+    DerivativeSignature,
+    DerivativeStyle,
 )
 from .layout import (
     AlgebraistLayoutBroadcast,
     AlgebraistLayoutLooped,
     AlgebraistLayoutScalar,
     AlgebraistLayoutUnravel,
-    StarkLayout,
-    StarkLayoutField,
+    Layout,
+    LayoutField,
 )
-from .method import StarkMethod, StarkMethodError
+from stark.methods.method import Method, MethodError
 from .norm import (
-    StarkLayoutNormExcluded,
-    StarkLayoutNormMax,
-    StarkLayoutNormPolicy,
-    StarkLayoutNormRMS,
+    LayoutNormExcluded,
+    LayoutNormMax,
+    LayoutNormPolicy,
+    LayoutNormRMS,
 )
-from .system import StarkSystem, StarkSystemIVP
-from .vector import StarkVector
+from .system import System, SystemFinalResult, SystemIVP
 
 __all__ = [
     "AlgebraistLayoutBroadcast",
     "AlgebraistLayoutLooped",
     "AlgebraistLayoutScalar",
     "AlgebraistLayoutUnravel",
-    "StarkDerivative",
-    "StarkDerivativeSignature",
-    "StarkDerivativeStyle",
-    "StarkLayout",
-    "StarkLayoutField",
-    "StarkLayoutNormExcluded",
-    "StarkLayoutNormMax",
-    "StarkLayoutNormPolicy",
-    "StarkLayoutNormRMS",
-    "StarkMethod",
-    "StarkMethodError",
-    "StarkSystem",
-    "StarkSystemIVP",
-    "StarkVector",
+    "Derivative",
+    "DerivativeSignature",
+    "DerivativeStyle",
+    "Layout",
+    "LayoutField",
+    "LayoutNormExcluded",
+    "LayoutNormMax",
+    "LayoutNormPolicy",
+    "LayoutNormRMS",
+    "Method",
+    "MethodError",
+    "System",
+    "SystemFinalResult",
+    "SystemIVP",
 ]

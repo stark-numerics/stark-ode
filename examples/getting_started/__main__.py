@@ -9,6 +9,7 @@ EXAMPLES = (
     "in_place_derivative",
     "choose_scheme",
     "checkpoints",
+    "engine_acceleration",
     "interface.native",
     "interface.numpy",
 )
@@ -27,4 +28,3 @@ for example in EXAMPLES:
 
 print()
 print("All getting started examples completed.")
-

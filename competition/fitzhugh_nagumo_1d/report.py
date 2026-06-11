@@ -1,75 +1,13 @@
 from __future__ import annotations
 
-from statistics import median
 from time import perf_counter
 
 from competition.fitzhugh_nagumo_1d import common, diffrax, scipy, stark
+from competition.runner import CompetitionData, CompetitionEntry, CompetitionRunner, render_table
 
 
 def announce(message: str) -> None:
     print(message, flush=True)
-
-
-def prewarm_runner(prepare_runner, problem, parameters, initial_conditions, reference):
-    solve_once = prepare_runner(problem, parameters, initial_conditions, reference)
-    started = perf_counter()
-    result = solve_once()
-    elapsed = perf_counter() - started
-    return result, elapsed
-
-
-def timed_runner(library, solver, prepare_runner, repeats, problem, parameters, initial_conditions, reference):
-    started = perf_counter()
-    solve_once = prepare_runner(problem, parameters, initial_conditions, reference)
-    setup_elapsed = perf_counter() - started
-
-    started = perf_counter()
-    solve_once()
-    warmup_elapsed = perf_counter() - started
-
-    durations = []
-    result = None
-    for _ in range(repeats):
-        started = perf_counter()
-        result = solve_once()
-        durations.append(perf_counter() - started)
-
-    row = {
-        "library": result["library"],
-        "solver": result["solver"],
-        "error": result["error"],
-        "steps": result["steps"],
-        "setup": float(setup_elapsed),
-        "warmup": float(warmup_elapsed),
-        "preparation": float(setup_elapsed + warmup_elapsed),
-        "median": float(median(durations)),
-        "min": float(min(durations)),
-    }
-    announce(
-        f"Completed {row['library']} {row['solver']}: "
-        f"steps={row['steps']}, "
-        f"error={row['error']:.6e}, "
-        f"setup={row['setup']:.3f}s, "
-        f"warmup={row['warmup']:.3f}s, "
-        f"median={row['median']:.3f}s, "
-        f"min={row['min']:.3f}s"
-    )
-    return row
-
-
-def render_table(headers, rows):
-    widths = [len(header) for header in headers]
-    for row in rows:
-        for index, value in enumerate(row):
-            widths[index] = max(widths[index], len(value))
-
-    lines = [
-        " | ".join(header.ljust(width) for header, width in zip(headers, widths, strict=True)),
-        "-+-".join("-" * width for width in widths),
-    ]
-    for row in rows:
-        lines.append(" | ".join(value.ljust(width) for value, width in zip(row, widths, strict=True)))
-    return "\n".join(lines)
 
 
 def describe_problem(problem, tolerances, stark_parameters, reference_tolerances, reference, reference_elapsed):
@@ -105,11 +43,7 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
     )
     print(
         "  STARK acceleration: "
-        + (
-            "selected accelerator: numba, with compiled stencil, derivative, and fused translation kernels active"
-            if stark.USE_NUMBA_ACCELERATION
-            else "selected accelerator: numba, but it is unavailable here so Python kernels are active"
-        )
+        "StarkEngineNumpy selects Numba when it is installed and otherwise uses unaccelerated callables"
     )
     print("  STARK compares the current best generic local combination with an IMEX spectral custom resolvent")
     print("  STARK generic row: Kvaerno3 with Anderson acceleration")
@@ -124,10 +58,15 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
 
 
 def print_summary(rows):
-    most_accurate = min(rows, key=lambda row: row["error"])
-    lowest_preparation = min(rows, key=lambda row: row["preparation"])
-    fastest_median = min(rows, key=lambda row: row["median"])
-    fastest_min = min(rows, key=lambda row: row["min"])
+    completed = [row for row in rows if row["error"] is not None and row["median"] is not None]
+    if not completed:
+        print("Summary: no compared method completed.")
+        return
+
+    most_accurate = min(completed, key=lambda row: row["error"])
+    lowest_preparation = min(completed, key=lambda row: row["preparation"])
+    fastest_median = min(completed, key=lambda row: row["median"])
+    fastest_min = min(completed, key=lambda row: row["min"])
 
     print("Summary:")
     print(
@@ -153,7 +92,6 @@ def main() -> None:
     tolerances = common.TOLERANCE_PARAMETERS
     reference_tolerances = common.REFERENCE_TOLERANCE_PARAMETERS
     stark_parameters = common.STARK_PARAMETERS
-    diffrax_parameters = common.DIFFRAX_PARAMETERS
     initial_conditions = common.INITIAL_CONDITIONS
     repeats = common.BENCHMARK_PARAMETERS["repeats"]
 
@@ -166,74 +104,36 @@ def main() -> None:
         f"elapsed={reference_elapsed:.3f}s"
     )
 
-    stark_runners = [
-        ("STARK", "Kvaerno3 Anderson", stark.prepare_kvaerno3_anderson, stark_parameters),
-        ("STARK", "KC43_7 IMEX Spectral", stark.prepare_kc43_imex_spectral, stark_parameters),
+    entries = [
+        CompetitionEntry("STARK", "Kvaerno3 Anderson", stark.prepare_kvaerno3_anderson, stark_parameters),
+        CompetitionEntry("STARK", "KC43_7 IMEX Spectral", stark.prepare_kc43_imex_spectral, stark_parameters),
+        CompetitionEntry("SciPy", "Radau", scipy.prepare_radau, tolerances),
+        CompetitionEntry("SciPy", "BDF", scipy.prepare_bdf, tolerances),
+        CompetitionEntry("Diffrax", "Kvaerno5", diffrax.prepare_kvaerno5, tolerances, optional=True),
     ]
-    external_runners = [
-        ("SciPy", "Radau", scipy.prepare_radau, tolerances),
-        ("SciPy", "BDF", scipy.prepare_bdf, tolerances),
-    ]
-
-    for library, solver, prepare_runner, parameters in [*stark_runners, *external_runners]:
-        announce(f"Prewarming {library} {solver}...")
-        result, elapsed = prewarm_runner(prepare_runner, problem, parameters, initial_conditions, reference)
-        announce(
-            f"Prewarm complete: {result['solver']} "
-            f"steps={result['steps']}, error={result['error']:.6e}, elapsed={elapsed:.3f}s"
-        )
-
-    if diffrax.DIFFRAX_AVAILABLE:
-        announce("Prewarming Diffrax Kvaerno5...")
-        result, elapsed = prewarm_runner(
-            lambda problem, tolerances, initial_conditions, reference: diffrax.prepare_kvaerno5(
-                problem,
-                tolerances,
-                diffrax_parameters,
-                initial_conditions,
-                reference,
-            ),
-            problem,
-            tolerances,
-            initial_conditions,
-            reference,
-        )
-        announce(f"Prewarm complete: {result['solver']} steps={result['steps']}, error={result['error']:.6e}, elapsed={elapsed:.3f}s")
-
-    rows = []
-
-    for library, solver, prepare_runner, parameters in [*stark_runners, *external_runners]:
-        announce(f"Timing {library} {solver}...")
-        rows.append(timed_runner(library, solver, prepare_runner, repeats, problem, parameters, initial_conditions, reference))
-
-    if diffrax.DIFFRAX_AVAILABLE:
-        announce("Timing Diffrax Kvaerno5...")
-        rows.append(
-            timed_runner(
-                "Diffrax",
-                "Kvaerno5",
-                lambda problem, tolerances, initial_conditions, reference: diffrax.prepare_kvaerno5(
-                    problem,
-                    tolerances,
-                    diffrax_parameters,
-                    initial_conditions,
-                    reference,
-                ),
-                repeats,
-                problem,
-                tolerances,
-                initial_conditions,
-                reference,
-            )
-        )
+    rows = CompetitionRunner(
+        CompetitionData(problem, initial_conditions, reference),
+        entries,
+        repeats,
+        announce=announce,
+    ).time_all()
 
     describe_problem(problem, tolerances, stark_parameters, reference_tolerances, reference, reference_elapsed)
 
     print("Error Table")
     print(
         render_table(
-            ("library", "solver", "steps", "error"),
-            [(row["library"], row["solver"], str(row["steps"]), f"{row['error']:.6e}") for row in rows],
+            ("library", "solver", "steps", "error", "note"),
+            [
+                (
+                    row["library"],
+                    row["solver"],
+                    "-" if row["steps"] is None else str(row["steps"]),
+                    "-" if row["error"] is None else f"{row['error']:.6e}",
+                    row["note"],
+                )
+                for row in rows
+            ],
         )
     )
     print()
@@ -241,14 +141,15 @@ def main() -> None:
     print("Preparation Timing Table")
     print(
         render_table(
-            ("library", "solver", "setup", "warmup", "total"),
+            ("library", "solver", "setup", "warmup", "total", "note"),
             [
                 (
                     row["library"],
                     row["solver"],
-                    f"{row['setup']:.6f}s",
-                    f"{row['warmup']:.6f}s",
-                    f"{row['preparation']:.6f}s",
+                    "-" if row["setup"] is None else f"{row['setup']:.6f}s",
+                    "-" if row["warmup"] is None else f"{row['warmup']:.6f}s",
+                    "-" if row["preparation"] is None else f"{row['preparation']:.6f}s",
+                    row["note"],
                 )
                 for row in rows
             ],
@@ -259,14 +160,15 @@ def main() -> None:
     print("Run Timing Table")
     print(
         render_table(
-            ("library", "solver", "median", "min", "repeats"),
+            ("library", "solver", "median", "min", "repeats", "note"),
             [
                 (
                     row["library"],
                     row["solver"],
-                    f"{row['median']:.6f}s",
-                    f"{row['min']:.6f}s",
+                    "-" if row["median"] is None else f"{row['median']:.6f}s",
+                    "-" if row["min"] is None else f"{row['min']:.6f}s",
                     str(repeats),
+                    row["note"],
                 )
                 for row in rows
             ],
@@ -278,12 +180,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-

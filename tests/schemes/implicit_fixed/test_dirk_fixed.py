@@ -8,9 +8,9 @@ import pytest
 from stark import Interval, Tolerance
 from stark.accelerators import AcceleratorNone
 from stark.algebraist.runtime import AlgebraistRuntimeSpecialist
-from stark.resolvents import ResolventPicard
+from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
-from stark.schemes.implicit.fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
+from stark.methods.schemes.implicit.fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
 
 
 @dataclass(slots=True)

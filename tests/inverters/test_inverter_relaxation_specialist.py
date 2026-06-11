@@ -7,13 +7,13 @@ import pytest
 
 from stark.block import Block, BlockSpecialist
 from stark.block.operator import BlockOperatorDiagonal
-from stark.inverters.relaxation import (
+from stark.methods.inverters.relaxation import (
     InverterRelaxationJacobi,
     InverterRelaxationRichardson,
     InverterRelaxationStencilUpdate,
 )
 from stark import Configuration, Tolerance
-from stark.resolvents.requests.inverter import ResolventInverterRequest
+from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 
 
 @dataclass(slots=True)

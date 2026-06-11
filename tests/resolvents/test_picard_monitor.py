@@ -6,8 +6,8 @@ import pytest
 
 from stark import Interval, Monitor
 from stark.block import Block
-from stark.resolvents import ResolventPicard
-from stark.schemes.requests.resolvent import SchemeResolventRequest
+from stark.methods.resolvents import ResolventPicard
+from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
 
 
 @dataclass(slots=True)

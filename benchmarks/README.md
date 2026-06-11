@@ -36,39 +36,35 @@ when working in this repository:
 
 ```powershell
 & ..\.venv\Scripts\python.exe -m benchmarks.schemes.bench_scheme_refactor
-& ..\.venv\Scripts\python.exe -m benchmarks.resolvents.bench_resolvent_refactor
-& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_inverter_refactor
+& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_defect
+& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_jacobi
+& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_richardson
 ```
 
 More stable local runs:
 
 ```powershell
 & ..\.venv\Scripts\python.exe -m benchmarks.schemes.bench_scheme_refactor --warmup 3 --repeat 10
-& ..\.venv\Scripts\python.exe -m benchmarks.resolvents.bench_resolvent_refactor --warmup 3 --repeat 10 --solves-per-sample 500
-& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_inverter_refactor --warmup 3 --repeat 10 --solves-per-sample 500
+& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_defect
+& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_jacobi
+& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_richardson
 ```
 
 Save a local baseline before risky work:
 
 ```powershell
 & ..\.venv\Scripts\python.exe -m benchmarks.schemes.bench_scheme_refactor --warmup 3 --repeat 10 --save-baseline pre-change
-& ..\.venv\Scripts\python.exe -m benchmarks.resolvents.bench_resolvent_refactor --warmup 3 --repeat 10 --solves-per-sample 500 --save-baseline pre-change
-& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_inverter_refactor --warmup 3 --repeat 10 --solves-per-sample 500 --save-baseline pre-change
 ```
 
 Compare against that baseline later:
 
 ```powershell
 & ..\.venv\Scripts\python.exe -m benchmarks.schemes.bench_scheme_refactor --warmup 3 --repeat 10 --compare-baseline pre-change
-& ..\.venv\Scripts\python.exe -m benchmarks.resolvents.bench_resolvent_refactor --warmup 3 --repeat 10 --solves-per-sample 500 --compare-baseline pre-change
-& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_inverter_refactor --warmup 3 --repeat 10 --solves-per-sample 500 --compare-baseline pre-change
 ```
 
 Manual baseline files are written under:
 
 - `benchmarks/schemes/results/`
-- `benchmarks/resolvents/results/`
-- `benchmarks/inverters/results/`
 
 These directories are git-ignored. Commit only deliberately curated reference
 baselines.

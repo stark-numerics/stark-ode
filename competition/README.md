@@ -58,10 +58,13 @@ Each competition case directory follows the same structure:
   functional vector fields.
 - `report.py` owns reference generation, timing, table rendering, and the
   human-readable benchmark description.
+- `runner.py` contains the local competition timing harness shared by the
+  reports.
 
-The competition modules intentionally avoid a shared runner abstraction. The
-point is to show each library in the coding style it naturally encourages, not
-to force all solvers through one generic harness.
+The backend modules still show each library in the coding style it naturally
+encourages. The shared runner only owns comparison mechanics: row declarations,
+optional dependency failures, setup timing, one untimed warmup solve, repeated
+timed solves, and simple text tables.
 
 ## Competition Principles
 
@@ -117,6 +120,9 @@ Important details:
   kernels.
 - Preparation cost and steady repeated-run cost are shown separately because
   different libraries place work in different phases.
+- Entry construction in `report.py` is not timed. Timed setup starts when the
+  runner calls an entry's `prepare` function, so every solver row gets the same
+  setup/warmup/repeat treatment.
 
 
 

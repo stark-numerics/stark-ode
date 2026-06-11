@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from stark import StarkLayout, StarkLayoutField
+from stark import Layout, LayoutField
 from stark.algebraist.layout import AlgebraistLayoutLooped
 
 
 def test_stark_layout_converts_to_algebraist_layout() -> None:
-    layout = StarkLayout(
+    layout = Layout(
         fields=(
-            StarkLayoutField("u", translation="du", shape=(2, 2)),
-            StarkLayoutField("v", translation="dv", shape=(2, 2)),
+            LayoutField("u", translation="du", shape=(2, 2)),
+            LayoutField("v", translation="dv", shape=(2, 2)),
         )
     )
 
@@ -20,7 +20,7 @@ def test_stark_layout_converts_to_algebraist_layout() -> None:
 
 
 def test_stark_layout_defaults_translation_to_state_path() -> None:
-    layout = StarkLayout(fields=("u", "v"))
+    layout = Layout(fields=("u", "v"))
     algebraist_layout = layout.to_algebraist_layout()
 
     assert tuple(str(path) for path in algebraist_layout.state_paths) == ("u", "v")
@@ -28,7 +28,7 @@ def test_stark_layout_defaults_translation_to_state_path() -> None:
 
 
 def test_stark_layout_accepts_single_string_field() -> None:
-    layout = StarkLayout("uv")
+    layout = Layout("uv")
     algebraist_layout = layout.to_algebraist_layout()
 
     assert tuple(str(path) for path in algebraist_layout.state_paths) == ("uv",)
@@ -36,7 +36,7 @@ def test_stark_layout_accepts_single_string_field() -> None:
 
 
 def test_stark_layout_accepts_field_mapping() -> None:
-    layout = StarkLayout({"u": {"translation": "du", "shape": (2, 2)}})
+    layout = Layout({"u": {"translation": "du", "shape": (2, 2)}})
     algebraist_layout = layout.to_algebraist_layout()
 
     assert tuple(str(path) for path in algebraist_layout.state_paths) == ("u",)
@@ -46,7 +46,7 @@ def test_stark_layout_accepts_field_mapping() -> None:
 
 def test_stark_layout_field_rejects_invalid_shape() -> None:
     try:
-        StarkLayoutField("u", shape=(2, 0)).to_algebraist_field()
+        LayoutField("u", shape=(2, 0)).to_algebraist_field()
     except ValueError as exc:
         assert "shape dimensions must be positive" in str(exc)
     else:  # pragma: no cover - defensive failure branch

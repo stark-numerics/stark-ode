@@ -5,8 +5,8 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Interval
-from stark.schemes.explicit.fixed.rk4 import SchemeRK4
-from stark.schemes.specialization.stencil import SchemeStencil
+from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.methods.schemes.specialization.stencil import SchemeStencil
 
 
 @dataclass(slots=True)

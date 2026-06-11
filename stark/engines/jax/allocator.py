@@ -6,16 +6,17 @@ from typing import Any
 
 from stark.algebraist.layout import AlgebraistLayout
 from stark.carriers.jax import CarrierJax
-from stark.engines.jax.translation import StarkEngineTranslationJax
+from stark.engines.jax.translation import EngineTranslationJax
 
 
 @dataclass(frozen=True, slots=True)
-class StarkEngineAllocatorJax:
+class EngineAllocatorJax:
     """Allocate structured JAX state and translation objects."""
 
     algebraist_layout: AlgebraistLayout
     carriers: tuple[CarrierJax, ...] = field(repr=False)
     norm: Any = field(default=None, repr=False)
+    inner_product: Any = field(default=None, repr=False)
 
     def allocate_state(self) -> SimpleNamespace:
         state = SimpleNamespace()
@@ -31,8 +32,8 @@ class StarkEngineAllocatorJax:
             )
         return out
 
-    def allocate_translation(self) -> StarkEngineTranslationJax:
-        translation = StarkEngineTranslationJax(
+    def allocate_translation(self) -> EngineTranslationJax:
+        translation = EngineTranslationJax(
             algebraist_layout=self.algebraist_layout,
             carriers=self.carriers,
             allocator=self,
@@ -43,4 +44,4 @@ class StarkEngineAllocatorJax:
         return translation
 
 
-__all__ = ["StarkEngineAllocatorJax"]
+__all__ = ["EngineAllocatorJax"]

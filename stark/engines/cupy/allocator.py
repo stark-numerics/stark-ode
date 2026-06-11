@@ -6,16 +6,17 @@ from typing import Any
 
 from stark.algebraist.layout import AlgebraistLayout
 from stark.carriers.cupy import CarrierCupy
-from stark.engines.cupy.translation import StarkEngineTranslationCupy
+from stark.engines.cupy.translation import EngineTranslationCupy
 
 
 @dataclass(frozen=True, slots=True)
-class StarkEngineAllocatorCupy:
+class EngineAllocatorCupy:
     """Allocate structured CuPy state and translation objects."""
 
     algebraist_layout: AlgebraistLayout
     carriers: tuple[CarrierCupy, ...] = field(repr=False)
     norm: Any = field(default=None, repr=False)
+    inner_product: Any = field(default=None, repr=False)
 
     def allocate_state(self) -> SimpleNamespace:
         state = SimpleNamespace()
@@ -31,8 +32,8 @@ class StarkEngineAllocatorCupy:
             )
         return out
 
-    def allocate_translation(self) -> StarkEngineTranslationCupy:
-        translation = StarkEngineTranslationCupy(
+    def allocate_translation(self) -> EngineTranslationCupy:
+        translation = EngineTranslationCupy(
             algebraist_layout=self.algebraist_layout,
             carriers=self.carriers,
             allocator=self,
@@ -43,4 +44,4 @@ class StarkEngineAllocatorCupy:
         return translation
 
 
-__all__ = ["StarkEngineAllocatorCupy"]
+__all__ = ["EngineAllocatorCupy"]

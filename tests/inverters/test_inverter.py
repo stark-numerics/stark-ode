@@ -7,8 +7,8 @@ import pytest
 from stark.accelerators import AcceleratorNone
 from stark.block.operator import BlockOperatorDiagonal
 from stark.block import Block
-from stark.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
-from stark.inverters.legacy_support.policy import InverterPolicy
+from stark.methods.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
+from stark.methods.inverters.legacy_support.policy import InverterPolicy
 from stark import Configuration, Tolerance
 
 

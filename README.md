@@ -147,7 +147,7 @@ A STARK integration usually has five user-side objects:
 ```python
 from stark import Marcher, Integrator, Interval, Tolerance
 from stark.accelerators import AcceleratorNone
-from stark.schemes import SchemeDormandPrince
+from stark.methods.schemes import SchemeDormandPrince
 
 allocator = MyAllocator()
 derivative = MyDerivative()
@@ -213,12 +213,12 @@ For example:
 ```python
 from stark import Marcher, Tolerance
 from stark.accelerators import AcceleratorNone
-from stark.inverters import InverterBiCGStab
-from stark.inverters import InverterPolicy, Tolerance
-from stark.resolvents import ResolventNewton
-from stark.resolvents.policy import Configuration
-from stark.resolvents.Tolerance import Tolerance
-from stark.schemes import SchemeKvaerno3
+from stark.methods.inverters import InverterBiCGStab
+from stark.methods.inverters import InverterPolicy, Tolerance
+from stark.methods.resolvents import ResolventNewton
+from stark.methods.resolvents.policy import Configuration
+from stark.methods.resolvents.Tolerance import Tolerance
+from stark.methods.schemes import SchemeKvaerno3
 
 allocator = MyAllocator()
 derivative = MyDerivative()
@@ -301,18 +301,18 @@ The Allen-Cahn case study walks through a structured one-dimensional problem,
 starting with explicit methods, then moving through implicit resolvents, Newton
 linearizers, and finally a custom IMEX spectral resolvent.
 
-## Comparison Reports
+## Competition Reports
 
-Comparison reports live under [`examples/comparison/`](examples/comparison/). They compare STARK,
+Competition reports live under [`competition/`](competition/). They compare STARK,
 SciPy, and Diffrax implementations of the same problems while keeping each
 implementation close to its native idiom.
 
 ```powershell
 python -m pip install -e ".[comparison]"
-python -m examples.comparison.brusselator_2d.report
-python -m examples.comparison.fput.report
-python -m examples.comparison.fitzhugh_nagumo_1d.report
-python -m examples.comparison.robertson.report
+python -m competition.brusselator_2d.report
+python -m competition.fput.report
+python -m competition.fitzhugh_nagumo_1d.report
+python -m competition.robertson.report
 ```
 
 ## Development

@@ -115,7 +115,7 @@ import pytest
 
 from stark import Integrator, Interval, IntegratorStepper
 from stark.monitor import Monitor
-from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
 
 
 def test_bogacki_shampine_owns_its_public_call_method() -> None:

@@ -11,8 +11,8 @@ from stark.algebraist.layout import (
 )
 
 
-class StarkLayoutNormPolicy(Protocol):
-    """User-facing norm policy for one `StarkLayoutField`."""
+class LayoutNormPolicy(Protocol):
+    """User-facing norm policy for one `LayoutField`."""
 
     @property
     def include(self) -> bool: ...
@@ -21,7 +21,7 @@ class StarkLayoutNormPolicy(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
-class StarkLayoutNormRMS:
+class LayoutNormRMS:
     """Use a root-mean-square field norm."""
 
     @property
@@ -33,7 +33,7 @@ class StarkLayoutNormRMS:
 
 
 @dataclass(frozen=True, slots=True)
-class StarkLayoutNormMax:
+class LayoutNormMax:
     """Use a maximum absolute-entry field norm."""
 
     @property
@@ -45,7 +45,7 @@ class StarkLayoutNormMax:
 
 
 @dataclass(frozen=True, slots=True)
-class StarkLayoutNormExcluded:
+class LayoutNormExcluded:
     """Exclude this field from layout-aware norms."""
 
     @property
@@ -57,8 +57,8 @@ class StarkLayoutNormExcluded:
 
 
 __all__ = [
-    "StarkLayoutNormExcluded",
-    "StarkLayoutNormMax",
-    "StarkLayoutNormPolicy",
-    "StarkLayoutNormRMS",
+    "LayoutNormExcluded",
+    "LayoutNormMax",
+    "LayoutNormPolicy",
+    "LayoutNormRMS",
 ]

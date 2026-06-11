@@ -7,29 +7,29 @@ import pytest
 
 from stark import Interval, Tolerance
 from stark.accelerators import AcceleratorNone
-from stark.resolvents import ResolventCoupledPicard, ResolventPicard
+from stark.methods.resolvents import ResolventCoupledPicard, ResolventPicard
 from stark import Configuration
-from stark.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
-from stark.schemes.explicit.fixed.euler import SchemeEuler
-from stark.schemes.explicit.fixed.heun import SchemeHeun
-from stark.schemes.explicit.fixed.rk4 import SchemeRK4
-from stark.schemes.implicit.adaptive.bdf2 import SchemeBDF2
-from stark.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
-from stark.schemes.implicit.adaptive.kvaerno4 import SchemeKvaerno4
-from stark.schemes.implicit.adaptive.sdirk21 import SchemeSDIRK21
-from stark.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
-from stark.schemes.implicit.fixed.crank_nicolson import SchemeCrankNicolson
-from stark.schemes.implicit.fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
-from stark.schemes.implicit.fixed.gauss_legendre4 import SchemeGaussLegendre4
-from stark.schemes.implicit.fixed.implicit_midpoint import SchemeImplicitMidpoint
-from stark.schemes.implicit.fixed.lobatto_iiic4 import SchemeLobattoIIIC4
-from stark.schemes.implicit.fixed.radau_iia5 import SchemeRadauIIA5
-from stark.schemes.imex.fixed.euler import SchemeIMEXEuler
-from stark.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
-from stark.schemes.imex.adaptive.kennedy_carpenter43_6 import SchemeKennedyCarpenter43_6
-from stark.schemes.imex.adaptive.kennedy_carpenter43_7 import SchemeKennedyCarpenter43_7
-from stark.schemes.imex.adaptive.kennedy_carpenter54 import SchemeKennedyCarpenter54
-from stark.schemes.imex.adaptive.kennedy_carpenter54b import SchemeKennedyCarpenter54b
+from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.methods.schemes.explicit.fixed.euler import SchemeEuler
+from stark.methods.schemes.explicit.fixed.heun import SchemeHeun
+from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.methods.schemes.implicit.adaptive.bdf2 import SchemeBDF2
+from stark.methods.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
+from stark.methods.schemes.implicit.adaptive.kvaerno4 import SchemeKvaerno4
+from stark.methods.schemes.implicit.adaptive.sdirk21 import SchemeSDIRK21
+from stark.methods.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
+from stark.methods.schemes.implicit.fixed.crank_nicolson import SchemeCrankNicolson
+from stark.methods.schemes.implicit.fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
+from stark.methods.schemes.implicit.fixed.gauss_legendre4 import SchemeGaussLegendre4
+from stark.methods.schemes.implicit.fixed.implicit_midpoint import SchemeImplicitMidpoint
+from stark.methods.schemes.implicit.fixed.lobatto_iiic4 import SchemeLobattoIIIC4
+from stark.methods.schemes.implicit.fixed.radau_iia5 import SchemeRadauIIA5
+from stark.methods.schemes.imex.fixed.euler import SchemeIMEXEuler
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter43_6 import SchemeKennedyCarpenter43_6
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter43_7 import SchemeKennedyCarpenter43_7
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter54 import SchemeKennedyCarpenter54
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter54b import SchemeKennedyCarpenter54b
 
 @dataclass(slots=True)
 class ScalarState:

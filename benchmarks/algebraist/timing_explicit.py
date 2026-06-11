@@ -10,18 +10,18 @@ from typing import Callable
 
 import numpy as np
 
-from stark import Executor, Integrator, Interval, IntegratorStepper, ExecutorSafety, ExecutorTolerance
+from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
 from stark.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorGeneral, AlgebraistGeneratorSpecialist
+from stark.algebraist.generator import AlgebraistGeneratorLinearCombine, AlgebraistGeneratorSpecialist
 from stark.algebraist.layout import (
     AlgebraistLayout,
     AlgebraistLayoutBroadcast,
     AlgebraistLayoutField,
     AlgebraistLayoutLooped,
 )
-from stark.schemes.explicit.adaptive import SchemeCashKarp, SchemeDormandPrince
-from stark.schemes.explicit.fixed import SchemeEuler, SchemeRK4
+from stark.methods.schemes.explicit.adaptive import SchemeCashKarp, SchemeDormandPrince
+from stark.methods.schemes.explicit.fixed import SchemeEuler, SchemeRK4
 
 
 EXPLICIT_CASES = (
@@ -134,7 +134,7 @@ def make_algebraist(policy, allocator: PairAllocator, accelerator=None) -> PairA
             AlgebraistLayoutField("dp", "p", policy=policy),
         ),
     )
-    general = AlgebraistGeneratorGeneral(
+    general = AlgebraistGeneratorLinearCombine(
         translation=allocator.allocate_translation(),
         allocator=allocator,
         layout=layout,
@@ -158,10 +158,10 @@ def numba_accelerator():
         return None
 
 
-def make_executor() -> Executor:
-    return Executor(
-        tolerance=ExecutorTolerance(atol=1.0e-8, rtol=1.0e-6),
-        safety=ExecutorSafety.fast(),
+def make_configuration() -> Configuration:
+    return Configuration(
+        check_progress=False,
+        scheme_tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6),
     )
 
 
@@ -175,18 +175,18 @@ class BenchmarkCase:
         scheme,
         state: PairState,
         interval: Interval,
-        executor: Executor,
+        configuration: Configuration,
     ) -> None:
         self.name = name
-        self.stepper = IntegratorStepper(scheme, executor)
-        self.integrator = Integrator(executor=executor)
+        self.stepper = IntegratorStepper(scheme)
+        self.integrator = Integrator(configuration=configuration)
         self.state = state
         self.interval = interval
 
     def solve_once(self) -> PairState:
         state = self.state.copy()
         interval = self.interval.copy()
-        for _interval, _state in self.integrator.live(self.stepper, interval, state):
+        for _interval, _state in self.integrator.mutating_trajectory(self.stepper, interval, state):
             pass
         return state
 
@@ -234,7 +234,7 @@ def make_case(
         scheme=scheme,
         state=make_initial_state(count),
         interval=Interval(present=0.0, step=step, stop=steps * step),
-        executor=make_executor(),
+        configuration=make_configuration(),
     )
 
 

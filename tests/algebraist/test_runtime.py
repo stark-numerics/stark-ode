@@ -16,7 +16,7 @@ from stark.algebraist.runtime import (
     AlgebraistRuntimeNorm,
     AlgebraistRuntimeSpecialist,
 )
-from stark.schemes.specialization.stencil import SchemeStencil
+from stark.methods.schemes.specialization.stencil import SchemeStencil
 
 
 @dataclass

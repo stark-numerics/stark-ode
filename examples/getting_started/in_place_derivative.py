@@ -7,29 +7,29 @@ import numpy as np
 from stark import (
     Configuration,
     Interval,
-    StarkDerivativeStyle,
-    StarkLayout,
-    StarkMethod,
-    StarkSystem,
+    DerivativeStyle,
+    Layout,
+    Method,
+    System,
 )
-from stark.engines import StarkEngineNumpy
-from stark.schemes import SchemeCashKarp
+from stark.engines import EngineNumpy
+from stark.methods.schemes import SchemeCashKarp
 
 
-@StarkDerivativeStyle.in_place
+@DerivativeStyle.in_place
 def oscillator_rhs(t: float, state, out) -> None:
     del t
     out.dy[0] = state.y[1]
     out.dy[1] = -state.y[0]
 
 
-layout = StarkLayout({"y": {"translation": "dy", "shape": (2,)}})
-system = StarkSystem(derivative=oscillator_rhs, layout=layout)
+layout = Layout({"y": {"translation": "dy", "shape": (2,)}})
+system = System(derivative=oscillator_rhs, layout=layout)
 ivp = system.ivp(
     initial={"y": np.array([1.0, 0.0])},
     interval=Interval(present=0.0, step=0.05, stop=0.5),
-    method=StarkMethod(scheme=SchemeCashKarp),
-    engine=StarkEngineNumpy,
+    method=Method(scheme=SchemeCashKarp),
+    engine=EngineNumpy,
     configuration=Configuration(check_progress=False),
 )
 
