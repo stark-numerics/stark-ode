@@ -4,14 +4,14 @@ from collections.abc import Iterable
 from math import sqrt
 from typing import Any
 
-from stark.comparison.models import (
+from stark.diagnostics.comparison.models import (
     ComparisonEntryLike,
     ComparisonProblemLike,
     ComparisonReport,
     Comparison,
     ComparisonResult,
 )
-from stark.comparison.runtime import ComparisonEntryEvaluation, ComparisonEntryRunner
+from stark.diagnostics.comparison.runtime import ComparisonEntryEvaluation, ComparisonEntryRunner
 
 
 class ComparisonRunner:

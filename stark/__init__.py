@@ -24,7 +24,7 @@ from stark.problem import (
     SystemFinalResult,
     SystemIVP,
 )
-from stark.monitor import Monitor
+from stark.diagnostics.monitor import Monitor
 from stark.methods.resolvents.configuration import ResolventConfiguration
 from stark.methods.schemes.configuration import SchemeConfiguration
 

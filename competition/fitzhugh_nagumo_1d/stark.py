@@ -4,7 +4,7 @@ from typing import Any
 
 import numpy as np
 
-from stark.comparison import Comparison
+from stark.diagnostics.comparison import Comparison
 from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance

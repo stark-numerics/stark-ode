@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from stark.comparison import Comparison
+from stark.diagnostics.comparison import Comparison
 from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance

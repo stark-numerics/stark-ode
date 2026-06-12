@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass, field
 from math import sqrt
 from typing import Any
 
-from stark.monitor import MonitorSummary
+from stark.diagnostics.monitor import MonitorSummary
 
 
 Checkpoints = int | Iterable[float]
@@ -326,7 +326,7 @@ class ComparisonDiagnostics:
         return dict(self.values)
 
     def __str__(self) -> str:
-        from stark.comparison.writers import ComparisonDiagnosticsWriter
+        from stark.diagnostics.comparison.writers import ComparisonDiagnosticsWriter
 
         return ComparisonDiagnosticsWriter()(self)
 
@@ -391,7 +391,7 @@ class Comparison:
         }
 
     def __str__(self) -> str:
-        from stark.comparison.writers import ComparisonWriter
+        from stark.diagnostics.comparison.writers import ComparisonWriter
 
         return ComparisonWriter()(self)
 
@@ -406,7 +406,7 @@ class ComparisonProfile:
     custom_hotspots: list[ComparisonHotspot]
 
     def __str__(self) -> str:
-        from stark.comparison.writers import ComparisonProfileWriter
+        from stark.diagnostics.comparison.writers import ComparisonProfileWriter
 
         return ComparisonProfileWriter()(self)
 
@@ -429,7 +429,7 @@ class ComparisonResult:
     monitor_summary: MonitorSummary | None = None
 
     def __str__(self) -> str:
-        from stark.comparison.writers import ComparisonResultWriter
+        from stark.diagnostics.comparison.writers import ComparisonResultWriter
 
         return ComparisonResultWriter()(self)
 
@@ -459,7 +459,7 @@ class ComparisonReport:
         return self.render()
 
     def render(self) -> str:
-        from stark.comparison.writers import ComparisonReportWriter
+        from stark.diagnostics.comparison.writers import ComparisonReportWriter
 
         return ComparisonReportWriter()(self)
 

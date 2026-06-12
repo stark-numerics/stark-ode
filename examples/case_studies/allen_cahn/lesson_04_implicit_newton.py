@@ -24,7 +24,7 @@ from __future__ import annotations
 import numpy as np
 
 from stark import Configuration, Interval, IntegratorStepper, Method, Tolerance
-from stark.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblem
+from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblem
 from stark.methods.inverters import InverterBiCGStab, InverterLegacyAdapter, InverterPolicy
 from stark.methods.resolvents import ResolventNewton
 from stark.methods.schemes import SchemeCashKarp, SchemeSDIRK21

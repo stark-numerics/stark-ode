@@ -21,7 +21,7 @@ from __future__ import annotations
 #     python -m examples.case_studies.allen_cahn.lesson_06_compare_methods
 
 from stark import Configuration, IntegratorStepper, Method, Tolerance
-from stark.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblem
+from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblem
 from stark.contracts import DerivativeIMEX
 from stark.methods.inverters import InverterBiCGStab, InverterLegacyAdapter, InverterPolicy
 from stark.methods.resolvents import ResolventNewton

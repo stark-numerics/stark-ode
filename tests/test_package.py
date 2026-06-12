@@ -20,7 +20,7 @@ from stark import (
 )
 from stark.engines.accelerators import Accelerator, AcceleratorNone, AcceleratorJax, AcceleratorNumba
 from stark.block.operator import BlockOperatorDiagonal
-from stark.comparison.models import (
+from stark.diagnostics.comparison.models import (
     Comparison,
     ComparisonBreakdown,
     ComparisonDiagnostics,
@@ -148,7 +148,7 @@ def test_integrate_module_imports() -> None:
 
 def test_monitor_module_imports() -> None:
     """The monitor module should exist and import cleanly."""
-    assert importlib.import_module("stark.monitor") is not None
+    assert importlib.import_module("stark.diagnostics.monitor") is not None
 
 
 def test_inverter_imports() -> None:

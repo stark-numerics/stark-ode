@@ -33,7 +33,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from stark import Configuration, Method
-from stark.monitor import Monitor
+from stark.diagnostics.monitor import Monitor
 from stark.methods.schemes import SchemeCashKarp
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (

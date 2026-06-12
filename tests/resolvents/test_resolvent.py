@@ -5,7 +5,7 @@ import importlib
 from stark import Auditor, Configuration, DerivativeIMEX, Integrator, Interval, IntegratorStepper, Tolerance
 from stark.engines.accelerators import Accelerator, AcceleratorNone
 from stark.block.operator import BlockOperatorDiagonal
-from stark.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblemManual
+from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblemManual
 from stark.block import Block
 from stark.contracts import Resolvent
 from stark.methods.inverters.support import InverterDescriptor
@@ -63,7 +63,7 @@ def test_package_imports() -> None:
 
 def test_comparator_module_imports() -> None:
     """The ComparisonRunner module should exist and import cleanly."""
-    assert importlib.import_module("stark.comparison") is not None
+    assert importlib.import_module("stark.diagnostics.comparison") is not None
 
 
 def test_stepper_module_imports() -> None:

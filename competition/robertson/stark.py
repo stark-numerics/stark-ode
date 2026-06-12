@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 
 from stark.block import BlockBasis, BlockSpecialist
-from stark.comparison import Comparison
+from stark.diagnostics.comparison import Comparison
 from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
@@ -17,7 +17,7 @@ from stark.methods.method import Method
 from stark.problem.system.system import System
 from stark.methods.inverters import InverterRelaxationJacobi
 from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
-from stark.monitor import MonitorInverter
+from stark.diagnostics.monitor import MonitorInverter
 from stark.methods.resolvents import ResolventNewton
 from stark.methods.schemes import SchemeKvaerno4
 

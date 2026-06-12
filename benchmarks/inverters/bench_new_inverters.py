@@ -12,7 +12,7 @@ from stark.block import BlockBasis
 from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
 from stark.methods.inverters.relaxation import InverterRelaxationJacobi, InverterRelaxationRichardson
 from stark.methods.inverters.support import InverterBudget, InverterTolerance
-from stark.monitor import MonitorInverter
+from stark.diagnostics.monitor import MonitorInverter
 from stark.methods.resolvents import ResolventNewton, ResolventPolicy, ResolventTolerance
 from stark.methods.schemes import SchemeBackwardEuler
 

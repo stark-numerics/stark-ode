@@ -1,15 +1,15 @@
-from stark.monitor.monitor import Monitor, MonitorSummary
-from stark.monitor.inverter import (
+from stark.diagnostics.monitor.monitor import Monitor, MonitorSummary
+from stark.diagnostics.monitor.inverter import (
     MonitorInverter,
     MonitorInverterSolve,
     MonitorInverterSummary,
 )
-from stark.monitor.resolvent import (
+from stark.diagnostics.monitor.resolvent import (
     MonitorResolvent,
     MonitorResolventSolve,
     MonitorResolventSummary,
 )
-from stark.monitor.scheme import (
+from stark.diagnostics.monitor.scheme import (
     MonitorScheme,
     MonitorSchemeStepAdaptive,
     MonitorSchemeStepFixed,

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Interval
-from stark.monitor import Monitor
+from stark.diagnostics.monitor import Monitor
 from stark.methods.schemes.explicit.fixed.euler import SchemeEuler
 from stark.methods.schemes.specialization.stencil import SchemeStencil
 

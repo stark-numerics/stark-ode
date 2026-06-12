@@ -594,7 +594,7 @@ The current package frame mirrors that structure directly:
 - `stark.methods.resolvents`
 - `stark.methods.inverters`
 - `stark.Configuration`
-- `stark.comparison`
+- `stark.diagnostics.comparison`
 - `stark.contracts`
 
 The `Auditor` is especially useful here because implicit methods rely on more

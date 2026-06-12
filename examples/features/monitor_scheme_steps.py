@@ -12,7 +12,7 @@ from stark import (
     System,
 )
 from stark.engines import EngineNumpy
-from stark.monitor import Monitor
+from stark.diagnostics.monitor import Monitor
 from stark.methods.schemes import SchemeCashKarp, SchemeRK4
 
 

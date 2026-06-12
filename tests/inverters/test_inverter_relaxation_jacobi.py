@@ -8,7 +8,7 @@ from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
 from stark.methods.inverters.relaxation import InverterRelaxationJacobi
 from stark import Configuration, Tolerance
-from stark.monitor import MonitorInverter
+from stark.diagnostics.monitor import MonitorInverter
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 
 

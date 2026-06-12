@@ -114,7 +114,7 @@ def tight_configuration() -> Configuration:
 import pytest
 
 from stark import Integrator, Interval, IntegratorStepper
-from stark.monitor import Monitor
+from stark.diagnostics.monitor import Monitor
 from stark.methods.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
 from stark.methods.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
 

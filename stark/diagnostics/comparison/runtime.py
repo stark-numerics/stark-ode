@@ -7,7 +7,7 @@ from statistics import median
 from time import perf_counter
 from typing import Any
 
-from stark.comparison.models import (
+from stark.diagnostics.comparison.models import (
     ComparisonEntryLike,
     ComparisonProblemLike,
     ComparisonBreakdown,
@@ -18,7 +18,7 @@ from stark.comparison.models import (
     ProfileCategory,
 )
 from stark.integrator.integrator import Integrator
-from stark.monitor import Monitor, MonitorSummary
+from stark.diagnostics.monitor import Monitor, MonitorSummary
 
 
 @dataclass(slots=True)

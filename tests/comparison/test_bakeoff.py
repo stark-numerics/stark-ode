@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 
 from stark import Interval, IntegratorStepper, Tolerance
-from stark.comparison import Comparison, ComparisonRunner, ComparisonEntryStepper, ComparisonProblemManual
+from stark.diagnostics.comparison import Comparison, ComparisonRunner, ComparisonEntryStepper, ComparisonProblemManual
 from stark.methods.schemes import SchemeCashKarp, SchemeEuler
 
 

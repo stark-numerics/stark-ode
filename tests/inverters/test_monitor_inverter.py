@@ -9,7 +9,7 @@ from stark.block import Block
 from stark.methods.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES
 from stark.methods.inverters.legacy_support.policy import InverterPolicy
 from stark import Configuration, Tolerance
-from stark.monitor import MonitorInverter
+from stark.diagnostics.monitor import MonitorInverter
 
 
 @dataclass(slots=True)

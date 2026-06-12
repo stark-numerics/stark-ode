@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from stark.monitor import MonitorInverter, MonitorInverterSummary
+from stark.diagnostics.monitor import MonitorInverter, MonitorInverterSummary
 
 
 def test_monitor_inverter_records_successful_solve() -> None:

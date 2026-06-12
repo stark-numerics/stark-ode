@@ -6,8 +6,8 @@ programmatic counterpart to the longer narrative examples under
 `competition/`.
 """
 
-from stark.comparison.runner import ComparisonRunner
-from stark.comparison.models import (
+from stark.diagnostics.comparison.runner import ComparisonRunner
+from stark.diagnostics.comparison.models import (
     Comparison,
     ComparisonBreakdown,
     ComparisonDiagnostics,

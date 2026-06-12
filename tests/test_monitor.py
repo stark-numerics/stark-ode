@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from stark.monitor import (
+from stark.diagnostics.monitor import (
     Monitor,
     MonitorInverter,
     MonitorResolvent,

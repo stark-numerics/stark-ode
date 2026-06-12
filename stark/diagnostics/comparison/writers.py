@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from stark.comparison.models import (
+from stark.diagnostics.comparison.models import (
     ComparisonReport,
     Comparison,
     ComparisonDiagnostics,

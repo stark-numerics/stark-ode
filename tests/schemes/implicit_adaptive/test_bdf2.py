@@ -6,7 +6,7 @@ import pytest
 
 from stark import Integrator, Interval, IntegratorStepper, Tolerance
 from stark.engines.accelerators import AcceleratorNone
-from stark.monitor import Monitor
+from stark.diagnostics.monitor import Monitor
 from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
 from stark.methods.schemes.implicit.adaptive.bdf2 import SchemeBDF2

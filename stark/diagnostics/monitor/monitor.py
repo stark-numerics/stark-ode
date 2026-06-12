@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from stark.monitor.inverter import MonitorInverter, MonitorInverterSummary
-from stark.monitor.resolvent import MonitorResolvent, MonitorResolventSummary
-from stark.monitor.scheme import MonitorScheme, MonitorSchemeSummary
+from stark.diagnostics.monitor.inverter import MonitorInverter, MonitorInverterSummary
+from stark.diagnostics.monitor.resolvent import MonitorResolvent, MonitorResolventSummary
+from stark.diagnostics.monitor.scheme import MonitorScheme, MonitorSchemeSummary
 
 
 @dataclass(frozen=True, slots=True)

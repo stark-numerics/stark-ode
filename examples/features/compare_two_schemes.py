@@ -11,7 +11,7 @@ from stark import (
     Method,
     System,
 )
-from stark.comparison import ComparisonEntry, ComparisonProblem, ComparisonRunner
+from stark.diagnostics.comparison import ComparisonEntry, ComparisonProblem, ComparisonRunner
 from stark.engines import EngineNumpy
 from stark.methods.schemes import SchemeCashKarp, SchemeDormandPrince
 

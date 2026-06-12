@@ -199,7 +199,7 @@ def test_schemes_depend_on_monitor_protocol_not_concrete_monitor_records() -> No
     offenders = [
         path.relative_to(ROOT)
         for path in scheme_files
-        if "stark.monitor" in path.read_text(encoding="utf-8")
+        if "stark.diagnostics.monitor" in path.read_text(encoding="utf-8")
     ]
 
     assert offenders == []

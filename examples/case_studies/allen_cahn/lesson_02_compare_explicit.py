@@ -17,7 +17,7 @@ from __future__ import annotations
 #     python -m examples.case_studies.allen_cahn.lesson_02_compare_explicit
 
 from stark import Configuration, Method
-from stark.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
+from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntry, ComparisonProblem
 from stark.methods.schemes import SchemeCashKarp, SchemeDormandPrince
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
