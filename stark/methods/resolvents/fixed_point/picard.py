@@ -6,8 +6,8 @@ from stark.methods.resolvents.configuration import ResolventConfiguration
 
 from typing import TYPE_CHECKING, Any
 
-from stark.block import Block
-from stark.contracts import Accelerator, Translation, Allocator
+from stark.core.block import Block
+from stark.core.contracts import Accelerator, Translation, Allocator
 from stark.engines.accelerators import AcceleratorNone
 from stark.methods.resolvents.method.descriptor import ResolventDescriptor
 from stark.methods.resolvents.method.errors import ResolventError

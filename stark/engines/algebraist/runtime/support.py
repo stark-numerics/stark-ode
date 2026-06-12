@@ -8,9 +8,9 @@ from stark.engines.accelerators.none import AcceleratorNone
 from stark.engines.algebraist.arity import AlgebraistArity
 from stark.engines.algebraist.stencil import AlgebraistStencil
 from stark.engines.algebraist.allocator import AlgebraistAllocator
-from stark.contracts.accelerator import Accelerator
-from stark.contracts.state import State
-from stark.contracts.translation import Translation
+from stark.core.contracts.accelerator import Accelerator
+from stark.core.contracts.state import State
+from stark.core.contracts.translation import Translation
 
 try:  # frame is optional context for runtime, but accepted for generator symmetry.
     from stark.engines.algebraist.frame import AlgebraistFrame

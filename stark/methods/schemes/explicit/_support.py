@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from stark.core.auditor import Auditor
-from stark.contracts import DerivativeLike, State, Translation, Allocator
+from stark.core.contracts import DerivativeLike, State, Translation, Allocator
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 
 

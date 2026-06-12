@@ -4,7 +4,7 @@ from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass, field
 
 from stark.engines.accelerators import AcceleratorNone
-from stark.contracts.accelerator import Accelerator
+from stark.core.contracts.accelerator import Accelerator
 
 
 def _invert_general(

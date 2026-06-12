@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Generic
 
 from stark.core import Configuration
-from stark.contracts import (
+from stark.core.contracts import (
     BlockLike,
     InverterOutputMode,
     InverterRequest,

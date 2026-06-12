@@ -15,7 +15,7 @@ from stark.methods.resolvents import (
 )
 from stark import Configuration
 from stark import Tolerance
-from stark.block import Block
+from stark.core.block import Block
 from stark.methods.schemes import SchemeBDF2, SchemeKvaerno3, SchemeKvaerno4, SchemeSDIRK21
 from stark.methods.schemes.implicit.fixed import (
     SchemeBackwardEuler,

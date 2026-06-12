@@ -8,7 +8,7 @@ from stark.engines.algebraist.arity import AlgebraistArity
 from stark.engines.algebraist.generator import AlgebraistGeneratorLinearCombine
 from stark.engines.algebraist.frame import AlgebraistFrame, AlgebraistFrameField
 from stark.core.auditor import Auditor
-from stark.integrator.integrator import Integrator
+from stark.core.integrator.integrator import Integrator
 from stark.diagnostics.monitor import Monitor
 from stark import Tolerance
 from stark.core.interval import Interval

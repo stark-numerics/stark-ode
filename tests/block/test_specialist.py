@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from stark.block import Block, BlockSpecialist
+from stark.core.block import Block, BlockSpecialist
 from stark.methods.schemes.specialization.stencil import SchemeStencil
 
 

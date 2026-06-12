@@ -19,7 +19,7 @@ from stark.engines.algebraist.runtime import (
     AlgebraistRuntimeSpecialist,
 )
 from stark.engines.carriers.jax import CarrierJax, CarrierNormJaxMax, CarrierNormJaxRMS
-from stark.contracts.accelerator import Accelerator
+from stark.core.contracts.accelerator import Accelerator
 from stark.engines.backends.jax.allocator import EngineAllocatorJax
 from stark.problem.frame.frame import Frame
 

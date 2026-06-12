@@ -19,7 +19,7 @@ from stark import (
     Tolerance,
 )
 from stark.engines.accelerators import Accelerator, AcceleratorNone, AcceleratorJax, AcceleratorNumba
-from stark.block.operator import BlockOperatorDiagonal
+from stark.core.block.operator import BlockOperatorDiagonal
 from stark.diagnostics.comparison.models import (
     Comparison,
     ComparisonBreakdown,
@@ -29,8 +29,8 @@ from stark.diagnostics.comparison.models import (
     ComparisonResult,
     ComparisonTiming,
 )
-from stark.block import Block
-from stark.contracts import Resolvent
+from stark.core.block import Block
+from stark.core.contracts import Resolvent
 from stark.engines import EngineNumpy
 from stark.methods.inverters import InverterRelaxationJacobi, InverterRelaxationRichardson
 from stark.methods.inverters.support import InverterDescriptor
@@ -104,7 +104,7 @@ def test_package_imports() -> None:
 
 def test_stepper_module_imports() -> None:
     """The stepper module should exist and import cleanly."""
-    assert importlib.import_module("stark.integrator.stepper") is not None
+    assert importlib.import_module("stark.core.integrator.stepper") is not None
 
 
 def test_audit_module_imports() -> None:
@@ -143,7 +143,7 @@ def test_Configuration_module_imports() -> None:
 
 def test_integrate_module_imports() -> None:
     """The integrate module should exist and import cleanly."""
-    assert importlib.import_module("stark.integrator.integrator") is not None
+    assert importlib.import_module("stark.core.integrator.integrator") is not None
 
 
 def test_monitor_module_imports() -> None:

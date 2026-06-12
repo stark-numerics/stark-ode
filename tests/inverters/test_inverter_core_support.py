@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Configuration, Tolerance
-from stark.contracts import InverterRequest
+from stark.core.contracts import InverterRequest
 from stark.methods.inverters.support import (
     InverterDescriptor,
     with_inverter_monitoring,

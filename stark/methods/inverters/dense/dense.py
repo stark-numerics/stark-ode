@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Generic, ClassVar
 
-from stark.block import BlockBasis
-from stark.block.materialize import BlockOperatorDiagonalMaterialize
-from stark.contracts import (
+from stark.core.block import BlockBasis
+from stark.core.block.materialize import BlockOperatorDiagonalMaterialize
+from stark.core.contracts import (
     BlockLike,
     InverterOutputMode,
     InverterRequest,

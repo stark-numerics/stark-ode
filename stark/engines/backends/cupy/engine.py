@@ -19,7 +19,7 @@ from stark.engines.algebraist.runtime import (
     AlgebraistRuntimeSpecialist,
 )
 from stark.engines.carriers.cupy import CarrierCupy, CarrierNormCupyMax, CarrierNormCupyRMS
-from stark.contracts.accelerator import Accelerator
+from stark.core.contracts.accelerator import Accelerator
 from stark.engines.backends.cupy.allocator import EngineAllocatorCupy
 from stark.problem.frame.frame import Frame
 

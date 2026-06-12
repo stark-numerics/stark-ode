@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from stark.block import Block
+from stark.core.block import Block
 
 
 class Translation:

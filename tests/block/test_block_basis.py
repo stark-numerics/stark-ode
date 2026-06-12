@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from stark.block import Block, BlockBasis
+from stark.core.block import Block, BlockBasis
 from stark.engines.carriers import CarrierNative, CarrierNumpy
 
 

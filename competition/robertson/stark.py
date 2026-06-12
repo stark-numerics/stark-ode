@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 
-from stark.block import BlockBasis, BlockSpecialist
+from stark.core.block import BlockBasis, BlockSpecialist
 from stark.diagnostics.comparison import Comparison
 from stark.core.configuration import Configuration
 from stark.core.interval import Interval

@@ -1,6 +1,6 @@
 """Engine catalogue for backend runtime bundles."""
 
-from stark.contracts.engine import Engine
+from stark.core.contracts.engine import Engine
 from stark.engines.backends import (
     EngineAllocatorNative,
     EngineAllocatorNumpy,

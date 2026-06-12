@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from stark import Configuration, IntegratorStepper, Method, Tolerance
 from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblem
-from stark.contracts import DerivativeIMEX
+from stark.core.contracts import DerivativeIMEX
 from stark.methods.inverters import InverterBiCGStab, InverterLegacyAdapter, InverterPolicy
 from stark.methods.resolvents import ResolventNewton
 from stark.methods.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7, SchemeSDIRK21

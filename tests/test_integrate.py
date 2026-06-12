@@ -1,4 +1,4 @@
-from stark.integrator.integrator import Integrator
+from stark.core.integrator.integrator import Integrator
 from stark.core import Configuration
 
 class DummyInterval:

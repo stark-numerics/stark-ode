@@ -8,8 +8,8 @@ do, rather than from hand-written scalar wrapper classes.
 from __future__ import annotations
 
 from stark import Configuration, Frame, Tolerance
-from stark.block import Block
-from stark.block.operator import BlockOperatorDiagonal
+from stark.core.block import Block
+from stark.core.block.operator import BlockOperatorDiagonal
 from stark.engines import EngineNumpy
 from stark.methods.inverters.relaxation import InverterRelaxationRichardson
 from stark.methods.inverters.support import InverterDefect

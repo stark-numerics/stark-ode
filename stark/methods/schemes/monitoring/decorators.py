@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.contracts import IntervalLike, State
+from stark.core.contracts import IntervalLike, State
 
 
 def with_fixed_step_monitoring(cls):

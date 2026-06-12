@@ -5,8 +5,8 @@ from typing import Callable
 
 import pytest
 
-from stark.block import Block, BlockSpecialist
-from stark.block.operator import BlockOperatorDiagonal
+from stark.core.block import Block, BlockSpecialist
+from stark.core.block.operator import BlockOperatorDiagonal
 from stark.methods.inverters.relaxation import (
     InverterRelaxationJacobi,
     InverterRelaxationRichardson,

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from stark.engines.accelerators import AcceleratorNone
-from stark.block import Block
-from stark.block.operator import BlockOperatorDiagonal
+from stark.core.block import Block
+from stark.core.block.operator import BlockOperatorDiagonal
 from stark.core import Configuration, Tolerance
-from stark.contracts import Accelerator, InnerProduct, LegacyInverterPreconditionerLike, Allocator
+from stark.core.contracts import Accelerator, InnerProduct, LegacyInverterPreconditionerLike, Allocator
 from stark.methods.inverters.configuration import InverterConfiguration
 from stark.methods.inverters.legacy_support.monitoring import MonitorInverterLike
 from stark.methods.inverters.legacy_support.policy import InverterPolicy

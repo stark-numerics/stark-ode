@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark.block import Block
-from stark.block.operator import BlockOperatorDiagonal
+from stark.core.block import Block
+from stark.core.block.operator import BlockOperatorDiagonal
 from stark.methods.inverters.relaxation import InverterRelaxationJacobi
 from stark import Configuration, Tolerance
 from stark.diagnostics.monitor import MonitorInverter

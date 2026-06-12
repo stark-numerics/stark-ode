@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark.block import Block
-from stark.block.operator import BlockOperatorDiagonal
+from stark.core.block import Block
+from stark.core.block.operator import BlockOperatorDiagonal
 from stark.methods.inverters.support import InverterDefect
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 

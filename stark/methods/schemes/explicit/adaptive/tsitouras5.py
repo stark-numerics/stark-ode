@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
-from stark.contracts import DerivativeLike, IntervalLike, State, Allocator
+from stark.core.contracts import DerivativeLike, IntervalLike, State, Allocator
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_adaptive_step_monitoring

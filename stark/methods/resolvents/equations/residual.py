@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Protocol, TypeVar
 
-from stark.block import Block
-from stark.contracts import Translation, OperatorType
+from stark.core.block import Block
+from stark.core.contracts import Translation, OperatorType
 
 class ResolventResidual(Protocol[OperatorType]):
     """Residual object used by new-paradigm resolvents."""

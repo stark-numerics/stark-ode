@@ -6,8 +6,8 @@ from typing import Callable
 
 from stark.engines.accelerators import AcceleratorNone
 from stark.engines.algebraist.runtime import AlgebraistRuntimeLinearCombine
-from stark.block import Block
-from stark.contracts import Accelerator, InnerProduct, Translation, Allocator
+from stark.core.block import Block
+from stark.core.contracts import Accelerator, InnerProduct, Translation, Allocator
 from stark.methods.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 

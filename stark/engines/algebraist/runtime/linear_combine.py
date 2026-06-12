@@ -9,8 +9,8 @@ from stark.engines.algebraist.arity import AlgebraistArity
 from stark.engines.algebraist.linear_combine import AlgebraistLinearCombineKernel
 from stark.engines.algebraist.runtime.support import AlgebraistRuntimeSupport
 from stark.engines.algebraist.allocator import AlgebraistAllocator
-from stark.contracts.accelerator import Accelerator
-from stark.contracts.translation import Translation
+from stark.core.contracts.accelerator import Accelerator
+from stark.core.contracts.translation import Translation
 
 try:
     from stark.engines.algebraist.frame import AlgebraistFrame

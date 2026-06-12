@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 from stark.core import Configuration
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
-from stark.contracts import IntervalLike, State
+from stark.core.contracts import IntervalLike, State
 
 ErrorRatio = Callable[[float, float], float]
 ErrorBound = Callable[[float], float]

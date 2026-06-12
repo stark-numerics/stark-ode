@@ -5,11 +5,11 @@ from dataclasses import dataclass
 from inspect import Parameter, signature
 from typing import Any
 
-from stark.contracts import DerivativeIMEX, IntervalLike, State
-from stark.contracts.engine import Engine
+from stark.core.contracts import DerivativeIMEX, IntervalLike, State
+from stark.core.contracts.engine import Engine
 from stark.core.configuration import Configuration
-from stark.integrator.integrator import Checkpoints, Integrator
-from stark.integrator.stepper import IntegratorStepper
+from stark.core.integrator.integrator import Checkpoints, Integrator
+from stark.core.integrator.stepper import IntegratorStepper
 from stark.problem.derivative.derivative import Derivative, DerivativeSignature
 from stark.problem.frame.frame import Frame
 from stark.methods.method import Method, MethodError

@@ -12,7 +12,7 @@ from stark.engines.algebraist.generator import (
 )
 from stark.engines.algebraist.frame import AlgebraistFrame, AlgebraistFrameLooped
 from stark.engines.carriers.native import CarrierNativeArray
-from stark.contracts.accelerator import Accelerator
+from stark.core.contracts.accelerator import Accelerator
 from stark.engines.backends.native.allocator import EngineAllocatorNative
 from stark.problem.frame.frame import Frame
 

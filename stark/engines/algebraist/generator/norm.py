@@ -15,7 +15,7 @@ from stark.engines.algebraist.frame import (
     AlgebraistFrameScalar,
     AlgebraistFrameUnravel,
 )
-from stark.contracts.accelerator import Accelerator
+from stark.core.contracts.accelerator import Accelerator
 
 TranslationType = TypeVar("TranslationType")
 

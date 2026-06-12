@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Interval, Monitor
-from stark.block import Block
+from stark.core.block import Block
 from stark.methods.resolvents import ResolventPicard
 from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
 

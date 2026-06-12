@@ -6,8 +6,8 @@ from stark.methods.resolvents.configuration import ResolventConfiguration
 
 from typing import TYPE_CHECKING, Any
 
-from stark.block import Block, BlockOperatorDiagonal
-from stark.contracts import (
+from stark.core.block import Block, BlockOperatorDiagonal
+from stark.core.contracts import (
     Accelerator,
     Inverter,
     InverterOutputMode,

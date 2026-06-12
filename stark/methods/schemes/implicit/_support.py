@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from stark.block import BlockAllocator
-from stark.contracts import DerivativeLike, State, Allocator
+from stark.core.block import BlockAllocator
+from stark.core.contracts import DerivativeLike, State, Allocator
 from stark.methods.schemes.display.display import display_implicit_resolvent_problem
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 

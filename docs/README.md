@@ -449,7 +449,7 @@ in-place use.
 Accelerators are configured workers in the same sense as schemes, resolvents,
 and inverters. STARK ships a small built-in library under `stark.engines.accelerators`
 and audits user-defined accelerators through `AcceleratorAudit` in
-`stark.contracts.accelerator`.
+`stark.core.contracts.accelerator`.
 
 The built-in import path is:
 
@@ -595,7 +595,7 @@ The current package frame mirrors that structure directly:
 - `stark.methods.inverters`
 - `stark.Configuration`
 - `stark.diagnostics.comparison`
-- `stark.contracts`
+- `stark.core.contracts`
 
 The `Auditor` is especially useful here because implicit methods rely on more
 contracts at once:

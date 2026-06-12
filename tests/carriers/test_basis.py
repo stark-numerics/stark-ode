@@ -16,7 +16,7 @@ from stark.engines.carriers.native import (
     CarrierNativeScalar,
     CarrierNativeTuple,
 )
-from stark.contracts import TranslationBasis
+from stark.core.contracts import TranslationBasis
 
 
 def assert_dual_coordinates(basis: TranslationBasis, output, values) -> None:

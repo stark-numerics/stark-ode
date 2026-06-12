@@ -540,7 +540,7 @@ def _ivp_method_stepper(
     *,
     configuration: Any | None = None,
 ) -> Any:
-    from stark.integrator.stepper import IntegratorStepper
+    from stark.core.integrator.stepper import IntegratorStepper
 
     scheme = ivp.system.prepare_scheme(
         method,

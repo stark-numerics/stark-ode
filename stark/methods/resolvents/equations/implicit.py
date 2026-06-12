@@ -5,9 +5,9 @@ from typing import cast
 
 from stark.engines.algebraist.arity import AlgebraistArity
 from stark.engines.algebraist.runtime.linear_combine import AlgebraistRuntimeLinearCombine
-from stark.block import Block, BlockOperatorDiagonal
-from stark.contracts import Accelerator, DerivativeLike, IntervalLike, Linearizer, State, Translation, Allocator
-from stark.contracts.translation_basis import TranslationBasis
+from stark.core.block import Block, BlockOperatorDiagonal
+from stark.core.contracts import Accelerator, DerivativeLike, IntervalLike, Linearizer, State, Translation, Allocator
+from stark.core.contracts.translation_basis import TranslationBasis
 from stark.methods.resolvents.requests.resolvent import (
     ResolventRequestCoupled,
     ResolventRequest,

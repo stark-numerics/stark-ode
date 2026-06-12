@@ -12,8 +12,8 @@ object is the inverter, not a hand-written scalar state model.
 from __future__ import annotations
 
 from stark import Frame
-from stark.block import Block
-from stark.block.operator import BlockOperatorDiagonal
+from stark.core.block import Block
+from stark.core.block.operator import BlockOperatorDiagonal
 from stark.engines import EngineNumpy
 from stark.methods.inverters.support import InverterDefect
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest

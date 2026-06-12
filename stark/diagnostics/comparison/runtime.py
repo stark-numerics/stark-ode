@@ -17,7 +17,7 @@ from stark.diagnostics.comparison.models import (
     ComparisonTiming,
     ProfileCategory,
 )
-from stark.integrator.integrator import Integrator
+from stark.core.integrator.integrator import Integrator
 from stark.diagnostics.monitor import Monitor, MonitorSummary
 
 

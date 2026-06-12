@@ -4,10 +4,10 @@ import importlib
 
 from stark import Auditor, Configuration, DerivativeIMEX, Integrator, Interval, IntegratorStepper, Tolerance
 from stark.engines.accelerators import Accelerator, AcceleratorNone
-from stark.block.operator import BlockOperatorDiagonal
+from stark.core.block.operator import BlockOperatorDiagonal
 from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblemManual
-from stark.block import Block
-from stark.contracts import Resolvent
+from stark.core.block import Block
+from stark.core.contracts import Resolvent
 from stark.methods.inverters.support import InverterDescriptor
 from stark.methods.resolvents import (
     ResolventAnderson,
@@ -68,7 +68,7 @@ def test_comparator_module_imports() -> None:
 
 def test_stepper_module_imports() -> None:
     """The stepper module should exist and import cleanly."""
-    assert importlib.import_module("stark.integrator.stepper") is not None
+    assert importlib.import_module("stark.core.integrator.stepper") is not None
 
 
 def test_audit_module_imports() -> None:
@@ -92,7 +92,7 @@ def test_Configuration_module_imports() -> None:
 
 def test_integrate_module_imports() -> None:
     """The integrate module should exist and import cleanly."""
-    assert importlib.import_module("stark.integrator.integrator") is not None
+    assert importlib.import_module("stark.core.integrator.integrator") is not None
 
 
 def test_inverter_imports() -> None:

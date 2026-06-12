@@ -7,8 +7,8 @@ from inspect import Parameter, signature
 from typing import Any, Protocol, overload, runtime_checkable
 
 from stark.engines.algebraist.frame.path import AlgebraistFramePath
-from stark.contracts.accelerator import Accelerator
-from stark.contracts.derivative_imex import DerivativeIMEX
+from stark.core.contracts.accelerator import Accelerator
+from stark.core.contracts.derivative_imex import DerivativeIMEX
 
 
 class DerivativeImplementation(Protocol):

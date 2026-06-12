@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.methods.schemes.configuration import SchemeConfiguration
 from math import sqrt
 
-from stark.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
 from stark.methods.schemes.method.descriptor import SchemeDescriptor

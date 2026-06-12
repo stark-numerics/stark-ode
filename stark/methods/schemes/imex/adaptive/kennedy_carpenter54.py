@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.contracts import IntervalLike, State
+from stark.core.contracts import IntervalLike, State
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_adaptive_step_monitoring
 from stark.methods.schemes.execution.step_control import (

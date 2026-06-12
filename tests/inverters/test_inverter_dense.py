@@ -5,7 +5,7 @@ from math import isclose, sqrt
 
 import pytest
 
-from stark.block import Block, BlockBasis
+from stark.core.block import Block, BlockBasis
 from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
 
 

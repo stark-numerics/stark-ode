@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Protocol, TypeVar
 
-from stark.block import Block, BlockKernel
-from stark.contracts import Translation
+from stark.core.block import Block, BlockKernel
+from stark.core.contracts import Translation
 from stark.methods.resolvents.specialization.stencil import ResolventStencilBlock
 
 

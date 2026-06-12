@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from stark.block import Block
-from stark.contracts import LegacyInverterPreconditionerLike
-from stark.block.operator import BlockOperatorDiagonal
+from stark.core.block import Block
+from stark.core.contracts import LegacyInverterPreconditionerLike
+from stark.core.block.operator import BlockOperatorDiagonal
 from stark.methods.inverters.legacy_support.workspace import InverterWorkspace
 
 

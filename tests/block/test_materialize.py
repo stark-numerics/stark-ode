@@ -5,8 +5,8 @@ from math import isclose, sqrt
 
 import pytest
 
-from stark.block import Block
-from stark.block.materialize import BlockOperatorDiagonalMaterialize, OperatorMaterialize
+from stark.core.block import Block
+from stark.core.block.materialize import BlockOperatorDiagonalMaterialize, OperatorMaterialize
 
 
 @dataclass

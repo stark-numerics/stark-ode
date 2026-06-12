@@ -4,7 +4,7 @@ __all__: list[str] = []
 
 # Core carrier composition model
 
-from stark.contracts.carrier import (
+from stark.core.contracts.carrier import (
     Carrier,
     CarrierAllocation,
     CarrierArithmetic,

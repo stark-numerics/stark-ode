@@ -11,8 +11,8 @@ directly.
 import numpy as np
 
 from stark import Configuration, Interval, Monitor, Frame, Method, System, Tolerance
-from stark.block import Block
-from stark.block.operator import BlockOperatorDiagonal
+from stark.core.block import Block
+from stark.core.block.operator import BlockOperatorDiagonal
 from stark.engines import EngineNumpy
 from stark.methods.inverters.relaxation import InverterRelaxationRichardson
 from stark.methods.resolvents import ResolventPicard

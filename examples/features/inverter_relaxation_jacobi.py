@@ -10,8 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from stark import Configuration, Frame, Tolerance
-from stark.block import Block
-from stark.block.operator import BlockOperatorDiagonal
+from stark.core.block import Block
+from stark.core.block.operator import BlockOperatorDiagonal
 from stark.engines import EngineNumpy
 from stark.methods.inverters.relaxation import InverterRelaxationJacobi
 from stark.methods.inverters.support import InverterDefect

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark.block import Block, BlockOperatorDiagonal
+from stark.core.block import Block, BlockOperatorDiagonal
 
 
 @dataclass

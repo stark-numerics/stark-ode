@@ -12,8 +12,8 @@ from typing import TypeAlias
 
 import numpy as np
 
-from stark.block import Block
-from stark.contracts import Translation
+from stark.core.block import Block
+from stark.core.contracts import Translation
 
 
 BlockInnerProduct: TypeAlias = Callable[[Block[Translation], Block[Translation]], float]

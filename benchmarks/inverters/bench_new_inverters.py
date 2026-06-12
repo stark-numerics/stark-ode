@@ -8,7 +8,7 @@ from typing import Callable
 
 from stark import Executor, ExecutorTolerance, Interval, IntegratorStepper
 from stark.engines.accelerators import AcceleratorNumba
-from stark.block import BlockBasis
+from stark.core.block import BlockBasis
 from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
 from stark.methods.inverters.relaxation import InverterRelaxationJacobi, InverterRelaxationRichardson
 from stark.methods.inverters.support import InverterBudget, InverterTolerance

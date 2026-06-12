@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.contracts.errors import StarkErrorRecoverable
+from stark.core.contracts.errors import StarkErrorRecoverable
 
 
 class ResolventError(StarkErrorRecoverable):

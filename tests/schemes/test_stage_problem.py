@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark.contracts import IntervalLike
+from stark.core.contracts import IntervalLike
 from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
 
 

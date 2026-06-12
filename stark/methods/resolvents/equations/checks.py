@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.block import Block
+from stark.core.block import Block
 
 
 def check_one_stage_block(name: str, block: Block) -> None:

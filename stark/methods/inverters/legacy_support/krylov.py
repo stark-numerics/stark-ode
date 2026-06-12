@@ -18,9 +18,9 @@ from __future__ import annotations
 import numpy as np
 
 from stark.engines.accelerators import AcceleratorNone
-from stark.block import Block
-from stark.block.operator import BlockOperatorDiagonal
-from stark.contracts import Accelerator
+from stark.core.block import Block
+from stark.core.block.operator import BlockOperatorDiagonal
+from stark.core.contracts import Accelerator
 from stark.methods.inverters.legacy_support.workspace import InverterWorkspace
 
 

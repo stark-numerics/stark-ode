@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from stark.block import Block
-from stark.contracts import DerivativeLike, IntervalLike, State, Translation
+from stark.core.block import Block
+from stark.core.contracts import DerivativeLike, IntervalLike, State, Translation
 
 
 class ResolventRequest(Protocol):

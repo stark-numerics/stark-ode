@@ -4,7 +4,7 @@ from collections.abc import Callable
 from typing import Generic
 
 from stark.core import Configuration
-from stark.contracts import (
+from stark.core.contracts import (
     BlockOperatorEntryLike,
     BlockLike,
     InverterOutputMode,

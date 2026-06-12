@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from stark.block import BlockKernel
-from stark.contracts import Translation, TranslationTypeCovariant
+from stark.core.block import BlockKernel
+from stark.core.contracts import Translation, TranslationTypeCovariant
 from stark.methods.inverters.relaxation.stencil import InverterRelaxationStencil, InverterRelaxationStencilUpdate
 
 

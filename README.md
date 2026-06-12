@@ -267,7 +267,7 @@ For a conceptual guide to the main object families and extension points, see
 [`docs/object_map.md`](docs/object_map.md).
 
 Accelerators follow the same philosophy. Built-in workers live under
-`stark.engines.accelerators`, the contracts live under `stark.contracts`, and custom
+`stark.engines.accelerators`, the contracts live under `stark.core.contracts`, and custom
 accelerators can be checked with `Auditor(..., accelerator=...)` before a run.
 
 For the mathematical view of the contracts, see

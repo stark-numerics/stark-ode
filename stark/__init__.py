@@ -1,12 +1,12 @@
 """Curated public imports for stark-ode."""
 
 from stark.core.auditor import AuditError, Auditor
-from stark.contracts.derivative_imex import DerivativeIMEX
+from stark.core.contracts.derivative_imex import DerivativeIMEX
 from stark.core.configuration import Configuration
 from stark.core.tolerance import Tolerance
-from stark.integrator.integrator import Integrator, IntegratorConfiguration
+from stark.core.integrator.integrator import Integrator, IntegratorConfiguration
 from stark.core.interval import Interval
-from stark.integrator.stepper import IntegratorStepper
+from stark.core.integrator.stepper import IntegratorStepper
 from stark.methods import Method
 from stark.problem import (
     Derivative,

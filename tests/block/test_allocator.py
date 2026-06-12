@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark.block import BlockAllocator
+from stark.core.block import BlockAllocator
 
 
 @dataclass

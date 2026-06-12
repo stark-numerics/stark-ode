@@ -8,12 +8,12 @@ from typing import Callable
 import pytest
 
 from stark import Tolerance, IntegratorStepper
-from stark.block import Block, BlockBasis
+from stark.core.block import Block, BlockBasis
 
 try:  # New name after the diagonal block-operator rename.
-    from stark.block import BlockOperatorDiagonal
+    from stark.core.block import BlockOperatorDiagonal
 except ImportError:  # Compatibility while developing this slow integration test.
-    from stark.block import BlockOperator as BlockOperatorDiagonal
+    from stark.core.block import BlockOperator as BlockOperatorDiagonal
 
 from stark.core.interval import Interval
 from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative

@@ -4,8 +4,8 @@ from collections.abc import Callable
 from typing import Protocol, TypeVar
 
 from stark.methods.schemes.specialization.stencil import SchemeStencil
-from stark.contracts.state import State, StateType, StateTypeCovariant
-from stark.contracts.translation import Translation, TranslationType, TranslationTypeCovariant
+from stark.core.contracts.state import State, StateType, StateTypeCovariant
+from stark.core.contracts.translation import Translation, TranslationType, TranslationTypeCovariant
 
 SchemeSpecialistKernel = Callable[..., object]
 

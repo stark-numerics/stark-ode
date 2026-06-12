@@ -3,8 +3,8 @@ from __future__ import annotations
 """Use an engine-generated specialist with a relaxation inverter."""
 
 from stark import Configuration, Frame, Tolerance
-from stark.block import Block, BlockSpecialist
-from stark.block.operator import BlockOperatorDiagonal
+from stark.core.block import Block, BlockSpecialist
+from stark.core.block.operator import BlockOperatorDiagonal
 from stark.engines import EngineNumpy
 from stark.methods.inverters.relaxation import InverterRelaxationRichardson
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest

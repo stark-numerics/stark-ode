@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
-from stark.block import Block, BlockAllocator
-from stark.contracts import Accelerator, InnerProduct, Translation, Allocator
+from stark.core.block import Block, BlockAllocator
+from stark.core.contracts import Accelerator, InnerProduct, Translation, Allocator
 from stark.engines.accelerators import AcceleratorNone
 from stark.methods.resolvents.method.descriptor import ResolventDescriptor
 from stark.methods.resolvents.method.errors import ResolventError

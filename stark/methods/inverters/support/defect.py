@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Generic
 
-from stark.contracts import BlockLike, InverterRequest, TranslationType
+from stark.core.contracts import BlockLike, InverterRequest, TranslationType
 
 
 @dataclass(slots=True, init=False)

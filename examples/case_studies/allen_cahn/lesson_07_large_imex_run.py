@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from stark import Configuration, Integrator, Interval, IntegratorStepper, Method, Tolerance
-from stark.contracts import DerivativeIMEX
+from stark.core.contracts import DerivativeIMEX
 from stark.methods.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (

@@ -10,7 +10,7 @@ from stark.engines.algebraist.generator.compiler import AlgebraistGeneratorCompi
 from stark.engines.algebraist.generator.emitter import AlgebraistGeneratorEmitter
 from stark.engines.algebraist.frame import AlgebraistFrame
 from stark.engines.algebraist.allocator import AlgebraistAllocator
-from stark.contracts.accelerator import Accelerator
+from stark.core.contracts.accelerator import Accelerator
 
 TranslationType = TypeVar("TranslationType")
 
