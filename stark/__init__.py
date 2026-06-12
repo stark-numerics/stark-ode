@@ -1,59 +1,40 @@
-"""Curated public imports for stark-ode."""
+"""Small public surface for declaring and solving STARK problems."""
 
 from stark.core.auditor import AuditError, Auditor
-from stark.core.contracts.derivative_imex import DerivativeIMEX
 from stark.core.configuration import Configuration
-from stark.core.tolerance import Tolerance
-from stark.core.integrator.integrator import Integrator, IntegratorConfiguration
 from stark.core.interval import Interval
+from stark.core.integrator.integrator import Integrator, IntegratorConfiguration
 from stark.core.integrator.stepper import IntegratorStepper
-from stark.methods import Method
+from stark.core.tolerance import Tolerance
+from stark.core.contracts.derivative_imex import DerivativeIMEX
+from stark.diagnostics.monitor import Monitor
+from stark.methods.method import Method, MethodError
 from stark.problem import (
     Derivative,
     DerivativeSignature,
     DerivativeStyle,
     Frame,
     FrameField,
-    FrameNormExcluded,
-    FrameNormMax,
-    FrameNormPolicy,
-    FrameNormRMS,
-    Method,
-    MethodError,
     System,
-    SystemFinalResult,
-    SystemIVP,
 )
-from stark.diagnostics.monitor import Monitor
-from stark.methods.resolvents.configuration import ResolventConfiguration
-from stark.methods.schemes.configuration import SchemeConfiguration
 
 __all__ = [
     "AuditError",
     "Auditor",
     "Configuration",
-    "DerivativeIMEX",
-    "Integrator",
-    "IntegratorConfiguration",
-    "Interval",
-    "Method",
-    "IntegratorStepper",
-    "Monitor",
-    "ResolventConfiguration",
-    "SchemeConfiguration",
     "Derivative",
+    "DerivativeIMEX",
     "DerivativeSignature",
     "DerivativeStyle",
     "Frame",
     "FrameField",
-    "FrameNormExcluded",
-    "FrameNormMax",
-    "FrameNormPolicy",
-    "FrameNormRMS",
+    "Integrator",
+    "IntegratorConfiguration",
+    "IntegratorStepper",
+    "Interval",
     "Method",
     "MethodError",
+    "Monitor",
     "System",
-    "SystemFinalResult",
-    "SystemIVP",
     "Tolerance",
 ]
