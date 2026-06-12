@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from stark.algebraist.layout import (
+from stark.engines.algebraist.layout import (
     AlgebraistLayout,
     AlgebraistLayoutBroadcast,
     AlgebraistLayoutField,

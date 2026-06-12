@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.algebraist.runtime import AlgebraistRuntimeLinearCombine
+from stark.engines.algebraist.runtime import AlgebraistRuntimeLinearCombine
 from stark.contracts import Allocator, State, Translation
 from stark.methods.schemes.execution.interval import SchemeShiftedInterval
 

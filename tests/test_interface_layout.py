@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark import Layout, LayoutField
-from stark.algebraist.layout import AlgebraistLayoutLooped
+from stark.engines.algebraist.layout import AlgebraistLayoutLooped
 
 
 def test_stark_layout_converts_to_algebraist_layout() -> None:

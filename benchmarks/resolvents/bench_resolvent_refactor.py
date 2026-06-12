@@ -11,7 +11,7 @@ from statistics import median
 from time import perf_counter
 
 from stark import Interval
-from stark.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.block import Block
 from stark.executor.safety import ExecutorSafety
 from stark.methods.inverters import InverterGMRES, InverterPolicy, InverterTolerance

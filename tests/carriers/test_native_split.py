@@ -1,6 +1,6 @@
 import inspect
 
-from stark.carriers.native import (
+from stark.engines.carriers.native import (
     CarrierArithmeticNativeList,
     CarrierArithmeticNativeScalar,
     CarrierArithmeticNativeTuple,

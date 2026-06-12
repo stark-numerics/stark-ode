@@ -11,10 +11,10 @@ from typing import Callable
 import numpy as np
 
 from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
-from stark.accelerators import AcceleratorNone, AcceleratorNumba
-from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorLinearCombine, AlgebraistGeneratorSpecialist
-from stark.algebraist.layout import (
+from stark.engines.accelerators import AcceleratorNone, AcceleratorNumba
+from stark.engines.algebraist.arity import AlgebraistArity
+from stark.engines.algebraist.generator import AlgebraistGeneratorLinearCombine, AlgebraistGeneratorSpecialist
+from stark.engines.algebraist.layout import (
     AlgebraistLayout,
     AlgebraistLayoutBroadcast,
     AlgebraistLayoutField,

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark.accelerators import AcceleratorNumba
-from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorLinearCombine
-from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
-from stark.engines.numpy import EngineNumpy
+from stark.engines.accelerators import AcceleratorNumba
+from stark.engines.algebraist.arity import AlgebraistArity
+from stark.engines.algebraist.generator import AlgebraistGeneratorLinearCombine
+from stark.engines.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
+from stark.engines.backends.numpy import EngineNumpy
 from stark.interface.layout import Layout
 
 from benchmarks.common import FPUT_SIZES

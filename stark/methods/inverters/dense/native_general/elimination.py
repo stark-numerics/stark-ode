@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass, field
 
-from stark.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.contracts.accelerator import Accelerator
 
 

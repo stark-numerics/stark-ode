@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
 from stark.core import Configuration, Tolerance

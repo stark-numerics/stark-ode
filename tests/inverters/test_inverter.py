@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.block.operator import BlockOperatorDiagonal
 from stark.block import Block
 from stark.methods.inverters import InverterBiCGStab, InverterFGMRES, InverterGMRES

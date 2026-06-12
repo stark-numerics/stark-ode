@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from stark.block import Block, BlockBasis
-from stark.carriers import CarrierNative, CarrierNumpy
+from stark.engines.carriers import CarrierNative, CarrierNumpy
 
 
 def test_block_basis_lifts_translation_bases() -> None:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from stark.algebraist.layout import (
+from stark.engines.algebraist.layout import (
     AlgebraistLayoutNormExcluded,
     AlgebraistLayoutNormMax,
     AlgebraistLayoutNormPolicy,

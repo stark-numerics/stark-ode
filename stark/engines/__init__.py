@@ -1,20 +1,16 @@
-"""Backend engines for layout-backed STARK systems."""
-
-__all__: list[str] = []
+"""Engine catalogue for backend runtime bundles."""
 
 from stark.contracts.engine import Engine
-from stark.engines.native import (
+from stark.engines.backends import (
     EngineAllocatorNative,
-    EngineNative,
-    EngineTranslationNative,
-)
-from stark.engines.numpy import (
     EngineAllocatorNumpy,
+    EngineNative,
     EngineNumpy,
+    EngineTranslationNative,
     EngineTranslationNumpy,
 )
 
-__all__ += [
+__all__ = [
     "Engine",
     "EngineAllocatorNative",
     "EngineAllocatorNumpy",
@@ -25,7 +21,7 @@ __all__ += [
 ]
 
 try:
-    from stark.engines.cupy import (
+    from stark.engines.backends import (
         EngineAllocatorCupy,
         EngineCupy,
         EngineTranslationCupy,
@@ -40,7 +36,7 @@ else:
     ]
 
 try:
-    from stark.engines.jax import (
+    from stark.engines.backends import (
         EngineAllocatorJax,
         EngineJax,
         EngineTranslationJax,

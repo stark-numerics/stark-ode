@@ -7,7 +7,7 @@ from time import perf_counter
 from typing import Callable
 
 from stark import Executor, ExecutorTolerance, Interval, IntegratorStepper
-from stark.accelerators import AcceleratorNumba
+from stark.engines.accelerators import AcceleratorNumba
 from stark.block import BlockBasis
 from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
 from stark.methods.inverters.relaxation import InverterRelaxationJacobi, InverterRelaxationRichardson

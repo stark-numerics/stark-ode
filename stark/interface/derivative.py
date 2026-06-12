@@ -6,7 +6,7 @@ from dataclasses import dataclass, field, fields, is_dataclass
 from inspect import Parameter, signature
 from typing import Any, Protocol, overload, runtime_checkable
 
-from stark.algebraist.layout.path import AlgebraistLayoutPath
+from stark.engines.algebraist.layout.path import AlgebraistLayoutPath
 from stark.contracts.accelerator import Accelerator
 from stark.contracts.derivative_imex import DerivativeIMEX
 

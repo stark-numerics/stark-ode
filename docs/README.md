@@ -63,7 +63,7 @@ The standard import path is:
 
 ```python
 from stark import IntegratorStepper, Auditor, Integrator, Interval, Tolerance
-from stark.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 ```
 
 The standard interface import path is:
@@ -342,7 +342,7 @@ Both providers are explicit objects. The allocator installs them when the
 problem wants generated kernels:
 
 ```python
-from stark.algebraist import (
+from stark.engines.algebraist import (
     AlgebraistArity,
     AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorSpecialist,
@@ -447,21 +447,21 @@ in-place use.
 ## Accelerators
 
 Accelerators are configured workers in the same sense as schemes, resolvents,
-and inverters. STARK ships a small built-in library under `stark.accelerators`
+and inverters. STARK ships a small built-in library under `stark.engines.accelerators`
 and audits user-defined accelerators through `AcceleratorAudit` in
 `stark.contracts.accelerator`.
 
 The built-in import path is:
 
 ```python
-from stark.accelerators import AcceleratorNone, AcceleratorJax, AcceleratorNumba
+from stark.engines.accelerators import AcceleratorNone, AcceleratorJax, AcceleratorNumba
 ```
 
 Users who want a custom accelerator implement the public accelerator protocol
 and use `compile(...)` for plain callable kernels:
 
 ```python
-from stark.accelerators import AcceleratorNumba
+from stark.engines.accelerators import AcceleratorNumba
 
 accelerator = AcceleratorNumba()
 
@@ -544,7 +544,7 @@ The common implicit shape is:
 
 ```python
 from stark import IntegratorStepper, Tolerance
-from stark.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.methods.inverters import InverterBiCGStab
 from stark.methods.inverters import InverterPolicy, Tolerance
 from stark.methods.resolvents import ResolventNewton
@@ -589,7 +589,7 @@ corrections are handed to the chosen resolvent.
 
 The current package layout mirrors that structure directly:
 
-- `stark.accelerators`
+- `stark.engines.accelerators`
 - `stark.methods.schemes`
 - `stark.methods.resolvents`
 - `stark.methods.inverters`

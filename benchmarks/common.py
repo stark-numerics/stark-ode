@@ -5,9 +5,9 @@ from math import sqrt
 
 import numpy as np
 
-from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.generator import AlgebraistGeneratorLinearCombine
-from stark.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
+from stark.engines.algebraist.arity import AlgebraistArity
+from stark.engines.algebraist.generator import AlgebraistGeneratorLinearCombine
+from stark.engines.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
 
 
 FPUT_SIZES = (64, 512, 2048)

@@ -4,7 +4,7 @@ import numpy as np
 
 from stark import Configuration, Interval, Layout, LayoutField, Method, System
 from stark.interface.derivative import DerivativeAdapterAcceptsInstant
-from stark.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.engines import EngineNumpy
 
 

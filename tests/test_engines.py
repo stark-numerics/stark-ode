@@ -4,20 +4,20 @@ import numpy as np
 import pytest
 
 from stark import Layout, LayoutField
-from stark.accelerators import AcceleratorNone
-from stark.algebraist.generator import (
+from stark.engines.accelerators import AcceleratorNone
+from stark.engines.algebraist.generator import (
     AlgebraistGeneratorInnerProduct,
     AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
-from stark.algebraist.runtime import (
+from stark.engines.algebraist.runtime import (
     AlgebraistRuntimeInnerProduct,
     AlgebraistRuntimeLinearCombine,
     AlgebraistRuntimeNorm,
     AlgebraistRuntimeSpecialist,
 )
-from stark.carriers import CarrierNumpy
+from stark.engines.carriers import CarrierNumpy
 from stark.engines import EngineNative, EngineNumpy
 
 
@@ -159,7 +159,7 @@ def test_stark_engine_native_rejects_multidimensional_shapes() -> None:
 
 def test_stark_engine_cupy_optional() -> None:
     cp = pytest.importorskip("cupy")
-    from stark.engines.cupy import EngineCupy
+    from stark.engines.backends.cupy import EngineCupy
 
     engine = EngineCupy(
         Layout(
@@ -193,7 +193,7 @@ def test_stark_engine_cupy_optional() -> None:
 
 def test_stark_engine_jax_optional() -> None:
     jnp = pytest.importorskip("jax.numpy")
-    from stark.engines.jax import EngineJax
+    from stark.engines.backends.jax import EngineJax
 
     engine = EngineJax(
         Layout(

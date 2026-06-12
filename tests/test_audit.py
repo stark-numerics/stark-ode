@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from stark.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark import DerivativeIMEX, Derivative, DerivativeStyle
 from stark.core.auditor import AuditError, Auditor
 from stark import Tolerance

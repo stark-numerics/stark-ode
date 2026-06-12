@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import MutableSequence
 from typing import cast
 
-from stark.algebraist.arity import AlgebraistArity
-from stark.algebraist.runtime.linear_combine import AlgebraistRuntimeLinearCombine
+from stark.engines.algebraist.arity import AlgebraistArity
+from stark.engines.algebraist.runtime.linear_combine import AlgebraistRuntimeLinearCombine
 from stark.block import Block, BlockOperatorDiagonal
 from stark.contracts import Accelerator, DerivativeLike, IntervalLike, Linearizer, State, Translation, Allocator
 from stark.contracts.translation_basis import TranslationBasis

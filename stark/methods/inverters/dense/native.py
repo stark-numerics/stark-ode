@@ -4,7 +4,7 @@ from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass, field
 from typing import Callable
 
-from stark.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.contracts.accelerator import Accelerator
 from stark.methods.inverters.dense.native_general import InverterProviderDenseNativeGeneral
 

@@ -5,8 +5,8 @@ from array import array
 import numpy as np
 import pytest
 
-from stark.carriers import CarrierNative, CarrierNumpy
-from stark.carriers.native import (
+from stark.engines.carriers import CarrierNative, CarrierNumpy
+from stark.engines.carriers.native import (
     CarrierBasisNativeArray,
     CarrierBasisNativeList,
     CarrierBasisNativeScalar,
@@ -99,7 +99,7 @@ def test_numpy_basis_uses_canonical_flat_coordinates() -> None:
 
 def test_cupy_basis_optional() -> None:
     cp = pytest.importorskip("cupy")
-    from stark.carriers import CarrierCupy
+    from stark.engines.carriers import CarrierCupy
 
     carrier = CarrierCupy(cp.zeros((2, 2)))
     output = carrier.allocation.zero_translation()
@@ -114,7 +114,7 @@ def test_cupy_basis_optional() -> None:
 
 def test_jax_basis_optional() -> None:
     jnp = pytest.importorskip("jax.numpy")
-    from stark.carriers import CarrierJax
+    from stark.engines.carriers import CarrierJax
 
     carrier = CarrierJax(jnp.zeros((2, 2)))
     output = carrier.allocation.zero_translation()
@@ -144,7 +144,7 @@ def test_numpy_basis_analyses_and_synthesizes_coordinates() -> None:
 
 def test_jax_basis_synthesizes_return_style_translation() -> None:
     jnp = pytest.importorskip("jax.numpy")
-    from stark.carriers import CarrierJax
+    from stark.engines.carriers import CarrierJax
 
     carrier = CarrierJax(jnp.zeros((2, 2)))
     output = carrier.allocation.zero_translation()

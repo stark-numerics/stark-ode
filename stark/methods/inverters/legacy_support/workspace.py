@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from math import sqrt
 from typing import Callable
 
-from stark.accelerators import AcceleratorNone
-from stark.algebraist.runtime import AlgebraistRuntimeLinearCombine
+from stark.engines.accelerators import AcceleratorNone
+from stark.engines.algebraist.runtime import AlgebraistRuntimeLinearCombine
 from stark.block import Block
 from stark.contracts import Accelerator, InnerProduct, Translation, Allocator
 from stark.methods.inverters.legacy_support.safety import InverterSafety, InverterSafetyDefault

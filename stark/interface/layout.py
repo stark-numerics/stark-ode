@@ -4,7 +4,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from stark.algebraist.layout import (
+from stark.engines.algebraist.layout import (
     AlgebraistLayout,
     AlgebraistLayoutBroadcast,
     AlgebraistLayoutField,
@@ -14,7 +14,7 @@ from stark.algebraist.layout import (
     AlgebraistLayoutScalar,
     AlgebraistLayoutUnravel,
 )
-from stark.algebraist.layout.path import AlgebraistLayoutPathLike
+from stark.engines.algebraist.layout.path import AlgebraistLayoutPathLike
 from stark.interface.norm import LayoutNormPolicy, LayoutNormRMS
 
 

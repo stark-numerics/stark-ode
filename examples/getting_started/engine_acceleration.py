@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from stark import Layout
-from stark.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.engines import EngineNumpy
 
 
