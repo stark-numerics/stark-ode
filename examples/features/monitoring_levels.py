@@ -10,7 +10,7 @@ directly.
 
 import numpy as np
 
-from stark import Configuration, Interval, Monitor, Layout, Method, System, Tolerance
+from stark import Configuration, Interval, Monitor, Frame, Method, System, Tolerance
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
 from stark.engines import EngineNumpy
@@ -21,7 +21,7 @@ from stark.methods.schemes import SchemeEuler
 from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
 
 
-LAYOUT = Layout({"x": {"translation": "dx", "shape": (1,)}})
+LAYOUT = Frame({"x": {"translation": "dx", "shape": (1,)}})
 
 
 def constant_rhs(t: float, state, out) -> None:
@@ -39,7 +39,7 @@ def scale_by_two(source, target) -> None:
 
 
 def record_scheme_level(monitor: Monitor) -> None:
-    system = System(derivative=constant_rhs, layout=LAYOUT)
+    system = System(derivative=constant_rhs, frame=LAYOUT)
     ivp = system.ivp(
         initial={"x": np.array([0.0])},
         interval=Interval(present=0.0, step=0.1, stop=0.3),

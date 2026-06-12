@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark import Configuration, Layout, Tolerance
+from stark import Configuration, Frame, Tolerance
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
 from stark.engines import EngineNumpy
@@ -34,7 +34,7 @@ def invert_entry(operator: ScaleEntryOperator, source, target) -> None:
 
 
 def main() -> None:
-    engine = EngineNumpy(Layout({"x": {"translation": "dx", "shape": (1,)}}))
+    engine = EngineNumpy(Frame({"x": {"translation": "dx", "shape": (1,)}}))
 
     residual_left = engine.allocator.allocate_translation()
     residual_left.dx[0] = 6.0

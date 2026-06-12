@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Layout
+from stark import Frame
 from stark.engines.accelerators import AcceleratorNone
 from stark.engines import EngineNumpy
 
 
-layout = Layout({"y": {"translation": "dy", "shape": (2,)}})
+frame = Frame({"y": {"translation": "dy", "shape": (2,)}})
 
-default_engine = EngineNumpy(layout)
+default_engine = EngineNumpy(frame)
 unaccelerated_engine = EngineNumpy(
-    layout,
+    frame,
     accelerator=AcceleratorNone(),
 )
 
@@ -28,6 +28,6 @@ print("If Numba is not installed, the default engine falls back to this unaccele
 print("A slow run is easiest to diagnose by inspecting the engine repr.")
 print("When accelerator='none', generated CPU kernels are not compiled.")
 
-# Keep a visible array nearby so the layout shape reads like the state it supports.
+# Keep a visible array nearby so the frame shape reads like the state it supports.
 initial_y = np.array([1.0, 0.0])
 print(f"Example initial field shape: y={initial_y.shape}")

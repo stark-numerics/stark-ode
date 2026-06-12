@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from math import sqrt
 from typing import Any
 
-from stark.engines.algebraist.layout import AlgebraistLayout
+from stark.engines.algebraist.frame import AlgebraistFrame
 from stark.engines.carriers.jax import CarrierJax
 
 
@@ -12,7 +12,7 @@ from stark.engines.carriers.jax import CarrierJax
 class EngineTranslationJax:
     """Structured JAX translation using return-style field carrier arithmetic."""
 
-    algebraist_layout: AlgebraistLayout = field(repr=False)
+    algebraist_frame: AlgebraistFrame = field(repr=False)
     carriers: tuple[CarrierJax, ...] = field(repr=False)
     allocator: Any = field(repr=False)
     norm_kernel: Any = field(default=None, repr=False)
@@ -22,7 +22,7 @@ class EngineTranslationJax:
         return ()
 
     def __call__(self, origin: object, result: object) -> None:
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             field.state_path.set(
                 result,
                 carrier.arithmetic.translate(
@@ -38,7 +38,7 @@ class EngineTranslationJax:
             raise ValueError("Cannot add translations allocated by different engines.")
 
         result = self.allocator.allocate_translation()
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             field.translation_path.set(
                 result,
                 carrier.arithmetic.add(
@@ -51,7 +51,7 @@ class EngineTranslationJax:
 
     def __rmul__(self, scalar: float) -> EngineTranslationJax:
         result = self.allocator.allocate_translation()
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             field.translation_path.set(
                 result,
                 carrier.arithmetic.scale(
@@ -70,7 +70,7 @@ class EngineTranslationJax:
             return float(self.norm_kernel(self))
 
         total = 0.0
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             if not field.norm.include:
                 continue
             field_norm = carrier.norm(field.translation_path.get(self))

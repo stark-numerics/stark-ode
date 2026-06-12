@@ -5,9 +5,9 @@ import numpy as np
 from stark.engines.accelerators import AcceleratorNumba
 from stark.engines.algebraist.arity import AlgebraistArity
 from stark.engines.algebraist.generator import AlgebraistGeneratorLinearCombine
-from stark.engines.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
+from stark.engines.algebraist.frame import AlgebraistFrame, AlgebraistFrameField, AlgebraistFrameLooped
 from stark.engines.backends.numpy import EngineNumpy
-from stark.interface.layout import Layout
+from stark.problem.frame.frame import Frame
 
 from benchmarks.common import FPUT_SIZES
 
@@ -28,11 +28,11 @@ def coefficients(arity: int) -> tuple[float, ...]:
     return tuple((index + 1.0) / arity for index in range(arity))
 
 
-def accelerated_layout() -> AlgebraistLayout:
-    return AlgebraistLayout(
+def accelerated_layout() -> AlgebraistFrame:
+    return AlgebraistFrame(
         fields=(
-            AlgebraistLayoutField("dq", "q", policy=AlgebraistLayoutLooped(rank=1)),
-            AlgebraistLayoutField("dp", "p", policy=AlgebraistLayoutLooped(rank=1)),
+            AlgebraistFrameField("dq", "q", policy=AlgebraistFrameLooped(rank=1)),
+            AlgebraistFrameField("dp", "p", policy=AlgebraistFrameLooped(rank=1)),
         ),
     )
 
@@ -44,7 +44,7 @@ def accelerated_context(size: int) -> tuple:
         provider = AlgebraistGeneratorLinearCombine(
             translation=allocator.allocate_translation(),
             allocator=allocator,
-            layout=accelerated_layout(),
+            frame=accelerated_layout(),
             accelerator=AcceleratorNumba(cache=False),
         )
         linear_combine = tuple(provider.provide(AlgebraistArity(arity)) for arity in range(1, 13))
@@ -54,7 +54,7 @@ def accelerated_context(size: int) -> tuple:
 
 def engine_terms(size: int, arity: int) -> tuple:
     engine = EngineNumpy(
-        Layout({"y": {"translation": "dy", "shape": (2 * size,)}}),
+        Frame({"y": {"translation": "dy", "shape": (2 * size,)}}),
     )
     grid = np.linspace(0.0, 1.0, 2 * size, dtype=np.float64)
     terms = []
@@ -158,7 +158,7 @@ if numba_available():
             provider = AlgebraistGeneratorLinearCombine(
                 translation=allocator.allocate_translation(),
                 allocator=allocator,
-                layout=accelerated_layout(),
+                frame=accelerated_layout(),
                 accelerator=AcceleratorNumba(cache=False),
             )
             for arity in ARITIES:

@@ -11,10 +11,10 @@ from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
 from stark.engines import EngineNumpy
-from stark.interface.derivative import DerivativeStyle
-from stark.interface.layout import Layout
+from stark.problem.derivative.derivative import DerivativeStyle
+from stark.problem.frame.frame import Frame
 from stark.methods.method import Method
-from stark.interface.system import System
+from stark.problem.system.system import System
 from stark.methods.inverters import InverterRelaxationJacobi
 from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
 from stark.monitor import MonitorInverter
@@ -22,7 +22,7 @@ from stark.methods.resolvents import ResolventNewton
 from stark.methods.schemes import SchemeKvaerno4
 
 
-ROBERTSON_LAYOUT = Layout({"y": {"translation": "dy", "shape": (3,)}})
+ROBERTSON_LAYOUT = Frame({"y": {"translation": "dy", "shape": (3,)}})
 
 Array = Any
 
@@ -274,7 +274,7 @@ def stark_runtime(stark_parameters):
     linearizer = RobertsonLinearizer(engine.accelerator)
     system = System(
         derivative=robertson_rhs,
-        layout=ROBERTSON_LAYOUT,
+        frame=ROBERTSON_LAYOUT,
         linearizer=linearizer,
     )
     return system, engine, linearizer, stark_configuration(stark_parameters)
@@ -294,7 +294,7 @@ def stark_solver(
         initial=initial_conditions,
         interval=Interval(problem_parameters["t0"], stark_parameters["step"], problem_parameters["t1"]),
         method=Method(scheme=SchemeKvaerno4, resolvent=resolvent),
-        engine=lambda layout: engine,
+        engine=lambda frame: engine,
         configuration=configuration,
     )
 

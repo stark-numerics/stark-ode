@@ -7,7 +7,7 @@ STARK is an ODE integration package with a friendly interface for ordinary
 scalar and array initial-value problems, plus an explicit core API for problems
 whose state is not naturally a single flat vector.
 
-Start with `stark.interface.StarkIVP` when your state is a Python scalar,
+Start with `stark.problem.StarkIVP` when your state is a Python scalar,
 sequence, NumPy array, CuPy array, or JAX array. Move to the core STARK objects
 when a simulation already has its own domain model: particles, fields,
 lattices, structured arrays, nested dataclasses, or other objects where
@@ -31,7 +31,7 @@ interface layer uses in-place array routing where possible.
 - Built-in nonlinear resolvents, including Picard, Anderson, Broyden, and
   Newton.
 - Built-in linear inverters, including GMRES, FGMRES, and BiCGStab.
-- A public `stark.interface` layer for ordinary Python values and array-backed
+- A public `stark.problem` layer for ordinary Python values and array-backed
   initial conditions.
 - Snapshot and live integration loops.
 - A `ComparisonRunner` helper for comparing two or more scheme setups on the same
@@ -95,7 +95,7 @@ For scalar or array-valued problems, use the interface layer:
 import numpy as np
 
 from stark import Interval
-from stark.interface import StarkIVP
+from stark.problem import StarkIVP
 
 
 def exponential_decay(t, y):

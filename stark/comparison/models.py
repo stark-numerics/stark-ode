@@ -521,7 +521,7 @@ def _copy_ivp_interval(ivp: Any) -> Any:
 def _ivp_state_difference(ivp: Any) -> Difference:
     def difference(left: Any, right: Any) -> float:
         delta = ivp.engine.allocator.allocate_translation()
-        for field, carrier in zip(ivp.engine.algebraist_layout.fields, ivp.engine.carriers, strict=True):
+        for field, carrier in zip(ivp.engine.algebraist_frame.fields, ivp.engine.carriers, strict=True):
             carrier.arithmetic.combine2(
                 1.0,
                 field.state_path.get(right),
@@ -552,7 +552,7 @@ def _ivp_method_stepper(
 
 
 def _method_with_scheme_monitor(method: Any, monitor: Any) -> Any:
-    from stark.interface import Method
+    from stark.problem import Method
 
     scheme_options = dict(method.scheme_options)
     scheme_options["monitor"] = monitor.scheme

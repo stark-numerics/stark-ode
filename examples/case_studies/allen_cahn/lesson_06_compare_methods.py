@@ -50,7 +50,7 @@ if __name__ == "__main__":
     geometry = Geometry()
     configuration = Configuration(scheme_tolerance=Configuration_TOLERANCE)
 
-    # Prepare the layout-backed boundary once. All three methods below solve
+    # Prepare the frame-backed boundary once. All three methods below solve
     # the same semidiscrete Allen-Cahn problem on the same engine allocator.
 
     template = make_ivp(

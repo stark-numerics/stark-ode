@@ -28,7 +28,7 @@ For contributor performance-regression tracking and the ASV suite, see
 ## Core idea
 
 The front door for Python scalars, sequences, NumPy arrays, CuPy arrays, and
-Python-level JAX array solves is `stark.interface.StarkIVP`. It prepares the
+Python-level JAX array solves is `stark.problem.StarkIVP`. It prepares the
 carrier-backed state and derivative, chooses routing, builds the core objects,
 and returns the existing STARK integration result. Use the rest of this guide
 when you need custom state objects, handwritten translation types, implicit
@@ -70,7 +70,7 @@ The standard interface import path is:
 
 ```python
 from stark import Interval
-from stark.interface import StarkIVP, Derivative
+from stark.problem import StarkIVP, Derivative
 ```
 
 ## Integration
@@ -346,15 +346,15 @@ from stark.engines.algebraist import (
     AlgebraistArity,
     AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorSpecialist,
-    AlgebraistLayout,
-    AlgebraistLayoutField,
-    AlgebraistLayoutLooped,
+    AlgebraistFrame,
+    AlgebraistFrameField,
+    AlgebraistFrameLooped,
 )
 
-LAYOUT = AlgebraistLayout(
+LAYOUT = AlgebraistFrame(
     fields=(
-        AlgebraistLayoutField("du", "u", policy=AlgebraistLayoutLooped(rank=2)),
-        AlgebraistLayoutField("dv", "v", policy=AlgebraistLayoutLooped(rank=2)),
+        AlgebraistFrameField("du", "u", policy=AlgebraistFrameLooped(rank=2)),
+        AlgebraistFrameField("dv", "v", policy=AlgebraistFrameLooped(rank=2)),
     ),
 )
 
@@ -402,7 +402,7 @@ class ArrayAllocator:
         general = AlgebraistGeneratorLinearCombine(
             translation=self.allocate_translation(),
             allocator=self,
-            layout=LAYOUT,
+            frame=LAYOUT,
             accelerator=self.accelerator,
         )
         ArrayTranslation.linear_combine = tuple(
@@ -412,7 +412,7 @@ class ArrayAllocator:
         self.__class__._specialist = AlgebraistGeneratorSpecialist(
             translation=self.allocate_translation(),
             allocator=self,
-            layout=LAYOUT,
+            frame=LAYOUT,
             accelerator=self.accelerator,
         )
 ```
@@ -587,7 +587,7 @@ The same resolvent layer is what makes IMEX schemes fit naturally into the
 package: the explicit part advances directly, while the implicit diagonal stage
 corrections are handed to the chosen resolvent.
 
-The current package layout mirrors that structure directly:
+The current package frame mirrors that structure directly:
 
 - `stark.engines.accelerators`
 - `stark.methods.schemes`

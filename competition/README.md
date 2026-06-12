@@ -42,7 +42,7 @@ for that competition case, then prints:
 Reference generation is reported separately and is not included in the solver
 timing tables.
 
-## Competition Layout
+## Competition Frame
 
 Each competition case directory follows the same structure:
 

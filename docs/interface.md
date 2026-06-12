@@ -1,6 +1,6 @@
 # STARK Interface Layer
 
-The `stark.interface` package is the front door for ordinary scalar and
+The `stark.problem` package is the front door for ordinary scalar and
 array-valued initial-value problems.
 
 It accepts ordinary Python values, array values, and carrier-backed values,
@@ -18,7 +18,7 @@ free `solve(...)` helper.
 import numpy as np
 
 from stark import Interval
-from stark.interface import StarkIVP
+from stark.problem import StarkIVP
 
 
 def exponential_decay(t, y):
@@ -38,7 +38,7 @@ for interval, state in ivp.integrate():
 Plain callables are treated as return-style derivatives by default.
 
 `StarkIVP.integrate()` returns the existing STARK integration iterator. Each
-yielded state is a layout-backed state object with field values exposed as
+yielded state is a frame-backed state object with field values exposed as
 attributes.
 
 ## Explicit return-style derivative
@@ -47,7 +47,7 @@ attributes.
 import numpy as np
 
 from stark import Interval
-from stark.interface import Derivative, StarkIVP
+from stark.problem import Derivative, StarkIVP
 
 
 @Derivative.returning
@@ -74,7 +74,7 @@ supplied output value.
 import numpy as np
 
 from stark import Interval
-from stark.interface import Derivative, StarkIVP
+from stark.problem import Derivative, StarkIVP
 
 
 @Derivative.in_place
@@ -102,7 +102,7 @@ Pass an explicit scheme class when another stepping method is preferred.
 import numpy as np
 
 from stark import Interval
-from stark.interface import StarkIVP
+from stark.problem import StarkIVP
 from stark.methods.schemes import SchemeDormandPrince
 
 
@@ -136,7 +136,7 @@ Native values use return/replacement routing.
 
 ```python
 from stark import Interval
-from stark.interface import StarkIVP
+from stark.problem import StarkIVP
 
 
 def exponential_decay(t, y):

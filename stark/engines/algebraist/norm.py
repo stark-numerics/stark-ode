@@ -14,7 +14,7 @@ class AlgebraistNorm(
     Algebraist[None, AlgebraistNormKernel[TranslationType]],
     Protocol[TranslationType],
 ):
-    """Provider of layout-aware translation norm kernels."""
+    """Provider of frame-aware translation norm kernels."""
 
     def provide(self, request: None = None) -> AlgebraistNormKernel[TranslationType]:
         ...

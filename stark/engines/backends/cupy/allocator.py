@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any
 
-from stark.engines.algebraist.layout import AlgebraistLayout
+from stark.engines.algebraist.frame import AlgebraistFrame
 from stark.engines.carriers.cupy import CarrierCupy
 from stark.engines.backends.cupy.translation import EngineTranslationCupy
 
@@ -13,19 +13,19 @@ from stark.engines.backends.cupy.translation import EngineTranslationCupy
 class EngineAllocatorCupy:
     """Allocate structured CuPy state and translation objects."""
 
-    algebraist_layout: AlgebraistLayout
+    algebraist_frame: AlgebraistFrame
     carriers: tuple[CarrierCupy, ...] = field(repr=False)
     norm: Any = field(default=None, repr=False)
     inner_product: Any = field(default=None, repr=False)
 
     def allocate_state(self) -> SimpleNamespace:
         state = SimpleNamespace()
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             field.state_path.set(state, carrier.allocation.zero_state())
         return state
 
     def copy_state(self, source: object, out: object) -> object:
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             field.state_path.set(
                 out,
                 carrier.allocation.copy_state(field.state_path.get(source)),
@@ -34,12 +34,12 @@ class EngineAllocatorCupy:
 
     def allocate_translation(self) -> EngineTranslationCupy:
         translation = EngineTranslationCupy(
-            algebraist_layout=self.algebraist_layout,
+            algebraist_frame=self.algebraist_frame,
             carriers=self.carriers,
             allocator=self,
             norm_kernel=self.norm,
         )
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             field.translation_path.set(translation, carrier.allocation.zero_translation())
         return translation
 

@@ -19,22 +19,22 @@ def _normalize_shape(shape: tuple[int, ...] | list[int]) -> tuple[int, ...]:
     return normalized
 
 
-class AlgebraistLayoutPolicy(Protocol):
-    """Policy describing how a layout field is emitted/traversed."""
+class AlgebraistFramePolicy(Protocol):
+    """Policy describing how a frame field is emitted/traversed."""
 
 
 @dataclass(frozen=True, slots=True)
-class AlgebraistLayoutScalar:
+class AlgebraistFrameScalar:
     """Emit direct scalar assignment with no indexing or broadcasting."""
 
 
 @dataclass(frozen=True, slots=True)
-class AlgebraistLayoutBroadcast:
+class AlgebraistFrameBroadcast:
     """Emit whole-field broadcast assignment, for example target[...] = expression."""
 
 
 @dataclass(frozen=True, slots=True)
-class AlgebraistLayoutLooped:
+class AlgebraistFrameLooped:
     """Emit generated loops over a known shape or runtime rank."""
 
     rank: int | None = None
@@ -53,7 +53,7 @@ class AlgebraistLayoutLooped:
             return
 
         if rank is None:
-            raise ValueError("AlgebraistLayoutLooped requires rank or shape.")
+            raise ValueError("AlgebraistFrameLooped requires rank or shape.")
         if not isinstance(rank, int):
             raise TypeError("rank must be an integer.")
         if rank <= 0:
@@ -61,7 +61,7 @@ class AlgebraistLayoutLooped:
 
 
 @dataclass(frozen=True, slots=True)
-class AlgebraistLayoutUnravel:
+class AlgebraistFrameUnravel:
     """Emit explicit per-index assignments for a known finite shape.
 
     This policy is a hard request: generated code must be unravelled. If the
@@ -76,8 +76,8 @@ class AlgebraistLayoutUnravel:
         size = prod(normalized)
         if size > MAX_UNRAVEL_SIZE:
             raise ValueError(
-                "AlgebraistLayoutUnravel requires explicit unravelled emission, "
+                "AlgebraistFrameUnravel requires explicit unravelled emission, "
                 f"but shape {normalized!r} has {size} entries; use "
-                "AlgebraistLayoutLooped explicitly for looped emission."
+                "AlgebraistFrameLooped explicitly for looped emission."
             )
         object.__setattr__(self, "shape", normalized)

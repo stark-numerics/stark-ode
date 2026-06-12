@@ -10,11 +10,11 @@ from stark.engines.algebraist.generator import (
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
-from stark.engines.algebraist.layout import AlgebraistLayout, AlgebraistLayoutLooped
+from stark.engines.algebraist.frame import AlgebraistFrame, AlgebraistFrameLooped
 from stark.engines.carriers.native import CarrierNativeArray
 from stark.contracts.accelerator import Accelerator
 from stark.engines.backends.native.allocator import EngineAllocatorNative
-from stark.interface.layout import Layout
+from stark.problem.frame.frame import Frame
 
 
 def _default_accelerator() -> Accelerator:
@@ -30,16 +30,16 @@ class EngineNative:
     Native Python backend bundle for one-dimensional shaped layouts.
 
     An engine supplies the backend objects used when a `System` prepares an
-    IVP: carrier templates for each layout field, an allocator for owned state
-    and translation objects, the derived algebraist layout, generated algebra
+    IVP: carrier templates for each frame field, an allocator for owned state
+    and translation objects, the derived algebraist frame, generated algebra
     kernels, and an accelerator. This engine stores fields in Python
     `array.array` values and uses Numba by default when it is installed.
     """
 
-    layout: Layout
+    frame: Frame
     typecode: str = "d"
     accelerator: Accelerator = field(default_factory=_default_accelerator)
-    algebraist_layout: AlgebraistLayout = field(init=False)
+    algebraist_frame: AlgebraistFrame = field(init=False)
     carriers: tuple[CarrierNativeArray, ...] = field(init=False, repr=False)
     allocator: EngineAllocatorNative = field(init=False, repr=False)
     algebraist_inner_product: AlgebraistGeneratorInnerProduct = field(init=False, repr=False)
@@ -56,19 +56,19 @@ class EngineNative:
                 "accelerator to compile generated kernels'"
             )
         return (
-            f"{type(self).__name__}(layout={self.layout!r}, "
+            f"{type(self).__name__}(frame={self.frame!r}, "
             f"typecode={self.typecode!r}, {acceleration})"
         )
 
     def __post_init__(self) -> None:
-        algebraist_layout = self.layout.to_algebraist_layout()
+        algebraist_frame = self.frame.to_algebraist_frame()
         carriers: list[CarrierNativeArray] = []
 
-        for field in algebraist_layout.fields:
+        for field in algebraist_frame.fields:
             policy = field.policy
-            if not isinstance(policy, AlgebraistLayoutLooped) or policy.shape is None:
+            if not isinstance(policy, AlgebraistFrameLooped) or policy.shape is None:
                 raise ValueError(
-                    "EngineNative requires every layout field to declare shape."
+                    "EngineNative requires every frame field to declare shape."
                 )
             if len(policy.shape) != 1:
                 raise ValueError(
@@ -78,11 +78,11 @@ class EngineNative:
 
         carrier_tuple = tuple(carriers)
         allocator = EngineAllocatorNative(
-            algebraist_layout=algebraist_layout,
+            algebraist_frame=algebraist_frame,
             carriers=carrier_tuple,
         )
 
-        object.__setattr__(self, "algebraist_layout", algebraist_layout)
+        object.__setattr__(self, "algebraist_frame", algebraist_frame)
         object.__setattr__(self, "carriers", carrier_tuple)
         object.__setattr__(self, "allocator", allocator)
         object.__setattr__(
@@ -91,14 +91,14 @@ class EngineNative:
             AlgebraistGeneratorLinearCombine(
                 translation=allocator.allocate_translation(),
                 allocator=allocator,
-                layout=algebraist_layout,
+                frame=algebraist_frame,
                 accelerator=self.accelerator,
             ),
         )
         algebraist_specialist = AlgebraistGeneratorSpecialist(
             translation=allocator.allocate_translation(),
             allocator=allocator,
-            layout=algebraist_layout,
+            frame=algebraist_frame,
             accelerator=self.accelerator,
         )
         object.__setattr__(
@@ -108,13 +108,13 @@ class EngineNative:
         )
         algebraist_norm = AlgebraistGeneratorNorm(
             translation=allocator.allocate_translation(),
-            layout=algebraist_layout,
+            frame=algebraist_frame,
             accelerator=self.accelerator,
         )
         object.__setattr__(allocator, "norm", algebraist_norm.provide())
         algebraist_inner_product = AlgebraistGeneratorInnerProduct(
             translation=allocator.allocate_translation(),
-            layout=algebraist_layout,
+            frame=algebraist_frame,
             accelerator=self.accelerator,
         )
         object.__setattr__(allocator, "inner_product", algebraist_inner_product.provide())

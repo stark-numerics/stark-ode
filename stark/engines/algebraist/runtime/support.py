@@ -12,10 +12,10 @@ from stark.contracts.accelerator import Accelerator
 from stark.contracts.state import State
 from stark.contracts.translation import Translation
 
-try:  # layout is optional context for runtime, but accepted for generator symmetry.
-    from stark.engines.algebraist.layout import AlgebraistLayout
+try:  # frame is optional context for runtime, but accepted for generator symmetry.
+    from stark.engines.algebraist.frame import AlgebraistFrame
 except Exception:  # pragma: no cover - defensive during staged refactors
-    AlgebraistLayout = object  # type: ignore[misc, assignment]
+    AlgebraistFrame = object  # type: ignore[misc, assignment]
 
 StateType = TypeVar("StateType", bound=State)
 TranslationType = TypeVar("TranslationType", bound=Translation)
@@ -191,7 +191,7 @@ class AlgebraistRuntimeSupport(Generic[TranslationType]):
 
     translation: TranslationType
     allocator: AlgebraistAllocator[TranslationType]
-    layout: AlgebraistLayout | None = None
+    frame: AlgebraistFrame | None = None
     linear_combine: Sequence[Callable[..., TranslationType]] | None = None
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
     _fallback: AlgebraistRuntimeFallbackCombine[TranslationType] = field(init=False, repr=False)

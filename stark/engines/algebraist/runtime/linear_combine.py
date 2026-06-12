@@ -13,9 +13,9 @@ from stark.contracts.accelerator import Accelerator
 from stark.contracts.translation import Translation
 
 try:
-    from stark.engines.algebraist.layout import AlgebraistLayout
+    from stark.engines.algebraist.frame import AlgebraistFrame
 except Exception:  # pragma: no cover
-    AlgebraistLayout = object  # type: ignore[misc, assignment]
+    AlgebraistFrame = object  # type: ignore[misc, assignment]
 
 TranslationType = TypeVar("TranslationType", bound=Translation)
 
@@ -26,7 +26,7 @@ class AlgebraistRuntimeLinearCombine(Generic[TranslationType]):
 
     translation: TranslationType
     allocator: AlgebraistAllocator[TranslationType]
-    layout: AlgebraistLayout | None = None
+    frame: AlgebraistFrame | None = None
     linear_combine: Sequence[Callable[..., TranslationType]] | None = None
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
     _support: AlgebraistRuntimeSupport[TranslationType] = field(init=False, repr=False)
@@ -35,7 +35,7 @@ class AlgebraistRuntimeLinearCombine(Generic[TranslationType]):
         self._support = AlgebraistRuntimeSupport(
             translation=self.translation,
             allocator=self.allocator,
-            layout=self.layout,
+            frame=self.frame,
             linear_combine=self.linear_combine,
             accelerator=self.accelerator,
         )

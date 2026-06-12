@@ -7,13 +7,13 @@ from typing import Generic, TypeVar, cast
 
 from stark.engines.accelerators.none import AcceleratorNone
 from stark.engines.algebraist.generator.compiler import AlgebraistGeneratorCompiler
-from stark.engines.algebraist.layout import (
-    AlgebraistLayout,
-    AlgebraistLayoutLooped,
-    AlgebraistLayoutNormMax,
-    AlgebraistLayoutNormRMS,
-    AlgebraistLayoutScalar,
-    AlgebraistLayoutUnravel,
+from stark.engines.algebraist.frame import (
+    AlgebraistFrame,
+    AlgebraistFrameLooped,
+    AlgebraistFrameNormMax,
+    AlgebraistFrameNormRMS,
+    AlgebraistFrameScalar,
+    AlgebraistFrameUnravel,
 )
 from stark.contracts.accelerator import Accelerator
 
@@ -22,30 +22,30 @@ TranslationType = TypeVar("TranslationType")
 
 @dataclass(frozen=True, slots=True)
 class AlgebraistGeneratorNorm(Generic[TranslationType]):
-    """Generated provider of layout-aware translation norm kernels."""
+    """Generated provider of frame-aware translation norm kernels."""
 
     translation: TranslationType
-    layout: AlgebraistLayout
+    frame: AlgebraistFrame
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
 
     def source_string(self, request: None = None) -> str:
         del request
         parameters = [
             field.translation_name
-            for field in self.layout.norm_fields
+            for field in self.frame.norm_fields
         ]
         lines = [f"def _kernel_flat({', '.join(parameters)}):", "    total = 0.0"]
 
-        for field in self.layout.norm_fields:
+        for field in self.frame.norm_fields:
             name = field.translation_name
             policy = field.policy
             norm = field.norm
-            if isinstance(policy, AlgebraistLayoutScalar):
-                if not isinstance(norm, (AlgebraistLayoutNormRMS, AlgebraistLayoutNormMax)):
+            if isinstance(policy, AlgebraistFrameScalar):
+                if not isinstance(norm, (AlgebraistFrameNormRMS, AlgebraistFrameNormMax)):
                     raise ValueError("Generated norm requires RMS or max norm fields.")
                 lines.append(f"    total += abs({name}) ** 2")
                 continue
-            if isinstance(policy, AlgebraistLayoutLooped):
+            if isinstance(policy, AlgebraistFrameLooped):
                 if policy.shape is None:
                     raise ValueError("Generated norm requires looped fields to declare shape.")
                 lines.extend(
@@ -56,7 +56,7 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
                     )
                 )
                 continue
-            if isinstance(policy, AlgebraistLayoutUnravel):
+            if isinstance(policy, AlgebraistFrameUnravel):
                 lines.extend(
                     self._unravelled_field_lines(
                         name=name,
@@ -74,7 +74,7 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
         lines.append("def kernel(translation):")
         arguments = [
             field.translation_expression("translation")
-            for field in self.layout.norm_fields
+            for field in self.frame.norm_fields
         ]
         lines.append(f"    return _kernel_flat({', '.join(arguments)})")
         return "\n".join(lines) + "\n"
@@ -96,9 +96,9 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
         norm: object,
     ) -> list[str]:
         index_names = tuple(f"i{index}" for index in range(len(shape)))
-        if isinstance(norm, AlgebraistLayoutNormRMS):
+        if isinstance(norm, AlgebraistFrameNormRMS):
             lines = ["    subtotal = 0.0"]
-        elif isinstance(norm, AlgebraistLayoutNormMax):
+        elif isinstance(norm, AlgebraistFrameNormMax):
             lines = ["    field_norm = 0.0"]
         else:
             raise ValueError("Generated norm requires RMS or max norm fields.")
@@ -107,7 +107,7 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
             lines.append(f"{indent}for {index_name} in range({bound}):")
         index = "".join(f"[{index_name}]" for index_name in index_names)
         assignment_indent = "    " * (len(shape) + 1)
-        if isinstance(norm, AlgebraistLayoutNormRMS):
+        if isinstance(norm, AlgebraistFrameNormRMS):
             lines.append(f"{assignment_indent}subtotal += abs({name}{index}) ** 2")
             lines.append(f"    total += subtotal / {float(prod(shape))!r}")
         else:
@@ -126,21 +126,21 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
     ) -> list[str]:
         from itertools import product
 
-        if isinstance(norm, AlgebraistLayoutNormRMS):
+        if isinstance(norm, AlgebraistFrameNormRMS):
             lines = ["    subtotal = 0.0"]
-        elif isinstance(norm, AlgebraistLayoutNormMax):
+        elif isinstance(norm, AlgebraistFrameNormMax):
             lines = ["    field_norm = 0.0"]
         else:
             raise ValueError("Generated norm requires RMS or max norm fields.")
         for index_tuple in product(*(range(dimension) for dimension in shape)):
             index = "".join(f"[{index}]" for index in index_tuple)
-            if isinstance(norm, AlgebraistLayoutNormRMS):
+            if isinstance(norm, AlgebraistFrameNormRMS):
                 lines.append(f"    subtotal += abs({name}{index}) ** 2")
             else:
                 lines.append(f"    item_norm = abs({name}{index})")
                 lines.append("    if item_norm > field_norm:")
                 lines.append("        field_norm = item_norm")
-        if isinstance(norm, AlgebraistLayoutNormRMS):
+        if isinstance(norm, AlgebraistFrameNormRMS):
             lines.append(f"    total += subtotal / {float(prod(shape))!r}")
         else:
             lines.append("    total += field_norm ** 2")

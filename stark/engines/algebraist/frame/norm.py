@@ -4,15 +4,15 @@ from dataclasses import dataclass
 from typing import Protocol
 
 
-class AlgebraistLayoutNormPolicy(Protocol):
-    """Policy describing whether and how a layout field contributes to norms."""
+class AlgebraistFrameNormPolicy(Protocol):
+    """Policy describing whether and how a frame field contributes to norms."""
 
     @property
     def include(self) -> bool: ...
 
 
 @dataclass(frozen=True, slots=True)
-class AlgebraistLayoutNormRMS:
+class AlgebraistFrameNormRMS:
     """Use a root-mean-square field norm."""
 
     @property
@@ -21,7 +21,7 @@ class AlgebraistLayoutNormRMS:
 
 
 @dataclass(frozen=True, slots=True)
-class AlgebraistLayoutNormMax:
+class AlgebraistFrameNormMax:
     """Use a maximum absolute-entry field norm."""
 
     @property
@@ -30,8 +30,8 @@ class AlgebraistLayoutNormMax:
 
 
 @dataclass(frozen=True, slots=True)
-class AlgebraistLayoutNormExcluded:
-    """Exclude this field from layout-aware norms."""
+class AlgebraistFrameNormExcluded:
+    """Exclude this field from frame-aware norms."""
 
     @property
     def include(self) -> bool:
@@ -39,8 +39,8 @@ class AlgebraistLayoutNormExcluded:
 
 
 __all__ = [
-    "AlgebraistLayoutNormExcluded",
-    "AlgebraistLayoutNormMax",
-    "AlgebraistLayoutNormPolicy",
-    "AlgebraistLayoutNormRMS",
+    "AlgebraistFrameNormExcluded",
+    "AlgebraistFrameNormMax",
+    "AlgebraistFrameNormPolicy",
+    "AlgebraistFrameNormRMS",
 ]

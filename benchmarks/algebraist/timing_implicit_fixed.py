@@ -14,11 +14,11 @@ from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolera
 from stark.engines.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.engines.algebraist.arity import AlgebraistArity
 from stark.engines.algebraist.generator import AlgebraistGeneratorLinearCombine, AlgebraistGeneratorSpecialist
-from stark.engines.algebraist.layout import (
-    AlgebraistLayout,
-    AlgebraistLayoutBroadcast,
-    AlgebraistLayoutField,
-    AlgebraistLayoutLooped,
+from stark.engines.algebraist.frame import (
+    AlgebraistFrame,
+    AlgebraistFrameBroadcast,
+    AlgebraistFrameField,
+    AlgebraistFrameLooped,
 )
 from stark.methods.resolvents import ResolventCoupledPicard, ResolventPicard
 from stark.methods.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
@@ -111,13 +111,13 @@ class ArrayAlgebraist:
 
 def make_algebraist(policy, allocator: ArrayAllocator, accelerator=None) -> ArrayAlgebraist:
     active_accelerator = accelerator if accelerator is not None else AcceleratorNone()
-    layout = AlgebraistLayout(
-        fields=(AlgebraistLayoutField("value", "value", policy=policy),),
+    frame = AlgebraistFrame(
+        fields=(AlgebraistFrameField("value", "value", policy=policy),),
     )
     general = AlgebraistGeneratorLinearCombine(
         translation=allocator.allocate_translation(),
         allocator=allocator,
-        layout=layout,
+        frame=frame,
         accelerator=active_accelerator,
     )
     linear_combine = tuple(general.provide(AlgebraistArity(arity)) for arity in range(1, 13))
@@ -125,7 +125,7 @@ def make_algebraist(policy, allocator: ArrayAllocator, accelerator=None) -> Arra
     specialist = AlgebraistGeneratorSpecialist(
         translation=allocator.allocate_translation(),
         allocator=allocator,
-        layout=layout,
+        frame=frame,
         accelerator=active_accelerator,
     )
     return ArrayAlgebraist(linear_combine=linear_combine, specialist=specialist)
@@ -321,7 +321,7 @@ def build_results(
             count=count,
             steps=steps,
             step=step,
-            policy=AlgebraistLayoutBroadcast(),
+            policy=AlgebraistFrameBroadcast(),
         )
         results.append(
             time_case(
@@ -341,7 +341,7 @@ def build_results(
                 count=count,
                 steps=steps,
                 step=step,
-                policy=AlgebraistLayoutLooped(rank=1),
+                policy=AlgebraistFrameLooped(rank=1),
                 accelerator=numba,
             )
             results.append(

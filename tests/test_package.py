@@ -12,8 +12,8 @@ from stark import (
     Derivative,
     DerivativeSignature,
     DerivativeStyle,
-    Layout,
-    LayoutField,
+    Frame,
+    FrameField,
     Method,
     System,
     Tolerance,
@@ -91,8 +91,8 @@ def test_package_imports() -> None:
     assert Derivative is not None
     assert DerivativeSignature is not None
     assert DerivativeStyle is not None
-    assert Layout is not None
-    assert LayoutField is not None
+    assert Frame is not None
+    assert FrameField is not None
     assert Method is not None
     assert System is not None
     assert not hasattr(stark, "EngineNumpy")
@@ -120,8 +120,8 @@ def test_algebraist_package_imports() -> None:
     assert algebraist.AlgebraistRuntimeSpecialist is not None
     assert algebraist.AlgebraistGeneratorLinearCombine is not None
     assert algebraist.AlgebraistGeneratorSpecialist is not None
-    assert algebraist.AlgebraistLayoutField is not None
-    assert algebraist.AlgebraistLayoutLooped is not None
+    assert algebraist.AlgebraistFrameField is not None
+    assert algebraist.AlgebraistFrameLooped is not None
 
 
 def test_Configuration_module_imports() -> None:

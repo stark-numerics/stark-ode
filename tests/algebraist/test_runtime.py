@@ -5,11 +5,11 @@ from dataclasses import dataclass
 import pytest
 
 from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.layout import (
-    AlgebraistLayout,
-    AlgebraistLayoutField,
-    AlgebraistLayoutNormExcluded,
-    AlgebraistLayoutScalar,
+from stark.engines.algebraist.frame import (
+    AlgebraistFrame,
+    AlgebraistFrameField,
+    AlgebraistFrameNormExcluded,
+    AlgebraistFrameScalar,
 )
 from stark.engines.algebraist.runtime import (
     AlgebraistRuntimeLinearCombine,
@@ -208,18 +208,18 @@ def test_runtime_specialist_binds_empty_stencil_as_zero_delta() -> None:
 
 def test_runtime_norm_uses_layout_norm_fields() -> None:
     norm = AlgebraistRuntimeNorm(
-        layout=AlgebraistLayout(
+        frame=AlgebraistFrame(
             (
-                AlgebraistLayoutField(
+                AlgebraistFrameField(
                     translation_path="value",
                     state_path="value",
-                    policy=AlgebraistLayoutScalar(),
+                    policy=AlgebraistFrameScalar(),
                 ),
-                AlgebraistLayoutField(
+                AlgebraistFrameField(
                     translation_path="ignored",
                     state_path="ignored",
-                    policy=AlgebraistLayoutScalar(),
-                    norm=AlgebraistLayoutNormExcluded(),
+                    policy=AlgebraistFrameScalar(),
+                    norm=AlgebraistFrameNormExcluded(),
                 ),
             )
         ),

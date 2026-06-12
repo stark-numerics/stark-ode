@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from math import sqrt
 from typing import Any
 
-from stark.engines.algebraist.layout import AlgebraistLayout
+from stark.engines.algebraist.frame import AlgebraistFrame
 from stark.engines.carriers.cupy import CarrierCupy
 
 
@@ -12,7 +12,7 @@ from stark.engines.carriers.cupy import CarrierCupy
 class EngineTranslationCupy:
     """Structured CuPy translation using in-place field carrier arithmetic."""
 
-    algebraist_layout: AlgebraistLayout = field(repr=False)
+    algebraist_frame: AlgebraistFrame = field(repr=False)
     carriers: tuple[CarrierCupy, ...] = field(repr=False)
     allocator: Any = field(repr=False)
     norm_kernel: Any = field(default=None, repr=False)
@@ -22,7 +22,7 @@ class EngineTranslationCupy:
         return ()
 
     def __call__(self, origin: object, result: object) -> None:
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             carrier.arithmetic.translate(
                 field.state_path.get(origin),
                 1.0,
@@ -35,7 +35,7 @@ class EngineTranslationCupy:
             raise ValueError("Cannot add translations allocated by different engines.")
 
         result = self.allocator.allocate_translation()
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             carrier.arithmetic.add(
                 field.translation_path.get(self),
                 field.translation_path.get(other),
@@ -45,7 +45,7 @@ class EngineTranslationCupy:
 
     def __rmul__(self, scalar: float) -> EngineTranslationCupy:
         result = self.allocator.allocate_translation()
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             carrier.arithmetic.scale(
                 scalar,
                 field.translation_path.get(self),
@@ -61,7 +61,7 @@ class EngineTranslationCupy:
             return float(self.norm_kernel(self))
 
         total = 0.0
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             if not field.norm.include:
                 continue
             field_norm = carrier.norm(field.translation_path.get(self))

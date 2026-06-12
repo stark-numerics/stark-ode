@@ -7,13 +7,13 @@ from typing import Generic, TypeVar, cast
 
 from stark.engines.accelerators.none import AcceleratorNone
 from stark.engines.algebraist.generator.compiler import AlgebraistGeneratorCompiler
-from stark.engines.algebraist.layout import (
-    AlgebraistLayout,
-    AlgebraistLayoutLooped,
-    AlgebraistLayoutNormMax,
-    AlgebraistLayoutNormRMS,
-    AlgebraistLayoutScalar,
-    AlgebraistLayoutUnravel,
+from stark.engines.algebraist.frame import (
+    AlgebraistFrame,
+    AlgebraistFrameLooped,
+    AlgebraistFrameNormMax,
+    AlgebraistFrameNormRMS,
+    AlgebraistFrameScalar,
+    AlgebraistFrameUnravel,
 )
 from stark.contracts.accelerator import Accelerator
 
@@ -22,31 +22,31 @@ TranslationType = TypeVar("TranslationType")
 
 @dataclass(frozen=True, slots=True)
 class AlgebraistGeneratorInnerProduct(Generic[TranslationType]):
-    """Generated provider of layout-aware translation inner products."""
+    """Generated provider of frame-aware translation inner products."""
 
     translation: TranslationType
-    layout: AlgebraistLayout
+    frame: AlgebraistFrame
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
 
     def source_string(self, request: None = None) -> str:
         del request
         parameters = []
-        for field in self.layout.norm_fields:
+        for field in self.frame.norm_fields:
             parameters.append(f"left_{field.translation_name}")
             parameters.append(f"right_{field.translation_name}")
         lines = [f"def _kernel_flat({', '.join(parameters)}):", "    total = 0.0"]
 
-        for field in self.layout.norm_fields:
+        for field in self.frame.norm_fields:
             left_name = f"left_{field.translation_name}"
             right_name = f"right_{field.translation_name}"
             policy = field.policy
             norm = field.norm
-            if isinstance(policy, AlgebraistLayoutScalar):
-                if not isinstance(norm, (AlgebraistLayoutNormRMS, AlgebraistLayoutNormMax)):
+            if isinstance(policy, AlgebraistFrameScalar):
+                if not isinstance(norm, (AlgebraistFrameNormRMS, AlgebraistFrameNormMax)):
                     raise ValueError("Generated inner product requires RMS or max norm fields.")
                 lines.append(f"    total += {left_name} * {right_name}")
                 continue
-            if isinstance(policy, AlgebraistLayoutLooped):
+            if isinstance(policy, AlgebraistFrameLooped):
                 if policy.shape is None:
                     raise ValueError("Generated inner product requires looped fields to declare shape.")
                 lines.extend(
@@ -58,7 +58,7 @@ class AlgebraistGeneratorInnerProduct(Generic[TranslationType]):
                     )
                 )
                 continue
-            if isinstance(policy, AlgebraistLayoutUnravel):
+            if isinstance(policy, AlgebraistFrameUnravel):
                 lines.extend(
                     self._unravelled_field_lines(
                         left_name=left_name,
@@ -76,7 +76,7 @@ class AlgebraistGeneratorInnerProduct(Generic[TranslationType]):
         lines.append("")
         lines.append("def kernel(left, right):")
         arguments = []
-        for field in self.layout.norm_fields:
+        for field in self.frame.norm_fields:
             arguments.append(field.translation_expression("left"))
             arguments.append(field.translation_expression("right"))
         lines.append(f"    return _kernel_flat({', '.join(arguments)})")
@@ -101,9 +101,9 @@ class AlgebraistGeneratorInnerProduct(Generic[TranslationType]):
     ) -> list[str]:
         index_names = tuple(f"i{index}" for index in range(len(shape)))
         lines = []
-        if isinstance(norm, AlgebraistLayoutNormRMS):
+        if isinstance(norm, AlgebraistFrameNormRMS):
             scale = float(prod(shape))
-        elif isinstance(norm, AlgebraistLayoutNormMax):
+        elif isinstance(norm, AlgebraistFrameNormMax):
             scale = 1.0
         else:
             raise ValueError("Generated inner product requires RMS or max norm fields.")
@@ -125,9 +125,9 @@ class AlgebraistGeneratorInnerProduct(Generic[TranslationType]):
     ) -> list[str]:
         from itertools import product
 
-        if isinstance(norm, AlgebraistLayoutNormRMS):
+        if isinstance(norm, AlgebraistFrameNormRMS):
             scale = float(prod(shape))
-        elif isinstance(norm, AlgebraistLayoutNormMax):
+        elif isinstance(norm, AlgebraistFrameNormMax):
             scale = 1.0
         else:
             raise ValueError("Generated inner product requires RMS or max norm fields.")

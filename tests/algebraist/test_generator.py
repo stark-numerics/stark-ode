@@ -10,14 +10,14 @@ from stark.engines.algebraist.generator import (
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
-from stark.engines.algebraist.layout import (
-    AlgebraistLayout,
-    AlgebraistLayoutField,
-    AlgebraistLayoutLooped,
-    AlgebraistLayoutNormExcluded,
-    AlgebraistLayoutNormMax,
-    AlgebraistLayoutScalar,
-    AlgebraistLayoutUnravel,
+from stark.engines.algebraist.frame import (
+    AlgebraistFrame,
+    AlgebraistFrameField,
+    AlgebraistFrameLooped,
+    AlgebraistFrameNormExcluded,
+    AlgebraistFrameNormMax,
+    AlgebraistFrameScalar,
+    AlgebraistFrameUnravel,
 )
 from stark.methods.schemes.specialization.stencil import SchemeStencil
 
@@ -39,18 +39,18 @@ class Allocator:
         return Translation(0.0, [0.0, 0.0])
 
 
-def layout() -> AlgebraistLayout:
-    return AlgebraistLayout(
+def frame() -> AlgebraistFrame:
+    return AlgebraistFrame(
         fields=(
-            AlgebraistLayoutField(
+            AlgebraistFrameField(
                 translation_path="dx",
                 state_path="x",
-                policy=AlgebraistLayoutScalar(),
+                policy=AlgebraistFrameScalar(),
             ),
-            AlgebraistLayoutField(
+            AlgebraistFrameField(
                 translation_path="values",
                 state_path="values",
-                policy=AlgebraistLayoutUnravel(shape=(2,)),
+                policy=AlgebraistFrameUnravel(shape=(2,)),
             ),
         )
     )
@@ -60,7 +60,7 @@ def test_generator_general_combines_scalar_and_unravel_fields():
     provider = AlgebraistGeneratorLinearCombine(
         translation=Translation(0.0, [0.0, 0.0]),
         allocator=Allocator(),
-        layout=layout(),
+        frame=frame(),
     )
     kernel = provider.provide(AlgebraistArity(2))
 
@@ -79,7 +79,7 @@ def test_generator_specialist_bakes_delta_coefficients():
     provider = AlgebraistGeneratorSpecialist(
         translation=Translation(0.0, [0.0, 0.0]),
         allocator=Allocator(),
-        layout=layout(),
+        frame=frame(),
     )
     stencil = SchemeStencil(scale=2.0, coefficients=(0.5, 0.25))
     source = provider.source_string(stencil)
@@ -103,7 +103,7 @@ def test_generator_specialist_applies_delta_to_origin():
     provider = AlgebraistGeneratorSpecialist(
         translation=Translation(0.0, [0.0, 0.0]),
         allocator=Allocator(),
-        layout=layout(),
+        frame=frame(),
     )
     stencil = SchemeStencil(scale=1.0, coefficients=(0.5, 0.25), apply=True)
     kernel = provider.provide(stencil)
@@ -124,12 +124,12 @@ def test_generator_looped_fields_match_vector_algebra():
     provider = AlgebraistGeneratorLinearCombine(
         translation=Translation(0.0, [0.0, 0.0, 0.0]),
         allocator=Allocator(),
-        layout=AlgebraistLayout(
+        frame=AlgebraistFrame(
             fields=(
-                AlgebraistLayoutField(
+                AlgebraistFrameField(
                     translation_path="values",
                     state_path="values",
-                    policy=AlgebraistLayoutLooped(shape=(3,)),
+                    policy=AlgebraistFrameLooped(shape=(3,)),
                 ),
             )
         ),
@@ -150,12 +150,12 @@ def test_generator_specialist_looped_update_matches_tableau_algebra():
     provider = AlgebraistGeneratorSpecialist(
         translation=Translation(0.0, [0.0, 0.0, 0.0]),
         allocator=Allocator(),
-        layout=AlgebraistLayout(
+        frame=AlgebraistFrame(
             fields=(
-                AlgebraistLayoutField(
+                AlgebraistFrameField(
                     translation_path="values",
                     state_path="values",
-                    policy=AlgebraistLayoutLooped(shape=(3,)),
+                    policy=AlgebraistFrameLooped(shape=(3,)),
                 ),
             )
         ),
@@ -179,12 +179,12 @@ def test_generator_unit_apply_omits_runtime_step_and_unit_multiply():
     provider = AlgebraistGeneratorSpecialist(
         translation=Translation(0.0, [0.0, 0.0, 0.0]),
         allocator=Allocator(),
-        layout=AlgebraistLayout(
+        frame=AlgebraistFrame(
             fields=(
-                AlgebraistLayoutField(
+                AlgebraistFrameField(
                     translation_path="values",
                     state_path="values",
-                    policy=AlgebraistLayoutLooped(shape=(3,)),
+                    policy=AlgebraistFrameLooped(shape=(3,)),
                 ),
             )
         ),
@@ -201,12 +201,12 @@ def test_generator_unit_apply_matches_translation_call_algebra():
     provider = AlgebraistGeneratorSpecialist(
         translation=Translation(0.0, [0.0, 0.0, 0.0]),
         allocator=Allocator(),
-        layout=AlgebraistLayout(
+        frame=AlgebraistFrame(
             fields=(
-                AlgebraistLayoutField(
+                AlgebraistFrameField(
                     translation_path="values",
                     state_path="values",
-                    policy=AlgebraistLayoutLooped(shape=(3,)),
+                    policy=AlgebraistFrameLooped(shape=(3,)),
                 ),
             )
         ),
@@ -226,18 +226,18 @@ def test_generator_unit_apply_matches_translation_call_algebra():
 def test_generator_norm_uses_included_looped_fields():
     provider = AlgebraistGeneratorNorm(
         translation=Translation(0.0, [0.0, 0.0, 0.0]),
-        layout=AlgebraistLayout(
+        frame=AlgebraistFrame(
             fields=(
-                AlgebraistLayoutField(
+                AlgebraistFrameField(
                     translation_path="values",
                     state_path="values",
-                    policy=AlgebraistLayoutLooped(shape=(3,)),
+                    policy=AlgebraistFrameLooped(shape=(3,)),
                 ),
-                AlgebraistLayoutField(
+                AlgebraistFrameField(
                     translation_path="dx",
                     state_path="x",
-                    policy=AlgebraistLayoutScalar(),
-                    norm=AlgebraistLayoutNormExcluded(),
+                    policy=AlgebraistFrameScalar(),
+                    norm=AlgebraistFrameNormExcluded(),
                 ),
             )
         ),
@@ -258,13 +258,13 @@ def test_generator_norm_uses_included_looped_fields():
 def test_generator_norm_uses_field_max_policy():
     provider = AlgebraistGeneratorNorm(
         translation=Translation(0.0, [0.0, 0.0, 0.0]),
-        layout=AlgebraistLayout(
+        frame=AlgebraistFrame(
             fields=(
-                AlgebraistLayoutField(
+                AlgebraistFrameField(
                     translation_path="values",
                     state_path="values",
-                    policy=AlgebraistLayoutLooped(shape=(3,)),
-                    norm=AlgebraistLayoutNormMax(),
+                    policy=AlgebraistFrameLooped(shape=(3,)),
+                    norm=AlgebraistFrameNormMax(),
                 ),
             )
         ),
@@ -279,5 +279,5 @@ def test_generator_norm_uses_field_max_policy():
 
 
 def test_unravel_rejects_large_shapes():
-    with pytest.raises(ValueError, match="use AlgebraistLayoutLooped"):
-        AlgebraistLayoutUnravel(shape=(17,))
+    with pytest.raises(ValueError, match="use AlgebraistFrameLooped"):
+        AlgebraistFrameUnravel(shape=(17,))

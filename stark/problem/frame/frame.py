@@ -1,0 +1,151 @@
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
+from typing import Any
+
+from stark.engines.algebraist.frame import (
+    AlgebraistFrame,
+    AlgebraistFrameBroadcast,
+    AlgebraistFrameField,
+    AlgebraistFrameLooped,
+    AlgebraistFrameNormPolicy,
+    AlgebraistFramePolicy,
+    AlgebraistFrameScalar,
+    AlgebraistFrameUnravel,
+)
+from stark.engines.algebraist.frame.path import AlgebraistFramePathLike
+from stark.problem.frame.norm import FrameNormPolicy, FrameNormRMS
+
+
+@dataclass(frozen=True, slots=True)
+class FrameField:
+    """One user-facing state field in a STARK frame."""
+
+    state: AlgebraistFramePathLike
+    translation: AlgebraistFramePathLike | None = None
+    shape: tuple[int, ...] | list[int] | None = None
+    norm: FrameNormPolicy | AlgebraistFrameNormPolicy = field(
+        default_factory=FrameNormRMS
+    )
+
+    def __post_init__(self) -> None:
+        if self.translation is None:
+            object.__setattr__(self, "translation", self.state)
+
+    def to_algebraist_field(self) -> AlgebraistFrameField:
+        translation = self.translation
+        if translation is None:
+            translation = self.state
+        return AlgebraistFrameField(
+            translation,
+            self.state,
+            policy=self.algebraist_policy(),
+            norm=self.algebraist_norm(),
+        )
+
+    def algebraist_norm(self) -> AlgebraistFrameNormPolicy:
+        norm = self.norm
+        if hasattr(norm, "to_algebraist_norm"):
+            return norm.to_algebraist_norm()
+        return norm
+
+    def algebraist_policy(self) -> AlgebraistFramePolicy:
+        if self.shape is not None:
+            return AlgebraistFrameLooped(shape=self.shape)
+        return AlgebraistFrameBroadcast()
+
+
+@dataclass(frozen=True, slots=True)
+class Frame:
+    """
+    User-facing declaration of structured state and translation fields.
+
+    A frame tells an engine which state paths exist, which translation paths
+    hold their updates, what shape each field has, and how each field contributes
+    to norms. It accepts explicit `FrameField` objects, simple path names,
+    or a mapping such as `{"y": {"translation": "dy", "shape": (2,)}}`.
+    """
+
+    fields: tuple[FrameField, ...]
+
+    def __init__(
+        self,
+        fields: FrameField
+        | AlgebraistFramePathLike
+        | Mapping[AlgebraistFramePathLike, Any]
+        | Iterable[FrameField | AlgebraistFramePathLike | Mapping[str, Any]],
+    ) -> None:
+        if isinstance(fields, Mapping):
+            normalized = tuple(
+                self._field_from_mapping_item(state, spec)
+                for state, spec in fields.items()
+            )
+        elif isinstance(fields, FrameField) or isinstance(fields, str):
+            normalized = (self._coerce_field(fields),)
+        else:
+            normalized = tuple(self._coerce_field(field) for field in fields)
+        if not normalized:
+            raise ValueError("Frame requires at least one field.")
+
+        object.__setattr__(self, "fields", normalized)
+        self.to_algebraist_frame()
+
+    @staticmethod
+    def _coerce_field(
+        field: FrameField | AlgebraistFramePathLike | Mapping[str, Any],
+    ) -> FrameField:
+        if isinstance(field, FrameField):
+            return field
+        if isinstance(field, Mapping):
+            return Frame._field_from_spec(field)
+        return FrameField(field)
+
+    @staticmethod
+    def _field_from_spec(spec: Mapping[str, Any]) -> FrameField:
+        if "state" not in spec:
+            raise ValueError("Frame field mappings require a 'state' entry.")
+        kwargs = Frame._field_kwargs(spec)
+        return FrameField(spec["state"], **kwargs)
+
+    @staticmethod
+    def _field_from_mapping_item(
+        state: AlgebraistFramePathLike,
+        spec: Any,
+    ) -> FrameField:
+        if spec is None:
+            return FrameField(state)
+        if not isinstance(spec, Mapping):
+            raise TypeError(
+                "Frame mapping values must be field option mappings or None."
+            )
+        kwargs = Frame._field_kwargs(spec)
+        return FrameField(state, **kwargs)
+
+    @staticmethod
+    def _field_kwargs(spec: Mapping[str, Any]) -> dict[str, Any]:
+        allowed = {"state", "translation", "shape", "norm"}
+        unsupported = tuple(name for name in spec if name not in allowed)
+        if unsupported:
+            names = ", ".join(str(name) for name in unsupported)
+            raise ValueError(f"Unsupported Frame field option(s): {names}.")
+        return {
+            name: spec[name]
+            for name in ("translation", "shape", "norm")
+            if name in spec
+        }
+
+    def __iter__(self):
+        return iter(self.fields)
+
+    def __len__(self) -> int:
+        return len(self.fields)
+
+    def to_algebraist_frame(self) -> AlgebraistFrame:
+        return AlgebraistFrame(field.to_algebraist_field() for field in self.fields)
+
+
+__all__ = [
+    "Frame",
+    "FrameField",
+]

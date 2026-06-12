@@ -10,12 +10,12 @@ from stark.contracts.engine import Engine
 from stark.core.configuration import Configuration
 from stark.integrator.integrator import Checkpoints, Integrator
 from stark.integrator.stepper import IntegratorStepper
-from stark.interface.derivative import Derivative, DerivativeSignature
-from stark.interface.layout import Layout
+from stark.problem.derivative.derivative import Derivative, DerivativeSignature
+from stark.problem.frame.frame import Frame
 from stark.methods.method import Method, MethodError
 
 
-EngineFactory = Callable[[Layout], Engine]
+EngineFactory = Callable[[Frame], Engine]
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,9 +181,9 @@ class SystemIVP:
 @dataclass(frozen=True, slots=True)
 class System:
     """
-    User-facing declaration of an ODE system over a `Layout`.
+    User-facing declaration of an ODE system over a `Frame`.
 
-    A system combines the derivative with the layout that names the state
+    A system combines the derivative with the frame that names the state
     fields, translation fields, shapes, and norm policy. Calling `ivp(...)`
     supplies the remaining runtime choices: initial values, an interval, a
     `Method`, an engine class or factory, and optional configuration. The
@@ -196,7 +196,7 @@ class System:
     """
 
     derivative: object
-    layout: Layout
+    frame: Frame
     linearizer: object | None = None
     inner_product: object | None = None
 
@@ -212,10 +212,10 @@ class System:
         """
         Build a reusable IVP from this system and a concrete runtime recipe.
 
-        `initial` supplies values matching the system layout. The engine
-        factory receives the layout and returns the backend bundle used by the
+        `initial` supplies values matching the system frame. The engine
+        factory receives the frame and returns the backend bundle used by the
         scheme stack: allocator, carrier support, accelerator, algebraist
-        layout, and algebraist kernels. `method` names the scheme and any
+        frame, and algebraist kernels. `method` names the scheme and any
         resolvent/inverter components needed by that scheme.
 
         The returned `SystemIVP` keeps the prepared objects together. It
@@ -225,7 +225,7 @@ class System:
         """
 
         configuration = configuration if configuration is not None else Configuration()
-        prepared_engine = engine(self.layout)
+        prepared_engine = engine(self.frame)
         prepared_initial = self.prepare_initial(initial, prepared_engine)
         prepared_derivative = self.prepare_derivative(prepared_engine)
         scheme = self.prepare_scheme(method, prepared_engine, prepared_derivative, configuration)
@@ -246,7 +246,7 @@ class System:
 
     def prepare_initial(self, initial: object, engine: Engine) -> object:
         state = engine.allocator.allocate_state()
-        for field, carrier in zip(engine.algebraist_layout.fields, engine.carriers, strict=True):
+        for field, carrier in zip(engine.algebraist_frame.fields, engine.carriers, strict=True):
             value = self.initial_value(initial, field.state_path)
             validated = carrier.validation.validate_state(value)
             field.state_path.set(state, carrier.allocation.copy_state(validated))

@@ -4,7 +4,7 @@ from __future__ import annotations
 #
 # This script is the foundation for the Allen-Cahn example series. The problem
 # state is a NumPy array, so the modern STARK entry point is the interface layer:
-# `System` prepares the matching layout-backed state, allocator,
+# `System` prepares the matching frame-backed state, allocator,
 # derivative adapter, and carrier routing for us.
 #
 # We solve the one-dimensional periodic Allen-Cahn equation
@@ -41,7 +41,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from stark import Configuration, Interval, Layout, Method, System, Tolerance
+from stark import Configuration, Interval, Frame, Method, System, Tolerance
 from stark.engines.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.engines import EngineNumpy
 from stark.methods.schemes import SchemeCashKarp
@@ -132,7 +132,7 @@ def profile_diagnostics(profile: np.ndarray) -> dict[str, float]:
 
 def state_difference(left, right) -> float:
     # ComparisonRunner examples work with final STARK states, so the difference
-    # function receives layout-backed objects and looks at their `u` fields.
+    # function receives frame-backed objects and looks at their `u` fields.
     diff = left.u - right.u
     return float((diff @ diff / diff.size) ** 0.5)
 
@@ -142,7 +142,7 @@ def state_diagnostics(state) -> dict[str, float]:
 
 
 # The derivative kernel works on raw NumPy arrays. `make_derivative(...)` adapts
-# it to the layout-backed objects that `System` gives to schemes.
+# it to the frame-backed objects that `System` gives to schemes.
 
 
 class AllenCahnRHS:
@@ -206,14 +206,14 @@ def make_derivative(geometry: Geometry, diffusivity: float = DIFFUSIVITY):
     return derivative
 
 
-def make_layout(geometry: Geometry) -> Layout:
-    return Layout({"u": {"translation": "du", "shape": (geometry.grid_size,)}})
+def make_layout(geometry: Geometry) -> Frame:
+    return Frame({"u": {"translation": "du", "shape": (geometry.grid_size,)}})
 
 
 def make_system(geometry: Geometry, diffusivity: float = DIFFUSIVITY) -> System:
     return System(
         derivative=make_derivative(geometry, diffusivity),
-        layout=make_layout(geometry),
+        frame=make_layout(geometry),
     )
 
 
@@ -256,7 +256,7 @@ if __name__ == "__main__":
     plt.close(fig)
     print(f"Saved {initial_plot_path}")
 
-    # `System` is the high-level path for shaped NumPy states. The layout
+    # `System` is the high-level path for shaped NumPy states. The frame
     # names the state field `u` and its matching translation `du`; the engine
     # owns the carrier, allocator, and generated algebra.
 

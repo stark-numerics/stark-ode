@@ -3,7 +3,7 @@
 Translation objects carry the linear update structure used by schemes,
 resolvents, and inverters. They are separate from user state objects so STARK
 can build weighted update combinations without needing to understand the
-concrete state layout.
+concrete state frame.
 """
 
 from __future__ import annotations

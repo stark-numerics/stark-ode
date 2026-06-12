@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Configuration, Interval, Layout, Method, System
+from stark import Configuration, Interval, Frame, Method, System
 from stark.engines import EngineNumpy
 from stark.methods.schemes import SchemeCashKarp
 
@@ -17,7 +17,7 @@ def harmonic_oscillator(t, state, out):
 
 system = System(
     derivative=harmonic_oscillator,
-    layout=Layout({"y": {"translation": "dy", "shape": (2,)}}),
+    frame=Frame({"y": {"translation": "dy", "shape": (2,)}}),
 )
 ivp = system.ivp(
     initial={"y": np.array([1.0, 0.0])},

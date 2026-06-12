@@ -7,13 +7,13 @@ from typing import Literal
 from stark.engines.algebraist.arity import AlgebraistArity
 from stark.engines.algebraist.stencil import AlgebraistStencil
 from stark.engines.algebraist.generator.expression import AlgebraistGeneratorEmitterExpression
-from stark.engines.algebraist.layout import (
-    AlgebraistLayout,
-    AlgebraistLayoutBroadcast,
-    AlgebraistLayoutField,
-    AlgebraistLayoutLooped,
-    AlgebraistLayoutScalar,
-    AlgebraistLayoutUnravel,
+from stark.engines.algebraist.frame import (
+    AlgebraistFrame,
+    AlgebraistFrameBroadcast,
+    AlgebraistFrameField,
+    AlgebraistFrameLooped,
+    AlgebraistFrameScalar,
+    AlgebraistFrameUnravel,
 )
 
 Kind = Literal["general", "delta", "update"]
@@ -23,7 +23,7 @@ Kind = Literal["general", "delta", "update"]
 class AlgebraistGeneratorEmitter:
     """Emit complete source strings for generated Algebraist kernels."""
 
-    layout: AlgebraistLayout
+    frame: AlgebraistFrame
 
     def general(self, request: AlgebraistArity) -> str:
         arity = request.value
@@ -68,8 +68,8 @@ class AlgebraistGeneratorEmitter:
         if hoist_lines:
             flat_lines.extend(hoist_lines)
 
-        scalar_fields: list[AlgebraistLayoutField] = []
-        for layout_field in self.layout.fields:
+        scalar_fields: list[AlgebraistFrameField] = []
+        for layout_field in self.frame.fields:
             field_lines, is_scalar = self._field_lines(
                 kind=kind,
                 field=layout_field,
@@ -101,8 +101,8 @@ class AlgebraistGeneratorEmitter:
         flat_parameters = self._flat_parameters_unit_apply(source_count=source_count)
         flat_lines: list[str] = [f"def _kernel_flat({', '.join(flat_parameters)}):"]
 
-        scalar_fields: list[AlgebraistLayoutField] = []
-        for layout_field in self.layout.fields:
+        scalar_fields: list[AlgebraistFrameField] = []
+        for layout_field in self.frame.fields:
             field_lines, is_scalar = self._field_lines(
                 kind="update",
                 field=layout_field,
@@ -136,20 +136,20 @@ class AlgebraistGeneratorEmitter:
         else:
             parameters.extend(f"a{index}" for index in range(source_count))
 
-        for field in self.layout.fields:
+        for field in self.frame.fields:
             if kind == "update":
                 parameters.append(self._origin_name(field))
             parameters.extend(f"x{index}_{field.translation_name}" for index in range(source_count))
-            if not isinstance(field.policy, AlgebraistLayoutScalar):
+            if not isinstance(field.policy, AlgebraistFrameScalar):
                 parameters.append(self._target_name(kind, field))
         return parameters
 
     def _flat_parameters_unit_apply(self, *, source_count: int) -> list[str]:
         parameters: list[str] = []
-        for field in self.layout.fields:
+        for field in self.frame.fields:
             parameters.append(self._origin_name(field))
             parameters.extend(f"x{index}_{field.translation_name}" for index in range(source_count))
-            if not isinstance(field.policy, AlgebraistLayoutScalar):
+            if not isinstance(field.policy, AlgebraistFrameScalar):
                 parameters.append(self._target_name("update", field))
         return parameters
 
@@ -158,7 +158,7 @@ class AlgebraistGeneratorEmitter:
         *,
         kind: Kind,
         source_count: int,
-        scalar_fields: tuple[AlgebraistLayoutField, ...],
+        scalar_fields: tuple[AlgebraistFrameField, ...],
     ) -> list[str]:
         if kind == "general":
             signature = self._general_wrapper_signature(source_count)
@@ -193,7 +193,7 @@ class AlgebraistGeneratorEmitter:
         self,
         *,
         source_count: int,
-        scalar_fields: tuple[AlgebraistLayoutField, ...],
+        scalar_fields: tuple[AlgebraistFrameField, ...],
     ) -> list[str]:
         lines = [f"def kernel({self._update_wrapper_signature_unit_apply(source_count)}):"]
         flat_args = self._flat_arguments_unit_apply(source_count=source_count)
@@ -235,12 +235,12 @@ class AlgebraistGeneratorEmitter:
         else:
             arguments.extend(f"a{index}" for index in range(source_count))
 
-        for field in self.layout.fields:
+        for field in self.frame.fields:
             if kind == "update":
                 arguments.append(field.state_expression("origin"))
             for index in range(source_count):
                 arguments.append(field.translation_expression(f"x{index}"))
-            if not isinstance(field.policy, AlgebraistLayoutScalar):
+            if not isinstance(field.policy, AlgebraistFrameScalar):
                 target_root = "result" if kind == "update" else "out"
                 expression = (
                     field.state_expression(target_root)
@@ -252,11 +252,11 @@ class AlgebraistGeneratorEmitter:
 
     def _flat_arguments_unit_apply(self, *, source_count: int) -> list[str]:
         arguments: list[str] = []
-        for field in self.layout.fields:
+        for field in self.frame.fields:
             arguments.append(field.state_expression("origin"))
             for index in range(source_count):
                 arguments.append(field.translation_expression(f"x{index}"))
-            if not isinstance(field.policy, AlgebraistLayoutScalar):
+            if not isinstance(field.policy, AlgebraistFrameScalar):
                 arguments.append(field.state_expression("result"))
         return arguments
 
@@ -264,7 +264,7 @@ class AlgebraistGeneratorEmitter:
         self,
         *,
         kind: Kind,
-        field: AlgebraistLayoutField,
+        field: AlgebraistFrameField,
         source_count: int,
         coefficient_names: tuple[str, ...],
         fixed_coefficients: tuple[float, ...] | None,
@@ -290,30 +290,30 @@ class AlgebraistGeneratorEmitter:
             expression = f"{origin_name} + {expression}"
 
         policy = field.policy
-        if isinstance(policy, AlgebraistLayoutScalar):
+        if isinstance(policy, AlgebraistFrameScalar):
             return [f"    _scalar_{target_name} = {expression}"], True
-        if isinstance(policy, AlgebraistLayoutBroadcast):
+        if isinstance(policy, AlgebraistFrameBroadcast):
             return [f"    {target_name}[...] = {expression}"], False
-        if isinstance(policy, AlgebraistLayoutLooped):
+        if isinstance(policy, AlgebraistFrameLooped):
             return self._looped_lines(policy=policy, target=target_name, origin=origin_name, sources=source_names, coefficients=coefficient_names, fixed_coefficients=fixed_coefficients, inline_fixed_coefficients=inline_fixed_coefficients, kind=kind), False
-        if isinstance(policy, AlgebraistLayoutUnravel):
+        if isinstance(policy, AlgebraistFrameUnravel):
             return self._unravel_lines(policy=policy, target=target_name, origin=origin_name, sources=source_names, coefficients=coefficient_names, fixed_coefficients=fixed_coefficients, inline_fixed_coefficients=inline_fixed_coefficients, kind=kind), False
-        raise TypeError(f"Unsupported Algebraist layout policy: {policy!r}")
+        raise TypeError(f"Unsupported Algebraist frame policy: {policy!r}")
 
     @staticmethod
-    def _target_name(kind: Kind, field: AlgebraistLayoutField) -> str:
+    def _target_name(kind: Kind, field: AlgebraistFrameField) -> str:
         prefix = "result" if kind == "update" else "out"
         name = field.state_name if kind == "update" else field.translation_name
         return f"{prefix}_{name}"
 
     @staticmethod
-    def _origin_name(field: AlgebraistLayoutField) -> str:
+    def _origin_name(field: AlgebraistFrameField) -> str:
         return f"origin_{field.state_name}"
 
     def _looped_lines(
         self,
         *,
-        policy: AlgebraistLayoutLooped,
+        policy: AlgebraistFrameLooped,
         target: str,
         origin: str,
         sources: tuple[str, ...],
@@ -352,7 +352,7 @@ class AlgebraistGeneratorEmitter:
     def _unravel_lines(
         self,
         *,
-        policy: AlgebraistLayoutUnravel,
+        policy: AlgebraistFrameUnravel,
         target: str,
         origin: str,
         sources: tuple[str, ...],

@@ -11,7 +11,7 @@ object is the inverter, not a hand-written scalar state model.
 
 from __future__ import annotations
 
-from stark import Layout
+from stark import Frame
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
 from stark.engines import EngineNumpy
@@ -39,7 +39,7 @@ def scale_by_two(source, target) -> None:
 
 
 def main() -> None:
-    engine = EngineNumpy(Layout({"x": {"translation": "dx", "shape": (1,)}}))
+    engine = EngineNumpy(Frame({"x": {"translation": "dx", "shape": (1,)}}))
 
     residual = engine.allocator.allocate_translation()
     residual.dx[0] = 6.0

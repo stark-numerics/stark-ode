@@ -7,7 +7,7 @@ import numpy as np
 
 from stark.engines.algebraist.arity import AlgebraistArity
 from stark.engines.algebraist.generator import AlgebraistGeneratorLinearCombine
-from stark.engines.algebraist.layout import AlgebraistLayout, AlgebraistLayoutField, AlgebraistLayoutLooped
+from stark.engines.algebraist.frame import AlgebraistFrame, AlgebraistFrameField, AlgebraistFrameLooped
 
 
 FPUT_SIZES = (64, 512, 2048)
@@ -23,10 +23,10 @@ class FPUTParameters:
     amplitude: float = 0.1
 
 
-FPUT_ALGEBRAIST_LAYOUT = AlgebraistLayout(
+FPUT_ALGEBRAIST_LAYOUT = AlgebraistFrame(
     fields=(
-        AlgebraistLayoutField("dq", "q", policy=AlgebraistLayoutLooped(rank=1)),
-        AlgebraistLayoutField("dp", "p", policy=AlgebraistLayoutLooped(rank=1)),
+        AlgebraistFrameField("dq", "q", policy=AlgebraistFrameLooped(rank=1)),
+        AlgebraistFrameField("dp", "p", policy=AlgebraistFrameLooped(rank=1)),
     ),
 )
 
@@ -93,7 +93,7 @@ def _generated_fput_linear_combine(allocator: FPUTAllocator):
     provider = AlgebraistGeneratorLinearCombine(
         translation=allocator.allocate_translation(),
         allocator=allocator,
-        layout=FPUT_ALGEBRAIST_LAYOUT,
+        frame=FPUT_ALGEBRAIST_LAYOUT,
     )
     return tuple(provider.provide(AlgebraistArity(arity)) for arity in range(1, 13))
 

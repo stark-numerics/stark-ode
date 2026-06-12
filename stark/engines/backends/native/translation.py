@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from math import sqrt
 from typing import Any
 
-from stark.engines.algebraist.layout import AlgebraistLayout
+from stark.engines.algebraist.frame import AlgebraistFrame
 from stark.engines.carriers.native import CarrierNativeArray
 
 
@@ -12,7 +12,7 @@ from stark.engines.carriers.native import CarrierNativeArray
 class EngineTranslationNative:
     """Structured native translation using in-place array carrier arithmetic."""
 
-    algebraist_layout: AlgebraistLayout = field(repr=False)
+    algebraist_frame: AlgebraistFrame = field(repr=False)
     carriers: tuple[CarrierNativeArray, ...] = field(repr=False)
     allocator: Any = field(repr=False)
     apply_translation: Any = field(default=None, repr=False)
@@ -27,7 +27,7 @@ class EngineTranslationNative:
             self.apply_translation(origin, self, result)
             return
 
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             carrier.arithmetic.translate(
                 field.state_path.get(origin),
                 1.0,
@@ -40,7 +40,7 @@ class EngineTranslationNative:
             raise ValueError("Cannot add translations allocated by different engines.")
 
         result = self.allocator.allocate_translation()
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             carrier.arithmetic.add(
                 field.translation_path.get(self),
                 field.translation_path.get(other),
@@ -50,7 +50,7 @@ class EngineTranslationNative:
 
     def __rmul__(self, scalar: float) -> EngineTranslationNative:
         result = self.allocator.allocate_translation()
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             carrier.arithmetic.scale(
                 scalar,
                 field.translation_path.get(self),
@@ -66,7 +66,7 @@ class EngineTranslationNative:
             return float(self.norm_kernel(self))
 
         total = 0.0
-        for field, carrier in zip(self.algebraist_layout.fields, self.carriers, strict=True):
+        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             if not field.norm.include:
                 continue
             field_norm = carrier.norm(field.translation_path.get(self))

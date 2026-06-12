@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from stark import Layout, LayoutField
+from stark import Frame, FrameField
 from stark.engines.accelerators import AcceleratorNone
 from stark.engines.algebraist.generator import (
     AlgebraistGeneratorInnerProduct,
@@ -23,28 +23,28 @@ from stark.engines import EngineNative, EngineNumpy
 
 def test_stark_engine_numpy_exposes_backend_bundle() -> None:
     accelerator = AcceleratorNone()
-    layout = Layout(
+    frame = Frame(
         (
-            LayoutField("u", translation="du", shape=(2, 3)),
-            LayoutField("v", translation="dv", shape=(2, 3)),
+            FrameField("u", translation="du", shape=(2, 3)),
+            FrameField("v", translation="dv", shape=(2, 3)),
         )
     )
 
-    engine = EngineNumpy(layout, accelerator=accelerator)
+    engine = EngineNumpy(frame, accelerator=accelerator)
 
-    assert engine.layout is layout
+    assert engine.frame is frame
     assert engine.accelerator is accelerator
     assert len(engine.carriers) == 2
     assert all(isinstance(carrier, CarrierNumpy) for carrier in engine.carriers)
-    assert tuple(str(path) for path in engine.algebraist_layout.state_paths) == ("u", "v")
+    assert tuple(str(path) for path in engine.algebraist_frame.state_paths) == ("u", "v")
 
 
 def test_stark_engine_numpy_allocator_builds_owned_structures() -> None:
     engine = EngineNumpy(
-        Layout(
+        Frame(
             (
-                LayoutField("u", translation="du", shape=(2, 2)),
-                LayoutField("v", translation="dv", shape=(2, 2)),
+                FrameField("u", translation="du", shape=(2, 2)),
+                FrameField("v", translation="dv", shape=(2, 2)),
             )
         ),
         dtype=np.float32,
@@ -61,10 +61,10 @@ def test_stark_engine_numpy_allocator_builds_owned_structures() -> None:
 
 def test_stark_engine_numpy_translation_applies_fieldwise_delta() -> None:
     engine = EngineNumpy(
-        Layout(
+        Frame(
             (
-                LayoutField("u", translation="du", shape=(2,)),
-                LayoutField("v", translation="dv", shape=(2,)),
+                FrameField("u", translation="du", shape=(2,)),
+                FrameField("v", translation="dv", shape=(2,)),
             )
         )
     )
@@ -86,10 +86,10 @@ def test_stark_engine_numpy_translation_applies_fieldwise_delta() -> None:
 
 def test_stark_engine_numpy_exposes_algebraist_providers() -> None:
     engine = EngineNumpy(
-        Layout(
+        Frame(
             (
-                LayoutField("u", translation="du", shape=(2,)),
-                LayoutField("v", translation="dv", shape=(2,)),
+                FrameField("u", translation="du", shape=(2,)),
+                FrameField("v", translation="dv", shape=(2,)),
             )
         )
     )
@@ -102,10 +102,10 @@ def test_stark_engine_numpy_exposes_algebraist_providers() -> None:
 
 def test_stark_engine_numpy_exposes_layout_inner_product() -> None:
     engine = EngineNumpy(
-        Layout(
+        Frame(
             (
-                LayoutField("u", translation="du", shape=(2,)),
-                LayoutField("v", translation="dv", shape=(2,)),
+                FrameField("u", translation="du", shape=(2,)),
+                FrameField("v", translation="dv", shape=(2,)),
             )
         )
     )
@@ -122,10 +122,10 @@ def test_stark_engine_numpy_exposes_layout_inner_product() -> None:
 
 def test_stark_engine_native_uses_array_backed_fields() -> None:
     engine = EngineNative(
-        Layout(
+        Frame(
             (
-                LayoutField("u", translation="du", shape=(2,)),
-                LayoutField("v", translation="dv", shape=(2,)),
+                FrameField("u", translation="du", shape=(2,)),
+                FrameField("v", translation="dv", shape=(2,)),
             )
         )
     )
@@ -151,10 +151,10 @@ def test_stark_engine_native_uses_array_backed_fields() -> None:
 
 
 def test_stark_engine_native_rejects_multidimensional_shapes() -> None:
-    layout = Layout((LayoutField("u", translation="du", shape=(2, 2)),))
+    frame = Frame((FrameField("u", translation="du", shape=(2, 2)),))
 
     with pytest.raises(ValueError, match="one-dimensional"):
-        EngineNative(layout)
+        EngineNative(frame)
 
 
 def test_stark_engine_cupy_optional() -> None:
@@ -162,10 +162,10 @@ def test_stark_engine_cupy_optional() -> None:
     from stark.engines.backends.cupy import EngineCupy
 
     engine = EngineCupy(
-        Layout(
+        Frame(
             (
-                LayoutField("u", translation="du", shape=(2,)),
-                LayoutField("v", translation="dv", shape=(2,)),
+                FrameField("u", translation="du", shape=(2,)),
+                FrameField("v", translation="dv", shape=(2,)),
             )
         ),
         dtype=cp.float32,
@@ -196,10 +196,10 @@ def test_stark_engine_jax_optional() -> None:
     from stark.engines.backends.jax import EngineJax
 
     engine = EngineJax(
-        Layout(
+        Frame(
             (
-                LayoutField("u", translation="du", shape=(2,)),
-                LayoutField("v", translation="dv", shape=(2,)),
+                FrameField("u", translation="du", shape=(2,)),
+                FrameField("v", translation="dv", shape=(2,)),
             )
         ),
         dtype=jnp.float32,

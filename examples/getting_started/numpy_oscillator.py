@@ -8,7 +8,7 @@ from stark import (
     Configuration,
     Interval,
     DerivativeStyle,
-    Layout,
+    Frame,
     Method,
     System,
 )
@@ -22,10 +22,10 @@ def harmonic_oscillator(t: float, state, out) -> None:
     out.dy[1] = -state.y[0]
 
 
-layout = Layout({"y": {"translation": "dy", "shape": (2,)}})
+frame = Frame({"y": {"translation": "dy", "shape": (2,)}})
 system = System(
     derivative=DerivativeStyle.in_place(harmonic_oscillator),
-    layout=layout,
+    frame=frame,
 )
 ivp = system.ivp(
     initial={"y": np.array([1.0, 0.0])},

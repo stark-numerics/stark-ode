@@ -14,11 +14,11 @@ from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolera
 from stark.engines.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.engines.algebraist.arity import AlgebraistArity
 from stark.engines.algebraist.generator import AlgebraistGeneratorLinearCombine, AlgebraistGeneratorSpecialist
-from stark.engines.algebraist.layout import (
-    AlgebraistLayout,
-    AlgebraistLayoutBroadcast,
-    AlgebraistLayoutField,
-    AlgebraistLayoutLooped,
+from stark.engines.algebraist.frame import (
+    AlgebraistFrame,
+    AlgebraistFrameBroadcast,
+    AlgebraistFrameField,
+    AlgebraistFrameLooped,
 )
 from stark.methods.schemes.explicit.adaptive import SchemeCashKarp, SchemeDormandPrince
 from stark.methods.schemes.explicit.fixed import SchemeEuler, SchemeRK4
@@ -128,16 +128,16 @@ class PairAlgebraist:
 
 def make_algebraist(policy, allocator: PairAllocator, accelerator=None) -> PairAlgebraist:
     active_accelerator = accelerator if accelerator is not None else AcceleratorNone()
-    layout = AlgebraistLayout(
+    frame = AlgebraistFrame(
         fields=(
-            AlgebraistLayoutField("dq", "q", policy=policy),
-            AlgebraistLayoutField("dp", "p", policy=policy),
+            AlgebraistFrameField("dq", "q", policy=policy),
+            AlgebraistFrameField("dp", "p", policy=policy),
         ),
     )
     general = AlgebraistGeneratorLinearCombine(
         translation=allocator.allocate_translation(),
         allocator=allocator,
-        layout=layout,
+        frame=frame,
         accelerator=active_accelerator,
     )
     linear_combine = tuple(general.provide(AlgebraistArity(arity)) for arity in range(1, 13))
@@ -145,7 +145,7 @@ def make_algebraist(policy, allocator: PairAllocator, accelerator=None) -> PairA
     specialist = AlgebraistGeneratorSpecialist(
         translation=allocator.allocate_translation(),
         allocator=allocator,
-        layout=layout,
+        frame=frame,
         accelerator=active_accelerator,
     )
     return PairAlgebraist(linear_combine=linear_combine, specialist=specialist)
@@ -325,7 +325,7 @@ def build_results(
             count=count,
             steps=steps,
             step=step,
-            policy=AlgebraistLayoutBroadcast(),
+            policy=AlgebraistFrameBroadcast(),
         )
         results.append(
             time_case(
@@ -344,7 +344,7 @@ def build_results(
                 count=count,
                 steps=steps,
                 step=step,
-                policy=AlgebraistLayoutLooped(rank=1),
+                policy=AlgebraistFrameLooped(rank=1),
                 accelerator=numba,
             )
             results.append(

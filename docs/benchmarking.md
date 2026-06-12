@@ -99,7 +99,7 @@ Use stable, ordinary values. For example:
 If you change the machine name later, use ASV's `--machine` option to select
 the recorded machine explicitly.
 
-## Benchmark Layout
+## Benchmark Frame
 
 The ASV configuration is `asv.conf.json`.
 

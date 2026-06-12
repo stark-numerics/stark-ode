@@ -6,7 +6,7 @@ from dataclasses import dataclass, field, fields, is_dataclass
 from inspect import Parameter, signature
 from typing import Any, Protocol, overload, runtime_checkable
 
-from stark.engines.algebraist.layout.path import AlgebraistLayoutPath
+from stark.engines.algebraist.frame.path import AlgebraistFramePath
 from stark.contracts.accelerator import Accelerator
 from stark.contracts.derivative_imex import DerivativeIMEX
 
@@ -461,8 +461,8 @@ def assign_returned_translation(result: Any, out: Any) -> None:
     if result is None:
         raise TypeError("Return-style derivatives must return translation values.")
 
-    layout = getattr(out, "algebraist_layout", None)
-    fields_ = getattr(layout, "fields", None)
+    frame = getattr(out, "algebraist_frame", None)
+    fields_ = getattr(frame, "fields", None)
     if fields_ is not None:
         field_tuple = tuple(fields_)
         values = returned_values_for_layout(result, field_tuple)
@@ -479,7 +479,7 @@ def assign_returned_fields(result: Any, out: Any, paths: tuple[str, ...]) -> Non
     if result is None:
         raise TypeError("Return-style kernels must return translation values.")
 
-    normalized = tuple(AlgebraistLayoutPath(path) for path in paths)
+    normalized = tuple(AlgebraistFramePath(path) for path in paths)
     if isinstance(result, Mapping):
         values = [mapping_value(result, path, path) for path in normalized]
     elif len(normalized) == 1:
@@ -494,7 +494,7 @@ def assign_returned_fields(result: Any, out: Any, paths: tuple[str, ...]) -> Non
 
 
 def returned_values_for_layout(result: Any, fields_: tuple[Any, ...]) -> tuple[Any, ...]:
-    """Return translation values from a user result, aligned to layout fields."""
+    """Return translation values from a user result, aligned to frame fields."""
 
     if isinstance(result, Mapping):
         return tuple(
@@ -517,10 +517,10 @@ def returned_values_for_layout(result: Any, fields_: tuple[Any, ...]) -> tuple[A
 
 def mapping_value(
     result: Mapping[Any, Any],
-    translation_path: AlgebraistLayoutPath,
-    state_path: AlgebraistLayoutPath,
+    translation_path: AlgebraistFramePath,
+    state_path: AlgebraistFramePath,
 ) -> Any:
-    """Read one layout field from a mapping-style derivative return value."""
+    """Read one frame field from a mapping-style derivative return value."""
 
     for key in path_keys(translation_path, state_path):
         if key in result:
@@ -533,10 +533,10 @@ def mapping_value(
 
 def object_value(
     result: Any,
-    translation_path: AlgebraistLayoutPath,
-    state_path: AlgebraistLayoutPath,
+    translation_path: AlgebraistFramePath,
+    state_path: AlgebraistFramePath,
 ) -> Any:
-    """Read one layout field from an object-style derivative return value."""
+    """Read one frame field from an object-style derivative return value."""
 
     value = object_value_or_missing(result, translation_path, state_path)
     if value is _MISSING:
@@ -549,10 +549,10 @@ def object_value(
 
 def object_value_or_missing(
     result: Any,
-    translation_path: AlgebraistLayoutPath,
-    state_path: AlgebraistLayoutPath,
+    translation_path: AlgebraistFramePath,
+    state_path: AlgebraistFramePath,
 ) -> Any:
-    """Read one layout field from an object-style result if present."""
+    """Read one frame field from an object-style result if present."""
 
     for path in (translation_path, state_path):
         try:
@@ -563,10 +563,10 @@ def object_value_or_missing(
 
 
 def path_keys(
-    translation_path: AlgebraistLayoutPath,
-    state_path: AlgebraistLayoutPath,
+    translation_path: AlgebraistFramePath,
+    state_path: AlgebraistFramePath,
 ) -> tuple[Any, ...]:
-    """Mapping keys accepted for one layout field."""
+    """Mapping keys accepted for one frame field."""
 
     keys: list[Any] = []
     for path in (translation_path, state_path):
@@ -593,7 +593,7 @@ def assign_returned_without_layout(result: Any, out: Any) -> None:
         return
 
     raise TypeError(
-        "Return-style derivative assignment requires a layout-backed translation "
+        "Return-style derivative assignment requires a frame-backed translation "
         "object, a mapping return value, or an output object with one writable field."
     )
 

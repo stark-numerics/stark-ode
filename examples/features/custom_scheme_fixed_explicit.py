@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Configuration, Interval, Layout, Method, System
+from stark import Configuration, Interval, Frame, Method, System
 from stark.engines import EngineNumpy
 
 
@@ -53,7 +53,7 @@ class ForwardEuler:
 
 system = System(
     derivative=derivative,
-    layout=Layout({"y": {"translation": "dy", "shape": (1,)}}),
+    frame=Frame({"y": {"translation": "dy", "shape": (1,)}}),
 )
 ivp = system.ivp(
     initial={"y": np.array([1.0])},

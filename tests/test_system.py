@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Configuration, Interval, Layout, LayoutField, Method, System
-from stark.interface.derivative import DerivativeAdapterAcceptsInstant
+from stark import Configuration, Interval, Frame, FrameField, Method, System
+from stark.problem.derivative.derivative import DerivativeAdapterAcceptsInstant
 from stark.engines.accelerators import AcceleratorNone
 from stark.engines import EngineNumpy
 
@@ -56,19 +56,19 @@ def derivative(interval, state, out) -> None:
 
 
 def test_system_ivp_builds_engine_state_and_declared_scheme() -> None:
-    layout = Layout(
+    frame = Frame(
         (
-            LayoutField("u", translation="du", shape=(2,)),
-            LayoutField("v", translation="dv", shape=(2,)),
+            FrameField("u", translation="du", shape=(2,)),
+            FrameField("v", translation="dv", shape=(2,)),
         )
     )
-    system = System(derivative=derivative, layout=layout)
+    system = System(derivative=derivative, frame=frame)
     configuration = Configuration(check_progress=False)
     factory_layouts = []
 
-    def engine_factory(layout):
-        factory_layouts.append(layout)
-        return EngineNumpy(layout, accelerator=AcceleratorNone())
+    def engine_factory(frame):
+        factory_layouts.append(frame)
+        return EngineNumpy(frame, accelerator=AcceleratorNone())
 
     ivp = system.ivp(
         initial={
@@ -81,7 +81,7 @@ def test_system_ivp_builds_engine_state_and_declared_scheme() -> None:
         configuration=configuration,
     )
 
-    assert factory_layouts == [layout]
+    assert factory_layouts == [frame]
     assert isinstance(ivp.scheme, ExplicitScheme)
     assert isinstance(ivp.scheme.derivative, DerivativeAdapterAcceptsInstant)
     assert ivp.scheme.derivative.function is derivative
@@ -93,14 +93,14 @@ def test_system_ivp_builds_engine_state_and_declared_scheme() -> None:
 
 
 def test_system_ivp_trajectory_helpers_start_from_fresh_working_objects() -> None:
-    layout = Layout({"u": {"translation": "du", "shape": (1,)}})
-    system = System(derivative=derivative, layout=layout)
+    frame = Frame({"u": {"translation": "du", "shape": (1,)}})
+    system = System(derivative=derivative, frame=frame)
 
     ivp = system.ivp(
         initial={"u": np.array([1.0])},
         interval=Interval(0.0, 0.1, 0.0),
         method=Method(scheme=ExplicitScheme),
-        engine=lambda layout: EngineNumpy(layout, accelerator=AcceleratorNone()),
+        engine=lambda frame: EngineNumpy(frame, accelerator=AcceleratorNone()),
         configuration=Configuration(check_progress=False),
     )
 
@@ -120,14 +120,14 @@ def test_system_ivp_trajectory_helpers_start_from_fresh_working_objects() -> Non
 
 
 def test_system_ivp_final_result_returns_final_working_state_and_step_count() -> None:
-    layout = Layout({"u": {"translation": "du", "shape": (1,)}})
-    system = System(derivative=derivative, layout=layout)
+    frame = Frame({"u": {"translation": "du", "shape": (1,)}})
+    system = System(derivative=derivative, frame=frame)
 
     ivp = system.ivp(
         initial={"u": np.array([1.0])},
         interval=Interval(0.0, 0.1, 0.3),
         method=Method(scheme=ExplicitScheme),
-        engine=lambda layout: EngineNumpy(layout, accelerator=AcceleratorNone()),
+        engine=lambda frame: EngineNumpy(frame, accelerator=AcceleratorNone()),
         configuration=Configuration(check_progress=False),
     )
 
@@ -140,15 +140,15 @@ def test_system_ivp_final_result_returns_final_working_state_and_step_count() ->
 
 
 def test_system_ivp_uses_ready_resolvent_instance() -> None:
-    layout = Layout({"u": {"translation": "du", "shape": (1,)}})
-    system = System(derivative=derivative, layout=layout)
+    frame = Frame({"u": {"translation": "du", "shape": (1,)}})
+    system = System(derivative=derivative, frame=frame)
     resolvent = object()
 
     ivp = system.ivp(
         initial={"u": np.array([1.0])},
         interval=Interval(0.0, 0.1, 0.0),
         method=Method(scheme=ImplicitScheme, resolvent=resolvent),
-        engine=lambda layout: EngineNumpy(layout, accelerator=AcceleratorNone()),
+        engine=lambda frame: EngineNumpy(frame, accelerator=AcceleratorNone()),
         configuration=Configuration(check_progress=False),
     )
 

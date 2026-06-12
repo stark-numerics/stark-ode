@@ -8,7 +8,7 @@ from stark import (
     Configuration,
     Interval,
     DerivativeStyle,
-    Layout,
+    Frame,
     Method,
     System,
 )
@@ -21,10 +21,10 @@ def exponential_decay(t: float, state, out) -> None:
     out.dy[0] = -0.5 * state.y[0]
 
 
-layout = Layout({"y": {"translation": "dy", "shape": (1,)}})
+frame = Frame({"y": {"translation": "dy", "shape": (1,)}})
 system = System(
     derivative=DerivativeStyle.in_place(exponential_decay),
-    layout=layout,
+    frame=frame,
 )
 ivp = system.ivp(
     initial={"y": np.array([2.0])},

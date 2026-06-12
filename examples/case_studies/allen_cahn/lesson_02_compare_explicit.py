@@ -3,7 +3,7 @@ from __future__ import annotations
 # Lesson 2: compare two explicit adaptive schemes
 #
 # Lesson 1 used `System` to prepare a NumPy Allen-Cahn problem as a
-# layout-backed solve. Now we reuse that prepared boundary and ask a
+# frame-backed solve. Now we reuse that prepared boundary and ask a
 # different question: do two explicit embedded Runge-Kutta schemes agree on the
 # final state?
 #
@@ -66,4 +66,4 @@ if __name__ == "__main__":
     print()
     print("What to notice:")
     print("- Agreement between the two explicit schemes is a sanity check on the model.")
-    print("- This comparison uses the high-level System-prepared layout path.")
+    print("- This comparison uses the high-level System-prepared frame path.")

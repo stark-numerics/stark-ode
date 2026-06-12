@@ -7,10 +7,10 @@ from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
 from stark.engines import EngineNumpy
-from stark.interface.derivative import DerivativeStyle
-from stark.interface.layout import Layout
+from stark.problem.derivative.derivative import DerivativeStyle
+from stark.problem.frame.frame import Frame
 from stark.methods.method import Method
-from stark.interface.system import System
+from stark.problem.system.system import System
 from stark.methods.schemes.explicit.adaptive import SchemeCashKarp, SchemeDormandPrince
 
 
@@ -49,7 +49,7 @@ class FPUTStarkProblem:
         self.problem_parameters = problem_parameters
         self.system = System(
             derivative=fput_rhs.with_parameters(float(problem_parameters["beta"])),
-            layout=Layout(
+            frame=Frame(
                 {
                     "q": {"translation": "dq", "shape": (chain_size,)},
                     "p": {"translation": "dp", "shape": (chain_size,)},

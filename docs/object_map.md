@@ -7,7 +7,7 @@ supply their own objects.
 
 ## Everyday user objects
 
-Most users start with `stark.interface.StarkIVP`. In that path, STARK builds
+Most users start with `stark.problem.StarkIVP`. In that path, STARK builds
 the core objects for you from an initial value and a derivative callable.
 
 - **Initial value**
@@ -72,19 +72,19 @@ is known.
 
 - **Algebraist**
   Provides generated or runtime translation-algebra kernels from explicit
-  layout metadata. General providers bind arity-based `linear_combine` kernels
+  frame metadata. General providers bind arity-based `linear_combine` kernels
   to a translation type. Specialist providers give schemes fixed-coefficient
   kernels for repeated tableau combinations. Accelerated providers may have
   noticeable compilation cost, so they are best suited to large states, long
   integrations, or repeated solves. Algebraist does not generate resolvent
   iterations, convergence checks, inverter logic, or preconditioner internals.
 
-- **Algebraist layout field**
-  Describes how one translation field maps to one state field and which layout
+- **Algebraist frame field**
+  Describes how one translation field maps to one state field and which frame
   policy should generate its code. Users define fields when they build an
   Algebraist provider.
 
-- **Algebraist layout policy**
+- **Algebraist frame policy**
   Controls how generated code treats a field: broadcasted array operations,
   looped compiled kernels, or small fixed unrolled shapes. Advanced users
   choose policies when performance or representation details matter.

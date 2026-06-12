@@ -12,7 +12,7 @@ Sometimes it is useful to work one level lower:
 * when demonstrating how states, translations, allocators, schemes, steppers,
   and integrators fit together
 
-This example starts from a `Layout`, asks an engine for matching solver
+This example starts from a `Frame`, asks an engine for matching solver
 objects, and then assembles the stepper explicitly.
 """
 
@@ -22,7 +22,7 @@ import numpy as np
 
 from stark import Integrator, Interval, IntegratorStepper
 from stark.engines import EngineNumpy
-from stark.interface.layout import Layout
+from stark.problem.frame.frame import Frame
 from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
 
 
@@ -38,8 +38,8 @@ def growth(
 
 
 def main() -> None:
-    layout = Layout({"y": {"translation": "dy", "shape": (1,)}})
-    engine = EngineNumpy(layout)
+    frame = Frame({"y": {"translation": "dy", "shape": (1,)}})
+    engine = EngineNumpy(frame)
     allocator = engine.allocator
 
     # Direct translations are useful in lower-level code that wants to express

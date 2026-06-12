@@ -4,8 +4,8 @@ from types import SimpleNamespace
 import pytest
 
 from stark.engines.accelerators import AcceleratorNone
-from stark.interface import Derivative, DerivativeStyle, Layout
-from stark.interface.derivative import (
+from stark.problem import Derivative, DerivativeStyle, Frame
+from stark.problem.derivative.derivative import (
     DerivativeAdapterAcceptsInterval,
     DerivativeAdapterReturnsInstant,
     DerivativeKernel,
@@ -65,7 +65,7 @@ def test_returning_signature_can_be_declared_as_decorator() -> None:
     derivative = Derivative(rhs)
     out = SimpleNamespace(
         dy=0.0,
-        algebraist_layout=Layout({"y": {"translation": "dy"}}).to_algebraist_layout(),
+        algebraist_frame=Frame({"y": {"translation": "dy"}}).to_algebraist_frame(),
     )
 
     derivative(DummyInterval(2.0), DummyState(3.0), out)
@@ -184,13 +184,13 @@ def test_returning_derivative_runs_through_jax_engine() -> None:
 
     system = System(
         derivative=rhs,
-        layout=Layout({"y": {"translation": "dy", "shape": (1,)}}),
+        frame=Frame({"y": {"translation": "dy", "shape": (1,)}}),
     )
     ivp = system.ivp(
         initial={"y": jnp.array([2.0])},
         interval=Interval(present=0.0, step=0.1, stop=0.2),
         method=Method(scheme=SchemeEuler),
-        engine=lambda layout: EngineJax(layout, dtype=jnp.float32),
+        engine=lambda frame: EngineJax(frame, dtype=jnp.float32),
         configuration=Configuration(check_progress=False),
     )
 

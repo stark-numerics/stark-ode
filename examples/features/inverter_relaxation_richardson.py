@@ -7,7 +7,7 @@ do, rather than from hand-written scalar wrapper classes.
 
 from __future__ import annotations
 
-from stark import Configuration, Layout, Tolerance
+from stark import Configuration, Frame, Tolerance
 from stark.block import Block
 from stark.block.operator import BlockOperatorDiagonal
 from stark.engines import EngineNumpy
@@ -21,7 +21,7 @@ def scale_by_two(source, target) -> None:
 
 
 def main() -> None:
-    engine = EngineNumpy(Layout({"x": {"translation": "dx", "shape": (1,)}}))
+    engine = EngineNumpy(Frame({"x": {"translation": "dx", "shape": (1,)}}))
 
     residual = engine.allocator.allocate_translation()
     residual.dx[0] = 6.0

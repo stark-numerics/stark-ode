@@ -5,40 +5,40 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
 
-AlgebraistLayoutPathLike = str | Sequence[str]
+AlgebraistFramePathLike = str | Sequence[str]
 
 
 @dataclass(frozen=True, slots=True)
-class AlgebraistLayoutPath:
-    """Validated attribute path in an Algebraist layout."""
+class AlgebraistFramePath:
+    """Validated attribute path in an Algebraist frame."""
 
     parts: tuple[str, ...]
 
     @classmethod
-    def from_value(cls, value: AlgebraistLayoutPathLike) -> "AlgebraistLayoutPath":
-        """Build a validated layout path from a dotted string or sequence."""
+    def from_value(cls, value: AlgebraistFramePathLike) -> "AlgebraistFramePath":
+        """Build a validated frame path from a dotted string or sequence."""
         return cls(value)
 
-    def __init__(self, value: AlgebraistLayoutPathLike) -> None:
+    def __init__(self, value: AlgebraistFramePathLike) -> None:
         object.__setattr__(self, "parts", self._normalize(value))
 
     @staticmethod
-    def _normalize(value: AlgebraistLayoutPathLike) -> tuple[str, ...]:
+    def _normalize(value: AlgebraistFramePathLike) -> tuple[str, ...]:
         if isinstance(value, str):
             parts = tuple(value.split("."))
         else:
             parts = tuple(value)
 
         if not parts:
-            raise ValueError("AlgebraistLayoutPath cannot be empty.")
+            raise ValueError("AlgebraistFramePath cannot be empty.")
         for part in parts:
             if not isinstance(part, str):
-                raise TypeError("AlgebraistLayoutPath parts must be strings.")
+                raise TypeError("AlgebraistFramePath parts must be strings.")
             if not part:
-                raise ValueError("AlgebraistLayoutPath parts cannot be empty.")
+                raise ValueError("AlgebraistFramePath parts cannot be empty.")
             if not part.isidentifier():
                 raise ValueError(
-                    f"AlgebraistLayoutPath part {part!r} is not a valid identifier."
+                    f"AlgebraistFramePath part {part!r} is not a valid identifier."
                 )
         return parts
 

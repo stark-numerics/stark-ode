@@ -8,7 +8,7 @@ from stark import (
     Configuration,
     Interval,
     DerivativeStyle,
-    Layout,
+    Frame,
     Method,
     System,
 )
@@ -23,8 +23,8 @@ def oscillator_rhs(t: float, state, out) -> None:
     out.dy[1] = -state.y[0]
 
 
-layout = Layout({"y": {"translation": "dy", "shape": (2,)}})
-system = System(derivative=oscillator_rhs, layout=layout)
+frame = Frame({"y": {"translation": "dy", "shape": (2,)}})
+system = System(derivative=oscillator_rhs, frame=frame)
 ivp = system.ivp(
     initial={"y": np.array([1.0, 0.0])},
     interval=Interval(present=0.0, step=0.05, stop=0.5),

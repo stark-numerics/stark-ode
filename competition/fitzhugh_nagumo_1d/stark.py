@@ -9,10 +9,10 @@ from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
 from stark.engines.backends.numpy.engine import EngineNumpy
-from stark.interface.derivative import DerivativeStyle
-from stark.interface.layout import Layout
+from stark.problem.derivative.derivative import DerivativeStyle
+from stark.problem.frame.frame import Frame
 from stark.methods.method import Method
-from stark.interface.system import System
+from stark.problem.system.system import System
 from stark.methods.resolvents.secant.anderson import ResolventAnderson
 from stark.methods.schemes.imex.adaptive.kennedy_carpenter43_7 import SchemeKennedyCarpenter43_7
 from stark.methods.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
@@ -192,9 +192,9 @@ class FitzHughNagumoSpectralResolvent:
         delta.du[:] = np.fft.ifft(self.u_hat).real - state.u
 
 
-def stark_layout(parameters: FitzHughNagumoParameters) -> Layout:
+def stark_layout(parameters: FitzHughNagumoParameters) -> Frame:
     shape = (parameters.grid_size,)
-    return Layout(
+    return Frame(
         {
             "u": {"translation": "du", "shape": shape},
             "v": {"translation": "dv", "shape": shape},
@@ -237,7 +237,7 @@ def stark_ivp(
 ):
     system = System(
         derivative=full_derivative(parameters) if derivative is None else derivative,
-        layout=stark_layout(parameters),
+        frame=stark_layout(parameters),
     )
     return system.ivp(
         initial=initial_values,

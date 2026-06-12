@@ -7,10 +7,10 @@ from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
 from stark.engines.backends.numpy.engine import EngineNumpy
-from stark.interface.derivative import DerivativeStyle
-from stark.interface.layout import Layout
+from stark.problem.derivative.derivative import DerivativeStyle
+from stark.problem.frame.frame import Frame
 from stark.methods.method import Method
-from stark.interface.system import System
+from stark.problem.system.system import System
 from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
 from stark.methods.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
 
@@ -75,7 +75,7 @@ def stark_solver(
             float(problem_parameters["b"]),
             float(problem_parameters["inv_dx2"]),
         ),
-        layout=Layout(
+        frame=Frame(
             {
                 "u": {"translation": "du", "shape": grid_shape},
                 "v": {"translation": "dv", "shape": grid_shape},

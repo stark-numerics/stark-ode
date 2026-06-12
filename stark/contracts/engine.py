@@ -1,6 +1,6 @@
 """Protocol for backend engines used by the high-level interface.
 
-Engines bundle backend choices for a declared layout. They do not describe the
+Engines bundle backend choices for a declared frame. They do not describe the
 differential equation or numerical method; they expose the allocation,
 acceleration, and algebra providers that a system/method construction path can
 use when binding a concrete problem.
@@ -15,16 +15,16 @@ from stark.contracts.allocator import Allocator
 
 
 class Engine(Protocol):
-    """Backend bundle for a declared STARK layout."""
+    """Backend bundle for a declared STARK frame."""
 
     @property
-    def layout(self) -> Any:
-        """User-facing layout used to construct this backend bundle."""
+    def frame(self) -> Any:
+        """User-facing frame used to construct this backend bundle."""
         ...
 
     @property
-    def algebraist_layout(self) -> Any:
-        """Algebraist layout derived from the user-facing layout."""
+    def algebraist_frame(self) -> Any:
+        """Algebraist frame derived from the user-facing frame."""
         ...
 
     @property
@@ -39,7 +39,7 @@ class Engine(Protocol):
 
     @property
     def carriers(self) -> tuple[Any, ...]:
-        """Carrier objects corresponding to the algebraist layout fields."""
+        """Carrier objects corresponding to the algebraist frame fields."""
         ...
 
     @property

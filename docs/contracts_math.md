@@ -164,7 +164,7 @@ It provides:
 - `allocate_translation()`
 
 So if `S` and `T` describe the mathematics, the allocator describes the memory
-layout and scratch discipline needed to compute with them efficiently.
+frame and scratch discipline needed to compute with them efficiently.
 
 ## Implicit methods: residuals and blocks
 
