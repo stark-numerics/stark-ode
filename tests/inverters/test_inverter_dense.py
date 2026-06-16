@@ -200,3 +200,85 @@ def test_dense_inverter_instance_requires_dense_fill_entries() -> None:
     with pytest.raises(TypeError, match="dense_fill"):
         inverter.instance(operator)
 
+
+
+class MonitorFake:
+    def __init__(self) -> None:
+        self.solves = []
+
+    def record_solve(
+        self,
+        inverter,
+        converged,
+        iteration_count,
+        initial_residual,
+        final_residual,
+        failure_reason,
+    ) -> None:
+        self.solves.append(
+            (inverter, converged, iteration_count, initial_residual, final_residual, failure_reason)
+        )
+
+
+def test_dense_inverter_unmonitored_path_does_not_call_record(monkeypatch) -> None:
+    def fail_record(*_args, **_kwargs):
+        raise AssertionError("unmonitored dense path should not call record_solve")
+
+    monkeypatch.setattr(InverterDense, "record_solve", fail_record)
+    basis = BlockBasis([VectorBasis(2)])
+    inverter = InverterDense(basis=basis)
+    request = RequestFake(
+        operator=OperatorDiagonalFake([matrix_operator([[2.0, 0.0], [0.0, 4.0]])]),
+        residual=Block([Vector(6.0, 8.0)]),
+    )
+    output = Block([Vector(0.0, 0.0)])
+
+    inverter(request, output)
+
+    assert_vector_close(output[0], [3.0, 2.0])
+
+
+def test_dense_inverter_monitored_path_records_once() -> None:
+    monitor = MonitorFake()
+    basis = BlockBasis([VectorBasis(2)])
+    inverter = InverterDense(basis=basis, monitor=monitor)
+    request = RequestFake(
+        operator=OperatorDiagonalFake([matrix_operator([[2.0, 0.0], [0.0, 4.0]])]),
+        residual=Block([Vector(6.0, 8.0)]),
+    )
+    output = Block([Vector(0.0, 0.0)])
+
+    inverter(request, output)
+
+    assert_vector_close(output[0], [3.0, 2.0])
+    assert monitor.solves == [("Dense", True, None, None, None, None)]
+
+
+def test_dense_inverter_instance_unmonitored_path_does_not_call_record(monkeypatch) -> None:
+    def fail_record(*_args, **_kwargs):
+        raise AssertionError("unmonitored dense instance path should not call record_solve")
+
+    monkeypatch.setattr(InverterDense, "record_solve", fail_record)
+    basis = BlockBasis([VectorBasis(2)])
+    inverter = InverterDense(basis=basis)
+    operator = OperatorDiagonalFake([dense_fill_operator([[2.0, 0.0], [0.0, 4.0]])])
+    instance = inverter.instance(operator)
+    output = Block([Vector(0.0, 0.0)])
+
+    instance(Block([Vector(6.0, 8.0)]), output)
+
+    assert_vector_close(output[0], [3.0, 2.0])
+
+
+def test_dense_inverter_instance_monitored_path_records_once() -> None:
+    monitor = MonitorFake()
+    basis = BlockBasis([VectorBasis(2)])
+    inverter = InverterDense(basis=basis, monitor=monitor)
+    operator = OperatorDiagonalFake([dense_fill_operator([[2.0, 0.0], [0.0, 4.0]])])
+    instance = inverter.instance(operator)
+    output = Block([Vector(0.0, 0.0)])
+
+    instance(Block([Vector(6.0, 8.0)]), output)
+
+    assert_vector_close(output[0], [3.0, 2.0])
+    assert monitor.solves == [("Dense", True, None, None, None, None)]

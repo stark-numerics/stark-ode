@@ -182,6 +182,9 @@ class SchemeSDIRK21:
         delta_block: Block,
     ):
         known_block[0] = known_shift
+        # Deliberately seed the implicit solve with the known explicit shift.
+        # This avoids carrying a stale stage solution across unrelated solves.
+        delta_block[0] = self.workspace.scale(1.0, known_shift, delta_block[0])
         problem = SchemeResolventRequest(
             derivative=self.derivative,
             interval=self.workspace.interval_at(interval, dt, stage_shift),

@@ -158,6 +158,11 @@ class SchemeKvaerno4:
 
     def _solve_stage(self, interval: IntervalLike, state: State, dt: float, stage_shift: float, alpha: float, known_shift, known_block: Block, delta_block: Block):
         known_block[0] = known_shift
+        # Deliberately seed the implicit solve with the known explicit shift.
+        # Previously this block reused whatever delta survived the previous
+        # stage/step, which made the nonlinear starting point accidental.
+        # Copying through the workspace keeps rhs and delta distinct objects.
+        delta_block[0] = self.workspace.scale(1.0, known_shift, delta_block[0])
         problem = SchemeResolventRequest(derivative=self.derivative, interval=self.workspace.interval_at(interval, dt, stage_shift), origin=state, rhs=known_block, alpha=alpha)
         self.resolvent(problem, delta_block)
         return delta_block[0]

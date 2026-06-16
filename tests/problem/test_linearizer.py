@@ -101,4 +101,4 @@ def test_system_prepare_linearizer_uses_accelerator() -> None:
     prepared = system.prepare_linearizer(SimpleNamespace(accelerator=accelerator))
 
     assert prepared is not None
-    assert accelerator.labels == [None]
+    assert accelerator.labels == ["linearizer-apply"]

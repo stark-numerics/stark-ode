@@ -481,7 +481,7 @@ class LinearizerKernel:
 
     def accelerate(self, accelerator: Accelerator) -> "LinearizerKernel":
         return LinearizerKernel(
-            function=accelerator.compile(self.function),
+            function=accelerator.compile(self.function, label="linearizer-apply", cache=True),
             state=self.state,
             source=self.source,
             target=self.target,
@@ -519,7 +519,7 @@ class LinearizerKernelReturning:
 
     def accelerate(self, accelerator: Accelerator) -> "LinearizerKernelReturning":
         return LinearizerKernelReturning(
-            function=accelerator.compile(self.function),
+            function=accelerator.compile(self.function, label="linearizer-apply-returning", cache=True),
             state=self.state,
             source=self.source,
             target=self.target,
@@ -555,7 +555,7 @@ class LinearizerDense:
 
     def accelerate(self, accelerator: Accelerator) -> "LinearizerDense":
         return LinearizerDense(
-            function=accelerator.compile(self.function),
+            function=accelerator.compile(self.function, label="linearizer-dense-fill", cache=True),
             state=self.state,
             parameters=self.parameters,
         )

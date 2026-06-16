@@ -7,6 +7,7 @@ from typing import ClassVar, Generic
 from stark.core.block import BlockBasis
 from stark.core.block.materialize import BlockOperatorDiagonalMaterialize
 from stark.core.contracts import (
+    Accelerator,
     BlockLike,
     BlockOperatorLike,
     InverterOutputMode,
@@ -14,7 +15,7 @@ from stark.core.contracts import (
     TranslationType,
 )
 from stark.core.contracts.translation_basis import TranslationBasis
-from stark.methods.inverters.nucleus import InverterNucleus
+from stark.methods.inverters.nucleus import InverterNucleus, InverterNucleusFactor
 from stark.methods.inverters.support import InverterDescriptor, MonitorInverterLike, with_inverter_monitoring
 
 
@@ -26,9 +27,20 @@ class InverterDenseInstance(Generic[TranslationType]):
     matrices: list[list[float]]
     images: list[list[float]]
     results: list[list[float]]
-    nuclei: list[InverterNucleus]
+    factors: list[InverterNucleusFactor]
+    call: Callable[[BlockLike[TranslationType], BlockLike[TranslationType]], None] = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self.call = self.call_monitored if self.inverter.monitor is not None else self.call_body
 
     def __call__(
+        self,
+        residual: BlockLike[TranslationType],
+        output: BlockLike[TranslationType],
+    ) -> None:
+        self.call(residual, output)
+
+    def call_body(
         self,
         residual: BlockLike[TranslationType],
         output: BlockLike[TranslationType],
@@ -38,9 +50,15 @@ class InverterDenseInstance(Generic[TranslationType]):
             image = self.images[block_index]
             result = self.results[block_index]
             basis.coordinates(residual[block_index], image)
-            self.nuclei[block_index](self.matrices[block_index], image, result)
+            self.factors[block_index](image, result)
             output[block_index] = basis.synthesize(result, output[block_index])
 
+    def call_monitored(
+        self,
+        residual: BlockLike[TranslationType],
+        output: BlockLike[TranslationType],
+    ) -> None:
+        self.call_body(residual, output)
         self.inverter.record_solve(
             converged=True,
             iteration_count=None,
@@ -58,17 +76,34 @@ class InverterDenseInstanceSingle(Generic[TranslationType]):
     matrix: list[float]
     image: list[float]
     result: list[float]
-    nucleus: InverterNucleus
+    factor: InverterNucleusFactor
+    call: Callable[[BlockLike[TranslationType], BlockLike[TranslationType]], None] = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self.call = self.call_monitored if self.inverter.monitor is not None else self.call_body
 
     def __call__(
         self,
         residual: BlockLike[TranslationType],
         output: BlockLike[TranslationType],
     ) -> None:
+        self.call(residual, output)
+
+    def call_body(
+        self,
+        residual: BlockLike[TranslationType],
+        output: BlockLike[TranslationType],
+    ) -> None:
         self.basis.coordinates(residual[0], self.image)
-        self.nucleus(self.matrix, self.image, self.result)
+        self.factor(self.image, self.result)
         output[0] = self.basis.synthesize(self.result, output[0])
 
+    def call_monitored(
+        self,
+        residual: BlockLike[TranslationType],
+        output: BlockLike[TranslationType],
+    ) -> None:
+        self.call_body(residual, output)
         self.inverter.record_solve(
             converged=True,
             iteration_count=None,
@@ -94,9 +129,14 @@ class InverterDense(Generic[TranslationType]):
         3. Analyse each residual block into dense coordinates.
         4. Solve each compact dense system with an InverterNucleus.
         5. Synthesize each dense solution into the output block.
+
+    Monitoring follows the same split used by schemes: unmonitored call paths do
+    not invoke the monitor wrapper at all.  Monitored paths are selected once at
+    preparation/instance creation time.
     """
 
     basis: BlockBasis[TranslationType]
+    accelerator: Accelerator | None = None
     monitor: MonitorInverterLike | None = None
     materializer: BlockOperatorDiagonalMaterialize[TranslationType] | None = field(init=False, default=None)
     matrices: list[list[float]] = field(init=False, default_factory=list, repr=False)
@@ -118,6 +158,9 @@ class InverterDense(Generic[TranslationType]):
     ) -> None:
         return self.redirect_call(request, output)
 
+    def make_nucleus(self, dimension: int) -> InverterNucleus:
+        return InverterNucleus(dimension, accelerator=self.accelerator)
+
     def call_prepare(
         self,
         request: InverterRequest[TranslationType],
@@ -134,7 +177,7 @@ class InverterDense(Generic[TranslationType]):
             self.matrices.append([0.0 for _index in range(dimension * dimension)])
             self.images.append([0.0 for _index in range(dimension)])
             self.results.append([0.0 for _index in range(dimension)])
-            self.nuclei.append(InverterNucleus(dimension))
+            self.nuclei.append(self.make_nucleus(dimension))
 
         self.materializer = BlockOperatorDiagonalMaterialize(
             operator=request.operator,  # type: ignore[arg-type]
@@ -143,9 +186,20 @@ class InverterDense(Generic[TranslationType]):
             image=image,
             refresh_initial=False,
         )
-        self.redirect_call = self.call_fast_single if len(self.basis.bases) == 1 else self.call_fast
-        return self.redirect_call(request, output)
 
+        if len(self.basis.bases) == 1:
+            self.redirect_call = (
+                self.call_fast_single_monitored
+                if self.monitor is not None
+                else self.call_fast_single
+            )
+        else:
+            self.redirect_call = (
+                self.call_fast_monitored
+                if self.monitor is not None
+                else self.call_fast
+            )
+        return self.redirect_call(request, output)
 
     def call_fast_single(
         self,
@@ -167,6 +221,12 @@ class InverterDense(Generic[TranslationType]):
         self.nuclei[0](matrix, image, result)
         output[0] = basis.synthesize(result, output[0])
 
+    def call_fast_single_monitored(
+        self,
+        request: InverterRequest[TranslationType],
+        output: BlockLike[TranslationType],
+    ) -> None:
+        self.call_fast_single(request, output)
         self.record_solve(
             converged=True,
             iteration_count=None,
@@ -195,6 +255,12 @@ class InverterDense(Generic[TranslationType]):
             self.nuclei[block_index](matrix, image, result)
             output[block_index] = basis.synthesize(result, output[block_index])
 
+    def call_fast_monitored(
+        self,
+        request: InverterRequest[TranslationType],
+        output: BlockLike[TranslationType],
+    ) -> None:
+        self.call_fast(request, output)
         self.record_solve(
             converged=True,
             iteration_count=None,
@@ -209,7 +275,7 @@ class InverterDense(Generic[TranslationType]):
         matrices: list[list[float]] = []
         images: list[list[float]] = []
         results: list[list[float]] = []
-        nuclei: list[InverterNucleus] = []
+        factors: list[InverterNucleusFactor] = []
 
         for block_index, basis in enumerate(self.basis.bases):
             dimension = basis.dimension
@@ -221,7 +287,7 @@ class InverterDense(Generic[TranslationType]):
             matrices.append(matrix)
             images.append([0.0 for _index in range(dimension)])
             results.append([0.0 for _index in range(dimension)])
-            nuclei.append(InverterNucleus(dimension))
+            factors.append(self.make_nucleus(dimension).factor(matrix))
 
         if len(self.basis.bases) == 1:
             return InverterDenseInstanceSingle(
@@ -230,7 +296,7 @@ class InverterDense(Generic[TranslationType]):
                 matrix=matrices[0],
                 image=images[0],
                 result=results[0],
-                nucleus=nuclei[0],
+                factor=factors[0],
             )
 
         return InverterDenseInstance(
@@ -238,7 +304,7 @@ class InverterDense(Generic[TranslationType]):
             matrices=matrices,
             images=images,
             results=results,
-            nuclei=nuclei,
+            factors=factors,
         )
 
 
