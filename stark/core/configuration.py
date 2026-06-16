@@ -21,6 +21,7 @@ class Configuration:
     adaptive_scheme_min_factor: float = 0.1
     adaptive_scheme_max_factor: float = 5.0
     adaptive_scheme_error_exponent: float = 0.2
+    adaptive_scheme_maximum_rejections: int | None = 64
     check_progress: bool = True
     resolvent_tolerance: Tolerance = field(
         default_factory=lambda: Tolerance(atol=1.0e-9, rtol=1.0e-9)
@@ -43,6 +44,8 @@ class Configuration:
             raise ValueError("Configuration.adaptive_scheme_safety must be positive.")
         if self.adaptive_scheme_error_exponent <= 0.0:
             raise ValueError("Configuration.adaptive_scheme_error_exponent must be positive.")
+        if self.adaptive_scheme_maximum_rejections is not None and self.adaptive_scheme_maximum_rejections < 1:
+            raise ValueError("Configuration.adaptive_scheme_maximum_rejections must be at least 1 or None.")
         if self.resolvent_maximum_steps < 1:
             raise ValueError("Configuration.resolvent_maximum_steps must be at least 1.")
         if self.inverter_maximum_steps < 1:

@@ -6,7 +6,7 @@ from typing import cast
 from stark.engines.algebraist.arity import AlgebraistArity
 from stark.engines.algebraist.runtime.linear_combine import AlgebraistRuntimeLinearCombine
 from stark.core.block import Block, BlockOperatorDiagonal
-from stark.core.contracts import Accelerator, DerivativeLike, IntervalLike, Linearizer, State, Translation, Allocator
+from stark.core.contracts import Accelerator, DerivativeLike, IntervalLike, LinearizerLike, State, Translation, Allocator
 from stark.core.contracts.translation_basis import TranslationBasis
 from stark.methods.resolvents.requests.resolvent import (
     ResolventRequestCoupled,
@@ -158,6 +158,11 @@ class ResolventImplicitEquation:
     For a prepared ``ResolventRequest`` this evaluates:
 
         F(delta) = delta - rhs - alpha * f(interval, origin + delta)
+
+    Residual evaluation and linearization use separate scratch states. This
+    matters for linearizers that configure closure-backed operators: a frozen
+    differential must not observe later residual evaluations mutating the
+    residual trial state.
     """
 
     __slots__ = (
@@ -169,6 +174,7 @@ class ResolventImplicitEquation:
         "base_state",
         "interval",
         "trial_state",
+        "linearization_state",
         "rhs",
         "derivative",
         "derivative_buffer",
@@ -183,7 +189,7 @@ class ResolventImplicitEquation:
         self,
         method_name: str,
         allocator: Allocator,
-        linearizer: Linearizer | None = None,
+        linearizer: LinearizerLike | None = None,
         accelerator: Accelerator | None = None,
     ) -> None:
         self.method_name = method_name
@@ -201,6 +207,7 @@ class ResolventImplicitEquation:
         self.base_state = allocator.allocate_state()
         self.interval: IntervalLike | None = None
         self.trial_state = allocator.allocate_state()
+        self.linearization_state = allocator.allocate_state()
         self.rhs = allocator.allocate_translation()
         self.derivative: DerivativeLike | None = None
         self.derivative_buffer = allocator.allocate_translation()
@@ -223,7 +230,7 @@ class ResolventImplicitEquation:
 
     def prepare(self, problem: ResolventRequest) -> "ResolventImplicitEquation":
         self.interval = problem.interval
-        self.copy_state(problem.origin, self.base_state)
+        self.base_state = problem.origin
         self.alpha = problem.alpha
         self.derivative = ResolventDerivative(problem.derivative)
 
@@ -276,9 +283,9 @@ class ResolventImplicitEquation:
         assert linearizer is not None
         assert interval is not None
 
-        block[0](self.base_state, self.trial_state)
+        block[0](self.base_state, self.linearization_state)
         self.jacobian_operator.dense_fill = None
-        linearizer(interval, self.trial_state, self.jacobian_operator)
+        linearizer(interval, self.linearization_state, self.jacobian_operator)
         self.residual_operator.alpha = self.alpha
         self.residual_operator.dense_fill = (
             self.residual_operator.dense_fill_direct
@@ -318,7 +325,7 @@ class ResolventImplicitEquationCoupled:
         self,
         method_name: str,
         allocator: Allocator,
-        linearizer: Linearizer | None = None,
+        linearizer: LinearizerLike | None = None,
         accelerator: Accelerator | None = None,
     ) -> None:
         self.method_name = method_name
@@ -358,7 +365,7 @@ class ResolventImplicitEquationCoupled:
     def prepare(self, problem: ResolventRequestCoupled) -> "ResolventImplicitEquationCoupled":
         self._ensure_stage_count(len(problem.stage_shifts))
 
-        self.copy_state(problem.origin, self.base_state)
+        self.base_state = problem.origin
         self.stage_shifts = problem.stage_shifts
         self.matrix = problem.matrix
         self.step = problem.step

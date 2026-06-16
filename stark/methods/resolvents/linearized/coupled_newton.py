@@ -1,8 +1,8 @@
+"""Newton-backed resolvent for fully coupled implicit RK stage systems."""
+
 from __future__ import annotations
 
-from stark.core import Configuration
-from stark.methods.resolvents.configuration import ResolventConfiguration
-"""Newton-backed resolvent for fully coupled implicit RK stage systems."""
+from stark.methods.resolvents.configuration import ResolventConfiguration, ResolventConfigurationDefault
 
 from typing import TYPE_CHECKING, Any, cast
 
@@ -12,7 +12,7 @@ from stark.core.contracts import (
     BlockOperatorLike,
     Inverter,
     InverterOutputMode,
-    Linearizer,
+    LinearizerLike,
     Translation,
     Allocator,
 )
@@ -88,7 +88,7 @@ class ResolventCoupledNewton:
     def __init__(
         self,
         allocator: Allocator,
-        linearizer: Linearizer,
+        linearizer: LinearizerLike,
         inverter: Inverter[Translation],
         configuration: ResolventConfiguration | None = None,
         safety: ResolventSafety | None = None,
@@ -102,7 +102,7 @@ class ResolventCoupledNewton:
         self._monitor = None
 
         self.allocator = BlockAllocator(allocator)
-        configuration = configuration if configuration is not None else Configuration()
+        configuration = configuration if configuration is not None else ResolventConfigurationDefault()
         self.tolerance = configuration.resolvent_tolerance
         self.max_iterations = configuration.resolvent_maximum_steps
         self.inverter = inverter

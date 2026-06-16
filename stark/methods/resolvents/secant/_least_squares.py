@@ -22,9 +22,8 @@ BlockInnerProduct: TypeAlias = Callable[[Block[Translation], Block[Translation]]
 def block_inner_product(entry_inner_product, left: Block[Translation], right: Block[Translation]) -> float:
     """Lift an entry inner product to blocks."""
 
-    Block._require_same_size(left, right)
     total = 0.0
-    for left_item, right_item in zip(left, right, strict=True):
+    for left_item, right_item in zip(left, right):
         total += float(entry_inner_product(left_item, right_item))
     return total
 

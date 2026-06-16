@@ -14,6 +14,7 @@ REPORT_MODULES = (
     "competition.brusselator_2d.report",
     "competition.fitzhugh_nagumo_1d.report",
     "competition.fput.report",
+    "competition.hires.report",
     "competition.robertson.report",
 )
 

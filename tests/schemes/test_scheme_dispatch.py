@@ -16,6 +16,7 @@ from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
 from stark.methods.schemes.implicit.adaptive.bdf2 import SchemeBDF2
 from stark.methods.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
 from stark.methods.schemes.implicit.adaptive.kvaerno4 import SchemeKvaerno4
+from stark.methods.schemes.implicit.adaptive.kvaerno5 import SchemeKvaerno5
 from stark.methods.schemes.implicit.adaptive.sdirk21 import SchemeSDIRK21
 from stark.methods.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
 from stark.methods.schemes.implicit.fixed.crank_nicolson import SchemeCrankNicolson
@@ -265,6 +266,7 @@ def public_contract_schemes():
         make_implicit_adaptive_scheme(SchemeSDIRK21),
         make_implicit_adaptive_scheme(SchemeKvaerno3),
         make_implicit_adaptive_scheme(SchemeKvaerno4),
+        make_implicit_adaptive_scheme(SchemeKvaerno5),
         make_bdf2_scheme(),
         make_imex_fixed_scheme(),
         make_kennedy_carpenter32_scheme(),
@@ -348,6 +350,7 @@ def test_self_contained_scheme_exemplars_own_public_call_method() -> None:
     assert "__call__" in SchemeSDIRK21.__dict__
     assert "__call__" in SchemeKvaerno3.__dict__
     assert "__call__" in SchemeKvaerno4.__dict__
+    assert "__call__" in SchemeKvaerno5.__dict__
     assert "__call__" in SchemeBDF2.__dict__
     assert "__call__" in SchemeIMEXEuler.__dict__
     assert "__call__" in SchemeKennedyCarpenter32.__dict__

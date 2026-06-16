@@ -37,8 +37,6 @@ class BlockBasis(Generic[TranslationType]):
         """Write or return the selected block basis vector."""
 
         block_index, local_index = self.local_index(index)
-        self._require_block_size(output)
-
         for basis_index, basis in enumerate(self.bases):
             item = output[basis_index]
             if basis_index == block_index:
@@ -52,7 +50,6 @@ class BlockBasis(Generic[TranslationType]):
         """Apply the selected block coordinate form to a block."""
 
         block_index, local_index = self.local_index(index)
-        self._require_block_size(block)
         return self.bases[block_index].coordinate(local_index, block[block_index])
 
     def coordinates(
@@ -62,7 +59,6 @@ class BlockBasis(Generic[TranslationType]):
     ) -> MutableSequence[float]:
         """Analyse a block into flat coordinates in this block basis."""
 
-        self._require_block_size(block)
         for basis_index, basis in enumerate(self.bases):
             start = self.offsets[basis_index]
             local = [0.0] * basis.dimension
@@ -77,10 +73,6 @@ class BlockBasis(Generic[TranslationType]):
         output: BlockLike[TranslationType],
     ) -> BlockLike[TranslationType]:
         """Reconstruct a block from flat coordinates in this block basis."""
-
-        self._require_block_size(output)
-        if len(coordinates) != self.dimension:
-            raise ValueError("Coordinate vector has incompatible dimension.")
 
         for basis_index, basis in enumerate(self.bases):
             start = self.offsets[basis_index]
@@ -102,10 +94,6 @@ class BlockBasis(Generic[TranslationType]):
                 return block_index, index - start
 
         raise IndexError("Block basis index out of range.")  # pragma: no cover - defensive.
-
-    def _require_block_size(self, block: BlockLike[TranslationType]) -> None:
-        if len(block) != len(self.bases):
-            raise ValueError("Block size does not match block basis size.")
 
 
 __all__ = ["BlockBasis"]

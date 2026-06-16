@@ -182,3 +182,24 @@ def test_block_operator_diagonal_materialize_rejects_unconfigured_entry() -> Non
             source=Block([VectorTwo()]),
             image=Block([VectorTwo()]),
         )
+
+
+def test_block_operator_diagonal_materialize_refreshes_compact_block_matrix() -> None:
+    operator = FakeBlockOperatorDiagonal(
+        [
+            apply_matrix([[2.0, 3.0], [5.0, 7.0]]),
+            apply_matrix([[11.0, 13.0], [17.0, 19.0]]),
+        ]
+    )
+    materialized = BlockOperatorDiagonalMaterialize(
+        operator=operator,
+        bases=[VectorTwoBasis(), VectorTwoBasis()],
+        source=Block([VectorTwo(), VectorTwo()]),
+        image=Block([VectorTwo(), VectorTwo()]),
+        refresh_initial=False,
+    )
+    compact = [99.0, 99.0, 99.0, 99.0]
+
+    materialized.refresh_block_prepared(1, operator, compact)
+
+    assert_matrix_close(compact, [[11.0, 13.0], [17.0, 19.0]])

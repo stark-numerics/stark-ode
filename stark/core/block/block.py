@@ -47,24 +47,21 @@ class Block(Generic[TranslationType]):
     def replace(self, other: Block[TranslationType]) -> None:
         """Replace this block's entries with another block's entries."""
 
-        self._require_same_size(self, other)
         self.items[:] = list(other.items)
 
     def __add__(self, other: Block[TranslationType]) -> Block[TranslationType]:
-        self._require_same_size(self, other)
         return type(self)(
             [
                 left + right  # type: ignore[operator]
-                for left, right in zip(self, other, strict=True)
+                for left, right in zip(self, other)
             ]
         )
 
     def __sub__(self, other: Block[TranslationType]) -> Block[TranslationType]:
-        self._require_same_size(self, other)
         return type(self)(
             [
                 left + (-1.0 * right)  # type: ignore[operator]
-                for left, right in zip(self, other, strict=True)
+                for left, right in zip(self, other)
             ]
         )
 
@@ -88,16 +85,6 @@ class Block(Generic[TranslationType]):
         if not self.items:
             return 0.0
         return sqrt(sum(item.norm() ** 2 for item in self.items))  # type: ignore[attr-defined]
-
-    @staticmethod
-    def _require_same_size(*blocks: Block[object]) -> None:
-        if not blocks:
-            return
-
-        size = len(blocks[0])
-        for block in blocks[1:]:
-            if len(block) != size:
-                raise ValueError("Block sizes must match.")
 
 
 __all__ = ["Block"]

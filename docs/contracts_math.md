@@ -57,7 +57,7 @@ in which it makes sense to differentiate a state trajectory with respect to an
 affine parameter such as time. STARK never asks you to pretend your state
 object *is* a flat vector if it is not naturally one. The separate question of
 linearizing with respect to state only appears later, when implicit methods ask
-for Jacobian actions through a `Linearizer`.
+for Jacobian actions through a `LinearizerLike`.
 
 ## The extra structure needed for explicit methods
 
@@ -222,7 +222,7 @@ A delta = b
 
 This is the role of `LegacyInverterLike`.
 
-## Linearization and the Linearizer contract
+## Linearization and the LinearizerLike contract
 
 Newton-style implicit methods need the derivative of the nonlinear residual.
 That in turn depends on the derivative of the user-supplied ODE right-hand
@@ -259,7 +259,7 @@ J(t, x) : T -> T
 
 is a linear operator acting on translations.
 
-So the user supplies a `Linearizer` that gives the action
+So the user supplies a `LinearizerLike` that gives the action
 
 ```text
 delta |-> J(t, x)[delta]
@@ -354,7 +354,7 @@ The key STARK contracts can be summarized this way:
 | vector-space operations on `T` | `__add__`, `__rmul__`, `linear_combine` |
 | norm `||.||` on `T` | `Translation.norm()` |
 | right-hand side `f : R x S -> T` | `Derivative` |
-| Jacobian action `D_x f(t, x)` | `Linearizer` + `Operator` |
+| Jacobian action `D_x f(t, x)` | `LinearizerLike` + `Operator` |
 | product space `T^m` | `Block` |
 | residual `R : T^m -> T^m` | `Residual` |
 | nonlinear implicit solver | `Resolvent` |

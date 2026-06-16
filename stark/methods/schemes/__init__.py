@@ -26,6 +26,7 @@ _SCHEMES = {
     "SchemeKutta3": "stark.methods.schemes.explicit.fixed.kutta3",
     "SchemeKvaerno3": "stark.methods.schemes.implicit.adaptive.kvaerno3",
     "SchemeKvaerno4": "stark.methods.schemes.implicit.adaptive.kvaerno4",
+    "SchemeKvaerno5": "stark.methods.schemes.implicit.adaptive.kvaerno5",
     "SchemeLobattoIIIC4": "stark.methods.schemes.implicit.fixed.lobatto_iiic4",
     "SchemeMidpoint": "stark.methods.schemes.explicit.fixed.midpoint",
     "SchemeRK4": "stark.methods.schemes.explicit.fixed.rk4",

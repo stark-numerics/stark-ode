@@ -29,7 +29,7 @@ class LinearResidual(Residual, Protocol):
     Newton-style resolvents require more than residual evaluation: they also
     need the local linearization of that residual around the current trial
     block. The residual owns that construction because it knows the scheme
-    context, step size, and any algebra needed to wrap the user's `Linearizer`
+    context, step size, and any algebra needed to wrap the user's `LinearizerLike`
     into the correct residual operator.
     """
 

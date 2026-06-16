@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from multiprocessing import get_context
+from multiprocessing.queues import Queue
+from queue import Empty
 from statistics import median
 from time import perf_counter
 from typing import Any
@@ -51,6 +54,7 @@ class CompetitionEntry:
     prepare: PrepareSolve
     parameters: Mapping[str, Any]
     optional: bool = False
+    timeout: float | None = None
 
     def prepare_solve(self, data: CompetitionData) -> SolveOnce:
         return self.prepare(
@@ -111,6 +115,19 @@ class CompetitionRunner:
     def prewarm(self, entry: CompetitionEntry) -> None:
         if self.announce is not None:
             self.announce(f"Prewarming {entry.library} {entry.solver}...")
+        if entry.timeout is not None:
+            row = self._time_isolated(entry, repeats=1)
+            if row["error"] is None:
+                if self.announce is not None:
+                    self.announce(f"Prewarm skipped: {entry.library} {entry.solver}: {row['note']}")
+                return
+            if self.announce is not None:
+                self.announce(
+                    f"Prewarm complete: {row['solver']} "
+                    f"steps={row['steps']}, error={row['error']:.6e}"
+                )
+            return
+
         try:
             solve_once = entry.prepare_solve(self.data)
             result = solve_once()
@@ -153,6 +170,11 @@ class CompetitionRunner:
         shows exactly which local dependency was unavailable.
         """
 
+        if entry.timeout is not None:
+            if not entry.optional:
+                raise ValueError("CompetitionEntry timeout is only supported for optional rows.")
+            return self._time_isolated(entry, repeats=self.repeats)
+
         setup_elapsed = None
         warmup_elapsed = None
         try:
@@ -178,6 +200,56 @@ class CompetitionRunner:
         if result is None:
             raise RuntimeError("Competition entry produced no timed result.")
         return self._timed_row(result, setup_elapsed, warmup_elapsed, durations)
+
+    def _time_isolated(self, entry: CompetitionEntry, repeats: int) -> dict[str, Any]:
+        """
+        Time an optional entry in a child process and terminate it on timeout.
+
+        This is deliberately opt-in. It is for exploratory or optional rows
+        that may fail to converge or wait on unavailable local backends. Normal
+        competition rows stay in-process so their timing policy remains simple
+        and comparable.
+        """
+
+        if entry.timeout is None:
+            raise ValueError("Isolated competition timing requires entry.timeout.")
+        context = get_context("spawn")
+        queue = context.Queue()
+        process = context.Process(
+            target=_time_entry_in_child,
+            args=(entry, self.data, repeats, queue),
+        )
+        process.start()
+        process.join(entry.timeout)
+        if process.is_alive():
+            process.terminate()
+            process.join()
+            return self._optional_failure_row(
+                entry,
+                None,
+                None,
+                TimeoutError(f"timed out after {entry.timeout:g}s"),
+            )
+
+        try:
+            status, payload = queue.get(timeout=1.0)
+        except Empty:
+            return self._optional_failure_row(
+                entry,
+                None,
+                None,
+                RuntimeError(f"child process exited with code {process.exitcode}"),
+            )
+
+        if status == "ok":
+            return payload
+        setup_elapsed, warmup_elapsed, exc_type, message = payload
+        return self._optional_failure_row(
+            entry,
+            setup_elapsed,
+            warmup_elapsed,
+            RuntimeError(f"{exc_type}: {message}"),
+        )
 
     def _timed_row(
         self,
@@ -222,6 +294,77 @@ class CompetitionRunner:
             "min": None,
             "note": f"{type(exc).__name__}: {exc}",
         }
+
+
+def _time_entry_in_child(
+    entry: CompetitionEntry,
+    data: CompetitionData,
+    repeats: int,
+    queue: Queue,
+) -> None:
+    """Child-process worker for opt-in optional entry timeouts."""
+
+    setup_elapsed = None
+    warmup_elapsed = None
+    try:
+        started = perf_counter()
+        solve_once = entry.prepare_solve(data)
+        setup_elapsed = perf_counter() - started
+
+        started = perf_counter()
+        solve_once()
+        warmup_elapsed = perf_counter() - started
+
+        durations = []
+        result = None
+        for _repeat in range(repeats):
+            started = perf_counter()
+            result = solve_once()
+            durations.append(perf_counter() - started)
+    except Exception as exc:
+        queue.put(
+            (
+                "error",
+                (
+                    setup_elapsed,
+                    warmup_elapsed,
+                    type(exc).__name__,
+                    str(exc),
+                ),
+            )
+        )
+        return
+
+    if result is None:
+        queue.put(
+            (
+                "error",
+                (
+                    setup_elapsed,
+                    warmup_elapsed,
+                    "RuntimeError",
+                    "Competition entry produced no timed result.",
+                ),
+            )
+        )
+        return
+
+    row = {
+        "library": result["library"],
+        "solver": result["solver"],
+        "error": result["error"],
+        "steps": result["steps"],
+        "setup": float(setup_elapsed),
+        "warmup": float(warmup_elapsed),
+        "preparation": float(setup_elapsed + warmup_elapsed),
+        "median": float(median(durations)),
+        "min": float(min(durations)),
+        "note": "",
+    }
+    for key, value in result.items():
+        if key not in row:
+            row[key] = value
+    queue.put(("ok", row))
 
 
 def render_table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:

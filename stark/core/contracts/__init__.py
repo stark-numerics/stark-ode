@@ -29,6 +29,8 @@ from stark.core.contracts.integrator import IntegratorLike
 from stark.core.contracts.interval import IntervalLike
 from stark.core.contracts.inverter import (
     Inverter,
+    InverterInstance,
+    InverterInstancing,
     InverterOutputMode,
     InverterRequest,
     LegacyInverterAudit,
@@ -51,7 +53,7 @@ from stark.core.contracts.linear_combine import (
     Scale,
     SupportsLinearCombine,
 )
-from stark.core.contracts.linearizer import Linearizer, LinearizerAudit
+from stark.core.contracts.linearizer import LinearizerLike, LinearizerAudit
 from stark.core.contracts.stepper import IntegratorStepperAudit, IntegratorStepperLike
 from stark.core.contracts.operator import Operator, OperatorType
 from stark.core.contracts.residual import LinearResidual, Residual, ResidualAudit
@@ -107,6 +109,8 @@ __all__ = [
     "IntegratorLike",
     "IntervalLike",
     "Inverter",
+    "InverterInstance",
+    "InverterInstancing",
     "InverterOutputMode",
     "InverterRequest",
     "LegacyInverterAudit",
@@ -114,7 +118,7 @@ __all__ = [
     "LegacyInverterPreconditionerLike",
     "LinearCombine",
     "LinearResidual",
-    "Linearizer",
+    "LinearizerLike",
     "LinearizerAudit",
     "IntegratorStepperAudit",
     "IntegratorStepperLike",

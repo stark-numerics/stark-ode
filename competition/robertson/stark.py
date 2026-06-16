@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 
-from stark.core.block import BlockBasis, BlockSpecialist
+from stark.core.block import BlockBasis
 from stark.diagnostics.comparison import Comparison
 from stark.core.configuration import Configuration
 from stark.core.interval import Interval
@@ -13,13 +13,16 @@ from stark.core.tolerance import Tolerance
 from stark.engines import EngineNumpy
 from stark.problem.derivative.derivative import DerivativeStyle
 from stark.problem.frame.frame import Frame
+from stark.problem.linearizer import LinearizerStyle
 from stark.methods.method import Method
 from stark.problem.system.system import System
-from stark.methods.inverters import InverterRelaxationJacobi
-from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
-from stark.diagnostics.monitor import MonitorInverter
-from stark.methods.resolvents import ResolventNewton
-from stark.methods.schemes import SchemeKvaerno4
+from stark.methods.inverters.dense import InverterDense
+from stark.methods.resolvents import (
+    ResolventChord,
+    ResolventNewton,
+    ResolventVeryChord,
+)
+from stark.methods.schemes import SchemeKvaerno3, SchemeKvaerno4, SchemeKvaerno5
 
 
 ROBERTSON_LAYOUT = Frame({"y": {"translation": "dy", "shape": (3,)}})
@@ -72,34 +75,16 @@ def robertson_jacobian_dense(
     matrix[(row_offset + 2) * stride + column_offset + 2] = 0.0
 
 
-class RobertsonLinearizer:
-    __slots__ = ("apply_kernel", "dense_kernel")
 
-    def __init__(self, accelerator) -> None:
-        self.apply_kernel = accelerator.compile(
-            robertson_jacobian_apply,
-            label="competition-robertson-jacobian-apply",
-        )
-        self.dense_kernel = accelerator.compile(
-            robertson_jacobian_dense,
-            label="competition-robertson-jacobian-dense",
-        )
+robertson_linearizer = LinearizerStyle.operator(
+    apply=robertson_jacobian_apply,
+    dense=robertson_jacobian_dense,
+    state=("y",),
+    source=("dy",),
+    target=("dy",),
+)
 
-    def __call__(self, interval, state, out) -> None:
-        del interval
-        state_y = state.y
-
-        def apply(translation, result) -> None:
-            self.apply_kernel(state_y, translation.dy, result.dy)
-
-        def dense_fill(_basis, matrix, row_offset, column_offset, stride) -> None:
-            self.dense_kernel(state_y, matrix, row_offset, column_offset, stride)
-
-        out.apply = apply
-        out.dense_fill = dense_fill
-
-
-class RobertsonFullCubicResolvent:
+class RobertsonCubicResolvent:
     __slots__ = ("cubic", "tableau")
 
     def __init__(self, tableau=None) -> None:
@@ -185,28 +170,6 @@ class RobertsonCubicRoot:
         return min(roots, key=lambda root: abs(root - target))
 
 
-class RobertsonEntryOperatorInverse:
-    __slots__ = ("basis", "image", "matrix")
-
-    def __init__(self, allocator) -> None:
-        self.basis = allocator.allocate_translation()
-        self.image = allocator.allocate_translation()
-        self.matrix = np.zeros((3, 3), dtype=np.float64)
-
-    def __call__(self, operator, source, target) -> None:
-        basis = self.basis
-        image = self.image
-        matrix = self.matrix
-
-        for column in range(3):
-            basis.dy[:] = 0.0
-            basis.dy[column] = 1.0
-            operator(basis, image)
-            matrix[:, column] = image.dy
-
-        target.dy[:] = np.linalg.solve(matrix, source.dy)
-
-
 class RobertsonTranslationBasis:
     """Coordinate basis for the Robertson translation field."""
 
@@ -221,32 +184,16 @@ class RobertsonTranslationBasis:
         return float(translation.dy[index])
 
     def coordinates(self, translation, output: list[float]) -> list[float]:
-        output[:] = [float(value) for value in translation.dy]
+        dy = translation.dy
+        output[0] = float(dy[0])
+        output[1] = float(dy[1])
+        output[2] = float(dy[2])
         return output
 
     def synthesize(self, coordinates: list[float], output) -> object:
         output.dy[:] = coordinates
         return output
 
-
-class RobertsonInverterDiagnostics:
-    __slots__ = ("monitor",)
-
-    def __init__(self, monitor: MonitorInverter) -> None:
-        self.monitor = monitor
-
-    def __call__(self) -> dict[str, Any]:
-        summary = self.monitor.summary()
-        self.monitor.clear()
-        return {
-            "inverter_solve_count": summary.solve_count,
-            "inverter_failure_count": summary.failure_count,
-            "inverter_iteration_min": summary.iteration_min,
-            "inverter_iteration_median": summary.iteration_median,
-            "inverter_iteration_max": summary.iteration_max,
-            "inverter_initial_residual_median": summary.initial_residual_median,
-            "inverter_final_residual_median": summary.final_residual_median,
-        }
 
 
 def stark_configuration(stark_parameters) -> Configuration:
@@ -269,15 +216,20 @@ def stark_configuration(stark_parameters) -> Configuration:
     )
 
 
-def stark_runtime(stark_parameters):
-    engine = EngineNumpy(ROBERTSON_LAYOUT)
-    linearizer = RobertsonLinearizer(engine.accelerator)
+def stark_runtime(stark_parameters, accelerator=None):
+    engine = (
+        EngineNumpy(ROBERTSON_LAYOUT)
+        if accelerator is None
+        else EngineNumpy(ROBERTSON_LAYOUT, accelerator=accelerator)
+    )
+    linearizer = robertson_linearizer
     system = System(
         derivative=robertson_rhs,
         frame=ROBERTSON_LAYOUT,
         linearizer=linearizer,
     )
-    return system, engine, linearizer, stark_configuration(stark_parameters)
+    prepared_linearizer = system.prepare_linearizer(engine)
+    return system, engine, prepared_linearizer, stark_configuration(stark_parameters)
 
 
 def stark_solver(
@@ -287,111 +239,172 @@ def stark_solver(
     initial_conditions,
     reference,
     resolvent_builder,
+    scheme=SchemeKvaerno4,
+    accelerator=None,
 ):
-    system, engine, linearizer, configuration = stark_runtime(stark_parameters)
-    resolvent, diagnostics = resolvent_builder(engine, linearizer, configuration)
+    system, engine, linearizer, configuration = stark_runtime(
+        stark_parameters,
+        accelerator=accelerator,
+    )
+    resolvent = resolvent_builder(engine, linearizer, configuration, scheme)
     ivp = system.ivp(
         initial=initial_conditions,
         interval=Interval(problem_parameters["t0"], stark_parameters["step"], problem_parameters["t1"]),
-        method=Method(scheme=SchemeKvaerno4, resolvent=resolvent),
+        method=Method(scheme=scheme, resolvent=resolvent),
         engine=lambda frame: engine,
         configuration=configuration,
     )
 
     def solve_once() -> dict[str, Any]:
         result = ivp.final_result()
-        row = {
+        return {
             "library": "STARK",
             "solver": name,
             "error": Comparison.fieldwise_rms_error(result.state, reference, ("y",)),
             "steps": result.steps,
         }
-        if diagnostics is not None:
-            row.update(diagnostics())
-        return row
 
     return solve_once
 
 
-def cubic_resolvent(engine, linearizer, configuration):
+def cubic_resolvent(engine, linearizer, configuration, scheme):
     del engine, linearizer, configuration
-    return RobertsonFullCubicResolvent(tableau=SchemeKvaerno4.tableau), None
+    return RobertsonCubicResolvent(tableau=scheme.tableau)
 
 
-def newton_jacobi_resolvent(engine, linearizer, configuration):
-    monitor = MonitorInverter()
-    specialist = BlockSpecialist(engine.algebraist_specialist)
-    inverter = InverterRelaxationJacobi(
-        RobertsonEntryOperatorInverse(engine.allocator),
-        damping=1.0,
-        configuration=configuration,
-        monitor=monitor,
-        specialist=specialist,
-    )
-    return (
-        ResolventNewton(
-            engine.allocator,
-            linearizer=linearizer,
-            inverter=inverter,
-            configuration=configuration,
-            accelerator=engine.accelerator,
-            specialist=specialist,
-            tableau=SchemeKvaerno4.tableau,
-        ),
-        RobertsonInverterDiagnostics(monitor),
-    )
-
-
-def newton_dense_resolvent(engine, linearizer, configuration):
-    monitor = MonitorInverter()
-    specialist = BlockSpecialist(engine.algebraist_specialist)
+def newton_dense_resolvent(engine, linearizer, configuration, scheme):
     inverter = InverterDense(
         basis=BlockBasis([RobertsonTranslationBasis()]),
-        provider=InverterProviderDenseNative(accelerator=engine.accelerator),
-        monitor=monitor,
     )
-    return (
-        ResolventNewton(
-            engine.allocator,
-            linearizer=linearizer,
-            inverter=inverter,
-            configuration=configuration,
-            accelerator=engine.accelerator,
-            specialist=specialist,
-            tableau=SchemeKvaerno4.tableau,
-        ),
-        RobertsonInverterDiagnostics(monitor),
+    return ResolventNewton(
+        engine.allocator,
+        linearizer=linearizer,
+        inverter=inverter,
+        configuration=configuration,
+        accelerator=engine.accelerator,
+        tableau=scheme.tableau,
     )
 
 
-def prepare_kvaerno4_full_custom(problem_parameters, stark_parameters, initial_conditions, reference):
+def chord_dense_resolvent(engine, linearizer, configuration, scheme):
+    inverter = InverterDense(
+        basis=BlockBasis([RobertsonTranslationBasis()]),
+    )
+    return ResolventChord(
+        engine.allocator,
+        linearizer=linearizer,
+        inverter=inverter,
+        configuration=configuration,
+        accelerator=engine.accelerator,
+        tableau=scheme.tableau,
+    )
+
+
+def very_chord_dense_resolvent(engine, linearizer, configuration, scheme):
+    inverter = InverterDense(
+        basis=BlockBasis([RobertsonTranslationBasis()]),
+    )
+    return ResolventVeryChord(
+        engine.allocator,
+        linearizer=linearizer,
+        inverter=inverter,
+        configuration=configuration,
+        accelerator=engine.accelerator,
+        tableau=scheme.tableau,
+    )
+
+
+def prepare_kvaerno4_cubic(problem_parameters, stark_parameters, initial_conditions, reference):
     return stark_solver(
-        "Kvaerno4 Full Cubic",
+        "Kvaerno4 Cubic",
         problem_parameters,
         stark_parameters,
         initial_conditions,
         reference,
         cubic_resolvent,
+        scheme=SchemeKvaerno4,
     )
 
 
-def prepare_kvaerno4_full_newton(problem_parameters, stark_parameters, initial_conditions, reference):
+def prepare_kvaerno5_cubic(problem_parameters, stark_parameters, initial_conditions, reference):
     return stark_solver(
-        "Kvaerno4 Full Newton Jacobi",
+        "Kvaerno5 Exact Cubic",
         problem_parameters,
         stark_parameters,
         initial_conditions,
         reference,
-        newton_jacobi_resolvent,
+        cubic_resolvent,
+        scheme=SchemeKvaerno5,
     )
 
 
-def prepare_kvaerno4_full_newton_dense(problem_parameters, stark_parameters, initial_conditions, reference):
+def prepare_kvaerno5_newton_dense(problem_parameters, stark_parameters, initial_conditions, reference):
     return stark_solver(
-        "Kvaerno4 Full Newton Dense",
+        "Kvaerno5 Newton Dense",
         problem_parameters,
         stark_parameters,
         initial_conditions,
         reference,
         newton_dense_resolvent,
+        scheme=SchemeKvaerno5,
+    )
+
+
+def prepare_kvaerno4_newton_dense_small(problem_parameters, stark_parameters, initial_conditions, reference):
+    return stark_solver(
+        "Kvaerno4 Newton Dense",
+        problem_parameters,
+        stark_parameters,
+        initial_conditions,
+        reference,
+        newton_dense_resolvent,
+        scheme=SchemeKvaerno4,
+    )
+
+
+def prepare_kvaerno3_newton_dense_small(problem_parameters, stark_parameters, initial_conditions, reference):
+    return stark_solver(
+        "Kvaerno3 Newton Dense",
+        problem_parameters,
+        stark_parameters,
+        initial_conditions,
+        reference,
+        newton_dense_resolvent,
+        scheme=SchemeKvaerno3,
+    )
+
+
+def prepare_kvaerno5_newton_dense_small(problem_parameters, stark_parameters, initial_conditions, reference):
+    return stark_solver(
+        "Kvaerno5 Newton Dense",
+        problem_parameters,
+        stark_parameters,
+        initial_conditions,
+        reference,
+        newton_dense_resolvent,
+        scheme=SchemeKvaerno5,
+    )
+
+
+def prepare_kvaerno5_chord_dense_small(problem_parameters, stark_parameters, initial_conditions, reference):
+    return stark_solver(
+        "Kvaerno5 Chord Dense",
+        problem_parameters,
+        stark_parameters,
+        initial_conditions,
+        reference,
+        chord_dense_resolvent,
+        scheme=SchemeKvaerno5,
+    )
+
+
+def prepare_kvaerno5_very_chord_dense_small(problem_parameters, stark_parameters, initial_conditions, reference):
+    return stark_solver(
+        "Kvaerno5 VeryChord Dense",
+        problem_parameters,
+        stark_parameters,
+        initial_conditions,
+        reference,
+        very_chord_dense_resolvent,
+        scheme=SchemeKvaerno5,
     )

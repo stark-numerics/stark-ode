@@ -68,6 +68,7 @@ SCHEME_CAPABILITIES = (
     SchemeCapability(schemes.SchemeSDIRK21, "implicit adaptive", SPECIALIST),
     SchemeCapability(schemes.SchemeKvaerno3, "implicit adaptive", SPECIALIST),
     SchemeCapability(schemes.SchemeKvaerno4, "implicit adaptive", SPECIALIST),
+    SchemeCapability(schemes.SchemeKvaerno5, "implicit adaptive", SPECIALIST),
     SchemeCapability(schemes.SchemeIMEXEuler, "IMEX fixed", SPECIALIST),
     SchemeCapability(schemes.SchemeKennedyCarpenter32, "IMEX adaptive", SPECIALIST),
     SchemeCapability(schemes.SchemeKennedyCarpenter43_6, "IMEX adaptive", SPECIALIST),

@@ -13,6 +13,7 @@ from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
 from stark.methods.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
 from stark.methods.schemes.implicit.adaptive.kvaerno4 import SchemeKvaerno4
+from stark.methods.schemes.implicit.adaptive.kvaerno5 import SchemeKvaerno5
 from stark.methods.schemes.implicit.adaptive.sdirk21 import SchemeSDIRK21
 
 
@@ -161,6 +162,7 @@ def tight_configuration() -> Configuration:
         SchemeSDIRK21,
         SchemeKvaerno3,
         SchemeKvaerno4,
+        SchemeKvaerno5,
     ],
 )
 def test_esdirk_adaptive_scheme_owns_its_public_call_method(scheme_cls) -> None:
@@ -173,6 +175,7 @@ def test_esdirk_adaptive_scheme_owns_its_public_call_method(scheme_cls) -> None:
         SchemeSDIRK21,
         SchemeKvaerno3,
         SchemeKvaerno4,
+        SchemeKvaerno5,
     ],
 )
 def test_esdirk_adaptive_default_call_path_is_scheme_owned_generic_call(
@@ -193,6 +196,7 @@ def test_esdirk_adaptive_default_call_path_is_scheme_owned_generic_call(
         SchemeSDIRK21,
         SchemeKvaerno3,
         SchemeKvaerno4,
+        SchemeKvaerno5,
     ],
 )
 def test_esdirk_adaptive_specialist_path_is_scheme_owned_generated_call(
@@ -213,6 +217,7 @@ def test_esdirk_adaptive_specialist_path_is_scheme_owned_generated_call(
         SchemeSDIRK21,
         SchemeKvaerno3,
         SchemeKvaerno4,
+        SchemeKvaerno5,
     ],
 )
 def test_esdirk_adaptive_public_call_uses_redirect_call(scheme_cls) -> None:
@@ -242,6 +247,7 @@ def test_esdirk_adaptive_public_call_uses_redirect_call(scheme_cls) -> None:
         SchemeSDIRK21,
         SchemeKvaerno3,
         SchemeKvaerno4,
+        SchemeKvaerno5,
     ],
 )
 def test_esdirk_adaptive_call_returns_accepted_dt_and_updates_next_step(
@@ -264,6 +270,7 @@ def test_esdirk_adaptive_call_returns_accepted_dt_and_updates_next_step(
         SchemeSDIRK21,
         SchemeKvaerno3,
         SchemeKvaerno4,
+        SchemeKvaerno5,
     ],
 )
 def test_esdirk_adaptive_call_clips_to_remaining_interval(scheme_cls) -> None:
@@ -284,6 +291,7 @@ def test_esdirk_adaptive_call_clips_to_remaining_interval(scheme_cls) -> None:
         SchemeSDIRK21,
         SchemeKvaerno3,
         SchemeKvaerno4,
+        SchemeKvaerno5,
     ],
 )
 def test_esdirk_adaptive_specialist_path_matches_generic_path(
@@ -310,6 +318,7 @@ def test_esdirk_adaptive_specialist_path_matches_generic_path(
         (SchemeSDIRK21, ("known2", "known3")),
         (SchemeKvaerno3, ("known2", "known3", "known4")),
         (SchemeKvaerno4, ("known2", "known3", "known4", "known5")),
+        (SchemeKvaerno5, ("known2", "known3", "known4", "known5", "known6", "known7")),
     ],
 )
 def test_esdirk_adaptive_specialist_path_prepares_expected_kernel_family(
@@ -331,6 +340,7 @@ def test_esdirk_adaptive_specialist_path_prepares_expected_kernel_family(
         SchemeSDIRK21,
         SchemeKvaerno3,
         SchemeKvaerno4,
+        SchemeKvaerno5,
     ],
 )
 def test_esdirk_adaptive_snapshot_is_exposed_through_scheme(
@@ -354,6 +364,7 @@ def test_esdirk_adaptive_snapshot_is_exposed_through_scheme(
         (SchemeSDIRK21, "SDIRK21"),
         (SchemeKvaerno3, "Kvaerno3"),
         (SchemeKvaerno4, "Kvaerno4"),
+        (SchemeKvaerno5, "Kvaerno5"),
     ],
 )
 def test_esdirk_adaptive_monitoring_records_existing_adaptive_fields(

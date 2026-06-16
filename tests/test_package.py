@@ -37,6 +37,7 @@ from stark.methods.inverters.support import InverterDescriptor
 from stark.methods.resolvents import (
     ResolventAnderson,
     ResolventBroyden,
+    ResolventChord,
     ResolventCoupledNewton,
     ResolventCoupledPicard,
     ResolventNewton,
@@ -167,6 +168,7 @@ def test_resolvent_imports() -> None:
     assert resolvents.ResolventConfiguration is not None
     assert resolvents.ResolventError is not None
     assert resolvents.ResolventPicard is not None
+    assert resolvents.ResolventChord is not None
     assert resolvents.ResolventNewton is not None
     assert resolvents.ResolventAnderson is not None
     assert resolvents.ResolventBroyden is not None
@@ -191,6 +193,7 @@ def test_scheme_imports() -> None:
     assert schemes.SchemeBDF2 is adaptive_implicit.SchemeBDF2
     assert schemes.SchemeKvaerno3 is adaptive_implicit.SchemeKvaerno3
     assert schemes.SchemeKvaerno4 is adaptive_implicit.SchemeKvaerno4
+    assert schemes.SchemeKvaerno5 is adaptive_implicit.SchemeKvaerno5
     assert schemes.SchemeSDIRK21 is adaptive_implicit.SchemeSDIRK21
     assert schemes.SchemeRK4 is fixed_step.SchemeRK4
     assert schemes.SchemeEuler is fixed_step.SchemeEuler

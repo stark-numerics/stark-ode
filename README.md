@@ -204,7 +204,7 @@ Implicit and IMEX schemes add a few more moving parts. Alongside the
 allocator and derivative, users may provide:
 
 - a stage `Resolvent`, such as `ResolventNewton` or `ResolventAnderson`;
-- for Newton-backed resolvents, a `Linearizer` that supplies the Jacobian
+- for Newton-backed resolvents, a `LinearizerLike` that supplies the Jacobian
   action of the derivative;
 - for Newton-backed resolvents, an `Inverter`, such as `InverterBiCGStab`.
 
@@ -272,7 +272,7 @@ accelerators can be checked with `Auditor(..., accelerator=...)` before a run.
 
 For the mathematical view of the contracts, see
 [`docs/contracts_math.md`](docs/contracts_math.md). It explains how STARK's
-`State`, `Translation`, `Linearizer`, `Residual`, `Resolvent`, and `Inverter`
+`State`, `Translation`, `LinearizerLike`, `Residual`, `Resolvent`, and `Inverter`
 concepts correspond to affine-space, vector-space, norm, and operator
 structures.
 

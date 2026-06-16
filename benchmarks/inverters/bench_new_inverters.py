@@ -7,9 +7,8 @@ from time import perf_counter
 from typing import Callable
 
 from stark import Executor, ExecutorTolerance, Interval, IntegratorStepper
-from stark.engines.accelerators import AcceleratorNumba
 from stark.core.block import BlockBasis
-from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
+from stark.methods.inverters.dense import InverterDense
 from stark.methods.inverters.relaxation import InverterRelaxationJacobi, InverterRelaxationRichardson
 from stark.methods.inverters.support import InverterBudget, InverterTolerance
 from stark.diagnostics.monitor import MonitorInverter
@@ -192,7 +191,6 @@ def make_initial_state(dimension: int) -> VectorState:
 def make_dense_inverter(basis: VectorBasis, monitor: MonitorInverter) -> InverterDense[VectorTranslation]:
     return InverterDense(
         basis=BlockBasis([basis]),
-        provider=InverterProviderDenseNative(accelerator=AcceleratorNumba()),
         monitor=monitor,
     )
 

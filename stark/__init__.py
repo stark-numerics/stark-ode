@@ -15,6 +15,9 @@ from stark.problem import (
     DerivativeStyle,
     Frame,
     FrameField,
+    Linearizer,
+    LinearizerSignature,
+    LinearizerStyle,
     System,
 )
 
@@ -31,6 +34,9 @@ __all__ = [
     "Integrator",
     "IntegratorConfiguration",
     "IntegratorStepper",
+    "Linearizer",
+    "LinearizerSignature",
+    "LinearizerStyle",
     "Interval",
     "Method",
     "MethodError",

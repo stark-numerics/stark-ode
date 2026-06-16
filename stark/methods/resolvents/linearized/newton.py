@@ -11,7 +11,7 @@ from stark.core.contracts import (
     Accelerator,
     Inverter,
     InverterOutputMode,
-    Linearizer,
+    LinearizerLike,
     Translation,
     Allocator,
 )
@@ -89,7 +89,7 @@ class ResolventNewton:
     def __init__(
         self,
         allocator: Allocator,
-        linearizer: Linearizer,
+        linearizer: LinearizerLike,
         inverter: Inverter[Translation],
         configuration: ResolventConfiguration | None = None,
         safety: ResolventSafety | None = None,
@@ -174,7 +174,7 @@ class ResolventNewton:
         rhs = self.rhs_buffer
         operator = self.operator
 
-        block_size = len(delta)
+        block_size = 1
         iteration_count = 0
 
         for _ in range(self.max_iterations):
@@ -182,29 +182,28 @@ class ResolventNewton:
             equation(delta, residual)
 
             # 2. Accept if ||F(delta)|| is within Tolerance.
-            error = residual.norm()
-            scale = delta.norm()
+            error = residual[0].norm()
+            scale = delta[0].norm()
             if self.tolerance.accepts(error, scale):
                 self.record_solve(block_size, iteration_count, error, scale, True)
                 return delta
 
             # 3. Build the differential DF(delta).
-            operator.reset()
             equation.differential(delta, operator)
 
             # 4. Solve DF(delta) correction = -F(delta).
-            rhs.replace(-1.0 * residual)
+            rhs[0] = equation.scale(-1.0, residual[0], rhs[0])
             self.solve_correction(operator, rhs, correction)
 
             # 5. Newton update: delta <- delta + correction.
-            delta += correction
+            delta[0] = equation.combine2(1.0, delta[0], 1.0, correction[0], delta[0])
             iteration_count += 1
 
         # 6. Recheck once after the final correction.
         equation(delta, residual)
 
-        error = residual.norm()
-        scale = delta.norm()
+        error = residual[0].norm()
+        scale = delta[0].norm()
         if self.tolerance.accepts(error, scale):
             self.record_solve(block_size, iteration_count, error, scale, True)
             return delta
@@ -228,9 +227,8 @@ class ResolventNewton:
         rhs = self.rhs_buffer
         operator = self.operator
         newton_update = self.newton_update
-        assert newton_update is not None
 
-        block_size = len(delta)
+        block_size = 1
         iteration_count = 0
 
         for _ in range(self.max_iterations):
@@ -238,29 +236,28 @@ class ResolventNewton:
             equation(delta, residual)
 
             # 2. Accept if ||F(delta)|| is within Tolerance.
-            error = residual.norm()
-            scale = delta.norm()
+            error = residual[0].norm()
+            scale = delta[0].norm()
             if self.tolerance.accepts(error, scale):
                 self.record_solve(block_size, iteration_count, error, scale, True)
                 return delta
 
             # 3. Build the differential DF(delta).
-            operator.reset()
             equation.differential(delta, operator)
 
             # 4. Solve DF(delta) correction = -F(delta).
-            rhs.replace(-1.0 * residual)
+            rhs[0] = equation.scale(-1.0, residual[0], rhs[0])
             self.solve_correction(operator, rhs, correction)
 
             # 5. Newton update: delta <- delta + correction.
-            newton_update(1.0, delta, correction, delta)
+            newton_update(1.0, delta, correction, delta)  # type: ignore[operator]
             iteration_count += 1
 
         # 6. Recheck once after the final correction.
         equation(delta, residual)
 
-        error = residual.norm()
-        scale = delta.norm()
+        error = residual[0].norm()
+        scale = delta[0].norm()
         if self.tolerance.accepts(error, scale):
             self.record_solve(block_size, iteration_count, error, scale, True)
             return delta

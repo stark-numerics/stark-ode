@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from importlib import import_module
 from math import sqrt
-from typing import Callable
 
 import pytest
 
@@ -16,7 +14,7 @@ except ImportError:  # Compatibility while developing this slow integration test
     from stark.core.block import BlockOperator as BlockOperatorDiagonal
 
 from stark.core.interval import Interval
-from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
+from stark.methods.inverters.dense import InverterDense
 from stark.methods.inverters.relaxation import InverterRelaxationJacobi, InverterRelaxationRichardson
 from stark import Configuration, Tolerance
 from stark.methods.resolvents import ResolventNewton
@@ -220,10 +218,9 @@ def jacobi_entry_inverse(operator, defect: VectorTranslation, output: VectorTran
     output.values[:] = solve_dense(matrix, defect.values)
 
 
-def make_dense_inverter(provider) -> InverterDense[VectorTranslation]:
+def make_dense_inverter() -> InverterDense[VectorTranslation]:
     return InverterDense(
         basis=BlockBasis([VectorBasis()]),
-        provider=provider,
     )
 
 
@@ -242,33 +239,6 @@ def make_richardson_inverter() -> InverterRelaxationRichardson[VectorTranslation
         damping=0.5,
         configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-11, rtol=0.0), inverter_maximum_steps=80),
     )
-
-
-def optional_dense_provider_factories() -> list[tuple[str, Callable[[], object]]]:
-    factories: list[tuple[str, Callable[[], object]]] = [
-        ("Dense Native", InverterProviderDenseNative),
-    ]
-
-    optional_classes = (
-        ("Dense NumPy", "stark.methods.inverters.dense", "InverterProviderDenseNumpy"),
-        ("Dense SciPy", "stark.methods.inverters.dense", "InverterProviderDenseScipy"),
-        ("Dense CuPy", "stark.methods.inverters.dense", "InverterProviderDenseCupy"),
-        ("Dense JAX", "stark.methods.inverters.dense", "InverterProviderDenseJax"),
-    )
-
-    for label, module_name, class_name in optional_classes:
-        try:
-            module = import_module(module_name)
-            provider_class = getattr(module, class_name)
-        except (ImportError, AttributeError):
-            continue
-
-        def factory(provider_class=provider_class):
-            return provider_class()
-
-        factories.append((label, factory))
-
-    return factories
 
 
 def run_backward_euler_newton(inverter) -> VectorState:
@@ -303,14 +273,9 @@ def assert_state_close(actual: VectorState, expected: VectorState) -> None:
 def test_slow_new_inverters_track_each_other_through_newton_resolvent_and_scheme() -> None:
     references: dict[str, VectorState] = {}
 
-    for label, provider_factory in optional_dense_provider_factories():
-        try:
-            provider = provider_factory()
-        except ImportError:
-            continue
-        references[label] = run_backward_euler_newton(make_dense_inverter(provider))
+    references["Dense"] = run_backward_euler_newton(make_dense_inverter())
 
-    dense_reference = references["Dense Native"]
+    dense_reference = references["Dense"]
     candidates = {
         **references,
         "Jacobi": run_backward_euler_newton(make_jacobi_inverter()),

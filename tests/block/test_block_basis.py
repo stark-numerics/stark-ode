@@ -55,11 +55,13 @@ def test_block_basis_preserves_return_style_entries() -> None:
     np.testing.assert_allclose(vector[0], [0.0, 1.0])
 
 
-def test_block_basis_rejects_wrong_block_size_and_index() -> None:
+def test_block_basis_keeps_index_check_but_trusts_prepared_block_size() -> None:
     block_basis = BlockBasis([CarrierNative([0.0]).basis])
+    coordinates = [0.0]
 
-    with pytest.raises(ValueError):
-        block_basis.coordinates(Block([[0.0], [0.0]]), [0.0])
+    block_basis.coordinates(Block([[2.0], [99.0]]), coordinates)
+
+    assert coordinates == pytest.approx([2.0])
 
     with pytest.raises(IndexError):
         block_basis.local_index(1)

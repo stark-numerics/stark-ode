@@ -1,10 +1,11 @@
 # Competition Reports
 
-STARK currently includes four public competition cases:
+STARK currently includes five public competition cases:
 
 - `brusselator_2d`: a periodic two-species reaction-diffusion problem.
 - `fitzhugh_nagumo_1d`: a periodic stiff excitable-medium reaction-diffusion problem.
 - `fput`: a Fermi-Pasta-Ulam-Tsingou beta lattice with fixed endpoints.
+- `hires`: an 8-variable stiff chemical kinetics problem.
 - `robertson`: a stiff chemical kinetics problem.
 
 Run them with:
@@ -13,6 +14,7 @@ Run them with:
 python -m competition.brusselator_2d.report
 python -m competition.fitzhugh_nagumo_1d.report
 python -m competition.fput.report
+python -m competition.hires.report
 python -m competition.robertson.report
 ```
 

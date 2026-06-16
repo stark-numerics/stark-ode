@@ -143,14 +143,3 @@ def test_jacobi_rejects_non_positive_damping() -> None:
     with pytest.raises(ValueError, match="damping"):
         InverterRelaxationJacobi(invert_entry, damping=0.0)
 
-
-def test_jacobi_rejects_missing_diagonal_entry() -> None:
-    request = ResolventInverterRequest(
-        operator=BlockOperatorDiagonal([None]),
-        residual=Block([TranslationScalar(6.0)]),
-    )
-    output = Block([TranslationScalar(0.0)])
-    inverter = InverterRelaxationJacobi[TranslationScalar](invert_entry)
-
-    with pytest.raises(RuntimeError, match="entry 0"):
-        inverter(request, output)

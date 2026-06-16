@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import pytest
-
 from stark.core.block import Block
 
 
@@ -76,9 +74,6 @@ def test_empty_block_norm_is_zero() -> None:
     assert Block([]).norm() == 0.0
 
 
-def test_block_arithmetic_rejects_mismatched_sizes() -> None:
-    with pytest.raises(ValueError, match="Block sizes must match"):
-        block(1.0) + block(1.0, 2.0)
-
-    with pytest.raises(ValueError, match="Block sizes must match"):
-        block(1.0) - block(1.0, 2.0)
+def test_block_arithmetic_is_a_lean_entrywise_internal_operation() -> None:
+    assert values(block(1.0) + block(1.0, 2.0)) == (2.0,)
+    assert values(block(5.0) - block(2.0, 3.0)) == (3.0,)

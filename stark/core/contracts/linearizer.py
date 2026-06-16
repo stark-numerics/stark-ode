@@ -20,13 +20,13 @@ class _LinearizerOperatorProbe:
     @staticmethod
     def _unset(translation: Translation, out: Translation) -> None:
         del translation, out
-        raise RuntimeError("Linearizer did not configure the operator probe.")
+        raise RuntimeError("LinearizerLike did not configure the operator probe.")
 
     def __call__(self, translation: Translation, out: Translation) -> None:
         self.apply(translation, out)
 
 
-class Linearizer(Protocol):
+class LinearizerLike(Protocol):
     """
     Fill `out` with the local Jacobian action of the derivative at `state`.
 
@@ -55,7 +55,7 @@ class LinearizerAudit:
     def __call__(recorder: AuditRecorder, linearizer: Any) -> None:
         recorder.check(
             callable(linearizer),
-            "Linearizer provides __call__(interval, state, out).",
+            "LinearizerLike provides __call__(interval, state, out).",
             "Provide a callable linearizer(interval, state, out).",
         )
 
@@ -71,23 +71,23 @@ class LinearizerAudit:
         try:
             linearizer(interval, state, operator)
         except Exception as exc:
-            recorder.record_exception("Linearizer(interval, state, out) can be called.", exc)
+            recorder.record_exception("LinearizerLike(interval, state, out) can be called.", exc)
             return
         else:
-            recorder.check(True, "Linearizer(interval, state, out) can be called.")
+            recorder.check(True, "LinearizerLike(interval, state, out) can be called.")
 
         try:
             result = operator(translation, translation)
         except Exception as exc:
-            recorder.record_exception("Linearizer configures an operator callable.", exc)
+            recorder.record_exception("LinearizerLike configures an operator callable.", exc)
             return
         else:
-            recorder.check(True, "Linearizer configures an operator callable.")
+            recorder.check(True, "LinearizerLike configures an operator callable.")
             recorder.check(
                 result is None,
-                "Linearizer-configured operators fill in place and return None.",
+                "LinearizerLike-configured operators fill in place and return None.",
                 "Make operator(translation, out) mutate out and return None.",
             )
 
 
-__all__ = ["Linearizer", "LinearizerAudit"]
+__all__ = ["LinearizerLike", "LinearizerAudit"]

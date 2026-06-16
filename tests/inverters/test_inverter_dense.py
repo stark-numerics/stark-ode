@@ -6,7 +6,7 @@ from math import isclose, sqrt
 import pytest
 
 from stark.core.block import Block, BlockBasis
-from stark.methods.inverters.dense import InverterDense, InverterProviderDenseNative
+from stark.methods.inverters.dense import InverterDense, InverterDenseInstanceSingle
 
 
 @dataclass
@@ -100,7 +100,6 @@ def test_dense_inverter_solves_scalar_problem() -> None:
     inverter(request, output)
 
     assert_vector_close(output[0], [2.0])
-    assert inverter.provider.dimension == 1
 
 
 def test_dense_inverter_solves_two_by_two_problem() -> None:
@@ -115,7 +114,6 @@ def test_dense_inverter_solves_two_by_two_problem() -> None:
     inverter(request, output)
 
     assert_vector_close(output[0], [0.2, 0.6])
-    assert inverter.provider.dimension == 2
 
 
 def test_dense_inverter_solves_three_by_three_problem() -> None:
@@ -130,10 +128,9 @@ def test_dense_inverter_solves_three_by_three_problem() -> None:
     inverter(request, output)
 
     assert_vector_close(output[0], [1.0, 2.0, 3.0])
-    assert inverter.provider.dimension == 3
 
 
-def test_dense_inverter_uses_native_general_fallback_for_larger_system() -> None:
+def test_dense_inverter_solves_blockwise_larger_system() -> None:
     basis = BlockBasis([VectorBasis(2), VectorBasis(2)])
     inverter = InverterDense(basis=basis)
     request = RequestFake(
@@ -149,57 +146,57 @@ def test_dense_inverter_uses_native_general_fallback_for_larger_system() -> None
 
     assert_vector_close(output[0], [3.0, 2.0])
     assert_vector_close(output[1], [3.0, 4.0])
-    assert inverter.provider.dimension == 4
 
 
-def test_dense_native_provider_rejects_singular_exact_system() -> None:
+def test_dense_inverter_rejects_singular_exact_system() -> None:
     basis = BlockBasis([VectorBasis(2)])
-    inverter = InverterDense(basis=basis, provider=InverterProviderDenseNative())
+    inverter = InverterDense(basis=basis)
     request = RequestFake(
         operator=OperatorDiagonalFake([matrix_operator([[1.0, 2.0], [2.0, 4.0]])]),
         residual=Block([Vector(1.0, 1.0)]),
     )
 
-    with pytest.raises(ZeroDivisionError, match="singular"):
+    with pytest.raises(ZeroDivisionError):
         inverter(request, Block([Vector(0.0, 0.0)]))
 
 
-class AcceleratorFake:
-    name = "fake"
+def dense_fill_operator(matrix: list[list[float]]):
+    def apply(source: Vector, target: Vector) -> Vector:
+        target.values[:] = [
+            sum(coefficient * source_value for coefficient, source_value in zip(row, source.values, strict=True))
+            for row in matrix
+        ]
+        return target
 
-    def __init__(self) -> None:
-        self.labels: list[str | None] = []
+    def dense_fill(_basis, target: list[float], row_offset: int, column_offset: int, stride: int) -> None:
+        for row, values in enumerate(matrix):
+            for column, value in enumerate(values):
+                target[(row_offset + row) * stride + column_offset + column] = value
 
-    def compile(self, function=None, /, *, label=None, cache=None, **options):
-        del cache, options
-
-        def compile_function(target):
-            self.labels.append(label)
-            return target
-
-        if function is None:
-            return compile_function
-        return compile_function(function)
-
-    def compile_examples(self, function, *examples):
-        del examples
-        return function
+    apply.dense_fill = dense_fill  # type: ignore[attr-defined]
+    return apply
 
 
-def test_dense_native_provider_compiles_selected_kernel_when_accelerator_is_supplied() -> None:
-    accelerator = AcceleratorFake()
+def test_dense_inverter_instance_reuses_materialized_block_matrix() -> None:
     basis = BlockBasis([VectorBasis(3)])
-    inverter = InverterDense(
-        basis=basis,
-        provider=InverterProviderDenseNative(accelerator=accelerator),
-    )
-    request = RequestFake(
-        operator=OperatorDiagonalFake([matrix_operator([[1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 4.0]])]),
-        residual=Block([Vector(2.0, 8.0, 32.0)]),
-    )
+    inverter = InverterDense(basis=basis)
+    operator = OperatorDiagonalFake([
+        dense_fill_operator([[1.0, 2.0, 3.0], [0.0, 1.0, 4.0], [5.0, 6.0, 0.0]])
+    ])
+    instance = inverter.instance(operator)
     output = Block([Vector(0.0, 0.0, 0.0)])
 
-    inverter(request, output)
+    assert isinstance(instance, InverterDenseInstanceSingle)
+    instance(Block([Vector(14.0, 14.0, 17.0)]), output)
 
-    assert_vector_close(output[0], [2.0, 4.0, 8.0])
-    assert accelerator.labels == ["inverter-provider-dense-native-three"]
+    assert_vector_close(output[0], [1.0, 2.0, 3.0])
+
+
+def test_dense_inverter_instance_requires_dense_fill_entries() -> None:
+    basis = BlockBasis([VectorBasis(2)])
+    inverter = InverterDense(basis=basis)
+    operator = OperatorDiagonalFake([matrix_operator([[2.0, 1.0], [1.0, 3.0]])])
+
+    with pytest.raises(TypeError, match="dense_fill"):
+        inverter.instance(operator)
+

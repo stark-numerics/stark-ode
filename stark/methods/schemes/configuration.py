@@ -11,6 +11,7 @@ class SchemeConfiguration(Protocol):
     adaptive_scheme_min_factor: float
     adaptive_scheme_max_factor: float
     adaptive_scheme_error_exponent: float
+    adaptive_scheme_maximum_rejections: int | None
 
 @dataclass(frozen=False, slots=True)
 class SchemeConfigurationDefault:
@@ -19,6 +20,7 @@ class SchemeConfigurationDefault:
     adaptive_scheme_min_factor: float = 0.1
     adaptive_scheme_max_factor: float = 5.0
     adaptive_scheme_error_exponent: float = 0.2
+    adaptive_scheme_maximum_rejections: int | None = 64
 
 
 __all__ = ["SchemeConfiguration", "SchemeConfigurationDefault"]

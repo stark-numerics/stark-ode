@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import pytest
-
 from stark.core.block import Block, BlockOperatorDiagonal
 
 
@@ -47,11 +45,10 @@ def test_repeated_block_operator_reuses_operator_for_each_entry() -> None:
     assert values(out) == (2.0, 3.0, 4.0)
 
 
-def test_block_operator_rejects_size_mismatch() -> None:
+def test_block_operator_call_is_a_lean_prepared_internal_operation() -> None:
     operator = BlockOperatorDiagonal([add_one])
+    out = block(0.0, 99.0)
 
-    with pytest.raises(ValueError, match="Block operator size"):
-        operator(block(1.0, 2.0), block(0.0, 0.0))
+    operator(block(1.0, 2.0), out)
 
-    with pytest.raises(ValueError, match="Block sizes"):
-        operator(block(1.0), block(0.0, 0.0))
+    assert values(out) == (2.0, 99.0)

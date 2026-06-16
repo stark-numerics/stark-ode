@@ -11,7 +11,7 @@ class Operator(Protocol):
     """
     Fill `out` with the image of a translation under a linear operator.
 
-    Users normally provide operators through a `Linearizer`. The operator does
+    Users normally provide operators through a `LinearizerLike`. The operator does
     not need to expose a dense matrix. It only needs to apply the local linear
     map to a translation, which is enough for matrix-free inverters such as
     GMRES, FGMRES, and BiCGStab.

@@ -538,7 +538,7 @@ which resolvent you choose:
 
 - `ResolventPicard` only needs the implicit derivative.
 - `ResolventAnderson` and `ResolventBroyden` also need an `InnerProduct`.
-- `ResolventNewton` needs a `Linearizer` and an `LegacyInverterLike`.
+- `ResolventNewton` needs a `LinearizerLike` and an `LegacyInverterLike`.
 
 The common implicit shape is:
 
@@ -601,7 +601,7 @@ The `Auditor` is especially useful here because implicit methods rely on more
 contracts at once:
 
 - the `Translation` vector-space and norm structure;
-- the `Linearizer` Jacobian action for Newton-like resolvents;
+- the `LinearizerLike` Jacobian action for Newton-like resolvents;
 - the `InnerProduct` for Krylov and secant-based methods;
 - the in-place linear-combination kernels required for strict implicit
   operator algebra.

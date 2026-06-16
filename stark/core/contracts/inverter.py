@@ -66,6 +66,38 @@ class Inverter(Protocol[TranslationType]):
         ...
 
 
+class InverterInstance(Protocol[TranslationType]):
+    """
+    Operator-bound linear solve action.
+
+    Some resolvents reuse the same linearized operator for several right-hand
+    sides. An inverter can expose `instance(operator)` to do operator-specific
+    preparation once and return a callable that solves
+
+        operator(output) = residual
+
+    for each later residual block.
+    """
+
+    def __call__(
+        self,
+        residual: BlockLike[TranslationType],
+        output: BlockLike[TranslationType],
+    ) -> None:
+        ...
+
+
+class InverterInstancing(Protocol[TranslationType]):
+    """
+    Optional inverter capability for operator-bound solve instances."""
+
+    def instance(
+        self,
+        operator: BlockOperatorLike[TranslationType],
+    ) -> InverterInstance[TranslationType]:
+        ...
+
+
 
 class LegacyInverterLike(Protocol):
     """
@@ -133,6 +165,8 @@ __all__ = [
     "InverterOutputMode",
     "InverterRequest",
     "Inverter",
+    "InverterInstance",
+    "InverterInstancing",
     "LegacyInverterAudit",
     "LegacyInverterLike",
     "LegacyInverterPreconditionerLike",

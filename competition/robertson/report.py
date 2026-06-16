@@ -6,6 +6,10 @@ from competition.robertson import common, diffrax, scipy, stark
 from competition.runner import CompetitionData, CompetitionEntry, CompetitionRunner, render_table
 
 
+def announce(message: str) -> None:
+    print(message, flush=True)
+
+
 def describe_problem(problem, tolerances, stark_parameters, reference_tolerances, reference, reference_elapsed):
     print("Robertson Benchmark")
     print()
@@ -45,11 +49,9 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
         "StarkEngineNumpy selects Numba when it is installed and otherwise uses unaccelerated callables"
     )
     print("  STARK Robertson prepares the carrier, allocator, derivative, and integrator explicitly")
-    print("  STARK Robertson includes a fully implicit Kvaerno4 solve with a custom exact cubic resolvent")
-    print("  STARK Robertson also includes Kvaerno4 Newton rows using the new inverter request path")
-    print("  one Newton row uses Jacobi relaxation with a materialized local 3x3 entry inverse")
-    print("  one Newton row uses the generic dense inverter with the native dense provider")
-    print("  the Newton/Jacobi relaxation update is supplied through the allocator BlockSpecialist")
+    print("  Kvaerno5 Exact Cubic uses a custom analytic resolvent for this problem")
+    print("  STARK Robertson also includes Kvaerno5 Newton, Chord, and VeryChord rows using the new inverter request path")
+    print("  dense rows use the provider-free dense inverter and one-block nucleus path")
     print("  Diffrax uses Kvaerno5, an adaptive stiffly accurate ESDIRK method")
     print("  all compared solver stacks are prewarmed once before timed rows")
     print("  each method performs setup once, then one complete untimed warmup solve")
@@ -136,42 +138,6 @@ def _format_optional_iteration(value: float | int | None) -> str:
     return str(value)
 
 
-def print_inverter_diagnostics(rows) -> None:
-    diagnostic_rows = [row for row in rows if "inverter_solve_count" in row]
-    if not diagnostic_rows:
-        return
-
-    print("Inverter Diagnostics Table")
-    print(
-        render_table(
-            (
-                "solver",
-                "solves",
-                "failures",
-                "iter min",
-                "iter med",
-                "iter max",
-                "initial med",
-                "final med",
-            ),
-            [
-                (
-                    row["solver"],
-                    str(row["inverter_solve_count"]),
-                    str(row["inverter_failure_count"]),
-                    _format_optional_iteration(row["inverter_iteration_min"]),
-                    _format_optional_iteration(row["inverter_iteration_median"]),
-                    _format_optional_iteration(row["inverter_iteration_max"]),
-                    _format_optional_float(row["inverter_initial_residual_median"]),
-                    _format_optional_float(row["inverter_final_residual_median"]),
-                )
-                for row in diagnostic_rows
-            ],
-        )
-    )
-    print()
-
-
 def print_summary(rows):
     completed = [row for row in rows if row["error"] is not None and row["median"] is not None]
     if not completed:
@@ -210,14 +176,37 @@ def main() -> None:
     initial_conditions = common.INITIAL_CONDITIONS
     repeats = common.BENCHMARK_PARAMETERS["repeats"]
 
+    announce("Generating Robertson reference solution...")
     started = perf_counter()
     reference = scipy.run_reference(problem, reference_tolerances, initial_conditions)
     reference_elapsed = perf_counter() - started
+    announce(f"Reference complete in {reference_elapsed:.6f}s.")
 
     entries = [
-        CompetitionEntry("STARK", "Kvaerno4 Full Cubic", stark.prepare_kvaerno4_full_custom, stark_parameters),
-        CompetitionEntry("STARK", "Kvaerno4 Full Newton Jacobi", stark.prepare_kvaerno4_full_newton, stark_parameters),
-        CompetitionEntry("STARK", "Kvaerno4 Full Newton Dense", stark.prepare_kvaerno4_full_newton_dense, stark_parameters),
+        CompetitionEntry(
+            "STARK",
+            "Kvaerno5 Exact Cubic",
+            stark.prepare_kvaerno5_cubic,
+            stark_parameters,
+        ),
+        CompetitionEntry(
+            "STARK",
+            "Kvaerno5 Newton Dense",
+            stark.prepare_kvaerno5_newton_dense,
+            stark_parameters,
+        ),
+        CompetitionEntry(
+            "STARK",
+            "Kvaerno5 Chord Dense",
+            stark.prepare_kvaerno5_chord_dense_small,
+            stark_parameters,
+        ),
+        CompetitionEntry(
+            "STARK",
+            "Kvaerno5 VeryChord Dense",
+            stark.prepare_kvaerno5_very_chord_dense_small,
+            stark_parameters,
+        ),
         CompetitionEntry("SciPy", "Radau", scipy.prepare_radau, tolerances),
         CompetitionEntry("SciPy", "BDF", scipy.prepare_bdf, tolerances),
         CompetitionEntry("Diffrax", "Kvaerno5", diffrax.prepare_kvaerno5, tolerances, optional=True),
@@ -226,13 +215,13 @@ def main() -> None:
         CompetitionData(problem, initial_conditions, reference),
         entries,
         repeats,
+        announce=announce,
     ).time_all()
 
     describe_problem(problem, tolerances, stark_parameters, reference_tolerances, reference, reference_elapsed)
     print_error_table(rows)
     print_preparation_table(rows)
     print_run_table(rows, repeats)
-    print_inverter_diagnostics(rows)
     print_summary(rows)
 
 

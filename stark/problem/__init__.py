@@ -7,6 +7,12 @@ from stark.problem.derivative import (
     DerivativeSignature,
     DerivativeStyle,
 )
+from stark.problem.linearizer import (
+    Linearizer,
+    LinearizerImplementation,
+    LinearizerSignature,
+    LinearizerStyle,
+)
 from stark.problem.frame import (
     Frame,
     FrameField,
@@ -28,6 +34,10 @@ __all__ = [
     "FrameNormMax",
     "FrameNormPolicy",
     "FrameNormRMS",
+    "Linearizer",
+    "LinearizerImplementation",
+    "LinearizerSignature",
+    "LinearizerStyle",
     "Method",
     "MethodError",
     "System",

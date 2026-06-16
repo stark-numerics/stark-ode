@@ -47,8 +47,11 @@ class SchemeStepControl:
         "_bound",
         "_configuration",
         "_max_factor",
+        "_maximum_rejections",
         "_min_factor",
         "_ratio",
+        "_rejection_count",
+        "_rejection_t_start",
         "_report",
         "_safety",
         "_error_exponent",
@@ -59,6 +62,9 @@ class SchemeStepControl:
         self._safety = configuration.adaptive_scheme_safety
         self._min_factor = configuration.adaptive_scheme_min_factor
         self._max_factor = configuration.adaptive_scheme_max_factor
+        self._maximum_rejections = configuration.adaptive_scheme_maximum_rejections
+        self._rejection_count = 0
+        self._rejection_t_start = 0.0
         self._error_exponent = configuration.adaptive_scheme_error_exponent
         self._ratio = configuration.scheme_tolerance.ratio
         self._bound = configuration.scheme_tolerance.bound
@@ -94,6 +100,8 @@ class SchemeStepControl:
         return min(self._max_factor, max(self._min_factor, factor))
 
     def propose_step(self, interval: IntervalLike) -> SchemeStepAdaptiveProposal:
+        self._rejection_count = 0
+        self._rejection_t_start = interval.present
         remaining = interval.stop - interval.present
         if remaining <= 0.0:
             return SchemeStepAdaptiveProposal(
@@ -118,6 +126,14 @@ class SchemeStepControl:
         remaining: float,
         label: str,
     ) -> float:
+        self._rejection_count += 1
+        maximum_rejections = self._maximum_rejections
+        if maximum_rejections is not None and self._rejection_count > maximum_rejections:
+            raise RuntimeError(
+                f"{label} rejected {self._rejection_count} consecutive step attempts "
+                f"while trying to advance from t={self._rejection_t_start:g}; "
+                f"last dt={dt:g}, last error ratio={error_ratio:g}."
+            )
         dt *= self.factor(error_ratio)
         if dt <= 0.0:
             raise RuntimeError(f"{label} step size underflowed to zero.")

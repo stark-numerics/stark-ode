@@ -54,20 +54,8 @@ class BlockOperatorDiagonal(Generic[TranslationType]):
         block: Block[TranslationType],
         out: Block[TranslationType],
     ) -> Block[TranslationType]:
-        Block._require_same_size(block, out)
-
-        if len(block) != len(self.operators):
-            raise ValueError(
-                "Block operator size must match the input block size."
-            )
-
         for index, operator in enumerate(self.operators):
-            if operator is None:
-                raise RuntimeError(
-                    f"BlockOperatorDiagonal entry {index} is not configured."
-                )
-
-            operator(block[index], out[index])
+            operator(block[index], out[index])  # type: ignore[misc]
 
         return out
 

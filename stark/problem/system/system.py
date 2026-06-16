@@ -12,6 +12,7 @@ from stark.core.integrator.integrator import Checkpoints, Integrator
 from stark.core.integrator.stepper import IntegratorStepper
 from stark.problem.derivative.derivative import Derivative, DerivativeSignature
 from stark.problem.frame.frame import Frame
+from stark.problem.linearizer.linearizer import Linearizer, LinearizerSignature
 from stark.methods.method import Method, MethodError
 
 
@@ -277,6 +278,8 @@ class System:
         derivative: object,
         configuration: Configuration,
     ) -> object:
+        prepared_linearizer = self.prepare_linearizer(engine)
+
         inverter = None
         if method.inverter is not None:
             inverter = self.construct_component(
@@ -300,7 +303,7 @@ class System:
                     "configuration": configuration,
                     "accelerator": engine.accelerator,
                     "inverter": inverter,
-                    "linearizer": self.linearizer,
+                    "linearizer": prepared_linearizer,
                     "inner_product": self.inner_product
                     if self.inner_product is not None
                     else getattr(engine.allocator, "inner_product", None),
@@ -320,6 +323,18 @@ class System:
             },
             options=method.scheme_options,
         )
+
+    def prepare_linearizer(self, engine: Engine) -> object | None:
+        linearizer = self.linearizer
+        if linearizer is None:
+            return None
+        if isinstance(linearizer, Linearizer):
+            return linearizer.accelerate(engine.accelerator)
+        if isinstance(linearizer, LinearizerSignature):
+            return Linearizer(linearizer).accelerate(engine.accelerator)
+        if callable(linearizer):
+            return Linearizer(linearizer).accelerate(engine.accelerator)
+        raise TypeError("System linearizer must be callable or a linearizer signature.")
 
     def prepare_derivative(self, engine: Engine) -> object:
         derivative = self.derivative

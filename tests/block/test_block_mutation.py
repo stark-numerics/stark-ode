@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import math
 
-import pytest
-
 from stark.core.block import Block
 
 
@@ -43,9 +41,10 @@ def test_block_inplace_subtracts_entrywise() -> None:
     assert values(block) == (2.0, 3.0)
 
 
-def test_block_rejects_mismatched_sizes() -> None:
-    with pytest.raises(ValueError):
-        Block([Translation(1.0)]) + Block([Translation(1.0), Translation(2.0)])
+def test_block_arithmetic_trusts_prepared_sizes() -> None:
+    result = Block([Translation(1.0)]) + Block([Translation(1.0), Translation(2.0)])
+
+    assert values(result) == (2.0,)
 
 
 def test_block_norm_uses_product_norm() -> None:

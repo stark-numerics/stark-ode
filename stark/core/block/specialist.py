@@ -41,8 +41,6 @@ class BlockSpecialist(Generic[StencilType, TranslationType]):
 
                 sources = terms[:-1]
                 result = terms[-1]
-                Block._require_same_size(origin, *sources, result)
-
                 for index, result_item in enumerate(result):
                     item_kernel(
                         step,
@@ -64,8 +62,6 @@ class BlockSpecialist(Generic[StencilType, TranslationType]):
 
             sources = terms[:-1]
             out = terms[-1]
-            Block._require_same_size(*sources, out)
-
             for index, out_item in enumerate(out):
                 item_kernel(
                     step,
