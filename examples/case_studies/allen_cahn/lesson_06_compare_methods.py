@@ -23,7 +23,7 @@ from __future__ import annotations
 from stark import Configuration, IntegratorStepper, Method, Tolerance
 from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblem
 from stark.core.contracts import DerivativeIMEX
-from stark.methods.inverters import InverterBiCGStab, InverterLegacyAdapter, InverterPolicy
+from stark.methods.inverters import InverterKrylovArnoldi
 from stark.methods.resolvents import ResolventNewton
 from stark.methods.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7, SchemeSDIRK21
 
@@ -68,20 +68,20 @@ if __name__ == "__main__":
     explicit_scheme = SchemeCashKarp(full_derivative, allocator)
 
     # 2. Fully implicit Newton: fewer macro steps may be possible, but each
-    # step carries nonlinear and Krylov linear-solve work. The Krylov inverter
-    # is still on the older bind-then-solve API, so the adapter exposes it to
-    # the request-shaped inverter protocol used by ResolventNewton.
+    # step carries nonlinear and Krylov linear-solve work. The current Arnoldi
+    # inverter uses the same request-shaped inverter protocol as the dense and
+    # relaxation families.
 
     linearizer = AllenCahnLinearizer(geometry, DIFFUSIVITY)
-    inverter = InverterLegacyAdapter(
-        InverterBiCGStab(
-            allocator,
-            allen_cahn_inner_product,
-            configuration=Configuration(
-                inverter_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
-            ),
-            policy=InverterPolicy(max_iterations=24, restart=12),
-        )
+    inverter = InverterKrylovArnoldi(
+        allocator,
+        allen_cahn_inner_product,
+        restart=12,
+        configuration=Configuration(
+            inverter_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
+            inverter_maximum_steps=24,
+        ),
+        accelerator=ACCELERATOR,
     )
     newton_resolvent = ResolventNewton(
         allocator,

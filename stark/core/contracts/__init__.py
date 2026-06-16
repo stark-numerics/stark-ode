@@ -59,6 +59,7 @@ from stark.core.contracts.operator import Operator, OperatorType
 from stark.core.contracts.residual import LinearResidual, Residual, ResidualAudit
 from stark.core.contracts.resolvent import Resolvent, ResolventAudit
 from stark.core.contracts.scheme import Scheme, SchemeAudit, SchemeLike
+from stark.core.contracts.scheme_predictor import SchemePredictorLike
 from stark.core.contracts.state import (
     State,
     StateType,
@@ -132,6 +133,7 @@ __all__ = [
     "Scheme",
     "SchemeAudit",
     "SchemeLike",
+    "SchemePredictorLike",
     "State",
     "StateType",
     "StateTypeCovariant",

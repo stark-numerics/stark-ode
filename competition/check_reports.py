@@ -11,6 +11,7 @@ from time import perf_counter
 
 
 REPORT_MODULES = (
+    "competition.allen_cahn_1d.report",
     "competition.brusselator_2d.report",
     "competition.fitzhugh_nagumo_1d.report",
     "competition.fput.report",
@@ -134,7 +135,9 @@ def seconds(text: str) -> float:
 def parse_table_rows(stdout: str) -> tuple[Row, ...]:
     error_rows = parse_report_table(stdout, "Error Table")
     preparation_rows = parse_report_table(stdout, "Preparation Timing Table")
-    timing_rows = parse_report_table(stdout, "Run Timing Table")
+    timing_rows = parse_report_table(stdout, "Warm Run Timing Table")
+    if not timing_rows:
+        timing_rows = parse_report_table(stdout, "Run Timing Table")
 
     preparation_by_key = {
         (row["library"], row["solver"]): row

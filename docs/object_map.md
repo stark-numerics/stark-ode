@@ -1,135 +1,109 @@
 # STARK object map
 
-STARK has a small set of object families that appear repeatedly across the
-interface layer, core schemes, implicit solvers, and performance hooks. This
-page describes what each family is for and whether users are expected to
-supply their own objects.
+STARK is organized around a small set of object families. Ordinary users mostly
+work with the problem layer; advanced users can supply lower-level contracts
+when they need custom state, custom algebra, implicit solvers, or acceleration.
 
-## Everyday user objects
+## Problem objects
 
-Most users start with `stark.problem.StarkIVP`. In that path, STARK builds
-the core objects for you from an initial value and a derivative callable.
+- **System**
+  A reusable problem declaration. It combines a derivative, a `Frame`, and
+  optional problem-level ingredients such as a linearizer or inner product.
 
-- **Initial value**
-  The scalar, sequence, NumPy array, CuPy array, or JAX array supplied to
-  `StarkIVP`. Users always provide this.
+- **Frame**
+  Declares named state fields, their corresponding translation fields, shapes,
+  and norm policy. Engines use the frame to allocate state and translation
+  objects.
 
 - **Derivative**
-  The right-hand side of the ODE. Users usually provide this. It can be a
-  return-style callable such as `f(t, y) -> dy`, or an in-place callable marked
-  with `Derivative.in_place`.
+  The right-hand side of the ODE. Users normally provide this through
+  `DerivativeStyle`: return-style, in-place, field-level kernel, or returning
+  field-level kernel.
 
-- **Interval**
-  The current time, proposed step, and stop time. Users provide this directly
-  with `stark.Interval`.
+- **Linearizer**
+  A problem-level worker for implicit methods. It prepares the scheme-facing
+  `LinearizerLike` callable that configures a local Jacobian operator.
+
+- **SystemIVP**
+  A prepared initial-value problem created by `System.ivp(...)`. It owns the
+  engine, prepared initial state, interval template, scheme, stepper, and
+  integrator used for repeated solves.
 
 ## Core integration objects
 
-The core API is useful when the problem already has its own state model or
-when advanced users need control over schemes, workspaces, accelerators, or
-fast paths.
-
 - **State**
-  The nonlinear problem value being advanced. In the interface layer this is a
-  wrapper around the initial value. In the core API it is often a user-defined
-  object such as a particle system, field bundle, or nested dataclass.
+  The nonlinear value being advanced.
 
 - **Translation**
   The linear increment used by Runge-Kutta stages. A translation can be scaled,
-  combined, measured with a norm, and applied to a state. Advanced users may
-  provide their own translation class when a dense array is not the natural
-  representation.
+  combined, measured, and applied to a state.
 
 - **Allocator**
-  The allocator and copier for states and translations. Schemes ask a
-  allocator for blank buffers rather than knowing how a user state is built.
-  Core users supply a allocator when they supply custom states and
-  translations.
+  Allocates blank states/translations and copies states.
+
+- **Interval**
+  Current time, proposed step size, and stop time.
+
+- **Tolerance** and **Configuration**
+  Runtime policy for tolerances, progress checks, adaptive behaviour, and method
+  options such as scheme predictors.
+
+- **IntegratorStepper** and **Integrator**
+  The stepper performs one accepted step. The integrator repeatedly calls a
+  stepper over an interval and yields snapshots or mutable working objects.
+
+## Method objects
+
+- **Method**
+  A user-facing numerical recipe that selects a scheme and optional method
+  components.
 
 - **Scheme**
-  A one-step method such as Euler, RK4, Cash-Karp, backward Euler, or an IMEX
-  pair. Users choose schemes. Advanced users can supply custom scheme objects
-  if they satisfy the scheme contract.
-
-- **Configuration**
-  Runtime policy: tolerances, adaptive regulation checks, and selected
-  accelerator. Users may supply one when they need non-default tolerances or
-  execution policy.
-
-- **IntegratorStepper**
-  Couples a scheme and Configuration into one accepted-step operation. Users touch
-  this when using the core API directly.
-
-- **Integrator**
-  Repeatedly calls a stepper over an interval. Users touch this when using the
-  core API directly or when they need snapshot/live iteration control.
-
-## Algebra and performance objects
-
-These objects exist to keep scheme code independent from the representation of
-state increments, while still allowing optimized paths where the representation
-is known.
-
-- **Algebraist**
-  Provides generated or runtime translation-algebra kernels from explicit
-  frame metadata. General providers bind arity-based `linear_combine` kernels
-  to a translation type. Specialist providers give schemes fixed-coefficient
-  kernels for repeated tableau combinations. Accelerated providers may have
-  noticeable compilation cost, so they are best suited to large states, long
-  integrations, or repeated solves. Algebraist does not generate resolvent
-  iterations, convergence checks, inverter logic, or preconditioner internals.
-
-- **Algebraist frame field**
-  Describes how one translation field maps to one state field and which frame
-  policy should generate its code. Users define fields when they build an
-  Algebraist provider.
-
-- **Algebraist frame policy**
-  Controls how generated code treats a field: broadcasted array operations,
-  looped compiled kernels, or small fixed unrolled shapes. Advanced users
-  choose policies when performance or representation details matter.
-
-- **Accelerator**
-  A configured compiler/backend worker such as no acceleration, Numba, or JAX.
-  Users may provide one through an Configuration or Algebraist when they want
-  accelerated generated kernels.
-
-## Implicit-solver objects
-
-Implicit and IMEX schemes need extra objects because a stage may require
-solving a nonlinear or linear problem.
+  The time-stepping formula: explicit, adaptive, implicit, or IMEX.
 
 - **Resolvent**
-  Solves the nonlinear stage problem for an implicit scheme. Users choose or
-  configure resolvents for implicit and IMEX methods, and advanced users can
-  supply their own.
+  Solves nonlinear stage equations for implicit schemes.
 
 - **Inverter**
-  Solves linear systems used by Newton-like resolvents. Users usually choose a
-  built-in inverter such as GMRES, FGMRES, or BiCGStab, but advanced users can
-  supply custom inverters.
+  Provides inverse actions for linear systems used by Newton-like resolvents.
+  Dense and relaxation inverters use the newer request-shaped protocol. The
+  legacy Krylov family is still available while the refreshed Krylov API is
+  being completed.
 
-- **DerivativeIMEX**
-  Splits a derivative into implicit and explicit parts for IMEX schemes. Users
-  supply this when choosing an IMEX scheme.
+- **SchemePredictor**
+  A scheme-owned strategy for seeding implicit stage solves.
 
-## Checking and comparison objects
+## Engine and algebra objects
 
-- **Auditor**
-  Checks that supplied objects satisfy the contracts needed by a run. Users can
-  call it before long or expensive integrations.
+- **Engine**
+  Owns backend allocation and execution details for Native, NumPy, JAX, or CuPy
+  state fields.
 
-- **ComparisonRunner**
-  Runs several solver setups on the same problem and reports timing,
-  diagnostics, and profiling summaries. It is mainly for examples,
-  comparisons, and development investigations.
+- **Carrier**
+  Engine-owned storage for a field. Most users interact with engines rather than
+  carriers directly.
 
-## Rule of thumb
+- **Accelerator**
+  A compiler/backend worker such as no acceleration, Numba, or JAX. Accelerators
+  are passed to the workers that can use them.
 
-For ordinary scalar or array problems, supply an initial value, derivative, and
-interval through `StarkIVP`.
+- **Algebraist**
+  Generates or supplies translation-algebra kernels from frame metadata.
+  Algebraist is useful when repeated stage combinations dominate runtime.
 
-Move to the core API when your state representation matters. Supply custom
-states, translations, and a allocator when flattening would obscure the model.
-Supply resolvents, inverters, accelerators, or an Algebraist when the numerical
-method or performance path needs more control.
+## Diagnostics objects
+
+- **Monitor**
+  Records detailed solver activity. Monitoring is useful for diagnostics but is
+  deliberately separate from timing-oriented runs.
+
+- **Comparison** and **competition reports**
+  Helpers for comparing solver setups and reporting accuracy, preparation time,
+  warm-run time, and total time.
+
+## Extension rule of thumb
+
+Use the high-level `System` layer while the problem can be described as named
+fields. Drop to core contracts when the simulation already owns a richer state
+model or when a custom method, resolvent, inverter, engine, or algebra path is
+part of the problem.

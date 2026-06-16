@@ -1,175 +1,132 @@
-# STARK Interface Layer
+# STARK problem layer
 
-The `stark.problem` package is the front door for ordinary scalar and
-array-valued initial-value problems.
+The `stark.problem` package is the high-level front door for ordinary named
+field problems. A problem declaration combines:
 
-It accepts ordinary Python values, array values, and carrier-backed values,
-then prepares the derivative, state, carrier, routing, scheme, executor,
-stepper, and integrator needed by the core STARK objects.
+- a `Frame`, which names state fields, translation fields, shapes, and norm
+  policy;
+- a `Derivative`, usually created through `DerivativeStyle`;
+- optionally a `Linearizer`, usually created through `LinearizerStyle`, for
+  Newton-like implicit methods;
+- a `System`, which prepares an initial-value problem once a method, engine,
+  interval, and initial values are supplied.
 
-The explicit core API remains available for custom state objects, implicit
-resolvents, inverters, accelerators, and problem-specific fast paths. The
-interface layer is not a SciPy compatibility wrapper and does not provide a
-free `solve(...)` helper.
+The lower-level core API remains available when a simulation already has custom
+state and translation objects.
 
-## Basic example: exponential decay
+## Basic example
 
 ```python
 import numpy as np
 
-from stark import Interval
-from stark.problem import StarkIVP
+from stark import Configuration, DerivativeStyle, Frame, Interval, Method, System
+from stark.engines import EngineNumpy
+from stark.methods.schemes import SchemeCashKarp
 
 
-def exponential_decay(t, y):
-    return -0.5 * y
+def exponential_decay(t, state, out):
+    del t
+    out.dy[0] = -0.5 * state.y[0]
 
 
-ivp = StarkIVP(
-    derivative=exponential_decay,
-    initial=np.array([2.0, 4.0, 8.0]),
-    interval=Interval(present=0.0, step=0.1, stop=10.0),
+system = System(
+    derivative=DerivativeStyle.in_place(exponential_decay),
+    frame=Frame({"y": {"translation": "dy", "shape": (1,)}}),
+)
+
+ivp = system.ivp(
+    initial={"y": np.array([2.0])},
+    interval=Interval(present=0.0, step=0.1, stop=1.0),
+    method=Method(scheme=SchemeCashKarp),
+    engine=EngineNumpy,
+    configuration=Configuration(check_progress=False),
 )
 
 for interval, state in ivp.integrate():
-    print(interval.present, state.value)
+    print(interval.present, state.y[0])
 ```
 
-Plain callables are treated as return-style derivatives by default.
+`SystemIVP.integrate()` yields stable copied snapshots. Use
+`SystemIVP.mutating_trajectory()` for low-overhead streaming or benchmarking
+when you do not need copied states.
 
-`StarkIVP.integrate()` returns the existing STARK integration iterator. Each
-yielded state is a frame-backed state object with field values exposed as
-attributes.
+## Return-style derivatives
 
-## Explicit return-style derivative
+Return-style derivatives are useful when mutation is awkward or impossible, for
+example in JAX-oriented code.
 
 ```python
-import numpy as np
-
-from stark import Interval
-from stark.problem import Derivative, StarkIVP
+from stark import DerivativeStyle
 
 
-@Derivative.returning
-def exponential_decay(t, y):
-    return -0.5 * y
-
-
-ivp = StarkIVP(
-    derivative=exponential_decay,
-    initial=np.array([2.0, 4.0, 8.0]),
-    interval=Interval(present=0.0, step=0.1, stop=10.0),
-)
-
-for interval, state in ivp.integrate():
-    print(interval.present, state.value)
+@DerivativeStyle.returning
+def rhs(t, state):
+    del t
+    return {"dy": -0.5 * state.y}
 ```
 
-## In-place derivative
+The returned mapping is assigned to the translation fields declared by the
+`Frame`.
 
-For performance-sensitive code, an in-place derivative can write into the
-supplied output value.
+## In-place derivatives
+
+In-place derivatives receive the output translation object explicitly. This is
+the most direct style for NumPy/native hot paths.
 
 ```python
-import numpy as np
-
-from stark import Interval
-from stark.problem import Derivative, StarkIVP
+from stark import DerivativeStyle
 
 
-@Derivative.in_place
-def exponential_decay(t, y, dy):
+@DerivativeStyle.in_place
+def rhs(t, state, out):
+    del t
+    out.dy[:] = -0.5 * state.y
+```
+
+## Field-level kernels
+
+For backend acceleration, use field-level kernels that receive selected state
+and translation fields directly.
+
+```python
+from stark import DerivativeStyle
+
+
+@DerivativeStyle.kernel(state=("y",), translation=("dy",))
+def rhs_kernel(y, dy):
     dy[:] = -0.5 * y
-
-
-ivp = StarkIVP(
-    derivative=exponential_decay,
-    initial=np.array([2.0, 4.0, 8.0]),
-    interval=Interval(present=0.0, step=0.1, stop=10.0),
-)
-
-for interval, state in ivp.integrate():
-    print(interval.present, state.value)
 ```
 
-## Explicit scheme
-
-By default, `StarkIVP` uses `SchemeCashKarp`.
-
-Pass an explicit scheme class when another stepping method is preferred.
+A returning kernel is also available:
 
 ```python
-import numpy as np
-
-from stark import Interval
-from stark.problem import StarkIVP
-from stark.methods.schemes import SchemeDormandPrince
-
-
-def exponential_decay(t, y):
+@DerivativeStyle.kernel_returning(state=("y",), translation=("dy",))
+def rhs_kernel(y):
     return -0.5 * y
-
-
-ivp = StarkIVP(
-    derivative=exponential_decay,
-    initial=np.array([2.0, 4.0, 8.0]),
-    interval=Interval(present=0.0, step=0.1, stop=10.0),
-    scheme=SchemeDormandPrince,
-)
-
-for interval, state in ivp.integrate():
-    print(interval.present, state.value)
 ```
 
-## Backend support levels
+## Linearizers for implicit methods
 
-### Native Python values
+Newton-like resolvents need a linearizer that configures the local Jacobian
+operator. The user-facing `Linearizer` mirrors the derivative adapter: it
+prepares a lower-level `linearizer(interval, state, operator)` callable for the
+method stack.
 
-Supported initial values:
-
-- `int`
-- `float`
-- `list[int | float]`
-- `tuple[int | float, ...]`
-
-Native values use return/replacement routing.
-
-```python
-from stark import Interval
-from stark.problem import StarkIVP
-
-
-def exponential_decay(t, y):
-    return -0.5 * y
-
-
-ivp = StarkIVP(
-    derivative=exponential_decay,
-    initial=2.0,
-    interval=Interval(present=0.0, step=0.1, stop=2.0),
-)
-```
-## Notes
-
-- `Interval` is explicit and must satisfy STARK's interval-like contract: `present`, `step`, `stop`, `copy()`, and `increment(dt)`.
-- The initial step is not inferred.
-- Tuple/list `t_span`-style intervals are not accepted.
-- Raw initial values are prepared through a carrier.
-- Plain derivative callables are treated as return-style callables.
-- Use `Derivative.in_place` for explicit in-place derivative callables.
-- `StarkIVP.integrate()` returns the core STARK integration result directly.
-- The interface layer assembles the core STARK objects; it does not replace the core API.
-
-## Runnable examples
-
-From a source checkout with the package installed, run:
+For examples, see the Robertson and HIRES competition implementations:
 
 ```powershell
-python -m examples.interface.native
-python -m examples.interface.numpy
-python -m examples.interface.cupy
-python -m examples.interface.jax
+python -m competition.robertson.report
+python -m competition.hires.report
 ```
 
-The CuPy and JAX examples skip cleanly when their optional dependencies are not
-installed or usable.
+## Example commands
+
+From a source checkout:
+
+```powershell
+python -m examples.getting_started.scalar_decay
+python -m examples.getting_started.numpy_oscillator
+python -m examples.getting_started.in_place_derivative
+python -m examples.getting_started.interface.native
+python -m examples.getting_started.interface.numpy
+```

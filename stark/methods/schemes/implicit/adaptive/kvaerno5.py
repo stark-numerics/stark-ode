@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
+from stark.methods.schemes.predictors import resolve_scheme_predictor
 from stark.core.block import Block
 from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
 from stark.core.contracts.errors import StarkErrorRecoverable
@@ -98,6 +99,7 @@ class SchemeKvaerno5:
 
     __slots__ = (
         "monitor",
+        "predictor",
         "call_body",
         "step_control", "block_allocator", "call_step", "delta1", "delta2", "delta2_block",
         "delta3", "delta3_block", "delta4", "delta4_block", "delta5", "delta5_block",
@@ -125,6 +127,7 @@ class SchemeKvaerno5:
         self.known7_call = unbound_scheme_call
         self.resolvent = resolvent
         initialise_implicit_support(self, derivative, allocator)
+        self.predictor = resolve_scheme_predictor(configuration)
         self.derivative = derivative
         workspace = self.workspace
         (
@@ -175,13 +178,14 @@ class SchemeKvaerno5:
         self.high_delta_call = specialist.provide(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_HIGH))
         self.error_delta_call = specialist.provide(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_ERROR))
 
-    def _solve_stage(self, interval: IntervalLike, state: State, dt: float, stage_shift: float, alpha: float, known_shift, known_block: Block, delta_block: Block):
+    def _solve_stage(self, interval: IntervalLike, state: State, dt: float, stage_shift: float, alpha: float, known_shift, known_block: Block, delta_block: Block, previous=None):
         known_block[0] = known_shift
-        # Deliberately seed the implicit solve with the known explicit shift.
-        # Previously this block reused whatever delta survived the previous
-        # stage/step, which made the nonlinear starting point accidental.
-        # Copying through the workspace keeps rhs and delta distinct objects.
-        delta_block[0] = self.workspace.scale(1.0, known_shift, delta_block[0])
+        delta_block[0] = self.predictor(
+            known=known_shift,
+            previous=previous,
+            delta=delta_block[0],
+            scale=self.workspace.scale,
+        )
         problem = SchemeResolventRequest(derivative=self.derivative, interval=self.workspace.interval_at(interval, dt, stage_shift), origin=state, rhs=known_block, alpha=alpha)
         self.resolvent(problem, delta_block)
         return delta_block[0]
@@ -213,17 +217,17 @@ class SchemeKvaerno5:
         while True:
             delta1 = scale(dt * KVAERNO5_GAMMA, self.stage1_rate, self.delta1)
             try:
-                delta2 = self._solve_stage(interval, state, dt, KVAERNO5_C2 * dt, dt * KVAERNO5_GAMMA, delta1, self.known2_block, self.delta2_block)
+                delta2 = self._solve_stage(interval, state, dt, KVAERNO5_C2 * dt, dt * KVAERNO5_GAMMA, delta1, self.known2_block, self.delta2_block, previous=delta1)
                 known3 = combine2(_KNOWN3_WEIGHTS[0], delta1, _KNOWN3_WEIGHTS[1], delta2, self.known3)
-                delta3 = self._solve_stage(interval, state, dt, KVAERNO5_C3 * dt, dt * KVAERNO5_GAMMA, known3, self.known3_block, self.delta3_block)
+                delta3 = self._solve_stage(interval, state, dt, KVAERNO5_C3 * dt, dt * KVAERNO5_GAMMA, known3, self.known3_block, self.delta3_block, previous=delta2)
                 known4 = combine3(_KNOWN4_WEIGHTS[0], delta1, _KNOWN4_WEIGHTS[1], delta2, _KNOWN4_WEIGHTS[2], delta3, self.known4)
-                delta4 = self._solve_stage(interval, state, dt, KVAERNO5_C4 * dt, dt * KVAERNO5_GAMMA, known4, self.known4_block, self.delta4_block)
+                delta4 = self._solve_stage(interval, state, dt, KVAERNO5_C4 * dt, dt * KVAERNO5_GAMMA, known4, self.known4_block, self.delta4_block, previous=delta3)
                 known5 = combine4(_KNOWN5_WEIGHTS[0], delta1, _KNOWN5_WEIGHTS[1], delta2, _KNOWN5_WEIGHTS[2], delta3, _KNOWN5_WEIGHTS[3], delta4, self.known5)
-                delta5 = self._solve_stage(interval, state, dt, KVAERNO5_C5 * dt, dt * KVAERNO5_GAMMA, known5, self.known5_block, self.delta5_block)
+                delta5 = self._solve_stage(interval, state, dt, KVAERNO5_C5 * dt, dt * KVAERNO5_GAMMA, known5, self.known5_block, self.delta5_block, previous=delta4)
                 known6 = combine5(_KNOWN6_WEIGHTS[0], delta1, _KNOWN6_WEIGHTS[1], delta2, _KNOWN6_WEIGHTS[2], delta3, _KNOWN6_WEIGHTS[3], delta4, _KNOWN6_WEIGHTS[4], delta5, self.known6)
-                delta6 = self._solve_stage(interval, state, dt, dt, dt * KVAERNO5_GAMMA, known6, self.known6_block, self.delta6_block)
+                delta6 = self._solve_stage(interval, state, dt, dt, dt * KVAERNO5_GAMMA, known6, self.known6_block, self.delta6_block, previous=delta5)
                 known7 = combine6(_KNOWN7_WEIGHTS[0], delta1, _KNOWN7_WEIGHTS[1], delta2, _KNOWN7_WEIGHTS[2], delta3, _KNOWN7_WEIGHTS[3], delta4, _KNOWN7_WEIGHTS[4], delta5, _KNOWN7_WEIGHTS[5], delta6, self.known7)
-                delta7 = self._solve_stage(interval, state, dt, dt, dt * KVAERNO5_GAMMA, known7, self.known7_block, self.delta7_block)
+                delta7 = self._solve_stage(interval, state, dt, dt, dt * KVAERNO5_GAMMA, known7, self.known7_block, self.delta7_block, previous=delta6)
             except StarkErrorRecoverable:
                 rejection_count += 1
                 dt = self.step_control.rejected_step(dt, 1.0, remaining, scheme_name)
@@ -263,17 +267,17 @@ class SchemeKvaerno5:
         while True:
             delta1 = self.known2_call(dt, self.stage1_rate, self.delta1)
             try:
-                delta2 = self._solve_stage(interval, state, dt, KVAERNO5_C2 * dt, dt * KVAERNO5_GAMMA, delta1, self.known2_block, self.delta2_block)
+                delta2 = self._solve_stage(interval, state, dt, KVAERNO5_C2 * dt, dt * KVAERNO5_GAMMA, delta1, self.known2_block, self.delta2_block, previous=delta1)
                 known3 = self.known3_call(1.0, delta1, delta2, self.known3)
-                delta3 = self._solve_stage(interval, state, dt, KVAERNO5_C3 * dt, dt * KVAERNO5_GAMMA, known3, self.known3_block, self.delta3_block)
+                delta3 = self._solve_stage(interval, state, dt, KVAERNO5_C3 * dt, dt * KVAERNO5_GAMMA, known3, self.known3_block, self.delta3_block, previous=delta2)
                 known4 = self.known4_call(1.0, delta1, delta2, delta3, self.known4)
-                delta4 = self._solve_stage(interval, state, dt, KVAERNO5_C4 * dt, dt * KVAERNO5_GAMMA, known4, self.known4_block, self.delta4_block)
+                delta4 = self._solve_stage(interval, state, dt, KVAERNO5_C4 * dt, dt * KVAERNO5_GAMMA, known4, self.known4_block, self.delta4_block, previous=delta3)
                 known5 = self.known5_call(1.0, delta1, delta2, delta3, delta4, self.known5)
-                delta5 = self._solve_stage(interval, state, dt, KVAERNO5_C5 * dt, dt * KVAERNO5_GAMMA, known5, self.known5_block, self.delta5_block)
+                delta5 = self._solve_stage(interval, state, dt, KVAERNO5_C5 * dt, dt * KVAERNO5_GAMMA, known5, self.known5_block, self.delta5_block, previous=delta4)
                 known6 = self.known6_call(1.0, delta1, delta2, delta3, delta4, delta5, self.known6)
-                delta6 = self._solve_stage(interval, state, dt, dt, dt * KVAERNO5_GAMMA, known6, self.known6_block, self.delta6_block)
+                delta6 = self._solve_stage(interval, state, dt, dt, dt * KVAERNO5_GAMMA, known6, self.known6_block, self.delta6_block, previous=delta5)
                 known7 = self.known7_call(1.0, delta1, delta2, delta3, delta4, delta5, delta6, self.known7)
-                delta7 = self._solve_stage(interval, state, dt, dt, dt * KVAERNO5_GAMMA, known7, self.known7_block, self.delta7_block)
+                delta7 = self._solve_stage(interval, state, dt, dt, dt * KVAERNO5_GAMMA, known7, self.known7_block, self.delta7_block, previous=delta6)
             except StarkErrorRecoverable:
                 rejection_count += 1
                 dt = self.step_control.rejected_step(dt, 1.0, remaining, scheme_name)

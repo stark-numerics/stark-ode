@@ -268,6 +268,8 @@ class CompetitionRunner:
             "preparation": float(setup_elapsed + warmup_elapsed),
             "median": float(median(durations)),
             "min": float(min(durations)),
+            "total_median": float(setup_elapsed + warmup_elapsed + median(durations)),
+            "total_min": float(setup_elapsed + warmup_elapsed + min(durations)),
             "note": "",
         }
         for key, value in result.items():
@@ -292,6 +294,8 @@ class CompetitionRunner:
             "preparation": None if setup_elapsed is None else setup_elapsed + (warmup_elapsed or 0.0),
             "median": None,
             "min": None,
+            "total_median": None,
+            "total_min": None,
             "note": f"{type(exc).__name__}: {exc}",
         }
 
@@ -359,6 +363,8 @@ def _time_entry_in_child(
         "preparation": float(setup_elapsed + warmup_elapsed),
         "median": float(median(durations)),
         "min": float(min(durations)),
+        "total_median": float(setup_elapsed + warmup_elapsed + median(durations)),
+        "total_min": float(setup_elapsed + warmup_elapsed + min(durations)),
         "note": "",
     }
     for key, value in result.items():

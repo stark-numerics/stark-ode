@@ -1,7 +1,8 @@
 # Competition Reports
 
-STARK currently includes five public competition cases:
+STARK currently includes six public competition cases:
 
+- `allen_cahn_1d`: a periodic scalar reaction-diffusion problem that stretches matrix-free Krylov inversion.
 - `brusselator_2d`: a periodic two-species reaction-diffusion problem.
 - `fitzhugh_nagumo_1d`: a periodic stiff excitable-medium reaction-diffusion problem.
 - `fput`: a Fermi-Pasta-Ulam-Tsingou beta lattice with fixed endpoints.
@@ -11,6 +12,7 @@ STARK currently includes five public competition cases:
 Run them with:
 
 ```powershell
+python -m competition.allen_cahn_1d.report
 python -m competition.brusselator_2d.report
 python -m competition.fitzhugh_nagumo_1d.report
 python -m competition.fput.report
@@ -38,7 +40,8 @@ for that competition case, then prints:
 
 - an error table against the reference solution
 - a preparation timing table for setup plus one untimed warmup solve
-- a run timing table for repeated solves after warmup
+- a warm run timing table for repeated solves after warmup
+- a total timing table for setup plus warmup plus one measured solve
 - a short summary of the best accuracy and fastest timings
 
 Reference generation is reported separately and is not included in the solver

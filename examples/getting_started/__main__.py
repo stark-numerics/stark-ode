@@ -6,7 +6,9 @@ import runpy
 EXAMPLES = (
     "scalar_decay",
     "numpy_oscillator",
+    "returning_derivative",
     "in_place_derivative",
+    "multiple_fields",
     "choose_scheme",
     "checkpoints",
     "engine_acceleration",

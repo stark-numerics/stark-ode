@@ -104,7 +104,7 @@ def print_preparation_table(rows):
 
 
 def print_run_table(rows, repeats):
-    print("Run Timing Table")
+    print("Warm Run Timing Table")
     print(
         render_table(
             ("library", "solver", "median", "min", "repeats", "note"),
@@ -138,6 +138,27 @@ def _format_optional_iteration(value: float | int | None) -> str:
     return str(value)
 
 
+def print_total_table(rows, repeats):
+    print("Total Timing Table")
+    print(
+        render_table(
+            ("library", "solver", "total median", "total min", "repeats", "note"),
+            [
+                (
+                    row["library"],
+                    row["solver"],
+                    "-" if row["total_median"] is None else f"{row['total_median']:.6f}s",
+                    "-" if row["total_min"] is None else f"{row['total_min']:.6f}s",
+                    str(repeats),
+                    row["note"],
+                )
+                for row in rows
+            ],
+        )
+    )
+    print()
+
+
 def print_summary(rows):
     completed = [row for row in rows if row["error"] is not None and row["median"] is not None]
     if not completed:
@@ -148,6 +169,8 @@ def print_summary(rows):
     lowest_preparation = min(completed, key=lambda row: row["preparation"])
     fastest_median = min(completed, key=lambda row: row["median"])
     fastest_min = min(completed, key=lambda row: row["min"])
+    fastest_total_median = min(completed, key=lambda row: row["total_median"])
+    fastest_total_min = min(completed, key=lambda row: row["total_min"])
 
     print("Summary:")
     print(
@@ -159,12 +182,20 @@ def print_summary(rows):
         f"at {lowest_preparation['preparation']:.6f}s."
     )
     print(
-        f"  Fastest median time: {fastest_median['library']} {fastest_median['solver']} "
+        f"  Fastest warm median time: {fastest_median['library']} {fastest_median['solver']} "
         f"at {fastest_median['median']:.6f}s."
     )
     print(
-        f"  Fastest single run: {fastest_min['library']} {fastest_min['solver']} "
+        f"  Fastest warm single run: {fastest_min['library']} {fastest_min['solver']} "
         f"at {fastest_min['min']:.6f}s."
+    )
+    print(
+        f"  Fastest total median time: {fastest_total_median['library']} {fastest_total_median['solver']} "
+        f"at {fastest_total_median['total_median']:.6f}s."
+    )
+    print(
+        f"  Fastest total single run: {fastest_total_min['library']} {fastest_total_min['solver']} "
+        f"at {fastest_total_min['total_min']:.6f}s."
     )
 
 
@@ -222,6 +253,7 @@ def main() -> None:
     print_error_table(rows)
     print_preparation_table(rows)
     print_run_table(rows, repeats)
+    print_total_table(rows, repeats)
     print_summary(rows)
 
 

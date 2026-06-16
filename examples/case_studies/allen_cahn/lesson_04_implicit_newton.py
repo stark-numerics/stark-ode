@@ -25,7 +25,7 @@ import numpy as np
 
 from stark import Configuration, Interval, IntegratorStepper, Method, Tolerance
 from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblem
-from stark.methods.inverters import InverterBiCGStab, InverterLegacyAdapter, InverterPolicy
+from stark.methods.inverters import InverterKrylovArnoldi
 from stark.methods.resolvents import ResolventNewton
 from stark.methods.schemes import SchemeCashKarp, SchemeSDIRK21
 
@@ -149,21 +149,21 @@ if __name__ == "__main__":
     derivative = template.scheme.derivative
     allocator = template.engine.allocator
 
-    # BiCGStab is a matrix-free Krylov inverter. It needs an inner product on
+    # Arnoldi is a matrix-free Krylov inverter. It needs an inner product on
     # translations; for a NumPy grid field we use the ordinary dot product.
-    # The Krylov inverters still use the older bind-then-solve API, so the
-    # adapter exposes them to ResolventNewton's request-shaped inverter API.
+    # It follows the current request-shaped inverter contract used by
+    # ResolventNewton.
 
     linearizer = AllenCahnLinearizer(geometry, DIFFUSIVITY)
-    inverter = InverterLegacyAdapter(
-        InverterBiCGStab(
-            allocator,
-            allen_cahn_inner_product,
-            configuration=Configuration(
-                inverter_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
-            ),
-            policy=InverterPolicy(max_iterations=24, restart=12),
-        )
+    inverter = InverterKrylovArnoldi(
+        allocator,
+        allen_cahn_inner_product,
+        restart=12,
+        configuration=Configuration(
+            inverter_tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
+            inverter_maximum_steps=24,
+        ),
+        accelerator=ACCELERATOR,
     )
 
     # `ResolventNewton` owns the nonlinear solve for each implicit stage.

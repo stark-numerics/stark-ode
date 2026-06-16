@@ -220,7 +220,7 @@ solve
 A delta = b
 ```
 
-This is the role of `LegacyInverterLike`.
+This is the role of the inverter request protocol used by current inverters. Legacy Krylov workers still expose a bind-then-solve protocol while that family is being refreshed.
 
 ## Linearization and the LinearizerLike contract
 
@@ -359,7 +359,7 @@ The key STARK contracts can be summarized this way:
 | residual `R : T^m -> T^m` | `Residual` |
 | nonlinear implicit solver | `Resolvent` |
 | scheme-provided stage problem | `ResolventRequest` |
-| linear solve worker | `LegacyInverterLike` |
+| linear solve worker | `InverterRequest` + current inverter protocol |
 | inner product `<.,.>` | `InnerProduct` |
 
 This is the core idea of the package: keep the mathematics honest, keep the

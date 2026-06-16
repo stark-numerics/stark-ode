@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from stark.core.contracts.scheme_predictor import SchemePredictorLike
 from stark.core.tolerance import Tolerance
 
 
@@ -22,6 +23,7 @@ class Configuration:
     adaptive_scheme_max_factor: float = 5.0
     adaptive_scheme_error_exponent: float = 0.2
     adaptive_scheme_maximum_rejections: int | None = 64
+    scheme_predictor: SchemePredictorLike | None = None
     check_progress: bool = True
     resolvent_tolerance: Tolerance = field(
         default_factory=lambda: Tolerance(atol=1.0e-9, rtol=1.0e-9)

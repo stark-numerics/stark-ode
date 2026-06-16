@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
+from stark.methods.schemes.predictors import resolve_scheme_predictor
 from stark.core.block import Block
 from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
 from stark.core.contracts.errors import StarkErrorRecoverable
@@ -99,6 +100,7 @@ class SchemeSDIRK21:
 
     __slots__ = (
         "monitor",
+        "predictor",
         "call_body",
         "step_control", "block_allocator", "call_step", "delta1", "delta2",
         "delta2_block", "delta3", "delta3_block", "derivative", "error",
@@ -129,6 +131,7 @@ class SchemeSDIRK21:
         self.resolvent = resolvent
 
         initialise_implicit_support(self, derivative, allocator)
+        self.predictor = resolve_scheme_predictor(configuration)
         self.derivative = derivative
 
         workspace = self.workspace
@@ -180,11 +183,15 @@ class SchemeSDIRK21:
         known_shift,
         known_block: Block,
         delta_block: Block,
+        previous=None,
     ):
         known_block[0] = known_shift
-        # Deliberately seed the implicit solve with the known explicit shift.
-        # This avoids carrying a stale stage solution across unrelated solves.
-        delta_block[0] = self.workspace.scale(1.0, known_shift, delta_block[0])
+        delta_block[0] = self.predictor(
+            known=known_shift,
+            previous=previous,
+            delta=delta_block[0],
+            scale=self.workspace.scale,
+        )
         problem = SchemeResolventRequest(
             derivative=self.derivative,
             interval=self.workspace.interval_at(interval, dt, stage_shift),
@@ -228,7 +235,7 @@ class SchemeSDIRK21:
                 # 3. Solve the second diagonal implicit stage.
                 delta2 = self._solve_stage(
                     interval, state, dt, 2.0 * SDIRK21_GAMMA * dt,
-                    dt * SDIRK21_GAMMA, delta1, self.known2_block, self.delta2_block,
+                    dt * SDIRK21_GAMMA, delta1, self.known2_block, self.delta2_block, previous=delta1,
                 )
                 # 4. Known shift for the final stage.
                 known3 = combine2(
@@ -241,7 +248,7 @@ class SchemeSDIRK21:
                 # 5. Solve the final diagonal implicit stage.
                 delta3 = self._solve_stage(
                     interval, state, dt, dt, dt * SDIRK21_GAMMA,
-                    known3, self.known3_block, self.delta3_block,
+                    known3, self.known3_block, self.delta3_block, previous=delta2,
                 )
             except StarkErrorRecoverable:
                 rejection_count += 1
@@ -314,14 +321,14 @@ class SchemeSDIRK21:
                 # 3. Solve the second diagonal implicit stage.
                 delta2 = self._solve_stage(
                     interval, state, dt, 2.0 * SDIRK21_GAMMA * dt,
-                    dt * SDIRK21_GAMMA, delta1, self.known2_block, self.delta2_block,
+                    dt * SDIRK21_GAMMA, delta1, self.known2_block, self.delta2_block, previous=delta1,
                 )
                 # 4. Known shift for the final stage.
                 known3 = known3_call(1.0, delta1, delta2, self.known3)
                 # 5. Solve the final diagonal implicit stage.
                 delta3 = self._solve_stage(
                     interval, state, dt, dt, dt * SDIRK21_GAMMA,
-                    known3, self.known3_block, self.delta3_block,
+                    known3, self.known3_block, self.delta3_block, previous=delta2,
                 )
             except StarkErrorRecoverable:
                 rejection_count += 1

@@ -1,5 +1,6 @@
 """Built-in linear inverse-action operators."""
 
+from stark.methods.inverters.krylov import InverterKrylovArnoldi
 from stark.methods.inverters.relaxation import (
     InverterRelaxationJacobi,
     InverterRelaxationRichardson,
@@ -8,22 +9,13 @@ from stark.methods.inverters.relaxation import (
     InverterRelaxationStencilUpdate,
 )
 
-from stark.methods.inverters.legacy.bicgstab import InverterBiCGStab
-from stark.methods.inverters.legacy.fgmres import InverterFGMRES
-from stark.methods.inverters.legacy.gmres import InverterGMRES
 from stark.methods.inverters.configuration import InverterConfiguration
-from stark.methods.inverters.legacy_support.descriptor import InverterDescriptor
-from stark.methods.inverters.legacy_support.adapter import InverterLegacyAdapter
-from stark.methods.inverters.legacy_support.policy import InverterPolicy
+from stark.methods.inverters.support import InverterDescriptor
 
 __all__ = [
-    "InverterBiCGStab",
     "InverterConfiguration",
     "InverterDescriptor",
-    "InverterFGMRES",
-    "InverterGMRES",
-    "InverterLegacyAdapter",
-    "InverterPolicy",
+    "InverterKrylovArnoldi",
     "InverterRelaxationJacobi",
     "InverterRelaxationRichardson",
     "InverterRelaxationSpecialist",
