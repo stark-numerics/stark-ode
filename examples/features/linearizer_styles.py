@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Use a linearizer for a real implicit Newton solve.
 
 Implicit schemes solve nonlinear stage equations.  Newton-backed resolvents
@@ -16,6 +14,7 @@ This example solves a moderately stiff Van der Pol oscillator using:
     InverterDense        small dense linear correction solver
     LinearizerStyle      user-supplied Jacobian action / dense fill
 """
+from __future__ import annotations
 
 import numpy as np
 
