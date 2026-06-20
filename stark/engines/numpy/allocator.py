@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from stark.engines.shared.algebraist.frame import AlgebraistFrame
-from stark.engines.carriers.numpy import CarrierNumpy
+from stark.engines.numpy.carriers import CarrierNumpy
 from stark.engines.numpy.translation import EngineTranslationNumpy
 
 

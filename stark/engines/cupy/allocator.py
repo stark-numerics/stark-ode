@@ -6,7 +6,7 @@ from typing import Any
 
 from stark.engines.shared.algebraist.frame import AlgebraistFrame
 from stark.engines.cupy.translation import EngineTranslationCupy
-from stark.engines.carriers.cupy import CarrierCupy
+from stark.engines.cupy.carriers import CarrierCupy
 
 
 @dataclass(frozen=True, slots=True)

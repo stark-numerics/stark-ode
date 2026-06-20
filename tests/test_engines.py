@@ -11,7 +11,7 @@ from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
-from stark.engines.carriers import CarrierNumpy
+from stark.engines.numpy.carriers import CarrierNumpy
 from stark.engines import EngineNative, EngineNumpy
 
 

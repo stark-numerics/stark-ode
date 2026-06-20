@@ -11,7 +11,7 @@ from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorSpecialist,
 )
 from stark.engines.shared.algebraist.frame import AlgebraistFrame, AlgebraistFrameLooped
-from stark.engines.carriers.native import CarrierNativeArray
+from stark.engines.native.carriers import CarrierNativeArray
 from stark.core.contracts.accelerator import Accelerator
 from stark.engines.native.allocator import EngineAllocatorNative
 from stark.problem.frame.frame import Frame

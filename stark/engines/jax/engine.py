@@ -21,7 +21,7 @@ from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorTargetFunctional,
 )
 from stark.engines.jax.allocator import EngineAllocatorJax
-from stark.engines.carriers.jax import CarrierJax
+from stark.engines.jax.carriers import CarrierJax
 from stark.problem.frame.frame import Frame
 
 

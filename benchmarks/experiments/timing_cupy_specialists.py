@@ -61,7 +61,7 @@ from stark.engines.shared.algebraist.runtime import (
 from stark.engines.cupy import EngineCupy
 from stark.engines.cupy.allocator import EngineAllocatorCupy
 from stark.engines.cupy.target import AlgebraistGeneratorTargetCupy
-from stark.engines.carriers.cupy import CarrierCupy, CarrierNormCupyMax, CarrierNormCupyRMS
+from stark.engines.cupy.carriers import CarrierCupy, CarrierNormCupyMax, CarrierNormCupyRMS
 from stark.methods.schemes import SchemeCashKarp
 from stark.problem.frame.frame import Frame as ProblemFrame
 

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from stark.engines.shared.algebraist.frame import AlgebraistFrame
-from stark.engines.carriers.jax import CarrierJax
+from stark.engines.jax.carriers import CarrierJax
 from stark.engines.jax.translation import EngineTranslationJax
 
 

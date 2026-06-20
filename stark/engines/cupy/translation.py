@@ -5,7 +5,7 @@ from math import sqrt
 from typing import Any
 
 from stark.engines.shared.algebraist.frame import AlgebraistFrame
-from stark.engines.carriers.cupy import CarrierCupy
+from stark.engines.cupy.carriers import CarrierCupy
 
 
 @dataclass

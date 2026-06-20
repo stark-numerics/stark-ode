@@ -18,7 +18,7 @@ from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorSpecialist,
 )
 from stark.engines.cupy.target import AlgebraistGeneratorTargetCupy
-from stark.engines.carriers.cupy import CarrierCupy
+from stark.engines.cupy.carriers import CarrierCupy
 from stark.core.contracts.accelerator import Accelerator
 from stark.engines.cupy.allocator import EngineAllocatorCupy
 from stark.problem.frame.frame import Frame
