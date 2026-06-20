@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from stark import Frame, FrameField
-from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.generator import (
+from stark.engines.shared.accelerators import AcceleratorNone
+from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorInnerProduct,
     AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorNorm,

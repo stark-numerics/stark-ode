@@ -37,22 +37,22 @@ from examples.case_studies.backends.lesson_03_cupy import (
 )
 from stark import Configuration, Frame, Interval, Method, System
 from stark.core.contracts.accelerator import Accelerator
-from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.frame import (
+from stark.engines.shared.accelerators import AcceleratorNone
+from stark.engines.shared.algebraist.arity import AlgebraistArity
+from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
     AlgebraistFrameLooped,
     AlgebraistFrameNormMax,
     AlgebraistFrameNormRMS,
 )
-from stark.engines.algebraist.generator import (
+from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorInnerProduct,
     AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
     AlgebraistGeneratorTargetMutableVectorized,
 )
-from stark.engines.algebraist.runtime import (
+from stark.engines.shared.algebraist.runtime import (
     AlgebraistRuntimeInnerProduct,
     AlgebraistRuntimeLinearCombine,
     AlgebraistRuntimeNorm,

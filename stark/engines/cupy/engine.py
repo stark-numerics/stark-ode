@@ -5,13 +5,13 @@ from typing import Any
 
 import cupy as cp
 
-from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.frame import (
+from stark.engines.shared.accelerators import AcceleratorNone
+from stark.engines.shared.algebraist.arity import AlgebraistArity
+from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
     AlgebraistFrameLooped,
 )
-from stark.engines.algebraist.generator import (
+from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorInnerProduct,
     AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorNorm,

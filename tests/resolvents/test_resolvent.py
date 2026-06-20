@@ -3,7 +3,7 @@
 import importlib
 
 from stark import Auditor, Configuration, Integrator, Interval, IntegratorStepper, Tolerance
-from stark.engines.accelerators import Accelerator, AcceleratorNone
+from stark.engines.shared.accelerators import Accelerator, AcceleratorNone
 from stark.core.block.operator import BlockOperatorDiagonal
 from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblemManual
 from stark.core.block import Block
@@ -79,7 +79,7 @@ def test_audit_module_imports() -> None:
 
 def test_Configuration_module_imports() -> None:
     """Configuration lives in core with narrow domain protocol views."""
-    assert importlib.import_module("stark.engines.accelerators") is not None
+    assert importlib.import_module("stark.engines.shared.accelerators") is not None
     assert importlib.import_module("stark.core.configuration") is not None
     assert importlib.import_module("stark.core.tolerance") is not None
     assert importlib.import_module("stark.methods.schemes.configuration") is not None
@@ -87,7 +87,7 @@ def test_Configuration_module_imports() -> None:
     assert importlib.import_module("stark.methods.inverters.configuration") is not None
     assert importlib.import_module("stark.methods.schemes.method.tableau") is not None
     assert importlib.import_module("stark.methods.schemes.execution.step_support") is not None
-    assert importlib.import_module("stark.engines.algebraist.runtime") is not None
+    assert importlib.import_module("stark.engines.shared.algebraist.runtime") is not None
     assert importlib.import_module("stark.methods.schemes.display.display") is not None
 
 

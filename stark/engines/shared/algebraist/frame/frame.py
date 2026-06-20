@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 
-from stark.engines.algebraist.frame.field import AlgebraistFrameField
-from stark.engines.algebraist.frame.path import AlgebraistFramePath
+from stark.engines.shared.algebraist.frame.field import AlgebraistFrameField
+from stark.engines.shared.algebraist.frame.path import AlgebraistFramePath
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,13 +1,13 @@
-from stark.engines.algebraist.frame.field import AlgebraistFrameField
-from stark.engines.algebraist.frame.frame import AlgebraistFrame
-from stark.engines.algebraist.frame.norm import (
+from stark.engines.shared.algebraist.frame.field import AlgebraistFrameField
+from stark.engines.shared.algebraist.frame.frame import AlgebraistFrame
+from stark.engines.shared.algebraist.frame.norm import (
     AlgebraistFrameNormExcluded,
     AlgebraistFrameNormMax,
     AlgebraistFrameNormPolicy,
     AlgebraistFrameNormRMS,
 )
-from stark.engines.algebraist.frame.path import AlgebraistFramePath
-from stark.engines.algebraist.frame.policy import (
+from stark.engines.shared.algebraist.frame.path import AlgebraistFramePath
+from stark.engines.shared.algebraist.frame.policy import (
     MAX_UNRAVEL_SIZE,
     AlgebraistFrameBroadcast,
     AlgebraistFrameLooped,

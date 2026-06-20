@@ -4,16 +4,16 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Generic, TypeVar, cast
 
-from stark.engines.accelerators.none import AcceleratorNone
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.stencil import AlgebraistStencil
-from stark.engines.algebraist.allocator import AlgebraistAllocator
+from stark.engines.shared.accelerators.none import AcceleratorNone
+from stark.engines.shared.algebraist.arity import AlgebraistArity
+from stark.engines.shared.algebraist.stencil import AlgebraistStencil
+from stark.engines.shared.algebraist.allocator import AlgebraistAllocator
 from stark.core.contracts.accelerator import Accelerator
 from stark.core.contracts.state import State
 from stark.core.contracts.translation import Translation
 
 try:  # frame is optional context for runtime, but accepted for generator symmetry.
-    from stark.engines.algebraist.frame import AlgebraistFrame
+    from stark.engines.shared.algebraist.frame import AlgebraistFrame
 except Exception:  # pragma: no cover - defensive during staged refactors
     AlgebraistFrame = object  # type: ignore[misc, assignment]
 

@@ -4,7 +4,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from stark.engines.algebraist.frame import (
+from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
     AlgebraistFrameBroadcast,
     AlgebraistFrameField,
@@ -14,7 +14,7 @@ from stark.engines.algebraist.frame import (
     AlgebraistFrameScalar,
     AlgebraistFrameUnravel,
 )
-from stark.engines.algebraist.frame.path import AlgebraistFramePathLike
+from stark.engines.shared.algebraist.frame.path import AlgebraistFramePathLike
 from stark.problem.frame.norm import FrameNormPolicy, FrameNormRMS
 
 

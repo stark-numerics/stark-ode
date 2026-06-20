@@ -27,7 +27,7 @@ import numpy as np
 
 from stark import Configuration, DerivativeStyle, Frame, Interval, Method, System
 from stark.engines import EngineNumpy
-from stark.engines.accelerators import AcceleratorNone
+from stark.engines.shared.accelerators import AcceleratorNone
 from stark.methods.schemes import SchemeCashKarp
 
 

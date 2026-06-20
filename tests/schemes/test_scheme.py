@@ -3,10 +3,10 @@ from dataclasses import dataclass
 import numpy as np
 
 from stark import IntegratorStepper
-from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.generator import AlgebraistGeneratorLinearCombine
-from stark.engines.algebraist.frame import AlgebraistFrame, AlgebraistFrameField
+from stark.engines.shared.accelerators import AcceleratorNone
+from stark.engines.shared.algebraist.arity import AlgebraistArity
+from stark.engines.shared.algebraist.generator import AlgebraistGeneratorLinearCombine
+from stark.engines.shared.algebraist.frame import AlgebraistFrame, AlgebraistFrameField
 from stark.core.auditor import Auditor
 from stark.core.integrator.integrator import Integrator
 from stark.diagnostics.monitor import Monitor

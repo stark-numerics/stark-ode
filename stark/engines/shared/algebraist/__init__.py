@@ -6,10 +6,10 @@ translation combinations; specialist providers supply fixed-coefficient
 stencils for scheme stages, accepted increments, and embedded error estimates.
 """
 
-from stark.engines.algebraist.algebraist import Algebraist, AlgebraistKernel, AlgebraistRequest
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.linear_combine import AlgebraistLinearCombine, AlgebraistLinearCombineKernel
-from stark.engines.algebraist.generator import (
+from stark.engines.shared.algebraist.algebraist import Algebraist, AlgebraistKernel, AlgebraistRequest
+from stark.engines.shared.algebraist.arity import AlgebraistArity
+from stark.engines.shared.algebraist.linear_combine import AlgebraistLinearCombine, AlgebraistLinearCombineKernel
+from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorCompiler,
     AlgebraistGeneratorEmitter,
     AlgebraistGeneratorInnerProduct,
@@ -17,7 +17,7 @@ from stark.engines.algebraist.generator import (
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
-from stark.engines.algebraist.frame import (
+from stark.engines.shared.algebraist.frame import (
     MAX_UNRAVEL_SIZE,
     AlgebraistFrame,
     AlgebraistFrameBroadcast,
@@ -32,16 +32,16 @@ from stark.engines.algebraist.frame import (
     AlgebraistFrameScalar,
     AlgebraistFrameUnravel,
 )
-from stark.engines.algebraist.norm import AlgebraistNorm, AlgebraistNormKernel
-from stark.engines.algebraist.runtime import (
+from stark.engines.shared.algebraist.norm import AlgebraistNorm, AlgebraistNormKernel
+from stark.engines.shared.algebraist.runtime import (
     AlgebraistRuntimeInnerProduct,
     AlgebraistRuntimeLinearCombine,
     AlgebraistRuntimeNorm,
     AlgebraistRuntimeSpecialist,
 )
-from stark.engines.algebraist.specialist import AlgebraistSpecialist
-from stark.engines.algebraist.stencil import AlgebraistStencil
-from stark.engines.algebraist.allocator import AlgebraistAllocator
+from stark.engines.shared.algebraist.specialist import AlgebraistSpecialist
+from stark.engines.shared.algebraist.stencil import AlgebraistStencil
+from stark.engines.shared.algebraist.allocator import AlgebraistAllocator
 
 __all__ = [
     "MAX_UNRAVEL_SIZE",

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from stark.engines.algebraist.frame.norm import AlgebraistFrameNormPolicy, AlgebraistFrameNormRMS
-from stark.engines.algebraist.frame.path import AlgebraistFramePath, AlgebraistFramePathLike
-from stark.engines.algebraist.frame.policy import AlgebraistFrameBroadcast, AlgebraistFramePolicy
+from stark.engines.shared.algebraist.frame.norm import AlgebraistFrameNormPolicy, AlgebraistFrameNormRMS
+from stark.engines.shared.algebraist.frame.path import AlgebraistFramePath, AlgebraistFramePathLike
+from stark.engines.shared.algebraist.frame.policy import AlgebraistFrameBroadcast, AlgebraistFramePolicy
 
 
 @dataclass(frozen=True, slots=True)

@@ -17,7 +17,7 @@ from stark import (
     System,
     Tolerance,
 )
-from stark.engines.accelerators import Accelerator, AcceleratorNone, AcceleratorJax, AcceleratorNumba
+from stark.engines.shared.accelerators import Accelerator, AcceleratorNone, AcceleratorJax, AcceleratorNumba
 from stark.core.block.operator import BlockOperatorDiagonal
 from stark.diagnostics.comparison.models import (
     Comparison,
@@ -114,7 +114,7 @@ def test_audit_module_imports() -> None:
 
 def test_algebraist_package_imports() -> None:
     """The algebraist package should expose generated-kernel helpers."""
-    algebraist = importlib.import_module("stark.engines.algebraist")
+    algebraist = importlib.import_module("stark.engines.shared.algebraist")
 
     assert algebraist.AlgebraistRuntimeLinearCombine is not None
     assert algebraist.AlgebraistRuntimeSpecialist is not None
@@ -126,7 +126,7 @@ def test_algebraist_package_imports() -> None:
 
 def test_Configuration_module_imports() -> None:
     """Configuration lives in core with narrow domain protocol views."""
-    assert importlib.import_module("stark.engines.accelerators") is not None
+    assert importlib.import_module("stark.engines.shared.accelerators") is not None
     assert importlib.import_module("stark.core.configuration") is not None
     assert importlib.import_module("stark.core.tolerance") is not None
     assert importlib.import_module("stark.methods.schemes.configuration") is not None
@@ -136,8 +136,8 @@ def test_Configuration_module_imports() -> None:
     assert importlib.import_module("stark.methods.schemes.execution.step_support") is not None
     assert importlib.import_module("stark.engines") is not None
     assert EngineNumpy is not None
-    assert importlib.import_module("stark.engines.algebraist.runtime") is not None
-    assert importlib.import_module("stark.engines.algebraist.generator") is not None
+    assert importlib.import_module("stark.engines.shared.algebraist.runtime") is not None
+    assert importlib.import_module("stark.engines.shared.algebraist.generator") is not None
     assert importlib.import_module("stark.methods.schemes.display.display") is not None
 
 

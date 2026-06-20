@@ -7,13 +7,13 @@ import jax  # type: ignore[import-not-found]
 import jax.numpy as jnp  # type: ignore[import-not-found]
 
 from stark.core.contracts.accelerator import Accelerator
-from stark.engines.accelerators import AcceleratorJax
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.frame import (
+from stark.engines.shared.accelerators import AcceleratorJax
+from stark.engines.shared.algebraist.arity import AlgebraistArity
+from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
     AlgebraistFrameLooped,
 )
-from stark.engines.algebraist.generator import (
+from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorInnerProduct,
     AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorNorm,

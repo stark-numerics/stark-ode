@@ -6,7 +6,7 @@ import warnings
 import pytest
 
 from stark import Interval, Tolerance
-from stark.engines.accelerators import AcceleratorNone
+from stark.engines.shared.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventCoupledPicard, ResolventPicard
 from stark import Configuration
 from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine

@@ -4,13 +4,13 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.generator import (
+from stark.engines.shared.algebraist.arity import AlgebraistArity
+from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
-from stark.engines.algebraist.frame import (
+from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
     AlgebraistFrameField,
     AlgebraistFrameLooped,

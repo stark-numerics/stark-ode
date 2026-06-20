@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark import Executor, Integrator, Interval, IntegratorStepper, ExecutorSafety, ExecutorTolerance
-from stark.engines.algebraist.runtime import AlgebraistRuntimeSpecialist
+from stark.engines.shared.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.methods.schemes.explicit.adaptive import SchemeCashKarp, SchemeDormandPrince
 from stark.methods.schemes.explicit.fixed import SchemeEuler, SchemeRK4
 

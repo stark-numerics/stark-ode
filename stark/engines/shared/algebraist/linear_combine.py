@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Protocol, TypeVar
 
-from stark.engines.algebraist.algebraist import Algebraist
-from stark.engines.algebraist.arity import AlgebraistArity
+from stark.engines.shared.algebraist.algebraist import Algebraist
+from stark.engines.shared.algebraist.arity import AlgebraistArity
 from stark.core.contracts.translation import Translation
 
 TranslationType = TypeVar("TranslationType", bound=Translation)

@@ -42,7 +42,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from stark import Configuration, Interval, Frame, Method, System, Tolerance
-from stark.engines.accelerators import AcceleratorNone, AcceleratorNumba
+from stark.engines.shared.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.engines import EngineNumpy
 from stark.methods.schemes import SchemeCashKarp
 

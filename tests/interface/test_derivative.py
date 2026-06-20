@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from stark.engines.accelerators import AcceleratorNone
+from stark.engines.shared.accelerators import AcceleratorNone
 from stark.problem import Derivative, DerivativeStyle, Frame
 from stark.problem.derivative.derivative import (
     DerivativeAdapterAcceptsInterval,

@@ -4,25 +4,30 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Generic, TypeVar
 
-from stark.engines.accelerators.none import AcceleratorNone
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.linear_combine import AlgebraistLinearCombineKernel
-from stark.engines.algebraist.runtime.support import AlgebraistRuntimeSupport
-from stark.engines.algebraist.allocator import AlgebraistAllocator
+from stark.engines.shared.accelerators.none import AcceleratorNone
+from stark.engines.shared.algebraist.runtime.support import AlgebraistRuntimeSupport
+from stark.engines.shared.algebraist.stencil import AlgebraistStencil
+from stark.engines.shared.algebraist.allocator import AlgebraistAllocator
 from stark.core.contracts.accelerator import Accelerator
+from stark.core.contracts.state import State
 from stark.core.contracts.translation import Translation
 
 try:
-    from stark.engines.algebraist.frame import AlgebraistFrame
+    from stark.engines.shared.algebraist.frame import AlgebraistFrame
 except Exception:  # pragma: no cover
     AlgebraistFrame = object  # type: ignore[misc, assignment]
 
+StateType = TypeVar("StateType", bound=State)
 TranslationType = TypeVar("TranslationType", bound=Translation)
 
 
 @dataclass(slots=True)
-class AlgebraistRuntimeLinearCombine(Generic[TranslationType]):
-    """Runtime provider of general arity-based linear-combination kernels."""
+class AlgebraistRuntimeSpecialist(Generic[StateType, TranslationType]):
+    """Runtime provider of fixed-coefficient scheme kernels.
+
+    ``stencil.apply`` selects whether the provided kernel writes a translation
+    delta or applies that delta to an origin state.
+    """
 
     translation: TranslationType
     allocator: AlgebraistAllocator[TranslationType]
@@ -40,11 +45,8 @@ class AlgebraistRuntimeLinearCombine(Generic[TranslationType]):
             accelerator=self.accelerator,
         )
 
-    def provide(self, request: AlgebraistArity) -> AlgebraistLinearCombineKernel[TranslationType]:
-        return self._support.provide_linear_combine(request)
-
-    def as_tuple(self, max_arity: int = 12) -> tuple[AlgebraistLinearCombineKernel[TranslationType], ...]:
-        return self._support.provide_tuple(max_arity)
+    def provide(self, request: AlgebraistStencil) -> Callable[..., object]:
+        return self._support.provide_specialist(request)
 
 
-__all__ = ["AlgebraistRuntimeLinearCombine"]
+__all__ = ["AlgebraistRuntimeSpecialist"]

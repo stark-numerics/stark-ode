@@ -16,7 +16,7 @@ from stark.core.contracts import (
     LinearizerLike,
     Translation,
 )
-from stark.engines.accelerators import AcceleratorNone
+from stark.engines.shared.accelerators import AcceleratorNone
 from stark.methods.resolvents.configuration import ResolventConfiguration
 from stark.methods.resolvents.display.decorators import with_resolvent_display
 from stark.methods.resolvents.equations.implicit import ResolventImplicitEquation

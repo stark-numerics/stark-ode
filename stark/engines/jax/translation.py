@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from math import sqrt
 from typing import Any
 
-from stark.engines.algebraist.frame import AlgebraistFrame
+from stark.engines.shared.algebraist.frame import AlgebraistFrame
 from stark.engines.carriers.jax import CarrierJax
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from stark import Frame
-from stark.engines.accelerators import AcceleratorNone
+from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines import EngineNumpy
 
 

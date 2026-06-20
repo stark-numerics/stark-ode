@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Protocol, TypeVar
 
-from stark.engines.algebraist.algebraist import Algebraist
-from stark.engines.algebraist.stencil import AlgebraistStencil
+from stark.engines.shared.algebraist.algebraist import Algebraist
+from stark.engines.shared.algebraist.stencil import AlgebraistStencil
 
 
 RequestType = TypeVar("RequestType", contravariant=True, bound=AlgebraistStencil)

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from math import prod
 from typing import Generic, TypeVar
 
-from stark.engines.algebraist.frame import (
+from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
     AlgebraistFrameNormMax,
     AlgebraistFrameNormRMS,

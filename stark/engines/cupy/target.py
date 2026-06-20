@@ -3,16 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import prod
 
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.frame import (
+from stark.engines.shared.algebraist.arity import AlgebraistArity
+from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
     AlgebraistFrameField,
     AlgebraistFrameLooped,
     AlgebraistFrameNormMax,
     AlgebraistFrameNormRMS,
 )
-from stark.engines.algebraist.generator.expression import AlgebraistGeneratorEmitterExpression
-from stark.engines.algebraist.stencil import AlgebraistStencil
+from stark.engines.shared.algebraist.generator.expression import AlgebraistGeneratorEmitterExpression
+from stark.engines.shared.algebraist.stencil import AlgebraistStencil
 
 
 Kind = str

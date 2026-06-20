@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from stark.engines.algebraist.frame import (
+from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
     AlgebraistFrameBroadcast,
     AlgebraistFrameField,

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Interval, Tolerance
-from stark.engines.accelerators import AcceleratorNone
+from stark.engines.shared.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
 from stark.methods.schemes.imex.fixed.euler import SchemeIMEXEuler

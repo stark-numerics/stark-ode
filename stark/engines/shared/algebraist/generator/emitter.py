@@ -4,10 +4,10 @@ from dataclasses import dataclass, field
 from itertools import product
 from typing import Literal
 
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.stencil import AlgebraistStencil
-from stark.engines.algebraist.generator.expression import AlgebraistGeneratorEmitterExpression
-from stark.engines.algebraist.frame import (
+from stark.engines.shared.algebraist.arity import AlgebraistArity
+from stark.engines.shared.algebraist.stencil import AlgebraistStencil
+from stark.engines.shared.algebraist.generator.expression import AlgebraistGeneratorEmitterExpression
+from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
     AlgebraistFrameBroadcast,
     AlgebraistFrameField,
@@ -15,7 +15,7 @@ from stark.engines.algebraist.frame import (
     AlgebraistFrameScalar,
     AlgebraistFrameUnravel,
 )
-from stark.engines.algebraist.generator.target import (
+from stark.engines.shared.algebraist.generator.target import (
     AlgebraistGeneratorTarget,
     AlgebraistGeneratorTargetFunctional,
     AlgebraistGeneratorTargetMutable,

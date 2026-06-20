@@ -3,14 +3,14 @@ from __future__ import annotations
 from array import array
 from dataclasses import dataclass, field
 
-from stark.engines.accelerators import AcceleratorNone, AcceleratorNumba
-from stark.engines.algebraist.generator import (
+from stark.engines.shared.accelerators import AcceleratorNone, AcceleratorNumba
+from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorInnerProduct,
     AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
-from stark.engines.algebraist.frame import AlgebraistFrame, AlgebraistFrameLooped
+from stark.engines.shared.algebraist.frame import AlgebraistFrame, AlgebraistFrameLooped
 from stark.engines.carriers.native import CarrierNativeArray
 from stark.core.contracts.accelerator import Accelerator
 from stark.engines.native.allocator import EngineAllocatorNative

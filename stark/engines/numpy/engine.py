@@ -5,15 +5,15 @@ from typing import Any
 
 import numpy as np
 
-from stark.engines.accelerators import AcceleratorNone, AcceleratorNumba
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.generator import (
+from stark.engines.shared.accelerators import AcceleratorNone, AcceleratorNumba
+from stark.engines.shared.algebraist.arity import AlgebraistArity
+from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorInnerProduct,
     AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
-from stark.engines.algebraist.frame import AlgebraistFrame, AlgebraistFrameLooped
+from stark.engines.shared.algebraist.frame import AlgebraistFrame, AlgebraistFrameLooped
 from stark.engines.carriers import CarrierNumpy
 from stark.core.contracts.accelerator import Accelerator
 from stark.engines.numpy.allocator import EngineAllocatorNumpy

@@ -5,15 +5,15 @@ from dataclasses import dataclass, field
 from math import prod
 from typing import Generic, TypeVar, cast
 
-from stark.engines.accelerators.none import AcceleratorNone
-from stark.engines.algebraist.generator.compiler import AlgebraistGeneratorCompiler
-from stark.engines.algebraist.generator.target import (
+from stark.engines.shared.accelerators.none import AcceleratorNone
+from stark.engines.shared.algebraist.generator.compiler import AlgebraistGeneratorCompiler
+from stark.engines.shared.algebraist.generator.target import (
     AlgebraistGeneratorTarget,
     AlgebraistGeneratorTargetFunctional,
     AlgebraistGeneratorTargetMutable,
     AlgebraistGeneratorTargetMutableVectorized,
 )
-from stark.engines.algebraist.frame import (
+from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
     AlgebraistFrameLooped,
     AlgebraistFrameNormMax,

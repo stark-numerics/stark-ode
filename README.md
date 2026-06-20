@@ -146,7 +146,7 @@ A STARK integration usually has five user-side objects:
 
 ```python
 from stark import Marcher, Integrator, Interval, Tolerance
-from stark.engines.accelerators import AcceleratorNone
+from stark.engines.shared.accelerators import AcceleratorNone
 from stark.methods.schemes import SchemeDormandPrince
 
 allocator = MyAllocator()
@@ -213,7 +213,7 @@ For example:
 
 ```python
 from stark import Marcher, Tolerance
-from stark.engines.accelerators import AcceleratorNone
+from stark.engines.shared.accelerators import AcceleratorNone
 from stark.methods.inverters import InverterBiCGStab
 from stark.methods.inverters import InverterPolicy, Tolerance
 from stark.methods.resolvents import ResolventNewton
@@ -268,7 +268,7 @@ For a conceptual guide to the main object families and extension points, see
 [`docs/object_map.md`](docs/object_map.md).
 
 Accelerators follow the same philosophy. Built-in workers live under
-`stark.engines.accelerators`, the contracts live under `stark.core.contracts`, and custom
+`stark.engines.shared.accelerators`, the contracts live under `stark.core.contracts`, and custom
 accelerators can be checked with `Auditor(..., accelerator=...)` before a run.
 
 For the mathematical view of the contracts, see

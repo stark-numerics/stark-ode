@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from math import sqrt
 from typing import Generic, TypeVar
 
-from stark.engines.algebraist.frame import AlgebraistFrame
+from stark.engines.shared.algebraist.frame import AlgebraistFrame
 
 TranslationType = TypeVar("TranslationType")
 

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark.engines.accelerators import AcceleratorNumba
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.generator import AlgebraistGeneratorLinearCombine
-from stark.engines.algebraist.frame import AlgebraistFrame, AlgebraistFrameField, AlgebraistFrameLooped
+from stark.engines.shared.accelerators import AcceleratorNumba
+from stark.engines.shared.algebraist.arity import AlgebraistArity
+from stark.engines.shared.algebraist.generator import AlgebraistGeneratorLinearCombine
+from stark.engines.shared.algebraist.frame import AlgebraistFrame, AlgebraistFrameField, AlgebraistFrameLooped
 from stark.engines.numpy import EngineNumpy
 from stark.problem.frame.frame import Frame
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from stark.engines.algebraist.frame import (
+from stark.engines.shared.algebraist.frame import (
     AlgebraistFrameNormExcluded,
     AlgebraistFrameNormMax,
     AlgebraistFrameNormPolicy,

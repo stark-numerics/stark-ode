@@ -18,8 +18,8 @@ from stark.core.contracts import (
     Translation,
     TranslationType,
 )
-from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.runtime import AlgebraistRuntimeLinearCombine
+from stark.engines.shared.accelerators import AcceleratorNone
+from stark.engines.shared.algebraist.runtime import AlgebraistRuntimeLinearCombine
 from stark.methods.inverters.configuration import InverterConfiguration
 from stark.methods.inverters.krylov.basis import InverterKrylovBasis
 from stark.methods.inverters.krylov.projection import InverterKrylovProjection

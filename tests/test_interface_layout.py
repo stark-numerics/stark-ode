@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark import Frame, FrameField
-from stark.engines.algebraist.frame import AlgebraistFrameLooped
+from stark.engines.shared.algebraist.frame import AlgebraistFrameLooped
 
 
 def test_stark_layout_converts_to_algebraist_frame() -> None:

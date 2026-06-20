@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark.engines.accelerators import AcceleratorNone
+from stark.engines.shared.accelerators import AcceleratorNone
 from stark.core.block import Block
 from stark.core.block.operator import BlockOperatorDiagonal
 from stark.core.contracts import Accelerator

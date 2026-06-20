@@ -12,7 +12,7 @@ from time import perf_counter
 from typing import Callable
 
 from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
-from stark.engines.accelerators import AcceleratorNone
+from stark.engines.shared.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventPicard
 from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4

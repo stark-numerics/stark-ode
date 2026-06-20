@@ -4,7 +4,7 @@ import numpy as np
 
 from stark import Configuration, Interval, Frame, FrameField, Method, System
 from stark.problem.derivative.derivative import DerivativeAdapterAcceptsInstant
-from stark.engines.accelerators import AcceleratorNone
+from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines import EngineNumpy
 
 
