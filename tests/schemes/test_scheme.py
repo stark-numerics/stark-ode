@@ -33,7 +33,8 @@ from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
 from stark.methods.schemes.explicit.fixed.rk38 import SchemeRK38
 from stark.methods.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
-from stark import DerivativeIMEX
+from stark import Derivative
+from stark.core.contracts import DerivativeSplitLike
 
 
 @dataclass(slots=True)
@@ -147,7 +148,7 @@ def _dummy_derivative(interval, state, out) -> None:
     del interval, state, out
 
 
-def _imex_picard(split: DerivativeIMEX, allocator, tableau):
+def _imex_picard(split: DerivativeSplitLike, allocator, tableau):
     return ResolventPicard(allocator, accelerator=AcceleratorNone(), tableau=tableau)
 
 
@@ -242,7 +243,7 @@ def test_scheme_step_support_consumes_algebraist_linear_combine_contract() -> No
 
 
 def test_scheme_repr_includes_names_and_tableau() -> None:
-    split = DerivativeIMEX(implicit=_dummy_derivative, explicit=_dummy_derivative)
+    split = Derivative.imex(implicit=_dummy_derivative, explicit=_dummy_derivative)
     imex_allocator = DummyAllocator()
     euler = SchemeEuler(_dummy_derivative, DummyAllocator())
     heun = SchemeHeun(_dummy_derivative, DummyAllocator())
@@ -425,7 +426,7 @@ def test_imex_euler_handles_purely_explicit_split() -> None:
         del interval, state
         out.value = 1.0
 
-    split = DerivativeIMEX(implicit=implicit, explicit=explicit)
+    split = Derivative.imex(implicit=implicit, explicit=explicit)
     allocator = TimeAllocator()
     scheme = SchemeIMEXEuler(split, allocator, resolvent=_imex_picard(split, allocator, SchemeIMEXEuler.tableau))
     interval = Interval(present=0.0, step=0.5, stop=0.5)
@@ -446,7 +447,7 @@ def test_imex_ark324_accepts_constant_split_rhs() -> None:
         del interval, state
         out.value = 1.0
 
-    split = DerivativeIMEX(implicit=implicit, explicit=explicit)
+    split = Derivative.imex(implicit=implicit, explicit=explicit)
     allocator = TimeAllocator()
     scheme = SchemeKennedyCarpenter32(
         split,

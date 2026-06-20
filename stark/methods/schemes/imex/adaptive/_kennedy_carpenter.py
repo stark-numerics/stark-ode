@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.core.block import Block
-from stark.core.contracts import DerivativeIMEX, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DerivativeSplitLike, IntervalLike, Resolvent, State, Allocator
 from stark.core.contracts.errors import StarkErrorRecoverable
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.execution.step_control import SchemeStepControl
@@ -47,7 +47,7 @@ class SchemeKennedyCarpenterAdaptive:
 
     def __init__(
         self,
-        derivative: DerivativeIMEX,
+        derivative: DerivativeSplitLike,
         allocator: Allocator,
         resolvent: Resolvent,
         *,

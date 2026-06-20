@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from array import array
 from dataclasses import dataclass, field
+from typing import Any
+
+import numpy as np
 
 from stark.engines.accelerators import AcceleratorNone, AcceleratorNumba
+from stark.engines.algebraist.arity import AlgebraistArity
 from stark.engines.algebraist.generator import (
     AlgebraistGeneratorInnerProduct,
     AlgebraistGeneratorLinearCombine,
@@ -11,9 +14,9 @@ from stark.engines.algebraist.generator import (
     AlgebraistGeneratorSpecialist,
 )
 from stark.engines.algebraist.frame import AlgebraistFrame, AlgebraistFrameLooped
-from stark.engines.carriers.native import CarrierNativeArray
+from stark.engines.carriers import CarrierNumpy
 from stark.core.contracts.accelerator import Accelerator
-from stark.engines.backends.native.allocator import EngineAllocatorNative
+from stark.engines.numpy.allocator import EngineAllocatorNumpy
 from stark.problem.frame.frame import Frame
 
 
@@ -25,23 +28,24 @@ def _default_accelerator() -> Accelerator:
 
 
 @dataclass(frozen=True, slots=True)
-class EngineNative:
+class EngineNumpy:
     """
-    Native Python backend bundle for one-dimensional shaped layouts.
+    NumPy backend bundle for a shaped `Frame`.
 
     An engine supplies the backend objects used when a `System` prepares an
     IVP: carrier templates for each frame field, an allocator for owned state
     and translation objects, the derived algebraist frame, generated algebra
-    kernels, and an accelerator. This engine stores fields in Python
-    `array.array` values and uses Numba by default when it is installed.
+    kernels, and an accelerator. By default this engine uses Numba when it is
+    installed and otherwise falls back to unaccelerated NumPy-compatible
+    callables.
     """
 
     frame: Frame
-    typecode: str = "d"
+    dtype: Any = np.float64
     accelerator: Accelerator = field(default_factory=_default_accelerator)
     algebraist_frame: AlgebraistFrame = field(init=False)
-    carriers: tuple[CarrierNativeArray, ...] = field(init=False, repr=False)
-    allocator: EngineAllocatorNative = field(init=False, repr=False)
+    carriers: tuple[CarrierNumpy, ...] = field(init=False, repr=False)
+    allocator: EngineAllocatorNumpy = field(init=False, repr=False)
     algebraist_inner_product: AlgebraistGeneratorInnerProduct = field(init=False, repr=False)
     algebraist_linear_combine: AlgebraistGeneratorLinearCombine = field(init=False, repr=False)
     algebraist_norm: AlgebraistGeneratorNorm = field(init=False, repr=False)
@@ -57,27 +61,24 @@ class EngineNative:
             )
         return (
             f"{type(self).__name__}(frame={self.frame!r}, "
-            f"typecode={self.typecode!r}, {acceleration})"
+            f"dtype={np.dtype(self.dtype)!r}, {acceleration})"
         )
 
     def __post_init__(self) -> None:
         algebraist_frame = self.frame.to_algebraist_frame()
-        carriers: list[CarrierNativeArray] = []
+        carriers: list[CarrierNumpy] = []
+        dtype = np.dtype(self.dtype)
 
         for field in algebraist_frame.fields:
             policy = field.policy
             if not isinstance(policy, AlgebraistFrameLooped) or policy.shape is None:
                 raise ValueError(
-                    "EngineNative requires every frame field to declare shape."
+                    "EngineNumpy requires every frame field to declare shape."
                 )
-            if len(policy.shape) != 1:
-                raise ValueError(
-                    "EngineNative currently supports one-dimensional field shapes only."
-                )
-            carriers.append(CarrierNativeArray(array(self.typecode, (0.0 for _ in range(policy.shape[0])))))
+            carriers.append(CarrierNumpy(np.zeros(policy.shape, dtype=dtype)))
 
         carrier_tuple = tuple(carriers)
-        allocator = EngineAllocatorNative(
+        allocator = EngineAllocatorNumpy(
             algebraist_frame=algebraist_frame,
             carriers=carrier_tuple,
         )
@@ -85,16 +86,21 @@ class EngineNative:
         object.__setattr__(self, "algebraist_frame", algebraist_frame)
         object.__setattr__(self, "carriers", carrier_tuple)
         object.__setattr__(self, "allocator", allocator)
+        algebraist_linear_combine = AlgebraistGeneratorLinearCombine(
+            translation=allocator.allocate_translation(),
+            allocator=allocator,
+            frame=algebraist_frame,
+            accelerator=self.accelerator,
+        )
         object.__setattr__(
-            self,
-            "algebraist_linear_combine",
-            AlgebraistGeneratorLinearCombine(
-                translation=allocator.allocate_translation(),
-                allocator=allocator,
-                frame=algebraist_frame,
-                accelerator=self.accelerator,
+            allocator,
+            "linear_combine",
+            tuple(
+                algebraist_linear_combine.provide(AlgebraistArity(arity))
+                for arity in range(1, 13)
             ),
         )
+
         algebraist_specialist = AlgebraistGeneratorSpecialist(
             translation=allocator.allocate_translation(),
             allocator=allocator,
@@ -120,8 +126,9 @@ class EngineNative:
         object.__setattr__(allocator, "inner_product", algebraist_inner_product.provide())
 
         object.__setattr__(self, "algebraist_inner_product", algebraist_inner_product)
+        object.__setattr__(self, "algebraist_linear_combine", algebraist_linear_combine)
         object.__setattr__(self, "algebraist_norm", algebraist_norm)
         object.__setattr__(self, "algebraist_specialist", algebraist_specialist)
 
 
-__all__ = ["EngineNative"]
+__all__ = ["EngineNumpy"]

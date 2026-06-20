@@ -4,10 +4,12 @@ from stark.problem.derivative.derivative import (
     DerivativeSignature,
     DerivativeStyle,
 )
+from stark.problem.derivative.split import DerivativeSplit
 
 __all__ = [
     "Derivative",
     "DerivativeImplementation",
     "DerivativeSignature",
+    "DerivativeSplit",
     "DerivativeStyle",
 ]

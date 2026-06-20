@@ -5,7 +5,6 @@ import importlib
 from stark import (
     Auditor,
     Configuration,
-    DerivativeIMEX,
     Integrator,
     Interval,
     IntegratorStepper,
@@ -87,7 +86,6 @@ def test_package_imports() -> None:
     assert AcceleratorNone is not None
     assert AcceleratorJax is not None
     assert AcceleratorNumba is not None
-    assert DerivativeIMEX is not None
     assert Resolvent is not None
     assert Derivative is not None
     assert DerivativeSignature is not None
@@ -96,6 +94,7 @@ def test_package_imports() -> None:
     assert FrameField is not None
     assert Method is not None
     assert System is not None
+    assert not hasattr(stark, "DerivativeIMEX")
     assert not hasattr(stark, "EngineNumpy")
     assert not hasattr(stark, "Algebraist")
     assert not hasattr(stark, "ResolventNewton")

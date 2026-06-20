@@ -29,8 +29,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from stark import Configuration, Integrator, Interval, IntegratorStepper, Method, Tolerance
-from stark.core.contracts import DerivativeIMEX
+from stark import Configuration, Derivative, Integrator, Interval, IntegratorStepper, Method, Tolerance
 from stark.methods.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7
 
 from examples.case_studies.allen_cahn.lesson_01_problem import (
@@ -69,7 +68,7 @@ if __name__ == "__main__":
 
     implicit_derivative = AllenCahnImplicitDerivative(geometry, DIFFUSIVITY)
     explicit_derivative = AllenCahnExplicitDerivative(geometry)
-    derivative = DerivativeIMEX(
+    derivative = Derivative.imex(
         implicit=implicit_derivative,
         explicit=explicit_derivative,
     )

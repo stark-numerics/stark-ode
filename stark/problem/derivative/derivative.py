@@ -8,7 +8,7 @@ from typing import Any, Protocol, overload, runtime_checkable
 
 from stark.engines.algebraist.frame.path import AlgebraistFramePath
 from stark.core.contracts.accelerator import Accelerator
-from stark.core.contracts.derivative_imex import DerivativeIMEX
+from stark.problem.derivative.split import DerivativeSplit
 
 
 class DerivativeImplementation(Protocol):
@@ -54,10 +54,10 @@ class DerivativeStyle:
         return DerivativeSignatureAcceptsInterval(function)
 
     @staticmethod
-    def imex(*, implicit: object, explicit: object) -> DerivativeIMEX:
+    def imex(*, implicit: object, explicit: object) -> DerivativeSplit:
         """Recognise an implicit-explicit derivative split."""
 
-        return DerivativeIMEX(
+        return DerivativeSplit(
             implicit=implicit,
             explicit=explicit,
         )
@@ -335,7 +335,7 @@ class Derivative:
         return DerivativeStyle.interval_in_place(function)
 
     @classmethod
-    def imex(cls, *, implicit: object, explicit: object) -> DerivativeIMEX:
+    def imex(cls, *, implicit: object, explicit: object) -> DerivativeSplit:
         """Declare an implicit-explicit derivative split."""
 
         return DerivativeStyle.imex(implicit=implicit, explicit=explicit)
@@ -636,6 +636,7 @@ __all__ = [
     "DerivativeSignatureReturnsInterval",
     "DerivativeSignatureReturnsInstant",
     "DerivativeStyle",
+    "DerivativeSplit",
     "DerivativeAdapterAcceptsInstant",
     "assign_returned_translation",
 ]

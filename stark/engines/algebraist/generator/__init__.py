@@ -4,6 +4,12 @@ from stark.engines.algebraist.generator.inner_product import AlgebraistGenerator
 from stark.engines.algebraist.generator.linear_combine import AlgebraistGeneratorLinearCombine
 from stark.engines.algebraist.generator.norm import AlgebraistGeneratorNorm
 from stark.engines.algebraist.generator.specialist import AlgebraistGeneratorSpecialist
+from stark.engines.algebraist.generator.target import (
+    AlgebraistGeneratorTarget,
+    AlgebraistGeneratorTargetFunctional,
+    AlgebraistGeneratorTargetMutable,
+    AlgebraistGeneratorTargetMutableVectorized,
+)
 
 __all__ = [
     "AlgebraistGeneratorCompiler",
@@ -12,4 +18,8 @@ __all__ = [
     "AlgebraistGeneratorLinearCombine",
     "AlgebraistGeneratorNorm",
     "AlgebraistGeneratorSpecialist",
+    "AlgebraistGeneratorTarget",
+    "AlgebraistGeneratorTargetFunctional",
+    "AlgebraistGeneratorTargetMutable",
+    "AlgebraistGeneratorTargetMutableVectorized",
 ]

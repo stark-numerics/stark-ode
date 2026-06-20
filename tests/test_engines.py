@@ -11,28 +11,22 @@ from stark.engines.algebraist.generator import (
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
-from stark.engines.algebraist.runtime import (
-    AlgebraistRuntimeInnerProduct,
-    AlgebraistRuntimeLinearCombine,
-    AlgebraistRuntimeNorm,
-    AlgebraistRuntimeSpecialist,
-)
 from stark.engines.carriers import CarrierNumpy
 from stark.engines import EngineNative, EngineNumpy
 
 
 def test_stark_engine_numpy_exposes_backend_bundle() -> None:
     accelerator = AcceleratorNone()
-    frame = Frame(
+    layout = Frame(
         (
             FrameField("u", translation="du", shape=(2, 3)),
             FrameField("v", translation="dv", shape=(2, 3)),
         )
     )
 
-    engine = EngineNumpy(frame, accelerator=accelerator)
+    engine = EngineNumpy(layout, accelerator=accelerator)
 
-    assert engine.frame is frame
+    assert engine.frame is layout
     assert engine.accelerator is accelerator
     assert len(engine.carriers) == 2
     assert all(isinstance(carrier, CarrierNumpy) for carrier in engine.carriers)
@@ -151,15 +145,15 @@ def test_stark_engine_native_uses_array_backed_fields() -> None:
 
 
 def test_stark_engine_native_rejects_multidimensional_shapes() -> None:
-    frame = Frame((FrameField("u", translation="du", shape=(2, 2)),))
+    layout = Frame((FrameField("u", translation="du", shape=(2, 2)),))
 
     with pytest.raises(ValueError, match="one-dimensional"):
-        EngineNative(frame)
+        EngineNative(layout)
 
 
 def test_stark_engine_cupy_optional() -> None:
     cp = pytest.importorskip("cupy")
-    from stark.engines.backends.cupy import EngineCupy
+    from stark.engines.cupy import EngineCupy
 
     engine = EngineCupy(
         Frame(
@@ -184,16 +178,18 @@ def test_stark_engine_cupy_optional() -> None:
     np.testing.assert_array_equal(cp.asnumpy(result.u), np.array([11.0, 22.0]))
     np.testing.assert_array_equal(cp.asnumpy(result.v), np.array([33.0, 44.0]))
     assert delta.norm() == pytest.approx((250.0 + 1250.0) ** 0.5)
-    assert isinstance(engine.algebraist_linear_combine, AlgebraistRuntimeLinearCombine)
-    assert isinstance(engine.algebraist_inner_product, AlgebraistRuntimeInnerProduct)
-    assert isinstance(engine.algebraist_norm, AlgebraistRuntimeNorm)
-    assert isinstance(engine.algebraist_specialist, AlgebraistRuntimeSpecialist)
-    assert engine.allocator.inner_product(delta, delta) == pytest.approx(1500.0)
+    assert isinstance(engine.algebraist_linear_combine, AlgebraistGeneratorLinearCombine)
+    assert isinstance(engine.algebraist_inner_product, AlgebraistGeneratorInnerProduct)
+    assert isinstance(engine.algebraist_norm, AlgebraistGeneratorNorm)
+    assert isinstance(engine.algebraist_specialist, AlgebraistGeneratorSpecialist)
+    assert len(engine.allocator.linear_combine) >= 2
+    inner_product = engine.allocator.inner_product(delta, delta)
+    assert float(inner_product.get()) == pytest.approx(1500.0)
 
 
 def test_stark_engine_jax_optional() -> None:
     jnp = pytest.importorskip("jax.numpy")
-    from stark.engines.backends.jax import EngineJax
+    from stark.engines.jax import EngineJax
 
     engine = EngineJax(
         Frame(
@@ -218,8 +214,9 @@ def test_stark_engine_jax_optional() -> None:
     np.testing.assert_array_equal(np.asarray(result.u), np.array([11.0, 22.0]))
     np.testing.assert_array_equal(np.asarray(result.v), np.array([33.0, 44.0]))
     assert delta.norm() == pytest.approx((250.0 + 1250.0) ** 0.5)
-    assert isinstance(engine.algebraist_linear_combine, AlgebraistRuntimeLinearCombine)
-    assert isinstance(engine.algebraist_inner_product, AlgebraistRuntimeInnerProduct)
-    assert isinstance(engine.algebraist_norm, AlgebraistRuntimeNorm)
-    assert isinstance(engine.algebraist_specialist, AlgebraistRuntimeSpecialist)
+    assert isinstance(engine.algebraist_linear_combine, AlgebraistGeneratorLinearCombine)
+    assert isinstance(engine.algebraist_inner_product, AlgebraistGeneratorInnerProduct)
+    assert isinstance(engine.algebraist_norm, AlgebraistGeneratorNorm)
+    assert isinstance(engine.algebraist_specialist, AlgebraistGeneratorSpecialist)
+    assert len(engine.allocator.linear_combine) >= 2
     assert engine.allocator.inner_product(delta, delta) == pytest.approx(1500.0)

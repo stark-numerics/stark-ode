@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from stark.core.auditor import Auditor
-from stark.core.contracts import DerivativeIMEX, State, Allocator
+from stark.core.contracts import DerivativeSplitLike, State, Allocator
 from stark.methods.schemes.display.display import display_imex_resolvent_problem
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 
 
 def initialise_imex_support(
     scheme,
-    derivative: DerivativeIMEX,
+    derivative: DerivativeSplitLike,
     allocator: Allocator,
 ) -> SchemeStepSupport:
     translation_probe = allocator.allocate_translation()

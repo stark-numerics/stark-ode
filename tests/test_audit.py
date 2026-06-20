@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 
 from stark.engines.accelerators import AcceleratorNone
-from stark import DerivativeIMEX, Derivative, DerivativeStyle
+from stark import Derivative, DerivativeStyle
 from stark.core.auditor import AuditError, Auditor
 from stark import Tolerance
 from stark.core.interval import Interval
+from stark.problem.derivative import DerivativeSplit
 
 
 @dataclass(slots=True)
@@ -165,7 +166,7 @@ def test_require_linear_residual_rejects_missing_linearize() -> None:
 
 
 def test_auditor_reports_ready_imex_derivative() -> None:
-    imex = DerivativeIMEX(implicit=derivative, explicit=derivative)
+    imex = Derivative.imex(implicit=derivative, explicit=derivative)
 
     auditor = Auditor(
         state={"x": 1.0},
@@ -177,18 +178,18 @@ def test_auditor_reports_ready_imex_derivative() -> None:
 
     assert auditor.ok
     report = str(auditor)
-    assert "DerivativeIMEX provides implicit(interval, state, translation)" in report
-    assert "DerivativeIMEX provides explicit(interval, state, translation)" in report
+    assert "DerivativeSplit provides implicit(interval, state, translation)" in report
+    assert "DerivativeSplit provides explicit(interval, state, translation)" in report
 
 
 def test_derivative_style_declares_imex_split() -> None:
     styled = DerivativeStyle.imex(implicit=derivative, explicit=derivative)
     direct = Derivative.imex(implicit=derivative, explicit=derivative)
 
-    assert isinstance(styled, DerivativeIMEX)
+    assert isinstance(styled, DerivativeSplit)
     assert styled.implicit is derivative
     assert styled.explicit is derivative
-    assert isinstance(direct, DerivativeIMEX)
+    assert isinstance(direct, DerivativeSplit)
 
 
 def test_require_imex_scheme_inputs_rejects_missing_explicit_part() -> None:
@@ -200,7 +201,7 @@ def test_require_imex_scheme_inputs_rejects_missing_explicit_part() -> None:
         Auditor.require_imex_scheme_inputs(BadImEx(), DummyAllocator(), DummyTranslation())
     except AuditError as exc:
         message = str(exc)
-        assert "DerivativeIMEX provides explicit" in message
+        assert "DerivativeSplit provides explicit" in message
         assert "Overall: incomplete." in message
     else:  # pragma: no cover - defensive failure branch
         raise AssertionError("Expected the audit to reject an IMEX split without an explicit part.")

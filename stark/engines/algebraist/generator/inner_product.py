@@ -7,6 +7,12 @@ from typing import Generic, TypeVar, cast
 
 from stark.engines.accelerators.none import AcceleratorNone
 from stark.engines.algebraist.generator.compiler import AlgebraistGeneratorCompiler
+from stark.engines.algebraist.generator.target import (
+    AlgebraistGeneratorTarget,
+    AlgebraistGeneratorTargetFunctional,
+    AlgebraistGeneratorTargetMutable,
+    AlgebraistGeneratorTargetMutableVectorized,
+)
 from stark.engines.algebraist.frame import (
     AlgebraistFrame,
     AlgebraistFrameLooped,
@@ -27,9 +33,13 @@ class AlgebraistGeneratorInnerProduct(Generic[TranslationType]):
     translation: TranslationType
     frame: AlgebraistFrame
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
+    target: AlgebraistGeneratorTarget = field(default_factory=AlgebraistGeneratorTargetMutable)
 
     def source_string(self, request: None = None) -> str:
         del request
+        source = getattr(self.target, "source_inner_product", None)
+        if callable(source):
+            return source(self.frame)
         parameters = []
         for field in self.frame.norm_fields:
             parameters.append(f"left_{field.translation_name}")
@@ -55,6 +65,13 @@ class AlgebraistGeneratorInnerProduct(Generic[TranslationType]):
                         right_name=right_name,
                         shape=policy.shape,
                         norm=norm,
+                        vectorized=isinstance(
+                            self.target,
+                            (
+                                AlgebraistGeneratorTargetFunctional,
+                                AlgebraistGeneratorTargetMutableVectorized,
+                            ),
+                        ),
                     )
                 )
                 continue
@@ -98,15 +115,20 @@ class AlgebraistGeneratorInnerProduct(Generic[TranslationType]):
         right_name: str,
         shape: tuple[int, ...],
         norm: object,
+        vectorized: bool = False,
     ) -> list[str]:
-        index_names = tuple(f"i{index}" for index in range(len(shape)))
-        lines = []
         if isinstance(norm, AlgebraistFrameNormRMS):
             scale = float(prod(shape))
         elif isinstance(norm, AlgebraistFrameNormMax):
             scale = 1.0
         else:
             raise ValueError("Generated inner product requires RMS or max norm fields.")
+
+        if vectorized:
+            return [f"    total += ({left_name} * {right_name}).sum() / {scale!r}"]
+
+        index_names = tuple(f"i{index}" for index in range(len(shape)))
+        lines = []
         for depth, (index_name, bound) in enumerate(zip(index_names, shape, strict=True)):
             indent = "    " * (depth + 1)
             lines.append(f"{indent}for {index_name} in range({bound}):")

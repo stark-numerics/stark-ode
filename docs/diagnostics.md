@@ -1,41 +1,80 @@
-# Diagnostics
+# Diagnostics, monitors, and timing
 
-Diagnostics help answer what the solver did, not just what value it returned.
+This page is for users who want to understand what a solve did.
 
-## Monitors
+Diagnostics are useful, but they are not free. Keep observation and timing separate.
 
-Monitors observe solver internals such as:
+## Observe a solve with monitors
 
-- accepted and rejected steps;
-- scheme stages;
-- nonlinear residuals;
-- inverter defects;
-- iteration counts.
+Use monitors when you want counts, summaries, residual history, or method behaviour.
 
-Monitoring is intentionally separate from normal timing. A monitored solve allocates and records more information, so it should not be compared directly with an unmonitored performance run.
+```powershell
+python -m examples.features.monitor_scheme_steps
+python -m examples.features.monitoring_levels
+python -m examples.features.compare_with_monitor_summary
+```
 
-See:
+A monitored run can answer:
+
+```text
+How many accepted steps?
+How many rejected steps?
+How many nonlinear iterations?
+How many linear solves?
+Did the method refresh linearization often?
+```
+
+## Do not time a monitored run as if it were raw solver speed
+
+Monitoring adds calls, allocations, and recording work. It is diagnostic machinery.
+
+Use:
+
+```text
+monitored run      understand behaviour
+unmonitored run    measure speed
+```
+
+Run:
 
 ```powershell
 python -m examples.features.monitor_vs_timing
 ```
 
-## Comparison reports
+## Read competition timing tables
 
-Comparison reports live under `competition/`. They compare solvers on named problems and report timing and accuracy.
+Competition reports normally distinguish:
 
-The timing tables distinguish:
+```text
+Preparation time    setup + first warm solve
+Warm run time       repeated solve after setup and warmup
+Total time          preparation + one measured solve
+```
 
-- **preparation time**: setup plus warmup, including compilation or one-time preparation when it occurs;
-- **warm run time**: repeated solves after setup and warmup;
-- **total time**: preparation plus a measured solve.
+This matters for JIT/GPU libraries. They may move substantial work into preparation.
 
-This distinction is especially important for JIT-based or GPU-backed libraries, where a large amount of work may occur before the first warm run.
+Example commands:
+
+```powershell
+python -m competition.robertson.report
+python -m competition.hires.report
+python -m competition.allen_cahn_1d.report
+```
+
+## Which timing should I quote?
+
+Use the timing that matches your use case.
+
+| Use case | Timing |
+|---|---|
+| One solve from a cold setup | total time |
+| Many repeated solves with same shape | warm run time |
+| Measuring compile/setup overhead | preparation table |
+| Comparing user-visible latency | total time |
+| Comparing steady-state throughput | warm run time |
 
 ## Accuracy summaries
 
-Comparison reports may show final error or RMS error relative to a reference. These summaries are useful for comparing configured runs, but they do not replace mathematical convergence analysis.
+Comparison reports may include final error or RMS error. Treat them as regression/comparison tools, not mathematical proof.
 
-## Profiling
-
-Use profiling for implementation work, not ordinary problem solving. A profile should normally be collected on an unmonitored solve unless the monitor itself is the target of the investigation.
+If two methods use different tolerances, linear algebra, or checkpoint policies, compare both accuracy and timing.

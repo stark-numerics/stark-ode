@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from stark.core.contracts.accelerator import AcceleratorAudit
-from stark.core.contracts.derivative_imex import DerivativeIMEXAudit
 from stark.core.contracts.derivative import DerivativeAudit
+from stark.core.contracts.derivative_split import DerivativeSplitAudit
 from stark.core.contracts.interval import IntervalAudit
 from stark.core.contracts.linearizer import LinearizerAudit
 from stark.core.contracts.stepper import IntegratorStepperAudit
@@ -35,7 +35,7 @@ class Auditor:
 
     translation_audit = TranslationAudit()
     derivative_audit = DerivativeAudit()
-    derivative_imex_audit = DerivativeIMEXAudit()
+    derivative_split_audit = DerivativeSplitAudit()
     allocator_audit = AllocatorAudit()
     linearizer_audit = LinearizerAudit()
     interval_audit = IntervalAudit()
@@ -73,7 +73,7 @@ class Auditor:
             self.derivative_audit(self, derivative)
 
         if imex_derivative is not None:
-            self.derivative_imex_audit(self, imex_derivative)
+            self.derivative_split_audit(self, imex_derivative)
 
         if allocator is not None:
             sample_state, second_state, sample_translation = self.allocator_audit(self, allocator, exercise=exercise)
@@ -114,7 +114,7 @@ class Auditor:
         if exercise and allocator is not None and imex_derivative is not None and state is not None and interval is not None:
             candidate_translation = sample_translation if sample_translation is not None else translation
             if candidate_translation is not None:
-                self.derivative_imex_audit.exercise(self, imex_derivative, interval, state, candidate_translation)
+                self.derivative_split_audit.exercise(self, imex_derivative, interval, state, candidate_translation)
 
         if exercise and allocator is not None and state is not None and sample_state is not None:
             self.allocator_audit.exercise_copy_state(self, allocator, state, sample_state)
@@ -231,7 +231,7 @@ class Auditor:
     def _object_name(summary: str) -> str:
         if summary.startswith("Derivative"):
             return "Derivative"
-        if summary.startswith("DerivativeIMEX"):
+        if summary.startswith("DerivativeSplit"):
             return "Derivative"
         if summary.startswith("Translation"):
             return "Translation"

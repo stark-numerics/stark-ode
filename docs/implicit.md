@@ -1,77 +1,107 @@
-# Implicit methods
+# Solve stiff and implicit problems
 
-This page is for users solving stiff or nonlinear problems with implicit schemes.
+This page is for users whose explicit solves are too slow, unstable, or require tiny steps.
 
-Implicit methods introduce two extra concepts beyond an explicit scheme:
-
-- a `Linearizer`, which supplies Jacobian actions;
-- a `Resolvent`, which solves nonlinear stage equations, often using an `Inverter` for linear corrections.
-
-## Stage equations
-
-An implicit scheme stage usually requires solving an equation of the form:
+Implicit solving adds three pieces:
 
 ```text
-F(delta) = 0
+linearizer   Jacobian action of the derivative
+resolvent    nonlinear stage solver
+inverter     linear correction solver
 ```
 
-where `delta` is a translation-space stage unknown. The scheme owns the stage structure and asks a resolvent to solve this equation.
+## First implicit route: small dense Newton
 
-## Linearizers
-
-For Newton-style methods, the derivative is not enough. The solver also needs the Jacobian action:
+Use this route for small stiff systems such as Robertson, HIRES, or a low-dimensional Van der Pol oscillator.
 
 ```text
-J(t, x) v = Df(t, x)[v]
+SchemeKvaerno3 or SchemeKvaerno5
+ResolventNewton
+InverterDense
+LinearizerStyle.operator or LinearizerStyle.dense
 ```
 
-`LinearizerStyle` adapters make it possible to provide this action in a style that matches the problem and backend.
-
-Dense inverters may also use a dense fill of the same operator. Krylov inverters can often use only the matrix-free action.
-
-See:
+Run:
 
 ```powershell
 python -m examples.features.linearizer_styles
+python -m examples.features.inverter_dense
 ```
 
-## Resolvents
+## What the linearizer does
 
-A resolvent is the nonlinear solver used inside an implicit stage. Typical choices include:
+For an ODE:
 
-- Picard for simple fixed-point iterations;
-- Newton for linearized corrections;
-- chord and very-chord variants when the Jacobian is reused.
+```text
+y' = f(t, y)
+```
 
-Newton-type resolvents ask an inverter to solve correction equations. The resolvent does not own the matrix algorithm; that is the inverter's job.
+Newton needs the derivative of `f` with respect to `y`:
 
-## Inverters
+```text
+J(t, y) v = Df(t, y)[v]
+```
 
-Dense inverters are useful when the correction space is small. They materialise the linear operator and solve the dense system.
+In STARK, that is a linearizer. It can support:
 
-Krylov inverters are useful when the correction space is large and matrix-free operator application is cheaper than dense materialisation.
+```text
+operator apply   matrix-free action Jv
+dense fill       materialise J for dense inverters
+```
 
-Relaxation inverters are simple iterative methods. They are readable and useful for structured examples, but they are not always the fastest choice.
+Dense inverters can use a dense fill. Krylov inverters only need operator action.
+
+## Dense vs Krylov vs relaxation
+
+| Route | Good for | Bad for |
+|---|---|---|
+| Dense | small systems, cheap dense materialisation | large PDE-like systems |
+| Krylov | large matrix-free systems | small systems where Python iteration overhead dominates |
+| Relaxation | teaching, structured simple iteration | high-performance stiff solves without special structure |
+
+Use dense for small stiff ODEs. Use Krylov when dense matrices are too expensive and you have a good operator action. Add a preconditioner when Krylov iterations are too slow.
 
 ## Preconditioners
 
-Krylov methods often need a preconditioner. A preconditioner approximately solves a related, cheaper problem so the Krylov iteration converges in fewer steps.
+A preconditioner approximately solves the linear correction system or an easier related system. Krylov methods can use it to reduce iteration count.
 
-In STARK, preconditioning belongs at the inverter boundary. The Krylov inverter remains generic; problem-specific structure can live in an operator or preconditioner.
+For a large periodic tridiagonal problem, a preconditioner might solve an approximate periodic tridiagonal system cheaply.
 
-## Practical guidance
+Run the matrix-free example:
 
-Use dense inverters for:
+```powershell
+python -m examples.features.inverter_krylov
+```
 
-- small stiff systems;
-- problems where dense Jacobian fill is cheap;
-- baseline implicit examples.
+Run the larger case study/competition after the Krylov examples are available in your tree:
 
-Use Krylov inverters for:
+```powershell
+python -m competition.allen_cahn_1d.report
+```
 
-- large translation spaces;
-- matrix-free linearizers;
-- structured PDE-like problems;
-- cases where a preconditioner is available.
+## Chord and VeryChord
 
-Use comparison reports to distinguish preparation, warm-run, and total timing. JIT and sparse factorization costs can move work between these columns.
+Newton refreshes the linearization often. Chord and VeryChord reuse it more aggressively. They can be faster when the linearization remains useful across corrections or stages.
+
+Use competition reports to compare these choices:
+
+```powershell
+python -m competition.robertson.report
+python -m competition.hires.report
+```
+
+Interpret both warm and total timing tables. JIT or compilation work can move into preparation.
+
+## Common mistakes
+
+### Using an implicit scheme without a useful linearizer
+
+Newton can only be effective if the linearizer represents the derivative's Jacobian accurately enough.
+
+### Using Krylov for tiny systems
+
+Krylov has iteration and Python control overhead. Use dense for systems with only a few dimensions.
+
+### Treating monitor timings as solver timings
+
+Monitor-enabled implicit solves are for diagnosis. Use unmonitored runs for speed comparisons.

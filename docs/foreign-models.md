@@ -1,70 +1,134 @@
-# Foreign models and custom translations
+# Integrate a foreign model
 
-This page is for users whose simulation already owns its state representation.
+This page is for users whose model already has its own state objects and solver increments.
 
-The high-level `Frame` path is convenient when your state can be represented as named fields. Some simulations already have richer objects: meshes, particles, field bundles, sparse structures, domain-specific arrays, or external model classes. In that case, flattening the model solely to call an ODE solver can make the code worse.
+Use the high-level `System`/`Frame` path when your state can be represented as named fields. Use this page when that would be artificial.
 
-STARK supports this by separating state from translation.
+## The idea
 
-## Core idea
-
-A foreign-model integration provides:
-
-- a **state** object: the nonlinear model value;
-- a **translation** object: a linear increment/tangent value;
-- an **allocator**: creates and copies states, translations, and scratch objects;
-- a **derivative**: writes or returns a translation for `f(t, state)`;
-- optionally a **linearizer**: applies `Df(t, state)` to a translation.
-
-The solver uses translations for stage algebra. The model remains free to keep its own state structure.
-
-## State versus translation
-
-A state is not required to support addition or scalar multiplication. It may be a domain object with invariants.
-
-A translation is linear. Schemes need to scale, combine, measure, and apply translations. That is why translations are separate from states.
-
-For example, a model state might own a mesh and boundary metadata. A translation might store only field increments on that mesh.
-
-## Allocators
-
-The allocator is the boundary between generic solver code and model-specific storage. Schemes should not know how to build your state or translation. They ask the allocator instead.
-
-A custom allocator usually provides operations such as:
-
-- allocate a blank state;
-- allocate a blank translation;
-- copy a state;
-- create operator or block scratch where needed.
-
-## Derivatives and linearizers
-
-A derivative maps:
+STARK separates:
 
 ```text
-(time, state) -> translation
+state        model configuration
+translation  solver increment / tangent object
+allocator    factory for states, translations, and scratch
 ```
 
-A linearizer maps:
+A foreign model integration provides these objects directly.
+
+## Minimal custom state example
+
+This is a small harmonic oscillator with custom Python objects rather than `Frame`-generated state.
+
+```python
+from __future__ import annotations
+
+from dataclasses import dataclass
+from math import sqrt
+
+from stark import Integrator, Interval, IntegratorStepper
+from stark.methods.schemes import SchemeRK4
+
+
+@dataclass(slots=True)
+class Particle:
+    position: float
+    velocity: float
+
+
+@dataclass(slots=True)
+class ParticleDelta:
+    position: float = 0.0
+    velocity: float = 0.0
+
+    def __call__(self, origin: Particle, result: Particle) -> None:
+        result.position = origin.position + self.position
+        result.velocity = origin.velocity + self.velocity
+
+    def norm(self) -> float:
+        return sqrt(self.position * self.position + self.velocity * self.velocity)
+
+    def __add__(self, other: "ParticleDelta") -> "ParticleDelta":
+        return ParticleDelta(
+            self.position + other.position,
+            self.velocity + other.velocity,
+        )
+
+    def __rmul__(self, scalar: float) -> "ParticleDelta":
+        return ParticleDelta(
+            scalar * self.position,
+            scalar * self.velocity,
+        )
+
+
+class ParticleAllocator:
+    def allocate_state(self) -> Particle:
+        return Particle(0.0, 0.0)
+
+    def copy_state(self, source: Particle, out: Particle) -> None:
+        out.position = source.position
+        out.velocity = source.velocity
+
+    def allocate_translation(self) -> ParticleDelta:
+        return ParticleDelta()
+
+
+def harmonic_motion(interval: Interval, state: Particle, out: ParticleDelta) -> None:
+    del interval
+    out.position = state.velocity
+    out.velocity = -state.position
+
+
+allocator = ParticleAllocator()
+scheme = SchemeRK4(harmonic_motion, allocator)
+stepper = IntegratorStepper(scheme)
+interval = Interval(present=0.0, step=0.1, stop=0.5)
+state = Particle(position=1.0, velocity=0.0)
+
+for interval, state in Integrator().mutating_trajectory(stepper, interval, state):
+    print(f"t={interval.present:.1f}, x={state.position:.6f}, v={state.velocity:.6f}")
+```
+
+Run the maintained version:
+
+```powershell
+python -m examples.features.structured_state_minimal
+```
+
+## What the translation must do
+
+A translation must be able to:
 
 ```text
-(time, state, source translation) -> target translation
+apply itself to a state
+be scaled and combined
+report a norm when adaptive schemes need one
 ```
 
-Explicit schemes need only the derivative. Newton-style implicit schemes need a linearizer.
+For simple foreign objects, Python special methods may be enough. For high-performance foreign models, provide explicit operations through an allocator or engine-specific path.
 
-## When to use this path
+## What the allocator must do
 
-Use foreign-model integration when:
+An allocator gives schemes and integrators fresh objects without knowing the model's constructor details.
 
-- your model state should remain a domain object;
-- flattening and unflattening dominate the code;
-- solver increments are naturally different from model states;
-- you need matrix-free operators or problem-specific preconditioners;
-- you are integrating STARK into an existing simulation package.
+At minimum:
 
-Do not use this path just to solve a small NumPy vector problem. Use `System` and `Frame` for that.
+```text
+allocate_state
+copy_state
+allocate_translation
+```
 
-## Relationship to the mathematical contracts
+Implicit methods and advanced inverters may require additional operator or block allocation support.
 
-This page is the practical integration guide. [Mathematical contracts](contracts_math.md) is the formal reference for the same ideas: affine state spaces, translation vector spaces, derivatives, linearizers, blocks, operators, resolvents, and inverters.
+## When to prefer `Frame`
+
+Use `Frame` if your model can be described as named array/scalar fields. The high-level path gives STARK more structure, which enables generated Algebraist kernels and backend acceleration.
+
+Use custom state/translation only when preserving the foreign model representation is more important than the generated high-level path.
+
+## Next
+
+- [Mathematical contracts](contracts_math.md) explains the formal state/translation model.
+- [Extending STARK](extending.md) explains method components such as schemes and inverters.
+- [Algebraist backend paths](contributing/algebraist_backends.md) explains why `Frame`-backed models can use generated kernels while foreign models may need runtime fallback.

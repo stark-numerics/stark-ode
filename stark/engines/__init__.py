@@ -1,10 +1,8 @@
 """Engine catalogue for backend runtime bundles."""
 
 from stark.core.contracts.engine import Engine
-from stark.engines.backends import (
-    EngineNative,
-    EngineNumpy,
-)
+from stark.engines.native import EngineNative
+from stark.engines.numpy import EngineNumpy
 
 __all__ = [
     "Engine",
@@ -13,14 +11,14 @@ __all__ = [
 ]
 
 try:
-    from stark.engines.backends import EngineCupy
+    from stark.engines.cupy import EngineCupy
 except ImportError:
     pass
 else:
     __all__ += ["EngineCupy"]
 
 try:
-    from stark.engines.backends import EngineJax
+    from stark.engines.jax import EngineJax
 except ImportError:
     pass
 else:

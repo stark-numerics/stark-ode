@@ -8,6 +8,10 @@ from stark.engines.accelerators.none import AcceleratorNone
 from stark.engines.algebraist.arity import AlgebraistArity
 from stark.engines.algebraist.generator.compiler import AlgebraistGeneratorCompiler
 from stark.engines.algebraist.generator.emitter import AlgebraistGeneratorEmitter
+from stark.engines.algebraist.generator.target import (
+    AlgebraistGeneratorTarget,
+    AlgebraistGeneratorTargetMutable,
+)
 from stark.engines.algebraist.frame import AlgebraistFrame
 from stark.engines.algebraist.allocator import AlgebraistAllocator
 from stark.core.contracts.accelerator import Accelerator
@@ -24,9 +28,13 @@ class AlgebraistGeneratorLinearCombine(Generic[TranslationType]):
     frame: AlgebraistFrame
     linear_combine: Sequence[Callable[..., TranslationType]] | None = None
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
+    target: AlgebraistGeneratorTarget = field(default_factory=AlgebraistGeneratorTargetMutable)
 
     def source_string(self, request: AlgebraistArity) -> str:
-        return AlgebraistGeneratorEmitter(self.frame).general(request)
+        source = getattr(self.target, "source_linear_combine", None)
+        if callable(source):
+            return source(self.frame, request)
+        return AlgebraistGeneratorEmitter(self.frame, target=self.target).general(request)
 
     def compile(self, source: str) -> Callable[..., TranslationType]:
         return cast(

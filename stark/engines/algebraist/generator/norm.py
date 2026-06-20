@@ -7,6 +7,12 @@ from typing import Generic, TypeVar, cast
 
 from stark.engines.accelerators.none import AcceleratorNone
 from stark.engines.algebraist.generator.compiler import AlgebraistGeneratorCompiler
+from stark.engines.algebraist.generator.target import (
+    AlgebraistGeneratorTarget,
+    AlgebraistGeneratorTargetFunctional,
+    AlgebraistGeneratorTargetMutable,
+    AlgebraistGeneratorTargetMutableVectorized,
+)
 from stark.engines.algebraist.frame import (
     AlgebraistFrame,
     AlgebraistFrameLooped,
@@ -27,9 +33,13 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
     translation: TranslationType
     frame: AlgebraistFrame
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
+    target: AlgebraistGeneratorTarget = field(default_factory=AlgebraistGeneratorTargetMutable)
 
     def source_string(self, request: None = None) -> str:
         del request
+        source = getattr(self.target, "source_norm", None)
+        if callable(source):
+            return source(self.frame)
         parameters = [
             field.translation_name
             for field in self.frame.norm_fields
@@ -53,6 +63,13 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
                         name=name,
                         shape=policy.shape,
                         norm=norm,
+                        vectorized=isinstance(
+                            self.target,
+                            (
+                                AlgebraistGeneratorTargetFunctional,
+                                AlgebraistGeneratorTargetMutableVectorized,
+                            ),
+                        ),
                     )
                 )
                 continue
@@ -94,7 +111,18 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
         name: str,
         shape: tuple[int, ...],
         norm: object,
+        vectorized: bool = False,
     ) -> list[str]:
+        if vectorized:
+            if isinstance(norm, AlgebraistFrameNormRMS):
+                return [f"    total += (abs({name}) ** 2).sum() / {float(prod(shape))!r}"]
+            if isinstance(norm, AlgebraistFrameNormMax):
+                return [
+                    f"    field_norm = abs({name}).max()",
+                    "    total += field_norm ** 2",
+                ]
+            raise ValueError("Generated norm requires RMS or max norm fields.")
+
         index_names = tuple(f"i{index}" for index in range(len(shape)))
         if isinstance(norm, AlgebraistFrameNormRMS):
             lines = ["    subtotal = 0.0"]

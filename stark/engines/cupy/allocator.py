@@ -5,16 +5,16 @@ from types import SimpleNamespace
 from typing import Any
 
 from stark.engines.algebraist.frame import AlgebraistFrame
-from stark.engines.carriers.numpy import CarrierNumpy
-from stark.engines.backends.numpy.translation import EngineTranslationNumpy
+from stark.engines.cupy.translation import EngineTranslationCupy
+from stark.engines.carriers.cupy import CarrierCupy
 
 
 @dataclass(frozen=True, slots=True)
-class EngineAllocatorNumpy:
-    """Allocate structured NumPy state and translation objects."""
+class EngineAllocatorCupy:
+    """Allocate structured CuPy state and translation objects."""
 
     algebraist_frame: AlgebraistFrame
-    carriers: tuple[CarrierNumpy, ...] = field(repr=False)
+    carriers: tuple[CarrierCupy, ...] = field(repr=False)
     linear_combine: tuple[Any, ...] = field(default=(), repr=False)
     apply_translation: Any = field(default=None, repr=False)
     norm: Any = field(default=None, repr=False)
@@ -34,8 +34,8 @@ class EngineAllocatorNumpy:
             )
         return out
 
-    def allocate_translation(self) -> EngineTranslationNumpy:
-        translation = EngineTranslationNumpy(
+    def allocate_translation(self) -> EngineTranslationCupy:
+        translation = EngineTranslationCupy(
             algebraist_frame=self.algebraist_frame,
             carriers=self.carriers,
             allocator=self,
@@ -48,4 +48,4 @@ class EngineAllocatorNumpy:
         return translation
 
 
-__all__ = ["EngineAllocatorNumpy"]
+__all__ = ["EngineAllocatorCupy"]

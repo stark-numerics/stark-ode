@@ -1,90 +1,144 @@
-# Problem objects
+# Define an ODE problem
 
-This page describes the problem layer: the objects that define the ODE independent of the numerical method used to solve it.
+This page is for users who want to define the equation STARK should solve.
 
-## System
+For the high-level path, define:
 
-`System` is the user-facing problem object. It owns:
+```text
+Frame       the state fields and translation fields
+Derivative  the right-hand side f(t, y)
+System      the object tying the problem pieces together
+Interval    start time, step guess, and stop time
+Tolerance   adaptive error scale, when needed
+```
 
-- the derivative, which defines the right-hand side;
-- the optional linearizer, which defines Jacobian actions for implicit methods;
-- the frame, which describes state and translation fields.
+## Use `Frame` to describe state and translations
 
-A system can construct an IVP with an initial state, interval, method, engine, and configuration.
-
-## Frame
-
-`Frame` maps named state fields to named translation fields.
-
-Example:
+A `Frame` says which fields live on the state and which fields carry solver increments.
 
 ```python
-Frame({
+frame = Frame({
     "position": {"translation": "dposition", "shape": (3,)},
     "velocity": {"translation": "dvelocity", "shape": (3,)},
 })
 ```
 
-The state and the translation are intentionally different objects:
-
-- the state is the nonlinear value being advanced;
-- the translation is a linear increment or tangent value used by the solver.
-
-This separation is the core STARK design decision. It lets schemes operate on translation algebra without requiring every state object to be a flat vector.
-
-## Derivative
-
-A derivative represents the ODE right-hand side:
-
-```text
-dx/dt = f(t, x)
-```
-
-In the common in-place style, the derivative writes a translation:
+A derivative for that frame writes:
 
 ```python
-def derivative(t, state, out):
-    out.dy[:] = -0.5 * state.y
+def rhs(t, state, out) -> None:
+    del t
+    out.dposition[:] = state.velocity
+    out.dvelocity[:] = acceleration(state.position)
 ```
 
-Return-style derivatives are supported through derivative adapters and are especially useful for JAX and other immutable array styles.
+Use this when your model can be represented as named scalar or array fields.
 
-See:
+## Use `DerivativeStyle` to adapt the derivative
 
-```powershell
-python -m examples.features.derivative_styles
+### In-place derivative
+
+Use in-place style when mutation is natural.
+
+```python
+system = System(
+    frame=frame,
+    derivative=DerivativeStyle.in_place(rhs),
+)
 ```
 
-## Linearizer
+This is a good fit for NumPy and native mutable arrays.
 
-A linearizer represents the derivative of the derivative. It supplies Jacobian actions used by implicit methods:
+### Return-style derivative
+
+Use return style when the backend prefers immutable arrays or expression-oriented code.
+
+```python
+@DerivativeStyle.returning
+def rhs(t, state):
+    return {"dy": -0.5 * state.y}
+```
+
+This is the recommended shape for JAX examples.
+
+### Kernel styles
+
+Kernel styles bind named fields and parameters once, so the prepared derivative can run with less field discovery.
+
+```python
+@DerivativeStyle.kernel(state=("y",), translation=("dy",), parameters=(0.5,))
+def decay_kernel(y, dy, rate: float) -> None:
+    dy[:] = -rate * y
+```
+
+Use kernel styles when you want a compact derivative focused on array fields.
+
+## Build a `System`
+
+```python
+system = System(
+    derivative=DerivativeStyle.in_place(rhs),
+    frame=frame,
+)
+```
+
+For implicit methods, add a linearizer:
+
+```python
+system = System(
+    derivative=derivative,
+    linearizer=linearizer,
+    frame=frame,
+)
+```
+
+## Add tolerances
+
+Adaptive schemes use tolerances to decide whether a step is accurate enough.
+
+```python
+from stark import Configuration, Tolerance
+
+configuration = Configuration(
+    scheme_tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6),
+    check_progress=False,
+)
+```
+
+Use absolute tolerance for small values and relative tolerance for scaled values.
+
+## Define a linearizer for implicit solves
+
+A linearizer describes the Jacobian action of the derivative. Newton-style resolvents use it to solve implicit stage equations.
+
+For a two-component Van der Pol oscillator, the derivative is:
 
 ```text
-J(t, x) v = Df(t, x)[v]
+y0' = y1
+y1' = mu * (1 - y0**2) * y1 - y0
 ```
 
-Newton-style resolvents use the linearizer to build linear correction equations. Dense inverters may also ask for dense materialisation of the same operator.
+The Jacobian action is:
 
-See:
+```python
+def jacobian_apply(y, source_dy, out_dy, mu: float) -> None:
+    y0 = y[0]
+    y1 = y[1]
+    v0 = source_dy[0]
+    v1 = source_dy[1]
+
+    out_dy[0] = v1
+    out_dy[1] = (-2.0 * mu * y0 * y1 - 1.0) * v0 + mu * (1.0 - y0 * y0) * v1
+```
+
+Use `LinearizerStyle.operator` when you can provide Jacobian action and, optionally, a dense fill for small dense inverters.
+
+Run the example:
 
 ```powershell
 python -m examples.features.linearizer_styles
 ```
 
-## SystemIVP
+## When the high-level problem path is not enough
 
-An IVP couples a system to:
-
-- an initial state;
-- an interval;
-- a method;
-- an engine;
-- optional configuration.
-
-The IVP produces an integration iterator. Checkpoint and live-output behaviour belong at this layer, while individual accepted steps belong to the scheme and integrator machinery.
-
-## Configuration
-
-`Configuration` holds runtime policy such as tolerances, maximum iteration counts, progress checks, predictor policy, and other method-level settings.
-
-The same configuration object can satisfy narrower configuration protocols used by schemes, resolvents, and inverters. This keeps components decoupled while letting users pass one high-level policy object.
+Use [foreign models](foreign-models.md) when your model already has its own state objects and solver increments. In that path you provide custom state, translation, and allocator objects instead of using `Frame` to generate them.

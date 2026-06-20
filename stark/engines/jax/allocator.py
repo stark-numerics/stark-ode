@@ -5,16 +5,18 @@ from types import SimpleNamespace
 from typing import Any
 
 from stark.engines.algebraist.frame import AlgebraistFrame
-from stark.engines.carriers.cupy import CarrierCupy
-from stark.engines.backends.cupy.translation import EngineTranslationCupy
+from stark.engines.carriers.jax import CarrierJax
+from stark.engines.jax.translation import EngineTranslationJax
 
 
 @dataclass(frozen=True, slots=True)
-class EngineAllocatorCupy:
-    """Allocate structured CuPy state and translation objects."""
+class EngineAllocatorJax:
+    """Allocate structured JAX state and translation objects."""
 
     algebraist_frame: AlgebraistFrame
-    carriers: tuple[CarrierCupy, ...] = field(repr=False)
+    carriers: tuple[CarrierJax, ...] = field(repr=False)
+    linear_combine: tuple[Any, ...] = field(default=(), repr=False)
+    apply_translation: Any = field(default=None, repr=False)
     norm: Any = field(default=None, repr=False)
     inner_product: Any = field(default=None, repr=False)
 
@@ -32,11 +34,13 @@ class EngineAllocatorCupy:
             )
         return out
 
-    def allocate_translation(self) -> EngineTranslationCupy:
-        translation = EngineTranslationCupy(
+    def allocate_translation(self) -> EngineTranslationJax:
+        translation = EngineTranslationJax(
             algebraist_frame=self.algebraist_frame,
             carriers=self.carriers,
             allocator=self,
+            linear_combine=self.linear_combine,
+            apply_translation=self.apply_translation,
             norm_kernel=self.norm,
         )
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
@@ -44,4 +48,4 @@ class EngineAllocatorCupy:
         return translation
 
 
-__all__ = ["EngineAllocatorCupy"]
+__all__ = ["EngineAllocatorJax"]

@@ -1,51 +1,116 @@
-# Engines and backends
+# Use engines and backends
 
-An engine chooses the storage and arithmetic backend used for frame-backed states and translations.
+This page is for users choosing where STARK stores arrays and performs arithmetic.
 
-Common engines include:
+An engine chooses:
 
 ```text
-EngineNative
-EngineNumpy
-EngineJax
-EngineCupy
+state/translation carriers
+allocator behaviour
+backend array type
+accelerator support where available
+prepared algebra support
 ```
 
-The engine is not merely an array type. It also determines allocation, copying, translation storage, and available acceleration hooks.
+## Start with NumPy
 
-## Native
+Use NumPy for the default high-level path.
 
-The native engine is useful for plain Python values and small examples. It keeps dependencies low and is good for teaching the object model.
+```python
+from stark.engines import EngineNumpy
 
-## NumPy
+ivp = system.ivp(..., engine=EngineNumpy)
+```
 
-The NumPy engine is the usual default for array-valued problems on CPU. It is the best first choice for most structured numerical examples.
+NumPy is usually the best first backend: predictable, debuggable, and fast for small-to-medium problems. If Numba is installed and enabled by the engine, generated STARK algebra kernels may compile on first use.
 
-## JAX
+## Use JAX
 
-The JAX engine is useful for JAX-backed arrays and return-style derivatives. JAX arrays are immutable, so return-style derivative and linearizer patterns are often more natural than in-place mutation.
+Use JAX when you want JAX arrays and JAX-compatible derivative expressions.
 
-Not every STARK control path is automatically JIT-fused. Solver control flow, monitors, Python-level Krylov loops, and user callbacks may still run at Python level unless a specific accelerated path exists.
+Prefer return-style derivatives:
 
-## CuPy
+```python
+@DerivativeStyle.returning
+def rhs(t, state):
+    return {"dy": -0.5 * state.y}
+```
 
-The CuPy engine is useful for GPU-backed arrays when the problem is large enough to justify GPU execution and data movement costs.
+Then use:
 
-Examples that use CuPy should be optional: they should report a missing dependency or missing GPU clearly rather than failing the whole example suite.
+```python
+from stark.engines import EngineJax
 
-## Accelerators
+ivp = system.ivp(..., engine=EngineJax)
+```
 
-Accelerators compile or specialize selected arithmetic kernels. They do not make arbitrary Python control flow disappear.
+Important caveat: JAX array support does not automatically mean the whole adaptive solver loop is one JIT-compiled JAX program. STARK's intended accelerated high-level path is through generated Algebraist kernels where the `Frame` is known. Contributor notes for that path live in [Algebraist backend paths](contributing/algebraist_backends.md).
 
-This distinction matters for benchmarking. A generated translation-combine kernel may be accelerated while a surrounding Newton or Krylov iteration remains Python-level.
+Run:
 
-## Backend comparison
+```powershell
+python -m examples.getting_started.interface.jax
+```
 
-Backend comparisons should report:
+## Use CuPy
 
-- preparation time;
-- warm repeated solve time;
-- total time;
-- accuracy or final error.
+Use CuPy when you want GPU-backed arrays.
 
-This avoids making JIT or GPU warmup appear free.
+```python
+from stark.engines import EngineCupy
+
+ivp = system.ivp(..., engine=EngineCupy)
+```
+
+For timing, synchronize before stopping the clock. Otherwise CPU timing may not include queued GPU work.
+
+Run:
+
+```powershell
+python -m examples.getting_started.interface.cupy
+```
+
+## Backend case study
+
+The backend case study is intended to answer two questions:
+
+```text
+Can the same problem run on NumPy, JAX, and CuPy?
+At what size do alternative backends become useful, if at all?
+```
+
+Run:
+
+```powershell
+python -m examples.case_studies.backends
+```
+
+The lessons should show backend setup directly. They should not hide all problem construction in a shared helper file; users need to see the syntax for each backend.
+
+## Acceleration boundaries
+
+Backend support has layers.
+
+```text
+array backend          NumPy / JAX / CuPy field storage
+carrier arithmetic     field-level arithmetic on backend arrays
+Algebraist generator   prepared code for known Frame-backed state
+accelerator            optional compiler/fuser for generated kernels
+solver control flow    adaptive stepping, acceptance, monitors, reports
+```
+
+A backend may accelerate array operations while the solver control flow remains Python-level. That is not a correctness problem, but it matters for performance.
+
+## Common mistakes
+
+### Comparing total time to warm time
+
+Preparation may include compilation or GPU setup. Warm repeated timings exclude that work. Total timings include setup, warmup, and one measured solve.
+
+### Expecting GPU speedups for tiny arrays
+
+GPU launch and synchronization overhead can dominate small problems.
+
+### Expecting JAX speedups from eager small operations
+
+JAX is strongest when it can compile large pure functions with stable shapes. Many small Python-dispatched operations are a poor shape for JAX.

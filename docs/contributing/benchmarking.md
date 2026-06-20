@@ -1,56 +1,83 @@
-# Benchmarking and comparison reports
+# Benchmarking and competition reports
 
-This page is for maintainers and users reading STARK timing output.
+Last reviewed: 2026-06-17.
 
-STARK has two kinds of performance material:
+This is contributor documentation. User-facing timing interpretation lives in [Diagnostics](../diagnostics.md).
 
-- comparison reports under `competition/`, intended to be readable solver comparisons;
-- ASV benchmarks under `benchmarks/`, intended for contributor regression tracking.
+## Purpose
 
-## Comparison reports
+STARK uses competition reports and benchmarks for different jobs.
 
-Comparison reports show named solver configurations on named problems. They may compare STARK with SciPy, Diffrax, or other libraries when optional dependencies are available.
-
-Reports distinguish three timing views.
-
-### Preparation time
-
-Preparation time includes setup and warmup. This is where compilation, tracing, sparse setup, or other one-time work may appear.
-
-### Warm run time
-
-Warm run time measures repeated solves after setup and warmup. This is useful for throughput when the same solver shape is reused many times.
-
-### Total time
-
-Total time combines preparation and one measured solve. This is the most honest headline for one-off solves.
-
-JIT-based and GPU-backed libraries may move substantial work into preparation. Total timing makes that cost visible.
-
-## ASV benchmarks
-
-Install benchmark tooling with:
-
-```powershell
-python -m pip install -e ".[asv]"
+```text
+competition reports   compare solver choices on named problems
+benchmarks            track performance regressions over time
+examples              teach users, not prove speed
 ```
 
-Check benchmark discovery:
+Do not use one artifact for all three jobs.
 
-```powershell
-python -m asv check
+## Timing categories
+
+Competition reports should keep these categories separate:
+
+```text
+setup        prepare the solver/callable
+warmup       first solve after setup, often including compilation/JIT/GPU setup
+warm run     repeated solve after setup and warmup
+total        setup + warmup + one measured solve
 ```
 
-Run a quick smoke benchmark in the current environment:
+For JIT and GPU backends, total time and warm time may tell very different stories.
 
-```powershell
-python -m asv run --quick -E existing:.venv\Scripts\python.exe
+## Headline rules
+
+Reports should state which headline they are using.
+
+Useful summaries:
+
+```text
+lowest preparation time
+fastest warm median time
+fastest total median time
+best accuracy
 ```
 
-Full ASV runs are useful after committing the code you want to benchmark:
+Do not report only warm median when a backend moves large work into preparation.
 
-```powershell
-python -m asv run
+## Monitoring
+
+Benchmarks should normally run without monitors. Monitors are diagnostics and change the hot path.
+
+If a benchmark needs counts, run a separate diagnostic pass and label it as such.
+
+## Optional backends
+
+Optional backend rows should skip/report cleanly when a dependency is missing.
+
+Do not let absence of JAX, CuPy, SciPy, or Numba fail unrelated reports unless the report explicitly requires that dependency.
+
+## Backend case studies
+
+Backend examples should distinguish:
+
+```text
+plain NumPy
+NumPy + Numba
+JAX arrays / JAX generated kernels
+CuPy arrays / CuPy generated kernels
 ```
 
-Use comparison reports to explain solver behaviour. Use ASV to catch performance regressions.
+A backend case study should show setup syntax in the lesson files. Do not hide all setup in a shared helper if the purpose is to teach backend use.
+
+## When a result looks surprising
+
+Before drawing conclusions, ask:
+
+```text
+Did setup include compilation?
+Did warmup include first-use kernel generation?
+Was GPU work synchronized before timing stopped?
+Was the IVP reused after already finishing?
+Is the row labelled accurately?
+Are we measuring backend compatibility or backend acceleration?
+```

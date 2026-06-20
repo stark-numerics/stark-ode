@@ -20,9 +20,8 @@ from __future__ import annotations
 #
 #     python -m examples.case_studies.allen_cahn.lesson_06_compare_methods
 
-from stark import Configuration, IntegratorStepper, Method, Tolerance
+from stark import Configuration, Derivative, IntegratorStepper, Method, Tolerance
 from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblem
-from stark.core.contracts import DerivativeIMEX
 from stark.methods.inverters import InverterKrylovArnoldi
 from stark.methods.resolvents import ResolventNewton
 from stark.methods.schemes import SchemeCashKarp, SchemeKennedyCarpenter43_7, SchemeSDIRK21
@@ -103,7 +102,7 @@ if __name__ == "__main__":
     # 3. IMEX spectral: treat only linear diffusion implicitly and solve that
     # stage problem directly in Fourier space.
 
-    imex_derivative = DerivativeIMEX(
+    imex_derivative = Derivative.imex(
         implicit=AllenCahnImplicitDerivative(geometry, DIFFUSIVITY),
         explicit=AllenCahnExplicitDerivative(geometry),
     )

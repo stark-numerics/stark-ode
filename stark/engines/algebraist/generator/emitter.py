@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import product
 from typing import Literal
 
@@ -15,6 +15,12 @@ from stark.engines.algebraist.frame import (
     AlgebraistFrameScalar,
     AlgebraistFrameUnravel,
 )
+from stark.engines.algebraist.generator.target import (
+    AlgebraistGeneratorTarget,
+    AlgebraistGeneratorTargetFunctional,
+    AlgebraistGeneratorTargetMutable,
+    AlgebraistGeneratorTargetMutableVectorized,
+)
 
 Kind = Literal["general", "delta", "update"]
 
@@ -24,6 +30,19 @@ class AlgebraistGeneratorEmitter:
     """Emit complete source strings for generated Algebraist kernels."""
 
     frame: AlgebraistFrame
+    target: AlgebraistGeneratorTarget = field(default_factory=AlgebraistGeneratorTargetMutable)
+
+    def _uses_functional_updates(self) -> bool:
+        return isinstance(self.target, AlgebraistGeneratorTargetFunctional)
+
+    def _uses_vectorized_arrays(self) -> bool:
+        return isinstance(
+            self.target,
+            (
+                AlgebraistGeneratorTargetFunctional,
+                AlgebraistGeneratorTargetMutableVectorized,
+            ),
+        )
 
     def general(self, request: AlgebraistArity) -> str:
         arity = request.value
@@ -69,6 +88,7 @@ class AlgebraistGeneratorEmitter:
             flat_lines.extend(hoist_lines)
 
         scalar_fields: list[AlgebraistFrameField] = []
+        array_fields: list[AlgebraistFrameField] = []
         for layout_field in self.frame.fields:
             field_lines, is_scalar = self._field_lines(
                 kind=kind,
@@ -80,8 +100,26 @@ class AlgebraistGeneratorEmitter:
             flat_lines.extend(field_lines)
             if is_scalar:
                 scalar_fields.append(layout_field)
+            else:
+                array_fields.append(layout_field)
 
-        if scalar_fields:
+        if self._uses_functional_updates():
+            returns = [
+                self._target_name(kind, field)
+                for field in array_fields
+            ]
+            returns.extend(
+                f"_scalar_{self._target_name(kind, field)}"
+                for field in scalar_fields
+            )
+            if returns:
+                rendered_returns = ", ".join(returns)
+                if len(returns) == 1:
+                    rendered_returns += ","
+                flat_lines.append(f"    return ({rendered_returns})")
+            else:
+                flat_lines.append("    return None")
+        elif scalar_fields:
             returns = ", ".join(f"_scalar_{self._target_name(kind, field)}" for field in scalar_fields)
             if len(scalar_fields) == 1:
                 returns = returns + ","
@@ -93,6 +131,7 @@ class AlgebraistGeneratorEmitter:
             kind=kind,
             source_count=source_count,
             scalar_fields=tuple(scalar_fields),
+            array_fields=tuple(array_fields),
         )
         return "\n".join(flat_lines + [""] + wrapper_lines) + "\n"
 
@@ -102,6 +141,7 @@ class AlgebraistGeneratorEmitter:
         flat_lines: list[str] = [f"def _kernel_flat({', '.join(flat_parameters)}):"]
 
         scalar_fields: list[AlgebraistFrameField] = []
+        array_fields: list[AlgebraistFrameField] = []
         for layout_field in self.frame.fields:
             field_lines, is_scalar = self._field_lines(
                 kind="update",
@@ -114,8 +154,26 @@ class AlgebraistGeneratorEmitter:
             flat_lines.extend(field_lines)
             if is_scalar:
                 scalar_fields.append(layout_field)
+            else:
+                array_fields.append(layout_field)
 
-        if scalar_fields:
+        if self._uses_functional_updates():
+            returns = [
+                self._target_name("update", field)
+                for field in array_fields
+            ]
+            returns.extend(
+                f"_scalar_{self._target_name('update', field)}"
+                for field in scalar_fields
+            )
+            if returns:
+                rendered_returns = ", ".join(returns)
+                if len(returns) == 1:
+                    rendered_returns += ","
+                flat_lines.append(f"    return ({rendered_returns})")
+            else:
+                flat_lines.append("    return None")
+        elif scalar_fields:
             returns = ", ".join(f"_scalar_{self._target_name('update', field)}" for field in scalar_fields)
             if len(scalar_fields) == 1:
                 returns = returns + ","
@@ -126,6 +184,7 @@ class AlgebraistGeneratorEmitter:
         wrapper_lines = self._wrapper_lines_unit_apply(
             source_count=source_count,
             scalar_fields=tuple(scalar_fields),
+            array_fields=tuple(array_fields),
         )
         return "\n".join(flat_lines + [""] + wrapper_lines) + "\n"
 
@@ -159,6 +218,7 @@ class AlgebraistGeneratorEmitter:
         kind: Kind,
         source_count: int,
         scalar_fields: tuple[AlgebraistFrameField, ...],
+        array_fields: tuple[AlgebraistFrameField, ...],
     ) -> list[str]:
         if kind == "general":
             signature = self._general_wrapper_signature(source_count)
@@ -170,7 +230,27 @@ class AlgebraistGeneratorEmitter:
         lines = [f"def kernel({signature}):"]
         flat_args = self._flat_arguments(kind=kind, source_count=source_count)
         call = f"_kernel_flat({', '.join(flat_args)})"
-        if scalar_fields:
+        if self._uses_functional_updates():
+            lines.append(f"    _updates = {call}")
+            update_index = 0
+            target_root = "result" if kind == "update" else "out"
+            for field in array_fields:
+                expression = (
+                    field.state_expression(target_root)
+                    if kind == "update"
+                    else field.translation_expression(target_root)
+                )
+                lines.append(f"    {expression} = _updates[{update_index}]")
+                update_index += 1
+            for field in scalar_fields:
+                expression = (
+                    field.state_expression(target_root)
+                    if kind == "update"
+                    else field.translation_expression(target_root)
+                )
+                lines.append(f"    {expression} = _updates[{update_index}]")
+                update_index += 1
+        elif scalar_fields:
             lines.append(f"    _scalars = {call}")
             target_root = "result" if kind == "update" else "out"
             for index, field in enumerate(scalar_fields):
@@ -194,11 +274,21 @@ class AlgebraistGeneratorEmitter:
         *,
         source_count: int,
         scalar_fields: tuple[AlgebraistFrameField, ...],
+        array_fields: tuple[AlgebraistFrameField, ...],
     ) -> list[str]:
         lines = [f"def kernel({self._update_wrapper_signature_unit_apply(source_count)}):"]
         flat_args = self._flat_arguments_unit_apply(source_count=source_count)
         call = f"_kernel_flat({', '.join(flat_args)})"
-        if scalar_fields:
+        if self._uses_functional_updates():
+            lines.append(f"    _updates = {call}")
+            update_index = 0
+            for field in array_fields:
+                lines.append(f"    {field.state_expression('result')} = _updates[{update_index}]")
+                update_index += 1
+            for field in scalar_fields:
+                lines.append(f"    {field.state_expression('result')} = _updates[{update_index}]")
+                update_index += 1
+        elif scalar_fields:
             lines.append(f"    _scalars = {call}")
             for index, field in enumerate(scalar_fields):
                 lines.append(f"    {field.state_expression('result')} = _scalars[{index}]")
@@ -293,6 +383,8 @@ class AlgebraistGeneratorEmitter:
         if isinstance(policy, AlgebraistFrameScalar):
             return [f"    _scalar_{target_name} = {expression}"], True
         if isinstance(policy, AlgebraistFrameBroadcast):
+            if self._uses_functional_updates():
+                return [f"    {target_name} = {expression}"], False
             return [f"    {target_name}[...] = {expression}"], False
         if isinstance(policy, AlgebraistFrameLooped):
             return self._looped_lines(policy=policy, target=target_name, origin=origin_name, sources=source_names, coefficients=coefficient_names, fixed_coefficients=fixed_coefficients, inline_fixed_coefficients=inline_fixed_coefficients, kind=kind), False
@@ -322,6 +414,26 @@ class AlgebraistGeneratorEmitter:
         inline_fixed_coefficients: bool = False,
         kind: Kind,
     ) -> list[str]:
+        if self._uses_vectorized_arrays() and policy.shape is not None:
+            if kind == "general":
+                expression = AlgebraistGeneratorEmitterExpression.from_runtime_coefficients(
+                    coefficients=coefficients,
+                    sources=sources,
+                ).source()
+            else:
+                if fixed_coefficients is None:
+                    raise ValueError("fixed coefficients are required for specialist emission.")
+                expression = AlgebraistGeneratorEmitterExpression.from_fixed_coefficients(
+                    coefficients=fixed_coefficients,
+                    sources=sources,
+                    inline_coefficients=inline_fixed_coefficients,
+                ).source()
+            if kind == "update":
+                expression = f"{origin} + {expression}"
+            if self._uses_functional_updates():
+                return [f"    {target} = {expression}"]
+            return [f"    {target}[...] = {expression}"]
+
         rank = policy.rank
         if rank is None:
             raise ValueError("looped policy rank was not normalized.")
@@ -346,7 +458,10 @@ class AlgebraistGeneratorEmitter:
         )
         if kind == "update":
             expression = f"{origin}{index} + {expression}"
-        lines.append(f"{assignment_indent}{target}{index} = {expression}")
+        if self._uses_functional_updates():
+            lines.append(f"{assignment_indent}{target} = {target}.at{index}.set({expression})")
+        else:
+            lines.append(f"{assignment_indent}{target}{index} = {expression}")
         return lines
 
     def _unravel_lines(
@@ -374,7 +489,10 @@ class AlgebraistGeneratorEmitter:
             )
             if kind == "update":
                 expression = f"{origin}{index} + {expression}"
-            lines.append(f"    {target}{index} = {expression}")
+            if self._uses_functional_updates():
+                lines.append(f"    {target} = {target}.at{index}.set({expression})")
+            else:
+                lines.append(f"    {target}{index} = {expression}")
         return lines
 
     @staticmethod

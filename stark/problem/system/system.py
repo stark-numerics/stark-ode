@@ -5,12 +5,13 @@ from dataclasses import dataclass
 from inspect import Parameter, signature
 from typing import Any
 
-from stark.core.contracts import DerivativeIMEX, IntervalLike, State
+from stark.core.contracts import DerivativeSplitLike, IntervalLike, State
 from stark.core.contracts.engine import Engine
 from stark.core.configuration import Configuration
 from stark.core.integrator.integrator import Checkpoints, Integrator
 from stark.core.integrator.stepper import IntegratorStepper
 from stark.problem.derivative.derivative import Derivative, DerivativeSignature
+from stark.problem.derivative.split import DerivativeSplit
 from stark.problem.frame.frame import Frame
 from stark.problem.linearizer.linearizer import Linearizer, LinearizerSignature
 from stark.methods.method import Method, MethodError
@@ -338,8 +339,8 @@ class System:
 
     def prepare_derivative(self, engine: Engine) -> object:
         derivative = self.derivative
-        if isinstance(derivative, DerivativeIMEX):
-            return DerivativeIMEX(
+        if isinstance(derivative, DerivativeSplitLike):
+            return DerivativeSplit(
                 implicit=self.prepare_derivative_part(derivative.implicit, engine),
                 explicit=self.prepare_derivative_part(derivative.explicit, engine),
             )

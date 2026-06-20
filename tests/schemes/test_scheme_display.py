@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import DerivativeIMEX
+from stark import Derivative
 from stark.engines.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventPicard
 from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
@@ -49,7 +49,7 @@ def dummy_derivative(interval, state, out: DummyTranslation) -> None:
 
 
 def make_imex_euler() -> SchemeIMEXEuler:
-    split = DerivativeIMEX(
+    split = Derivative.imex(
         implicit=dummy_derivative,
         explicit=dummy_derivative,
     )

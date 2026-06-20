@@ -5,16 +5,17 @@ from types import SimpleNamespace
 from typing import Any
 
 from stark.engines.algebraist.frame import AlgebraistFrame
-from stark.engines.carriers.jax import CarrierJax
-from stark.engines.backends.jax.translation import EngineTranslationJax
+from stark.engines.carriers.native import CarrierNativeArray
+from stark.engines.native.translation import EngineTranslationNative
 
 
 @dataclass(frozen=True, slots=True)
-class EngineAllocatorJax:
-    """Allocate structured JAX state and translation objects."""
+class EngineAllocatorNative:
+    """Allocate structured native state and translation objects."""
 
     algebraist_frame: AlgebraistFrame
-    carriers: tuple[CarrierJax, ...] = field(repr=False)
+    carriers: tuple[CarrierNativeArray, ...] = field(repr=False)
+    apply_translation: Any = field(default=None, repr=False)
     norm: Any = field(default=None, repr=False)
     inner_product: Any = field(default=None, repr=False)
 
@@ -32,11 +33,12 @@ class EngineAllocatorJax:
             )
         return out
 
-    def allocate_translation(self) -> EngineTranslationJax:
-        translation = EngineTranslationJax(
+    def allocate_translation(self) -> EngineTranslationNative:
+        translation = EngineTranslationNative(
             algebraist_frame=self.algebraist_frame,
             carriers=self.carriers,
             allocator=self,
+            apply_translation=self.apply_translation,
             norm_kernel=self.norm,
         )
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
@@ -44,4 +46,4 @@ class EngineAllocatorJax:
         return translation
 
 
-__all__ = ["EngineAllocatorJax"]
+__all__ = ["EngineAllocatorNative"]

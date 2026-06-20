@@ -1,73 +1,83 @@
-# Extending STARK
+# Extend STARK
 
-This page is for users who want to replace a numerical component while keeping the high-level `System` and `Frame` path.
+This page is for users implementing one method component while keeping the rest of STARK.
 
-For existing simulation objects with their own state and tangent representation, see [Foreign models](foreign-models.md).
+Use [foreign models](foreign-models.md) instead when your main problem is custom state and translation objects.
 
 ## Extension map
 
-| Goal | Component to provide |
-|---|---|
-| Change the right-hand side style | `Derivative` / `DerivativeStyle` |
-| Add Jacobian actions | `Linearizer` / `LinearizerStyle` |
-| Add a time-stepping method | `Scheme` |
-| Add nonlinear stage solving policy | `Resolvent` |
-| Add a linear correction solver | `Inverter` |
-| Add a Krylov preconditioner | `InverterKrylovPreconditionerLike` |
-| Add implicit initial-guess policy | `SchemePredictorLike` |
-| Observe solver internals | monitor objects |
-| Use existing state and translation objects | low-level contracts, see [Foreign models](foreign-models.md) |
+| You want to change... | Implement... | Domain |
+|---|---|---|
+| right-hand side adaptation | derivative / `DerivativeStyle` | problem |
+| Jacobian action | linearizer / `LinearizerStyle` | problem |
+| time stepping | scheme | methods |
+| nonlinear implicit solve | resolvent | methods |
+| linear correction solve | inverter | methods |
+| Krylov acceleration | preconditioner | methods |
+| stage initial guess | scheme predictor | methods |
+| observation | monitor | diagnostics |
+| storage/backend | engine/carrier/accelerator | engines |
 
-## Custom derivatives
+## Write a custom scheme
 
-Derivatives can be in-place, return-style, or kernel-adapted. Prefer the style that matches your backend.
+Start from a fixed explicit scheme. A scheme should look like a callable worker and prepare repeated work in `__init__`.
 
-See:
-
-```powershell
-python -m examples.features.derivative_styles
-```
-
-## Custom linearizers
-
-Implicit Newton-style methods require Jacobian actions. Provide a linearizer when using Newton, chord, very-chord, dense inverters, or matrix-free Krylov paths.
-
-See:
-
-```powershell
-python -m examples.features.linearizer_styles
-```
-
-## Custom schemes
-
-A scheme owns time-stepping structure. Implement a custom scheme when the tableau or step acceptance logic itself is new.
-
-See:
+Run:
 
 ```powershell
 python -m examples.features.custom_scheme_fixed_explicit
 ```
 
-## Custom resolvents
+Keep the call shape simple:
 
-A resolvent owns the nonlinear solve for an implicit stage. Implement a custom resolvent when Newton/Picard/chord-style policies are not the right nonlinear iteration.
+```python
+scheme(interval, state, output)
+```
 
-## Custom inverters
+## Write a custom inverter
 
-An inverter owns linear correction solves. Implement a custom inverter when dense, relaxation, or Krylov solvers are not the right linear algorithm.
+An inverter solves a linear correction equation represented by an `InverterRequest`.
 
-The current inverter shape is request-based:
+The current shape is:
 
-```text
+```python
 inverter(request, output)
 ```
 
-The request supplies the operator and residual information. The inverter writes or improves the output correction.
+Use `output_mode` to describe whether the inverter writes the output or improves an existing guess.
 
-## Custom preconditioners
+Start from:
 
-Preconditioners are normally owned by Krylov inverters. A preconditioner should exploit problem structure without making the Krylov algorithm itself problem-specific.
+```powershell
+python -m examples.features.inverter_request_and_defect
+python -m examples.features.inverter_dense
+python -m examples.features.inverter_krylov
+```
 
-## Custom monitors
+## Write a preconditioner
 
-Monitors should observe, not control, solver execution. Keep monitored and unmonitored timing separate.
+A preconditioner belongs with Krylov-style inversion. It should approximate the linear correction solve or apply an easier inverse-like operation.
+
+Keep it explicit. Do not hide problem-specific preconditioning inside a generic Krylov inverter.
+
+## Write a monitor
+
+A monitor observes; it should not change the solve. Keep monitored and unmonitored timing separate.
+
+Start from:
+
+```powershell
+python -m examples.features.monitor_scheme_steps
+python -m examples.features.monitoring_levels
+```
+
+## Design rules for extensions
+
+- Put protocols in contracts only when they decouple domains.
+- Put concrete workers in the domain that owns them.
+- Prepare repeated work in `__init__`.
+- Keep `__call__` lean.
+- Do not import concrete method workers into `core`.
+- Do not add hidden optional dependencies to generic paths.
+
+Read [House style](contributing/house_style.md) before adding a new public family.

@@ -3,49 +3,46 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-import numpy as np
+import cupy as cp
 
-from stark.engines.accelerators import AcceleratorNone, AcceleratorNumba
+from stark.engines.accelerators import AcceleratorNone
 from stark.engines.algebraist.arity import AlgebraistArity
+from stark.engines.algebraist.frame import (
+    AlgebraistFrame,
+    AlgebraistFrameLooped,
+)
 from stark.engines.algebraist.generator import (
     AlgebraistGeneratorInnerProduct,
     AlgebraistGeneratorLinearCombine,
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
-from stark.engines.algebraist.frame import AlgebraistFrame, AlgebraistFrameLooped
-from stark.engines.carriers import CarrierNumpy
+from stark.engines.cupy.target import AlgebraistGeneratorTargetCupy
+from stark.engines.carriers.cupy import CarrierCupy
 from stark.core.contracts.accelerator import Accelerator
-from stark.engines.backends.numpy.allocator import EngineAllocatorNumpy
+from stark.engines.cupy.allocator import EngineAllocatorCupy
 from stark.problem.frame.frame import Frame
 
 
-def _default_accelerator() -> Accelerator:
-    try:
-        return AcceleratorNumba()
-    except ModuleNotFoundError:
-        return AcceleratorNone()
-
-
 @dataclass(frozen=True, slots=True)
-class EngineNumpy:
+class EngineCupy:
     """
-    NumPy backend bundle for a shaped `Frame`.
+    CuPy backend bundle for a shaped `Frame`.
 
     An engine supplies the backend objects used when a `System` prepares an
     IVP: carrier templates for each frame field, an allocator for owned state
     and translation objects, the derived algebraist frame, generated algebra
-    kernels, and an accelerator. By default this engine uses Numba when it is
-    installed and otherwise falls back to unaccelerated NumPy-compatible
-    callables.
+    providers, and an accelerator. This engine keeps field storage on CuPy
+    arrays and uses a CuPy-native generator target so scheme algebra is emitted
+    as CuPy kernels instead of Python loops over GPU arrays.
     """
 
     frame: Frame
-    dtype: Any = np.float64
-    accelerator: Accelerator = field(default_factory=_default_accelerator)
+    dtype: Any = cp.float64
+    accelerator: Accelerator = field(default_factory=AcceleratorNone)
     algebraist_frame: AlgebraistFrame = field(init=False)
-    carriers: tuple[CarrierNumpy, ...] = field(init=False, repr=False)
-    allocator: EngineAllocatorNumpy = field(init=False, repr=False)
+    carriers: tuple[CarrierCupy, ...] = field(init=False, repr=False)
+    allocator: EngineAllocatorCupy = field(init=False, repr=False)
     algebraist_inner_product: AlgebraistGeneratorInnerProduct = field(init=False, repr=False)
     algebraist_linear_combine: AlgebraistGeneratorLinearCombine = field(init=False, repr=False)
     algebraist_norm: AlgebraistGeneratorNorm = field(init=False, repr=False)
@@ -55,42 +52,40 @@ class EngineNumpy:
         accelerator_name = getattr(self.accelerator, "name", str(self.accelerator))
         acceleration = f"accelerator={accelerator_name!r}"
         if accelerator_name == "none":
-            acceleration += (
-                ", WARNING='unaccelerated CPU engine; install numba or pass an "
-                "accelerator to compile generated kernels'"
-            )
+            acceleration += ", note='CuPy ElementwiseKernel target; no separate Python kernel accelerator'"
         return (
             f"{type(self).__name__}(frame={self.frame!r}, "
-            f"dtype={np.dtype(self.dtype)!r}, {acceleration})"
+            f"dtype={self.dtype!r}, {acceleration})"
         )
 
     def __post_init__(self) -> None:
         algebraist_frame = self.frame.to_algebraist_frame()
-        carriers: list[CarrierNumpy] = []
-        dtype = np.dtype(self.dtype)
+        carriers: list[CarrierCupy] = []
 
         for field in algebraist_frame.fields:
             policy = field.policy
             if not isinstance(policy, AlgebraistFrameLooped) or policy.shape is None:
                 raise ValueError(
-                    "EngineNumpy requires every frame field to declare shape."
+                    "EngineCupy requires every frame field to declare shape."
                 )
-            carriers.append(CarrierNumpy(np.zeros(policy.shape, dtype=dtype)))
+            carriers.append(CarrierCupy(cp.zeros(policy.shape, dtype=self.dtype)))
 
         carrier_tuple = tuple(carriers)
-        allocator = EngineAllocatorNumpy(
+        allocator = EngineAllocatorCupy(
             algebraist_frame=algebraist_frame,
             carriers=carrier_tuple,
         )
-
         object.__setattr__(self, "algebraist_frame", algebraist_frame)
         object.__setattr__(self, "carriers", carrier_tuple)
         object.__setattr__(self, "allocator", allocator)
+
+        cupy_target = AlgebraistGeneratorTargetCupy()
         algebraist_linear_combine = AlgebraistGeneratorLinearCombine(
             translation=allocator.allocate_translation(),
             allocator=allocator,
             frame=algebraist_frame,
             accelerator=self.accelerator,
+            target=cupy_target,
         )
         object.__setattr__(
             allocator,
@@ -106,29 +101,34 @@ class EngineNumpy:
             allocator=allocator,
             frame=algebraist_frame,
             accelerator=self.accelerator,
+            target=cupy_target,
         )
         object.__setattr__(
             allocator,
             "apply_translation",
             algebraist_specialist.provide_unit_apply(),
         )
+
         algebraist_norm = AlgebraistGeneratorNorm(
             translation=allocator.allocate_translation(),
             frame=algebraist_frame,
             accelerator=self.accelerator,
+            target=cupy_target,
         )
         object.__setattr__(allocator, "norm", algebraist_norm.provide())
+
         algebraist_inner_product = AlgebraistGeneratorInnerProduct(
             translation=allocator.allocate_translation(),
             frame=algebraist_frame,
             accelerator=self.accelerator,
+            target=cupy_target,
         )
         object.__setattr__(allocator, "inner_product", algebraist_inner_product.provide())
 
-        object.__setattr__(self, "algebraist_inner_product", algebraist_inner_product)
         object.__setattr__(self, "algebraist_linear_combine", algebraist_linear_combine)
+        object.__setattr__(self, "algebraist_inner_product", algebraist_inner_product)
         object.__setattr__(self, "algebraist_norm", algebraist_norm)
         object.__setattr__(self, "algebraist_specialist", algebraist_specialist)
 
 
-__all__ = ["EngineNumpy"]
+__all__ = ["EngineCupy"]

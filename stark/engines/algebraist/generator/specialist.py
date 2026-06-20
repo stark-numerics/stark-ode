@@ -7,6 +7,10 @@ from typing import Generic, TypeVar, cast
 from stark.engines.accelerators.none import AcceleratorNone
 from stark.engines.algebraist.generator.compiler import AlgebraistGeneratorCompiler
 from stark.engines.algebraist.generator.emitter import AlgebraistGeneratorEmitter
+from stark.engines.algebraist.generator.target import (
+    AlgebraistGeneratorTarget,
+    AlgebraistGeneratorTargetMutable,
+)
 from stark.engines.algebraist.frame import AlgebraistFrame
 from stark.engines.algebraist.stencil import AlgebraistStencil
 from stark.engines.algebraist.allocator import AlgebraistAllocator
@@ -29,12 +33,19 @@ class AlgebraistGeneratorSpecialist(Generic[StateType, TranslationType]):
     frame: AlgebraistFrame
     linear_combine: Sequence[Callable[..., TranslationType]] | None = None
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
+    target: AlgebraistGeneratorTarget = field(default_factory=AlgebraistGeneratorTargetMutable)
 
     def source_string(self, stencil: AlgebraistStencil) -> str:
-        return AlgebraistGeneratorEmitter(self.frame).specialist(stencil)
+        source = getattr(self.target, "source_specialist", None)
+        if callable(source):
+            return source(self.frame, stencil)
+        return AlgebraistGeneratorEmitter(self.frame, target=self.target).specialist(stencil)
 
     def source_unit_apply(self) -> str:
-        return AlgebraistGeneratorEmitter(self.frame).unit_apply()
+        source = getattr(self.target, "source_unit_apply", None)
+        if callable(source):
+            return source(self.frame)
+        return AlgebraistGeneratorEmitter(self.frame, target=self.target).unit_apply()
 
     def compile(self, source: str) -> Callable[..., object]:
         return cast(

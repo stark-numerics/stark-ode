@@ -6,7 +6,7 @@ from stark.engines.accelerators import AcceleratorNumba
 from stark.engines.algebraist.arity import AlgebraistArity
 from stark.engines.algebraist.generator import AlgebraistGeneratorLinearCombine
 from stark.engines.algebraist.frame import AlgebraistFrame, AlgebraistFrameField, AlgebraistFrameLooped
-from stark.engines.backends.numpy import EngineNumpy
+from stark.engines.numpy import EngineNumpy
 from stark.problem.frame.frame import Frame
 
 from benchmarks.common import FPUT_SIZES

@@ -1,94 +1,159 @@
-# Getting started
+# Getting started: solve one ODE
 
-This page is for ordinary users: you have a Python, NumPy, JAX, or CuPy state and want to integrate an ODE.
+This page is for ordinary use: you have a state made of named fields and want STARK to solve an ODE for you.
 
-The high-level path is:
+You need four things:
 
 ```text
-System + Frame + Method + Engine
+System   what derivative to solve
+Frame    what fields the state and translation have
+Method   which numerical scheme to use
+Engine   where arrays and arithmetic live
 ```
 
-- `System` holds the derivative and optional linearizer.
-- `Frame` describes named state fields and their translation fields.
-- `Method` chooses the numerical method pieces.
-- `Engine` chooses the storage and arithmetic backend.
+## A minimal NumPy solve
 
-## A small NumPy solve
+Solve:
+
+```text
+y' = -0.5 y,   y(0) = 2
+```
 
 ```python
+from __future__ import annotations
+
 import numpy as np
 
-from stark import Frame, Interval, Method, System
+from stark import Configuration, DerivativeStyle, Frame, Interval, Method, System
 from stark.engines import EngineNumpy
 from stark.methods.schemes import SchemeCashKarp
 
 
-def derivative(t, state, out):
-    out.dy[:] = -0.5 * state.y
+def decay(t: float, state, out) -> None:
+    del t
+    out.dy[0] = -0.5 * state.y[0]
 
 
-frame = Frame({"y": {"translation": "dy", "shape": (3,)}})
-system = System(derivative=derivative, frame=frame)
+frame = Frame({"y": {"translation": "dy", "shape": (1,)}})
+system = System(
+    derivative=DerivativeStyle.in_place(decay),
+    frame=frame,
+)
 
 ivp = system.ivp(
-    initial={"y": np.array([2.0, 4.0, 8.0])},
+    initial={"y": np.array([2.0])},
     interval=Interval(present=0.0, step=0.1, stop=1.0),
     method=Method(scheme=SchemeCashKarp),
     engine=EngineNumpy,
+    configuration=Configuration(check_progress=False),
 )
 
 for interval, state in ivp.integrate():
-    print(interval.present, state.y)
+    print(f"t={interval.present:.1f}, y={state.y[0]:.6f}")
 ```
 
-The derivative writes into `out.dy` because the frame says that state field `y` uses translation field `dy`.
+Run the maintained script version:
 
-## Return-style derivatives
+```powershell
+python -m examples.getting_started.scalar_decay
+```
 
-For backends such as JAX, or for small examples where mutation is not useful, a derivative can return its result instead of writing into `out`.
+## Change the state shape
 
-See:
+A `Frame` maps user state fields to solver translation fields.
+
+For a two-component oscillator:
+
+```python
+frame = Frame({"y": {"translation": "dy", "shape": (2,)}})
+```
+
+The derivative writes into `out.dy` because `dy` is the translation field for `y`.
+
+```python
+def oscillator(t: float, state, out) -> None:
+    del t
+    out.dy[0] = state.y[1]
+    out.dy[1] = -state.y[0]
+```
+
+Run:
+
+```powershell
+python -m examples.getting_started.numpy_oscillator
+```
+
+## Use a return-style derivative
+
+Some backends, especially JAX, work better when derivatives return a translation instead of mutating an output object. Use this route when the natural derivative is an expression.
 
 ```powershell
 python -m examples.getting_started.returning_derivative
-python -m examples.getting_started.interface.jax
 ```
 
-## Multiple fields
-
-A frame can describe several state fields. Each field can have its own translation field.
-
-See:
-
-```powershell
-python -m examples.getting_started.multiple_fields
-```
-
-Use this when your model is clearer as named parts rather than a single flat vector.
-
-## Choosing a method
-
-`Method` is a recipe. The simplest recipes choose a scheme:
-
-```python
-Method(scheme=SchemeCashKarp)
-```
-
-Implicit methods add resolvents and inverters. See [Methods](methods.md) and [Implicit methods](implicit.md).
-
-## Optional backends
-
-The same problem can be run with different engines when the derivative and state representation are compatible:
+The important difference is:
 
 ```text
-EngineNative
-EngineNumpy
-EngineJax
-EngineCupy
+in-place derivative:   f(t, state, out) -> None
+return derivative:     f(t, state) -> translation-like result
 ```
 
-See [Engines](engines.md) for backend boundaries and optional dependency behaviour.
+The scheme-facing contract is still prepared as an in-place kernel internally.
 
-## What this page does not cover
+## Change the method
 
-You do not need to know about `Block`, `Operator`, `InverterRequest`, custom allocators, or custom translations for normal use. Those are described in [Foreign models](foreign-models.md) and [Mathematical contracts](contracts_math.md).
+Use `Method(scheme=...)` to choose a scheme.
+
+```python
+from stark.methods.schemes import SchemeBogackiShampine, SchemeCashKarp
+
+method = Method(scheme=SchemeCashKarp)
+```
+
+Run:
+
+```powershell
+python -m examples.getting_started.choose_scheme
+```
+
+## Ask for checkpoints
+
+The solver may take internal adaptive steps that do not match the output times you want. Use checkpoints when you want output at specific times.
+
+```powershell
+python -m examples.getting_started.checkpoints
+```
+
+Internal steps are for accuracy and stability. Checkpoints are for output.
+
+## Use another backend
+
+Start with NumPy. Then try JAX or CuPy when you have a reason to use those array systems.
+
+```powershell
+python -m examples.getting_started.interface.numpy
+python -m examples.getting_started.interface.jax
+python -m examples.getting_started.interface.cupy
+```
+
+JAX and CuPy support may be optional in your environment. The examples should report missing optional dependencies rather than fail mysteriously.
+
+## Common mistakes
+
+### Confusing state fields and translation fields
+
+`state.y` is the current state. `out.dy` is the derivative/increment field. The `Frame` declares the relationship.
+
+### Timing a monitored solve
+
+Monitors add observation work. Use monitors to understand a solve. Use unmonitored solves for timings.
+
+### Assuming JAX means whole-solver JIT
+
+`EngineJax` supports JAX arrays and JAX-compatible kernels. It does not automatically mean the entire adaptive solver loop is compiled as one JAX program.
+
+## Next
+
+- [Define a problem](problem.md) when you need multiple fields, tolerances, or a linearizer.
+- [Choose a method](methods.md) when you need a different scheme.
+- [Solve stiff problems](implicit.md) when explicit schemes struggle.

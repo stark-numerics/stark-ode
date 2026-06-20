@@ -11,7 +11,7 @@ Prefer focused imports when writing docs or implementation code:
 - `stark.core.contracts.block`: grouped translation containers
 - `stark.core.contracts.carrier`: carrier bundles
 - `stark.core.contracts.derivative`: right-hand-side workers
-- `stark.core.contracts.derivative_imex`: IMEX derivative split carrier
+- `stark.core.contracts.derivative_split`: IMEX derivative split protocol
 - `stark.core.contracts.inner_product`: translation-space inner products
 - `stark.core.contracts.integrator`: trajectory-building workers
 - `stark.core.contracts.interval`: timeline cursors

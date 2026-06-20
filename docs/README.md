@@ -1,58 +1,37 @@
 # STARK documentation
 
-STARK has a layered interface. You do not need to understand every layer to solve an ODE.
+This manual is organised by what you are trying to do.
 
-## Recommended path
+## Solve a problem
 
-1. Read [Getting started](getting-started.md) for the high-level `System`, `Frame`, `Method`, and `Engine` path.
-2. Read [Problem objects](problem.md) when you need derivatives, linearizers, or structured state fields.
-3. Read [Methods](methods.md) when you need to choose or replace schemes, resolvents, inverters, predictors, or monitors.
-4. Read [Implicit methods](implicit.md) when using Newton, Picard, dense inverters, Krylov inverters, or preconditioners.
-5. Read [Foreign models](foreign-models.md) if your simulation already has its own state and tangent/translation representation.
+1. [Getting started](getting-started.md): solve a small ODE with the high-level API.
+2. [Define a problem](problem.md): use `System`, `Frame`, `Derivative`, and `Linearizer`.
+3. [Choose a method](methods.md): choose schemes and customise numerical method components.
+4. [Solve stiff problems](implicit.md): add linearizers, resolvents, inverters, and preconditioners.
+5. [Use engines](engines.md): choose NumPy, Numba, JAX, or CuPy-backed storage/arithmetic.
+6. [Use diagnostics](diagnostics.md): observe, compare, and time solves.
 
-## Pages
+## Go deeper
 
-- [Getting started](getting-started.md) - the ordinary solver path.
-- [Problem objects](problem.md) - `System`, `Frame`, `Derivative`, `Linearizer`, and IVPs.
-- [Methods](methods.md) - `Method`, schemes, resolvents, inverters, and predictors.
-- [Implicit methods](implicit.md) - nonlinear stage equations and linear correction solves.
-- [Engines](engines.md) - Native, NumPy, JAX, CuPy, carriers, and acceleration boundaries.
-- [Diagnostics](diagnostics.md) - monitors, comparisons, preparation timing, warm timing, and total timing.
-- [Examples](examples.md) - a curated map of runnable examples.
-- [Extending STARK](extending.md) - where to plug in custom numerical components.
-- [Foreign models](foreign-models.md) - low-level state, translation, allocator, derivative, and linearizer integration.
-- [Mathematical contracts](contracts_math.md) - the formal interpretation of STARK contracts.
-- [Benchmarking](benchmarking.md) - comparison reports and ASV benchmarks.
-- [House style](contributing/house_style.md) - contributor-facing naming and implementation conventions.
+- [Examples guide](examples.md): runnable scripts by topic.
+- [Extending STARK](extending.md): write a scheme, resolvent, inverter, preconditioner, or monitor.
+- [Foreign models](foreign-models.md): connect existing model objects through custom state and translation contracts.
+- [Mathematical contracts](contracts_math.md): formal reference for the low-level model.
 
-## The three surfaces
+## Contributor and maintainer notes
 
-### Ordinary use
+These pages describe internal design paths and are more fragile than the user manual.
 
-Most users start here:
+- [House style](contributing/house_style.md): naming and design conventions.
+- [Algebraist backend paths](contributing/algebraist_backends.md): how generated/runtime algebra, engines, carriers, and accelerators connect.
+- [Benchmarking](contributing/benchmarking.md): competitions, warm/total timing, and future benchmark work.
 
-```text
-System + Frame + Method + Engine
-```
+## Expected route through the manual
 
-STARK owns the translation objects, output buffers, and stepping machinery. You provide fields, an initial value, a derivative, and a method.
-
-### Numerical intervention
-
-Users who need method-level control can replace pieces:
+Most users should read only:
 
 ```text
-Scheme + Resolvent + Inverter + Predictor + Monitor
+getting-started -> problem -> methods
 ```
 
-This keeps the high-level problem interface while allowing custom time-stepping or nonlinear/linear solve policy.
-
-### Foreign-model integration
-
-Users with existing simulation objects can bypass the `Frame` convenience layer and provide low-level contracts:
-
-```text
-State + Translation + Allocator + Derivative + Linearizer
-```
-
-This is the path for domain models that should not be flattened solely to call an ODE solver.
+Read `implicit` when you need stiff or nonlinear implicit solves. Read `foreign-models` only when the high-level `Frame` path cannot represent your existing model naturally.

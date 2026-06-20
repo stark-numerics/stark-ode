@@ -1,91 +1,103 @@
-# Methods
+# Choose and customise a method
 
-This page is for users who want to choose or replace numerical method components.
+This page is for users who want to choose how STARK advances time.
 
-The high-level object is `Method`. It is a recipe for constructing an integration method from smaller pieces.
-
-## Method
-
-A method commonly specifies a scheme:
+The high-level object is `Method`:
 
 ```python
-Method(scheme=SchemeCashKarp)
+method = Method(scheme=SchemeCashKarp)
 ```
 
-Implicit methods add nonlinear and linear solve components:
+A method can also carry a resolvent, inverter, predictor, and other prepared pieces when you use implicit or custom solves.
 
-```python
-Method(
-    scheme=SchemeKvaerno3,
-    resolvent=ResolventNewton(...),
-)
-```
+## Which method should I choose?
 
-## Schemes
+| Problem type | First choice | Why |
+|---|---|---|
+| Non-stiff, ordinary ODE | `SchemeCashKarp` | Adaptive explicit scheme, good default for examples. |
+| Non-stiff, fixed step | `SchemeRK4` | Simple and predictable. |
+| Small stiff system | Kvaerno/SDIRK + Newton + Dense | Dense linear algebra is cheap for small systems. |
+| Large matrix-free stiff system | SDIRK/Kvaerno + Newton + Krylov | Avoids dense materialisation. |
+| Split explicit/implicit problem | IMEX scheme | Keeps cheap explicit and stiff implicit parts separate. |
+| Debugging or teaching | Fixed schemes, relaxation inverters | Easier to inspect than adaptive implicit stacks. |
 
-A scheme advances the solution by one accepted step or one trial step. Examples include:
-
-- fixed explicit schemes such as Euler and RK4;
-- adaptive explicit schemes such as Cash-Karp, Dormand-Prince, and Tsitouras;
-- implicit schemes such as backward Euler, SDIRK, and Kvaerno methods;
-- IMEX schemes that split explicit and implicit contributions.
-
-Users normally choose a built-in scheme. Advanced users can implement the scheme protocol when they need a new time-stepping method.
-
-See:
+Run the scheme selection example:
 
 ```powershell
-python -m examples.features.custom_scheme_fixed_explicit
+python -m examples.getting_started.choose_scheme
 ```
 
-## Scheme predictors
+## Schemes advance time
 
-Implicit stage solves need an initial guess for the stage unknown. A scheme predictor supplies that guess.
+A scheme owns the stage structure and step update. Examples:
 
-Common policies include:
+```python
+from stark.methods.schemes import SchemeCashKarp, SchemeKvaerno3, SchemeRK4
+```
 
-- known-shift prediction;
-- zero prediction;
-- previous-stage prediction.
+Use explicit schemes until stiffness forces an implicit method.
 
-Predictors belong to schemes because schemes know the stage structure. Resolvents and inverters should not need to know where an initial guess came from.
+## Resolvents solve nonlinear implicit equations
 
-See:
+Implicit schemes create nonlinear stage equations. A resolvent solves them.
+
+Common choices:
+
+```text
+Picard       simple fixed-point iteration
+Newton       uses a linearizer and inverter
+Chord        reuses a linearization for part of the solve
+VeryChord    reuses a linearization more aggressively
+```
+
+Use Newton when you can provide a linearizer. Use simpler resolvents for teaching or when the equation is mild.
+
+## Inverters solve linear correction equations
+
+Newton-style resolvents need to solve linear correction equations.
+
+| Inverter | Use when |
+|---|---|
+| `InverterDense` | The system is small or dense materialisation is cheap. |
+| `InverterKrylovArnoldi` | The system is large and you can apply the linear operator without building a dense matrix. |
+| relaxation inverters | You want a simple iterative method, teaching path, or structured baseline. |
+
+Run:
+
+```powershell
+python -m examples.features.inverter_dense
+python -m examples.features.inverter_krylov
+python -m examples.features.inverter_relaxation_richardson
+```
+
+## Predictors seed implicit stage guesses
+
+A scheme predictor sets the initial guess for an implicit stage solve. It belongs to the scheme layer, not the resolvent or inverter layer.
+
+Examples:
+
+```text
+SchemePredictorKnown      seed from the known explicit/stage shift
+SchemePredictorZero       start from zero
+SchemePredictorPrevious   reuse the previous solved increment when available
+```
+
+Run:
 
 ```powershell
 python -m examples.features.scheme_predictor
 ```
 
-## Resolvents
+## Custom method pieces
 
-A resolvent solves a nonlinear stage equation. Examples include:
+You can keep the high-level `System` and `Frame` path and replace one numerical component at a time:
 
-- Picard-style fixed-point iteration;
-- Newton iteration;
-- chord and very-chord variants;
-- Anderson and Broyden-style nonlinear acceleration where available.
-
-A resolvent builds the correction problem and asks an inverter to solve the linear or linearized part when necessary.
-
-## Inverters
-
-An inverter solves a linear correction equation for a resolvent. Current inverter families include:
-
-- dense inverters for small systems;
-- relaxation inverters for iterative structured examples;
-- Krylov inverters for matrix-free large systems.
-
-Dense inverters are usually right for small stiff systems. Krylov inverters are intended for large translation spaces where dense materialisation is too expensive or impossible.
-
-See:
-
-```powershell
-python -m examples.features.inverter_dense
-python -m examples.features.inverter_krylov
+```text
+replace the scheme       write a SchemeLike
+replace nonlinear solve  write a ResolventLike
+replace linear solve     write an InverterLike
+replace stage guess      write a SchemePredictorLike
+observe behaviour        write a monitor
 ```
 
-## Monitors
-
-Monitors observe method internals such as accepted steps, residual norms, or inverter defects. Monitoring is useful for diagnostics but changes hot-path cost. Timing reports should normally use unmonitored solves.
-
-See [Diagnostics](diagnostics.md).
+Start with [Extending STARK](extending.md) when you want to implement one of these pieces.

@@ -15,13 +15,15 @@ class EngineTranslationJax:
     algebraist_frame: AlgebraistFrame = field(repr=False)
     carriers: tuple[CarrierJax, ...] = field(repr=False)
     allocator: Any = field(repr=False)
+    linear_combine: tuple[Any, ...] = field(default=(), repr=False)
+    apply_translation: Any = field(default=None, repr=False)
     norm_kernel: Any = field(default=None, repr=False)
 
-    @property
-    def linear_combine(self) -> tuple[Any, ...]:
-        return ()
-
     def __call__(self, origin: object, result: object) -> None:
+        if self.apply_translation is not None:
+            self.apply_translation(origin, self, result)
+            return
+
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             field.state_path.set(
                 result,

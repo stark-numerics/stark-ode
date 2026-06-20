@@ -6,7 +6,6 @@ from stark.core.interval import Interval
 from stark.core.integrator.integrator import Integrator, IntegratorConfiguration
 from stark.core.integrator.stepper import IntegratorStepper
 from stark.core.tolerance import Tolerance
-from stark.core.contracts.derivative_imex import DerivativeIMEX
 from stark.diagnostics.monitor import Monitor
 from stark.methods.method import Method, MethodError
 from stark.problem import (
@@ -26,7 +25,6 @@ __all__ = [
     "Auditor",
     "Configuration",
     "Derivative",
-    "DerivativeIMEX",
     "DerivativeSignature",
     "DerivativeStyle",
     "Frame",

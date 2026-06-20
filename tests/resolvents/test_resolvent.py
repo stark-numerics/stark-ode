@@ -2,7 +2,7 @@
 
 import importlib
 
-from stark import Auditor, Configuration, DerivativeIMEX, Integrator, Interval, IntegratorStepper, Tolerance
+from stark import Auditor, Configuration, Integrator, Interval, IntegratorStepper, Tolerance
 from stark.engines.accelerators import Accelerator, AcceleratorNone
 from stark.core.block.operator import BlockOperatorDiagonal
 from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblemManual
@@ -59,7 +59,6 @@ def test_package_imports() -> None:
     """The top-level package should import cleanly."""
     assert importlib.import_module("stark") is not None
     assert Accelerator is not None
-    assert DerivativeIMEX is not None
     assert Resolvent is not None
 
 

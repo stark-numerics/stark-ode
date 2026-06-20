@@ -15,13 +15,15 @@ class EngineTranslationCupy:
     algebraist_frame: AlgebraistFrame = field(repr=False)
     carriers: tuple[CarrierCupy, ...] = field(repr=False)
     allocator: Any = field(repr=False)
+    linear_combine: tuple[Any, ...] = field(default=(), repr=False)
+    apply_translation: Any = field(default=None, repr=False)
     norm_kernel: Any = field(default=None, repr=False)
 
-    @property
-    def linear_combine(self) -> tuple[Any, ...]:
-        return ()
-
     def __call__(self, origin: object, result: object) -> None:
+        if self.apply_translation is not None:
+            self.apply_translation(origin, self, result)
+            return
+
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             carrier.arithmetic.translate(
                 field.state_path.get(origin),
@@ -58,7 +60,11 @@ class EngineTranslationCupy:
 
     def norm(self) -> float:
         if self.norm_kernel is not None:
-            return float(self.norm_kernel(self))
+            value = self.norm_kernel(self)
+            item = getattr(value, "item", None)
+            if callable(item):
+                value = item()
+            return float(value)
 
         total = 0.0
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):

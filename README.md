@@ -42,8 +42,8 @@ interface layer uses in-place array routing where possible.
 - Extension points for custom schemes and problem-specific fast translation
   kernels, including Algebraist providers for inspectable generated stage
   algebra.
-- A `DerivativeIMEX` helper for splitting a right-hand side into implicit and
-  explicit parts ahead of IMEX schemes.
+- A `Derivative.imex(...)` helper for splitting a right-hand side into implicit
+  and explicit parts ahead of IMEX schemes.
 
 Performance-sensitive custom objects can expose Algebraist-backed
 `linear_combine` kernels on their translation type and can pass a scheme
@@ -184,12 +184,13 @@ Accelerators are passed directly to the objects that use them, such as
 Algebraist providers, resolvents, or inverters. `Configuration` deliberately carries
 only runtime execution policy.
 
-For split problems, STARK also exposes:
+For split problems, declare the implicit and explicit parts through
+`Derivative.imex(...)`:
 
 ```python
-from stark import DerivativeIMEX
+from stark import Derivative
 
-imex = DerivativeIMEX(
+imex = Derivative.imex(
     implicit=implicit_derivative,
     explicit=explicit_derivative,
 )

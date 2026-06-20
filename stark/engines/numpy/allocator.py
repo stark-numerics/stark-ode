@@ -5,16 +5,17 @@ from types import SimpleNamespace
 from typing import Any
 
 from stark.engines.algebraist.frame import AlgebraistFrame
-from stark.engines.carriers.native import CarrierNativeArray
-from stark.engines.backends.native.translation import EngineTranslationNative
+from stark.engines.carriers.numpy import CarrierNumpy
+from stark.engines.numpy.translation import EngineTranslationNumpy
 
 
 @dataclass(frozen=True, slots=True)
-class EngineAllocatorNative:
-    """Allocate structured native state and translation objects."""
+class EngineAllocatorNumpy:
+    """Allocate structured NumPy state and translation objects."""
 
     algebraist_frame: AlgebraistFrame
-    carriers: tuple[CarrierNativeArray, ...] = field(repr=False)
+    carriers: tuple[CarrierNumpy, ...] = field(repr=False)
+    linear_combine: tuple[Any, ...] = field(default=(), repr=False)
     apply_translation: Any = field(default=None, repr=False)
     norm: Any = field(default=None, repr=False)
     inner_product: Any = field(default=None, repr=False)
@@ -33,11 +34,12 @@ class EngineAllocatorNative:
             )
         return out
 
-    def allocate_translation(self) -> EngineTranslationNative:
-        translation = EngineTranslationNative(
+    def allocate_translation(self) -> EngineTranslationNumpy:
+        translation = EngineTranslationNumpy(
             algebraist_frame=self.algebraist_frame,
             carriers=self.carriers,
             allocator=self,
+            linear_combine=self.linear_combine,
             apply_translation=self.apply_translation,
             norm_kernel=self.norm,
         )
@@ -46,4 +48,4 @@ class EngineAllocatorNative:
         return translation
 
 
-__all__ = ["EngineAllocatorNative"]
+__all__ = ["EngineAllocatorNumpy"]

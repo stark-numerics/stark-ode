@@ -1,5 +1,7 @@
 # STARK house style
 
+Last reviewed: 2026-06-17.
+
 This document is for contributors and future maintainers. It records the style of the project: not just formatting preferences, but the design habits that keep STARK coherent.
 
 STARK is allowed to be layered. It is not allowed to be vague.
@@ -86,9 +88,7 @@ inverter(request, output)
 scheme(interval, state, output)
 ```
 
-But inside, it may carry prepared state.
-
-This is not a contradiction. It is the house style.
+But inside, it may carry prepared state. This is not a contradiction. It is the house style.
 
 The user should not have to care that a derivative adapter has resolved field access, or that an inverter has selected a fast single-block path, or that a scheme has selected a predictor. The call site should stay readable.
 
@@ -130,9 +130,7 @@ Do not shorten names by removing the owner when the owner carries architectural 
 
 ## Protocols and concrete workers
 
-Protocols describe what one domain needs from another.
-
-Concrete classes do the work.
+Protocols describe what one domain needs from another. Concrete classes do the work.
 
 Use protocol names when the object crosses a boundary:
 
@@ -290,83 +288,23 @@ Do not move responsibilities across those boundaries just because it is convenie
 
 If a performance improvement requires crossing a boundary, make that crossing explicit and local.
 
-## Foreign models are allowed
-
-The high-level `System` and `Frame` path is for users whose state can be described as named fields.
-
-STARK also supports deeper integration with existing model objects.
-
-That path should use explicit state, translation, allocator, derivative, and linearizer contracts. It should not force a foreign model to become a `Frame` model if the model already owns its representation.
-
-But the low-level path is advanced. Keep it documented separately from the getting-started path.
-
-## Names should explain architecture, not implementation accidents
-
-Avoid names that describe only how something happens today.
-
-Prefer names that describe the role in the architecture.
-
-For example, if a helper belongs to Krylov inverters, name it as part of the Krylov inverter family. If a helper is really a general block algebra utility, move it to the appropriate shared domain and name it accordingly.
-
-Do not create a broad-sounding support object just because one implementation currently wants scratch space.
-
-## Small generic pieces are better than large clever ones
-
-STARK should prefer small composable workers over large clever functions.
-
-A good object usually has a narrow job:
-
-```text
-adapt a derivative
-seed an implicit stage
-solve a nonlinear residual
-solve a linear correction
-apply a linearizer
-record a monitor event
-```
-
-The composition is the architecture.
-
-Do not hide several roles behind one convenience class unless that class is explicitly a user-facing recipe.
-
 ## Documentation style
 
-Documentation should be layered.
+Documentation should be layered, but user pages should still solve user problems.
 
-Start with the simple path:
-
-```text
-System
-Frame
-Method
-Engine
-```
-
-Then introduce numerical intervention:
+Start with the task:
 
 ```text
-Scheme
-Resolvent
-Inverter
-Predictor
-Preconditioner
-Monitor
+solve an ODE
+choose a backend
+solve a stiff problem
+monitor a solve
+integrate a foreign model
 ```
 
-Then introduce foreign-model integration:
+Then explain the architecture needed for that task.
 
-```text
-State
-Translation
-Allocator
-Derivative
-Linearizer
-Operator
-```
-
-Do not flatten all three levels into the first page.
-
-Each page should state who it is for.
+Do not flatten all concepts into the first page. Do not write a map when the user needs a route.
 
 ## Final rule
 
@@ -374,6 +312,7 @@ When in doubt, ask:
 
 ```text
 Does this make the public path clearer?
+Does this let a user solve a problem?
 Does this keep repeated work out of hot calls?
 Does this preserve the domain boundary?
 Does this name reveal ownership?
