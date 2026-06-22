@@ -10,7 +10,7 @@ from __future__ import annotations
 #
 # - Frame describes the user state field ``u`` and solver translation field
 #   ``du``.
-# - DerivativeStyle.kernel adapts an in-place array kernel to STARK's derivative
+# - DerivativeStyle.kernel_accepts_instant_writes adapts an in-place array kernel to STARK's derivative
 #   contract.
 # - EngineNumpy chooses NumPy-backed carriers and Algebraist-generated field
 #   operations.
@@ -44,8 +44,8 @@ def initial_numpy(size: int = SIZE):
     return 0.55 + 0.15 * np.sin(2.0 * np.pi * x) + 0.05 * np.cos(6.0 * np.pi * x)
 
 
-@DerivativeStyle.kernel(state=("u",), translation=("du",), parameters=(DIFFUSION, REACTION))
-def rhs_numpy(u, du, diffusion: float, reaction: float) -> None:
+@DerivativeStyle.kernel_accepts_instant_writes(state=("u",), translation=("du",), parameters=(DIFFUSION, REACTION))
+def rhs_numpy(t, u, du, diffusion: float, reaction: float) -> None:
     """In-place NumPy derivative.
 
     NumPy arrays are mutable, so the kernel writes into the translation field

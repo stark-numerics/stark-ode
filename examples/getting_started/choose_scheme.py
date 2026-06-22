@@ -1,18 +1,12 @@
-from __future__ import annotations
-
 """Choose a built-in scheme through `Method`."""
+
+from __future__ import annotations
 
 import numpy as np
 
-from stark import (
-    Configuration,
-    Interval,
-    Frame,
-    Method,
-    System,
-)
+from stark import Frame, Interval, Method, System
 from stark.engines import EngineNumpy
-from stark.methods.schemes import SchemeDormandPrince
+from stark.methods import SchemeDormandPrince
 
 
 def oscillator_rhs(t: float, state, out) -> None:
@@ -21,19 +15,25 @@ def oscillator_rhs(t: float, state, out) -> None:
     out.dy[1] = -state.y[0]
 
 
-system = System(
-    derivative=oscillator_rhs,
-    frame=Frame({"y": {"translation": "dy", "shape": (2,)}}),
-)
-ivp = system.ivp(
-    initial={"y": np.array([1.0, 0.0])},
-    interval=Interval(present=0.0, step=0.05, stop=0.5),
-    method=Method(scheme=SchemeDormandPrince),
-    engine=EngineNumpy,
-    configuration=Configuration(check_progress=False),
-)
+def build_ivp():
+    system = System(
+        derivative=oscillator_rhs,
+        frame=Frame.vector("y", translation="dy", length=2),
+    )
+    return system.ivp(
+        initial={"y": np.array([1.0, 0.0])},
+        interval=Interval(present=0.0, step=0.05, stop=0.5),
+        method=Method(SchemeDormandPrince),
+        engine=EngineNumpy,
+    )
 
-print("Dormand-Prince harmonic oscillator")
-for interval, state in ivp.integrate():
-    position, velocity = state.y
-    print(f"t={interval.present:.2f}, x={position:.6f}, v={velocity:.6f}")
+
+def main() -> None:
+    print("Dormand-Prince harmonic oscillator")
+    for interval, state in build_ivp().integrate():
+        position, velocity = state.y
+        print(f"t={interval.present:.2f}, x={position:.6f}, v={velocity:.6f}")
+
+
+if __name__ == "__main__":
+    main()

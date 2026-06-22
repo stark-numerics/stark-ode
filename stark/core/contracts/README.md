@@ -26,5 +26,4 @@ Prefer focused imports when writing docs or implementation code:
 - `stark.core.contracts.translation`: linear update objects
 - `stark.core.contracts.allocator`: state and translation factories
 
-Use the package-level `stark.core.contracts` imports for convenience in examples and
-interactive exploration.
+Use the package-level `stark.core.contracts` imports for convenience in examples and interactive exploration.

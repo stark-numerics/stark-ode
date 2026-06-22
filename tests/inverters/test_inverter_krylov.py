@@ -6,8 +6,13 @@ import pytest
 
 from stark import Configuration, Tolerance
 from stark.core.block import Block
+from stark.core.block.operator import BlockOperatorDiagonal
 from stark.core.contracts import InverterRequest
-from stark.methods.inverters.krylov import InverterKrylovArnoldi
+from stark.methods.inverters.krylov import (
+    InverterKrylovArnoldi,
+    PreconditionerDiagonalInverse,
+    PreconditionerNone,
+)
 
 
 @dataclass(slots=True)
@@ -148,6 +153,59 @@ def test_krylov_request_shape_remains_structural() -> None:
     request = Request(identity, Block([ScalarTranslation(3.0)]))
 
     assert accepts_request(request) == pytest.approx(3.0)
+
+
+def test_preconditioner_none_uses_inverter_copy_semantics() -> None:
+    copy_calls = 0
+
+    def copy_block(
+        source: Block[ScalarTranslation],
+        target: Block[ScalarTranslation],
+    ) -> None:
+        nonlocal copy_calls
+        copy_calls += 1
+        for index in range(len(source)):
+            target[index].value = source[index].value
+
+    preconditioner = PreconditionerNone(copy_block)
+    source = Block([ScalarTranslation(2.0), ScalarTranslation(3.0)])
+    target = Block([ScalarTranslation(0.0), ScalarTranslation(0.0)])
+
+    preconditioner(object(), source, target)  # type: ignore[arg-type]
+
+    assert copy_calls == 1
+    assert target[0].value == pytest.approx(2.0)
+    assert target[1].value == pytest.approx(3.0)
+    assert target[0] is not source[0]
+
+
+def test_preconditioner_diagonal_inverse_uses_entry_inverse_actions() -> None:
+    @dataclass(slots=True)
+    class ScaleEntry:
+        scale: float
+
+        def __call__(
+            self,
+            source: ScalarTranslation,
+            target: ScalarTranslation,
+        ) -> None:
+            target.value = self.scale * source.value
+
+        def inverse(
+            self,
+            source: ScalarTranslation,
+            target: ScalarTranslation,
+        ) -> None:
+            target.value = source.value / self.scale
+
+    operator = BlockOperatorDiagonal([ScaleEntry(2.0), ScaleEntry(4.0)])
+    source = Block([ScalarTranslation(6.0), ScalarTranslation(8.0)])
+    target = Block([ScalarTranslation(0.0), ScalarTranslation(0.0)])
+
+    PreconditionerDiagonalInverse()(operator, source, target)
+
+    assert target[0].value == pytest.approx(3.0)
+    assert target[1].value == pytest.approx(2.0)
 
 
 def test_krylov_arnoldi_uses_left_preconditioner() -> None:

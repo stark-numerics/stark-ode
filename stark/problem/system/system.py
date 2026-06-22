@@ -10,10 +10,12 @@ from stark.core.contracts.engine import Engine
 from stark.core.configuration import Configuration
 from stark.core.integrator.integrator import Checkpoints, Integrator
 from stark.core.integrator.stepper import IntegratorStepper
-from stark.problem.derivative.derivative import Derivative, DerivativeSignature
+from stark.problem.derivative import Derivative, DerivativeSignature
 from stark.problem.derivative.split import DerivativeSplit
 from stark.problem.frame.frame import Frame
-from stark.problem.linearizer.linearizer import Linearizer, LinearizerSignature
+from stark.problem.linearizer.linearizer import Linearizer
+from stark.problem.linearizer.implementation import LinearizerImplementation
+from stark.problem.linearizer.signature import LinearizerSignature
 from stark.methods.method import Method, MethodError
 
 
@@ -325,7 +327,7 @@ class System:
             options=method.scheme_options,
         )
 
-    def prepare_linearizer(self, engine: Engine) -> object | None:
+    def prepare_linearizer(self, engine: Engine) -> LinearizerImplementation | None:
         linearizer = self.linearizer
         if linearizer is None:
             return None

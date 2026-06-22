@@ -3,7 +3,7 @@
 import importlib
 
 from stark import Auditor, Configuration, Integrator, Interval, IntegratorStepper, Tolerance
-from stark.engines.shared.accelerators import Accelerator, AcceleratorNone
+from stark.engines import Accelerator, AcceleratorNone
 from stark.core.block.operator import BlockOperatorDiagonal
 from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblemManual
 from stark.core.block import Block
@@ -306,7 +306,7 @@ def test_core_objects_have_readable_representations() -> None:
     assert resolver_policy.resolvent_maximum_steps == 16
     assert repr(resolver_tolerance) == "Tolerance(atol=1e-08, rtol=1e-06)"
     assert repr(resolver_descriptor) == "ResolventDescriptor(short_name='Picard', full_name='Picard Iteration')"
-    assert configuration.check_progress is True
+    assert configuration.check_progress is False
     assert repr(configuration_tolerance) == "Tolerance(atol=1e-08, rtol=1e-06)"
     assert repr(scheme_tolerance) == "Tolerance(atol=1e-08, rtol=1e-06)"
     assert str(configuration_tolerance) == "atol=1e-08, rtol=1e-06"
@@ -338,7 +338,7 @@ def test_core_objects_have_readable_representations() -> None:
     assert SchemeLobattoIIIC4 is not None
     assert SchemeRadauIIA5 is not None
     assert SchemeIMEXEuler is not None
-    assert str(Integrator()) == "STARK integrator (safe mode)"
+    assert str(Integrator()) == "STARK integrator (fast mode)"
     assert repr(stepper) == "IntegratorStepper(scheme='MinimalScheme')"
     assert str(stepper) == "IntegratorStepper MinimalScheme"
     assert "Auditor(status=" in repr(auditor)

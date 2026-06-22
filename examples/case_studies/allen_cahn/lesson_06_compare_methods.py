@@ -102,7 +102,7 @@ if __name__ == "__main__":
     # 3. IMEX spectral: treat only linear diffusion implicitly and solve that
     # stage problem directly in Fourier space.
 
-    imex_derivative = Derivative.imex(
+    imex_derivative = Derivative.split(
         implicit=AllenCahnImplicitDerivative(geometry, DIFFUSIVITY),
         explicit=AllenCahnExplicitDerivative(geometry),
     )

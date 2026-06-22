@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from examples.manifest import EXAMPLES
+
 print("Case study examples")
 print("===================")
-print("python -m examples.case_studies.three_body")
-print("python -m examples.case_studies.backends")
+for example in EXAMPLES:
+    if example.tier == "case-study":
+        print(f"python -m {example.module}")

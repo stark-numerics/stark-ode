@@ -28,17 +28,17 @@ class InverterDenseInstance(Generic[TranslationType]):
     images: list[list[float]]
     results: list[list[float]]
     factors: list[InverterNucleusFactor]
-    call: Callable[[BlockLike[TranslationType], BlockLike[TranslationType]], None] = field(init=False, repr=False)
+    redirect_call: Callable[[BlockLike[TranslationType], BlockLike[TranslationType]], None] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        self.call = self.call_monitored if self.inverter.monitor is not None else self.call_body
+        self.redirect_call = self.call_monitored if self.inverter.monitor is not None else self.call_body
 
     def __call__(
         self,
         residual: BlockLike[TranslationType],
         output: BlockLike[TranslationType],
     ) -> None:
-        self.call(residual, output)
+        self.redirect_call(residual, output)
 
     def call_body(
         self,
@@ -77,17 +77,17 @@ class InverterDenseInstanceSingle(Generic[TranslationType]):
     image: list[float]
     result: list[float]
     factor: InverterNucleusFactor
-    call: Callable[[BlockLike[TranslationType], BlockLike[TranslationType]], None] = field(init=False, repr=False)
+    redirect_call: Callable[[BlockLike[TranslationType], BlockLike[TranslationType]], None] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        self.call = self.call_monitored if self.inverter.monitor is not None else self.call_body
+        self.redirect_call = self.call_monitored if self.inverter.monitor is not None else self.call_body
 
     def __call__(
         self,
         residual: BlockLike[TranslationType],
         output: BlockLike[TranslationType],
     ) -> None:
-        self.call(residual, output)
+        self.redirect_call(residual, output)
 
     def call_body(
         self,

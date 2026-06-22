@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from math import sqrt
 from typing import ClassVar, Generic
 
-from stark.core import Configuration
 from stark.core.block import Block, BlockAllocator
 from stark.core.contracts import (
     Accelerator,
@@ -20,10 +19,16 @@ from stark.core.contracts import (
 )
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines.shared.algebraist.runtime import AlgebraistRuntimeLinearCombine
-from stark.methods.inverters.configuration import InverterConfiguration
+from stark.methods.inverters.configuration import (
+    InverterConfiguration,
+    InverterConfigurationDefault,
+)
 from stark.methods.inverters.krylov.basis import InverterKrylovBasis
+from stark.methods.inverters.krylov.preconditioners import (
+    InverterKrylovPreconditionerLike,
+    PreconditionerNone,
+)
 from stark.methods.inverters.krylov.projection import InverterKrylovProjection
-from stark.methods.inverters.krylov.preconditioner import InverterKrylovPreconditionerLike
 from stark.methods.inverters.support import (
     InverterDefect,
     InverterDescriptor,
@@ -44,7 +49,7 @@ class InverterKrylovArnoldiInstance(Generic[TranslationType]):
         residual: BlockLike[TranslationType],
         output: BlockLike[TranslationType],
     ) -> None:
-        self.inverter.call(self.operator, residual, output)
+        self.inverter.redirect_call(self.operator, residual, output)
 
 
 # Optional extension: records inverter monitor events.
@@ -92,10 +97,11 @@ class InverterKrylovArnoldi(Generic[TranslationType]):
     correction: BlockLike[TranslationType] | None = field(init=False, default=None, repr=False)
     temporary: BlockLike[TranslationType] | None = field(init=False, default=None, repr=False)
     preconditioned_residual: BlockLike[TranslationType] | None = field(init=False, default=None, repr=False)
+    precondition: InverterKrylovPreconditionerLike[TranslationType] = field(init=False, repr=False)
     size: int = field(init=False, default=-1)
     tolerance: object = field(init=False, repr=False)
     maximum_steps: int = field(init=False)
-    call: Callable[[BlockOperatorLike[TranslationType], BlockLike[TranslationType], BlockLike[TranslationType]], None] = field(init=False, repr=False)
+    redirect_call: Callable[[BlockOperatorLike[TranslationType], BlockLike[TranslationType], BlockLike[TranslationType]], None] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         if self.restart < 1:
@@ -103,7 +109,11 @@ class InverterKrylovArnoldi(Generic[TranslationType]):
         if self.breakdown_tolerance < 0.0:
             raise ValueError("InverterKrylovArnoldi.breakdown_tolerance must be non-negative.")
 
-        configuration = self.configuration if self.configuration is not None else Configuration()
+        configuration = (
+            self.configuration
+            if self.configuration is not None
+            else InverterConfigurationDefault()
+        )
         accelerator = self.accelerator if self.accelerator is not None else AcceleratorNone()
         self.accelerator = accelerator
         self.tolerance = configuration.inverter_tolerance
@@ -117,17 +127,22 @@ class InverterKrylovArnoldi(Generic[TranslationType]):
         ).as_tuple(2)
         self.scale = kernels[0]
         self.combine2 = kernels[1]
+        self.precondition = (
+            self.preconditioner
+            if self.preconditioner is not None
+            else PreconditionerNone(self.copy_block)
+        )
         self.defect = InverterDefect()
         self.basis = InverterKrylovBasis(self, self.restart)
         self.projection = InverterKrylovProjection(self.restart)
-        self.call = self.call_monitored if self.monitor is not None else self.call_body
+        self.redirect_call = self.call_monitored if self.monitor is not None else self.call_body
 
     def __call__(
         self,
         request: InverterRequest[TranslationType],
         output: BlockLike[TranslationType],
     ) -> None:
-        self.call(request.operator, request.residual, output)
+        self.redirect_call(request.operator, request.residual, output)
 
     def instance(
         self,
@@ -187,11 +202,7 @@ class InverterKrylovArnoldi(Generic[TranslationType]):
         source: BlockLike[TranslationType],
         target: BlockLike[TranslationType],
     ) -> None:
-        preconditioner = self.preconditioner
-        if preconditioner is None:
-            self.copy_block(source, target)
-            return
-        preconditioner(operator, source, target)
+        self.precondition(operator, source, target)
 
     def inner_product_block(
         self,

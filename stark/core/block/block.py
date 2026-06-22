@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from math import sqrt
 from typing import Generic, Iterator, Self, TypeVar
 
+from stark.core.contracts.block import BlockLike
+
 
 TranslationType = TypeVar("TranslationType")
 
@@ -44,10 +46,10 @@ class Block(Generic[TranslationType]):
     def __setitem__(self, index: int, value: TranslationType) -> None:
         self.items[index] = value
 
-    def replace(self, other: Block[TranslationType]) -> None:
+    def replace(self, other: BlockLike[TranslationType]) -> None:
         """Replace this block's entries with another block's entries."""
 
-        self.items[:] = list(other.items)
+        self.items[:] = [other[index] for index in range(len(other))]
 
     def __add__(self, other: Block[TranslationType]) -> Block[TranslationType]:
         return type(self)(

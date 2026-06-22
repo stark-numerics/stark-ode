@@ -175,7 +175,7 @@ def _rows_for_size(size: int) -> list[TimingRow]:
     if jnp is None:
         rows.append(TimingRow(size, "JAX", None, None, None, None, "skipped: JAX not installed"))
     elif not _kernel_returning_available():
-        rows.append(TimingRow(size, "JAX", None, None, None, None, "skipped: DerivativeStyle.kernel_returning missing"))
+        rows.append(TimingRow(size, "JAX", None, None, None, None, "skipped: DerivativeStyle.kernel_accepts_instant_returns missing"))
     else:
         rows.append(
             _fresh_timing(

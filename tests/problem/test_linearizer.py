@@ -40,7 +40,8 @@ class Operator:
 
 
 def test_linearizer_operator_configures_apply_and_dense_fill() -> None:
-    def apply_kernel(y, source_dy, out_dy):
+    def apply_kernel(t, y, source_dy, out_dy):
+        del t
         out_dy[0] = y[0] * source_dy[0]
         out_dy[1] = y[1] * source_dy[1]
 
@@ -71,8 +72,9 @@ def test_linearizer_operator_configures_apply_and_dense_fill() -> None:
 
 
 def test_linearizer_kernel_returning_assigns_target_fields() -> None:
-    @LinearizerStyle.kernel_returning(state=("y",), source=("dy",), target=("dy",))
-    def apply_kernel(y, source_dy):
+    @LinearizerStyle.kernel_accepts_instant_returns(state=("y",), source=("dy",), target=("dy",))
+    def apply_kernel(t, y, source_dy):
+        del t
         return [y[0] * source_dy[0], y[1] * source_dy[1]]
 
     linearizer = Linearizer(apply_kernel)
@@ -86,10 +88,11 @@ def test_linearizer_kernel_returning_assigns_target_fields() -> None:
 
 
 def test_system_prepare_linearizer_uses_accelerator() -> None:
-    def apply_kernel(y, source_dy, out_dy):
+    def apply_kernel(t, y, source_dy, out_dy):
+        del t
         out_dy[0] = y[0] * source_dy[0]
 
-    signature = LinearizerStyle.kernel(
+    signature = LinearizerStyle.kernel_accepts_instant_writes(
         apply_kernel,
         state=("y",),
         source=("dy",),

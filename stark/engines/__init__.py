@@ -3,8 +3,11 @@
 from stark.core.contracts.engine import Engine
 from stark.engines.native import EngineNative
 from stark.engines.numpy import EngineNumpy
+from stark.engines.shared.accelerators import Accelerator, AcceleratorNone
 
 __all__ = [
+    "Accelerator",
+    "AcceleratorNone",
     "Engine",
     "EngineNative",
     "EngineNumpy",

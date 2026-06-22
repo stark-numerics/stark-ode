@@ -35,7 +35,7 @@ STARK's scheme-facing derivative contract writes into an output translation:
 derivative(interval, state, out) -> None
 ```
 
-Adapters such as `DerivativeStyle.returning` and `DerivativeStyle.kernel` let users write more natural problem-level functions while the solver receives a prepared derivative kernel.
+Adapters such as `DerivativeStyle.accepts_instant_returns` and `DerivativeStyle.kernel_accepts_instant_writes` let users write more natural problem-level functions while the solver receives a prepared derivative kernel.
 
 ## Linearizer
 

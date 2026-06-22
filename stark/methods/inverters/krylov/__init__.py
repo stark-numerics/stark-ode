@@ -5,8 +5,12 @@ from stark.methods.inverters.krylov.arnoldi import (
     InverterKrylovArnoldiInstance,
 )
 from stark.methods.inverters.krylov.basis import InverterKrylovBasis
+from stark.methods.inverters.krylov.preconditioners import (
+    InverterKrylovPreconditionerLike,
+    PreconditionerDiagonalInverse,
+    PreconditionerNone,
+)
 from stark.methods.inverters.krylov.projection import InverterKrylovProjection
-from stark.methods.inverters.krylov.preconditioner import InverterKrylovPreconditionerLike
 
 __all__ = [
     "InverterKrylovArnoldi",
@@ -14,4 +18,6 @@ __all__ = [
     "InverterKrylovBasis",
     "InverterKrylovProjection",
     "InverterKrylovPreconditionerLike",
+    "PreconditionerDiagonalInverse",
+    "PreconditionerNone",
 ]

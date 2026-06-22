@@ -9,7 +9,7 @@ from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
 from stark.engines.numpy.engine import EngineNumpy
-from stark.problem.derivative.derivative import DerivativeStyle
+from stark.problem import DerivativeStyle
 from stark.problem.frame.frame import Frame
 from stark.methods.method import Method
 from stark.problem.system.system import System
@@ -21,8 +21,9 @@ from stark.methods.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
 Array = Any
 
 
-@DerivativeStyle.kernel(state=("u", "v"), translation=("du", "dv"))
+@DerivativeStyle.kernel_accepts_instant_writes(state=("u", "v"), translation=("du", "dv"))
 def fitzhugh_nagumo_rhs(
+    t: float,
     u: Array,
     v: Array,
     du: Array,
@@ -48,8 +49,9 @@ def fitzhugh_nagumo_rhs(
         dv[index] = epsilon * (centre + a - b * v[index])
 
 
-@DerivativeStyle.kernel(state=("u", "v"), translation=("du", "dv"))
+@DerivativeStyle.kernel_accepts_instant_writes(state=("u", "v"), translation=("du", "dv"))
 def fitzhugh_nagumo_explicit_rhs(
+    t: float,
     u: Array,
     v: Array,
     du: Array,
@@ -65,8 +67,9 @@ def fitzhugh_nagumo_explicit_rhs(
         dv[index] = epsilon * (centre + a - b * v[index])
 
 
-@DerivativeStyle.kernel(state=("u", "v"), translation=("du", "dv"))
+@DerivativeStyle.kernel_accepts_instant_writes(state=("u", "v"), translation=("du", "dv"))
 def fitzhugh_nagumo_implicit_rhs(
+    t: float,
     u: Array,
     _v: Array,
     du: Array,
@@ -137,7 +140,7 @@ def full_derivative(parameters: FitzHughNagumoParameters):
 
 
 def imex_derivative(parameters: FitzHughNagumoParameters):
-    return DerivativeStyle.imex(
+    return DerivativeStyle.split(
         implicit=fitzhugh_nagumo_implicit_rhs.with_parameters(
             parameters.diffusivity_u,
             parameters.inv_dx2,

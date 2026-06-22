@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
-from stark.core.block.block import Block
+from stark.core.contracts.block import BlockLike
 
 
 TranslationType = TypeVar("TranslationType")
@@ -51,13 +51,13 @@ class BlockOperatorDiagonal(Generic[TranslationType]):
 
     def __call__(
         self,
-        block: Block[TranslationType],
-        out: Block[TranslationType],
-    ) -> Block[TranslationType]:
+        source: BlockLike[TranslationType],
+        target: BlockLike[TranslationType],
+    ) -> BlockLike[TranslationType]:
         for index, operator in enumerate(self.operators):
-            operator(block[index], out[index])  # type: ignore[misc]
+            operator(source[index], target[index])  # type: ignore[misc]
 
-        return out
+        return target
 
     @classmethod
     def repeated(

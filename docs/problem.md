@@ -43,7 +43,7 @@ Use in-place style when mutation is natural.
 ```python
 system = System(
     frame=frame,
-    derivative=DerivativeStyle.in_place(rhs),
+    derivative=DerivativeStyle.accepts_instant_writes(rhs),
 )
 ```
 
@@ -54,7 +54,7 @@ This is a good fit for NumPy and native mutable arrays.
 Use return style when the backend prefers immutable arrays or expression-oriented code.
 
 ```python
-@DerivativeStyle.returning
+@DerivativeStyle.accepts_instant_returns
 def rhs(t, state):
     return {"dy": -0.5 * state.y}
 ```
@@ -66,7 +66,7 @@ This is the recommended shape for JAX examples.
 Kernel styles bind named fields and parameters once, so the prepared derivative can run with less field discovery.
 
 ```python
-@DerivativeStyle.kernel(state=("y",), translation=("dy",), parameters=(0.5,))
+@DerivativeStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",), parameters=(0.5,))
 def decay_kernel(y, dy, rate: float) -> None:
     dy[:] = -rate * y
 ```
@@ -77,7 +77,7 @@ Use kernel styles when you want a compact derivative focused on array fields.
 
 ```python
 system = System(
-    derivative=DerivativeStyle.in_place(rhs),
+    derivative=DerivativeStyle.accepts_instant_writes(rhs),
     frame=frame,
 )
 ```

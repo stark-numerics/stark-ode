@@ -17,6 +17,7 @@ from stark.engines.shared.algebraist.frame import AlgebraistFrame, AlgebraistFra
 from stark.engines.numpy.carriers import CarrierNumpy
 from stark.core.contracts.accelerator import Accelerator
 from stark.engines.numpy.allocator import EngineAllocatorNumpy
+from stark.engines.shared.basis import EngineTranslationBasis
 from stark.problem.frame.frame import Frame
 
 
@@ -63,6 +64,16 @@ class EngineNumpy:
             f"{type(self).__name__}(frame={self.frame!r}, "
             f"dtype={np.dtype(self.dtype)!r}, {acceleration})"
         )
+
+    def translation_basis(self) -> EngineTranslationBasis:
+        """Return the coordinate basis for engine-owned translations.
+
+        This is an inspection and dense-materialisation helper. Ordinary user
+        solves should not need it, but dense inverters and diagnostic examples
+        can use it instead of hand-writing translation-basis classes.
+        """
+
+        return EngineTranslationBasis(self.algebraist_frame, self.carriers)
 
     def __post_init__(self) -> None:
         algebraist_frame = self.frame.to_algebraist_frame()

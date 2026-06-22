@@ -12,7 +12,7 @@ class DerivativeSplit:
     """
     Concrete implicit-explicit derivative split.
 
-    Use `Derivative.imex(implicit=..., explicit=...)` to create this object in
+    Use `Derivative.split(implicit=..., explicit=...)` to create this object in
     user code. IMEX schemes consume the protocol shape rather than this
     concrete class, but the problem layer owns this declaration helper because
     it is part of describing the differential problem.

@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Choose which fields contribute to adaptive-error norms."""
+
+from __future__ import annotations
 
 import numpy as np
 
@@ -15,13 +15,20 @@ frame = Frame(
         FrameField("diagnostic", translation="ddiagnostic", shape=(2,), norm=FrameNormExcluded()),
     )
 )
-engine = EngineNumpy(frame)
-delta = engine.allocator.allocate_translation()
-delta.du[:] = np.array([3.0, 4.0])
-delta.ddiagnostic[:] = np.array([1000.0, 1000.0])
 
-print("Frame norm policy")
-print(f"physical field du:       {delta.du}")
-print(f"diagnostic field ignored: {delta.ddiagnostic}")
-print(f"translation norm:         {delta.norm():.6f}")
-print("Only du contributes; ddiagnostic is carried but excluded from norms.")
+
+def main() -> None:
+    engine = EngineNumpy(frame)
+    delta = engine.allocator.allocate_translation()
+    delta.du[:] = np.array([3.0, 4.0])
+    delta.ddiagnostic[:] = np.array([1000.0, 1000.0])
+
+    print("Frame norm policy")
+    print(f"physical field du:       {delta.du}")
+    print(f"diagnostic field ignored: {delta.ddiagnostic}")
+    print(f"translation norm:         {delta.norm():.6f}")
+    print("Only du contributes; ddiagnostic is carried but excluded from norms.")
+
+
+if __name__ == "__main__":
+    main()

@@ -11,7 +11,7 @@ from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
 from stark.engines import EngineNumpy
-from stark.problem.derivative.derivative import DerivativeStyle
+from stark.problem import DerivativeStyle
 from stark.problem.frame.frame import Frame
 from stark.problem.linearizer import LinearizerStyle
 from stark.methods.method import Method
@@ -30,8 +30,8 @@ ROBERTSON_LAYOUT = Frame({"y": {"translation": "dy", "shape": (3,)}})
 Array = Any
 
 
-@DerivativeStyle.kernel(state=("y",), translation=("dy",))
-def robertson_rhs(y: Array, dy: Array) -> None:
+@DerivativeStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",))
+def robertson_rhs(t: float, y: Array, dy: Array) -> None:
     y1 = y[0]
     y2 = y[1]
     y3 = y[2]
@@ -42,7 +42,8 @@ def robertson_rhs(y: Array, dy: Array) -> None:
     dy[2] = quadratic
 
 
-def robertson_jacobian_apply(state_y: Array, source_dy: Array, out_dy: Array) -> None:
+def robertson_jacobian_apply(t: float, state_y: Array, source_dy: Array, out_dy: Array) -> None:
+    del t
     y2 = state_y[1]
     y3 = state_y[2]
     coupling = 1.0e4 * (source_dy[1] * y3 + y2 * source_dy[2])
@@ -170,32 +171,6 @@ class RobertsonCubicRoot:
         return min(roots, key=lambda root: abs(root - target))
 
 
-class RobertsonTranslationBasis:
-    """Coordinate basis for the Robertson translation field."""
-
-    dimension = 3
-
-    def vector(self, index: int, output) -> object:
-        output.dy[:] = 0.0
-        output.dy[index] = 1.0
-        return output
-
-    def coordinate(self, index: int, translation) -> float:
-        return float(translation.dy[index])
-
-    def coordinates(self, translation, output: list[float]) -> list[float]:
-        dy = translation.dy
-        output[0] = float(dy[0])
-        output[1] = float(dy[1])
-        output[2] = float(dy[2])
-        return output
-
-    def synthesize(self, coordinates: list[float], output) -> object:
-        output.dy[:] = coordinates
-        return output
-
-
-
 def stark_configuration(stark_parameters) -> Configuration:
     return Configuration(
         check_progress=False,
@@ -274,7 +249,7 @@ def cubic_resolvent(engine, linearizer, configuration, scheme):
 
 def newton_dense_resolvent(engine, linearizer, configuration, scheme):
     inverter = InverterDense(
-        basis=BlockBasis([RobertsonTranslationBasis()]),
+        basis=BlockBasis([engine.translation_basis()]),
     )
     return ResolventNewton(
         engine.allocator,
@@ -288,7 +263,7 @@ def newton_dense_resolvent(engine, linearizer, configuration, scheme):
 
 def chord_dense_resolvent(engine, linearizer, configuration, scheme):
     inverter = InverterDense(
-        basis=BlockBasis([RobertsonTranslationBasis()]),
+        basis=BlockBasis([engine.translation_basis()]),
     )
     return ResolventChord(
         engine.allocator,
@@ -302,7 +277,7 @@ def chord_dense_resolvent(engine, linearizer, configuration, scheme):
 
 def very_chord_dense_resolvent(engine, linearizer, configuration, scheme):
     inverter = InverterDense(
-        basis=BlockBasis([RobertsonTranslationBasis()]),
+        basis=BlockBasis([engine.translation_basis()]),
     )
     return ResolventVeryChord(
         engine.allocator,

@@ -44,6 +44,32 @@ def test_stark_layout_accepts_field_mapping() -> None:
     assert all(isinstance(field.policy, AlgebraistFrameLooped) for field in algebraist_frame)
 
 
+def test_stark_layout_scalar_factory_matches_mapping_syntax() -> None:
+    frame = Frame.scalar("u", translation="du")
+    explicit = Frame({"u": {"translation": "du", "shape": (1,)}})
+
+    assert frame.fields == explicit.fields
+
+
+def test_stark_layout_vector_factory_matches_mapping_syntax() -> None:
+    frame = Frame.vector("u", translation="du", length=3)
+    explicit = Frame({"u": {"translation": "du", "shape": (3,)}})
+
+    assert frame.fields == explicit.fields
+
+
+def test_stark_layout_fields_factory_matches_mapping_syntax() -> None:
+    frame = Frame.from_fields(("u", "du", (2,)), ("v", "dv", (3,)))
+    explicit = Frame(
+        {
+            "u": {"translation": "du", "shape": (2,)},
+            "v": {"translation": "dv", "shape": (3,)},
+        }
+    )
+
+    assert frame.fields == explicit.fields
+
+
 def test_stark_layout_field_rejects_invalid_shape() -> None:
     try:
         FrameField("u", shape=(2, 0)).to_algebraist_field()

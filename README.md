@@ -42,7 +42,7 @@ interface layer uses in-place array routing where possible.
 - Extension points for custom schemes and problem-specific fast translation
   kernels, including Algebraist providers for inspectable generated stage
   algebra.
-- A `Derivative.imex(...)` helper for splitting a right-hand side into implicit
+- A `Derivative.split(...)` helper for splitting a right-hand side into implicit
   and explicit parts ahead of IMEX schemes.
 
 Performance-sensitive custom objects can expose Algebraist-backed
@@ -185,12 +185,12 @@ Algebraist providers, resolvents, or inverters. `Configuration` deliberately car
 only runtime execution policy.
 
 For split problems, declare the implicit and explicit parts through
-`Derivative.imex(...)`:
+`Derivative.split(...)`:
 
 ```python
 from stark import Derivative
 
-imex = Derivative.imex(
+imex = Derivative.split(
     implicit=implicit_derivative,
     explicit=explicit_derivative,
 )

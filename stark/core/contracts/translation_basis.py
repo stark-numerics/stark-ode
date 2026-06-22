@@ -29,7 +29,10 @@ class TranslationBasis(Protocol[TranslationType]):
     in-place carriers.
     """
 
-    dimension: int
+    @property
+    def dimension(self) -> int:
+        """Number of scalar coordinates in this basis."""
+        ...
 
     def vector(self, index: int, output: TranslationType) -> TranslationType:
         """Write or return the selected basis vector."""

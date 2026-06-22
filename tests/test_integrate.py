@@ -68,7 +68,11 @@ def test_integrate_with_safety_rails_advances() -> None:
 
 
 def test_integrate_with_safety_rails_raises_on_no_progress() -> None:
-    iterator = Integrator(configuration=Configuration())(StalledStepper(), DummyInterval(0.0, 0.25, 1.0), object())
+    iterator = Integrator(configuration=Configuration(check_progress=True))(
+        StalledStepper(),
+        DummyInterval(0.0, 0.25, 1.0),
+        object(),
+    )
 
     try:
         next(iterator)
@@ -79,7 +83,7 @@ def test_integrate_with_safety_rails_raises_on_no_progress() -> None:
 
 
 def test_integrate_without_safety_rails_can_skip_progress_check() -> None:
-    iterator = Integrator(configuration=Configuration(check_progress=False)).mutating_trajectory(
+    iterator = Integrator(configuration=Configuration()).mutating_trajectory(
         StalledStepper(),
         DummyInterval(0.0, 0.25, 1.0),
         object(),

@@ -114,6 +114,37 @@ def test_stark_engine_numpy_exposes_layout_inner_product() -> None:
     assert engine.allocator.inner_product(left, right) == pytest.approx(150.0)
 
 
+def test_stark_engine_numpy_translation_basis_inspects_full_translation() -> None:
+    engine = EngineNumpy(
+        Frame(
+            (
+                FrameField("u", translation="du", shape=(2,)),
+                FrameField("v", translation="dv", shape=(1,)),
+            )
+        )
+    )
+    basis = engine.translation_basis()
+    vector = engine.allocator.allocate_translation()
+    translation = engine.allocator.allocate_translation()
+    coordinates = [0.0, 0.0, 0.0]
+
+    vector = basis.vector(1, vector)
+    assert basis.dimension == 3
+    np.testing.assert_array_equal(vector.du, np.array([0.0, 1.0]))
+    np.testing.assert_array_equal(vector.dv, np.array([0.0]))
+    assert basis.coordinate(1, vector) == pytest.approx(1.0)
+    assert basis.coordinate(2, vector) == pytest.approx(0.0)
+
+    translation.du[...] = (3.0, 4.0)
+    translation.dv[...] = (5.0,)
+    basis.coordinates(translation, coordinates)
+    assert coordinates == pytest.approx([3.0, 4.0, 5.0])
+
+    basis.synthesize([6.0, 7.0, 8.0], translation)
+    np.testing.assert_array_equal(translation.du, np.array([6.0, 7.0]))
+    np.testing.assert_array_equal(translation.dv, np.array([8.0]))
+
+
 def test_stark_engine_native_uses_array_backed_fields() -> None:
     engine = EngineNative(
         Frame(

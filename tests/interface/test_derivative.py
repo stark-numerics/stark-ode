@@ -5,12 +5,14 @@ import pytest
 
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.problem import Derivative, DerivativeStyle, Frame
-from stark.problem.derivative.derivative import (
-    DerivativeAdapterAcceptsInterval,
-    DerivativeAdapterReturnsInstant,
-    DerivativeKernel,
-    DerivativeKernelReturning,
-    DerivativeAdapterAcceptsInstant,
+from stark.problem.derivative import (
+    DerivativeAdapterAcceptsIntervalWrites,
+    DerivativeAdapterAcceptsInstantReturns,
+    DerivativeKernelAcceptsInstantWrites,
+    DerivativeKernelAcceptsIntervalWrites,
+    DerivativeKernelAcceptsInstantReturns,
+    DerivativeKernelAcceptsIntervalReturns,
+    DerivativeAdapterAcceptsInstantWrites,
 )
 
 
@@ -36,7 +38,7 @@ def test_plain_callable_is_recognised_as_time_in_place() -> None:
     derivative = Derivative(rhs)
     out = DummyTranslation()
 
-    assert isinstance(derivative.implementation, DerivativeAdapterAcceptsInstant)
+    assert isinstance(derivative.implementation, DerivativeAdapterAcceptsInstantWrites)
 
     derivative(DummyInterval(2.0), DummyState(3.0), out)
 
@@ -50,7 +52,7 @@ def test_plain_two_argument_callable_is_recognised_as_returning() -> None:
     derivative = Derivative(rhs)
     out = DummyTranslation()
 
-    assert isinstance(derivative.implementation, DerivativeAdapterReturnsInstant)
+    assert isinstance(derivative.implementation, DerivativeAdapterAcceptsInstantReturns)
 
     derivative(DummyInterval(2.0), DummyState(3.0), out)
 
@@ -58,7 +60,7 @@ def test_plain_two_argument_callable_is_recognised_as_returning() -> None:
 
 
 def test_returning_signature_can_be_declared_as_decorator() -> None:
-    @DerivativeStyle.returning
+    @DerivativeStyle.accepts_instant_returns
     def rhs(t, state):
         return {"dy": t * state.y}
 
@@ -77,10 +79,10 @@ def test_interval_in_place_signature_passes_interval_object() -> None:
     def rhs(interval, state, out) -> None:
         out.dy = interval.present + state.y
 
-    derivative = Derivative(DerivativeStyle.interval_in_place(rhs))
+    derivative = Derivative(DerivativeStyle.accepts_interval_writes(rhs))
     out = DummyTranslation()
 
-    assert isinstance(derivative.implementation, DerivativeAdapterAcceptsInterval)
+    assert isinstance(derivative.implementation, DerivativeAdapterAcceptsIntervalWrites)
 
     derivative(DummyInterval(2.0), DummyState(3.0), out)
 
@@ -90,12 +92,12 @@ def test_interval_in_place_signature_passes_interval_object() -> None:
 def test_kernel_signature_calls_field_level_function() -> None:
     calls = []
 
-    def kernel(y, dy, scale) -> None:
-        calls.append((y, scale))
+    def kernel(t, y, dy, scale) -> None:
+        calls.append((t, y, scale))
         dy[0] = scale * y[0]
 
     derivative = Derivative(
-        DerivativeStyle.kernel(
+        DerivativeStyle.kernel_accepts_instant_writes(
             kernel,
             state=("y",),
             translation=("dy",),
@@ -105,70 +107,104 @@ def test_kernel_signature_calls_field_level_function() -> None:
     state = DummyState([3.0])
     out = DummyTranslation([0.0])
 
-    assert isinstance(derivative.implementation, DerivativeKernel)
+    assert isinstance(derivative.implementation, DerivativeKernelAcceptsInstantWrites)
 
     derivative(DummyInterval(0.0), state, out)
 
-    assert calls == [([3.0], 2.0)]
+    assert calls == [(0.0, [3.0], 2.0)]
     assert out.dy == [6.0]
 
 
 def test_kernel_signature_can_be_declared_as_decorator() -> None:
-    @DerivativeStyle.kernel(state=("y",), translation=("dy",))
-    def kernel(y, dy, scale) -> None:
+    @DerivativeStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",))
+    def kernel(t, y, dy, scale) -> None:
         dy[0] = scale * y[0]
 
     derivative = Derivative(kernel.with_parameters(3.0))
     state = DummyState([4.0])
     out = DummyTranslation([0.0])
 
-    assert isinstance(derivative.implementation, DerivativeKernel)
+    assert isinstance(derivative.implementation, DerivativeKernelAcceptsInstantWrites)
 
     derivative(DummyInterval(0.0), state, out)
 
     assert out.dy == [12.0]
 
 
+def test_interval_kernel_signature_passes_interval_object() -> None:
+    @DerivativeStyle.kernel_accepts_interval_writes(state=("y",), translation=("dy",))
+    def kernel(interval, y, dy, scale) -> None:
+        t = interval.present
+        dy[0] = scale * t * y[0]
+
+    derivative = Derivative(kernel.with_parameters(3.0))
+    state = DummyState([4.0])
+    out = DummyTranslation([0.0])
+
+    assert isinstance(derivative.implementation, DerivativeKernelAcceptsIntervalWrites)
+
+    derivative(DummyInterval(2.0), state, out)
+
+    assert out.dy == [24.0]
+
+
 def test_returning_kernel_signature_writes_return_value() -> None:
-    @DerivativeStyle.kernel_returning(state=("y",), translation=("dy",))
-    def kernel(y, scale):
+    @DerivativeStyle.kernel_accepts_instant_returns(state=("y",), translation=("dy",))
+    def kernel(t, y, scale):
         return [scale * y[0]]
 
     derivative = Derivative(kernel.with_parameters(3.0))
     state = DummyState([4.0])
     out = DummyTranslation([0.0])
 
-    assert isinstance(derivative.implementation, DerivativeKernelReturning)
+    assert isinstance(derivative.implementation, DerivativeKernelAcceptsInstantReturns)
 
     derivative(DummyInterval(0.0), state, out)
 
     assert out.dy == [12.0]
 
 
+def test_interval_returning_kernel_signature_passes_interval_object() -> None:
+    @DerivativeStyle.kernel_accepts_interval_returns(state=("y",), translation=("dy",))
+    def kernel(interval, y, scale):
+        t = interval.present
+        return [scale * t * y[0]]
+
+    derivative = Derivative(kernel.with_parameters(3.0))
+    state = DummyState([4.0])
+    out = DummyTranslation([0.0])
+
+    assert isinstance(derivative.implementation, DerivativeKernelAcceptsIntervalReturns)
+
+    derivative(DummyInterval(2.0), state, out)
+
+    assert out.dy == [24.0]
+
+
 def test_kernel_derivative_can_be_accelerated() -> None:
-    def kernel(y, dy) -> None:
+    def kernel(t, y, dy) -> None:
         dy[0] = y[0]
 
     derivative = Derivative(
-        DerivativeStyle.kernel(kernel, state=("y",), translation=("dy",))
+        DerivativeStyle.kernel_accepts_instant_writes(kernel, state=("y",), translation=("dy",))
     )
 
     accelerated = derivative.accelerate(AcceleratorNone())
 
-    assert isinstance(accelerated, DerivativeKernel)
+    assert isinstance(accelerated, DerivativeKernelAcceptsInstantWrites)
 
 
 def test_returning_kernel_derivative_can_be_accelerated() -> None:
-    def kernel(y):
+    def kernel(t, y):
         return y
 
     derivative = Derivative(
-        DerivativeStyle.kernel_returning(kernel, state=("y",), translation=("dy",))
+        DerivativeStyle.kernel_accepts_instant_returns(kernel, state=("y",), translation=("dy",))
     )
 
     accelerated = derivative.accelerate(AcceleratorNone())
 
-    assert isinstance(accelerated, DerivativeKernelReturning)
+    assert isinstance(accelerated, DerivativeKernelAcceptsInstantReturns)
 
 
 def test_returning_derivative_runs_through_jax_engine() -> None:

@@ -13,7 +13,7 @@ from stark.methods.inverters.krylov import InverterKrylovArnoldi
 from stark.methods.method import Method
 from stark.methods.resolvents import ResolventNewton
 from stark.methods.schemes import SchemeSDIRK21
-from stark.problem.derivative.derivative import DerivativeStyle
+from stark.problem import DerivativeStyle
 from stark.problem.frame.frame import Frame
 from stark.problem.linearizer import LinearizerStyle
 from competition.allen_cahn_1d.operator import (
@@ -38,8 +38,8 @@ def make_derivative(problem_parameters):
     diffusivity = problem_parameters["diffusivity"]
     inv_dx2 = 1.0 / (_dx(problem_parameters) ** 2)
 
-    @DerivativeStyle.kernel(state=("u",), translation=("du",))
-    def derivative(u: Array, du: Array) -> None:
+    @DerivativeStyle.kernel_accepts_instant_writes(state=("u",), translation=("du",))
+    def derivative(t: float, u: Array, du: Array) -> None:
         du[:] = diffusivity * (np.roll(u, 1) - 2.0 * u + np.roll(u, -1)) * inv_dx2 + u - u * u * u
 
     return derivative
@@ -56,7 +56,7 @@ def make_linearizer(problem_parameters):
             inv_dx2=inv_dx2,
         )
 
-    return LinearizerStyle.interval_in_place(linearizer)
+    return LinearizerStyle.accepts_interval_writes(linearizer)
 
 
 def inner_product(left, right) -> float:

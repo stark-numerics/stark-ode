@@ -24,9 +24,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Configuration, DerivativeStyle, Frame, Interval, Method, System
+from stark import Frame, Interval, Method, System
 from stark.engines import EngineNumpy
-from stark.methods.schemes import SchemeCashKarp
+from stark.methods import SchemeCashKarp
 
 
 def decay(t: float, state, out) -> None:
@@ -34,18 +34,17 @@ def decay(t: float, state, out) -> None:
     out.dy[0] = -0.5 * state.y[0]
 
 
-frame = Frame({"y": {"translation": "dy", "shape": (1,)}})
+frame = Frame.scalar("y", translation="dy")
 system = System(
-    derivative=DerivativeStyle.in_place(decay),
+    derivative=decay,
     frame=frame,
 )
 
 ivp = system.ivp(
     initial={"y": np.array([2.0])},
     interval=Interval(present=0.0, step=0.1, stop=1.0),
-    method=Method(scheme=SchemeCashKarp),
+    method=Method(SchemeCashKarp),
     engine=EngineNumpy,
-    configuration=Configuration(check_progress=False),
 )
 
 for interval, state in ivp.integrate():
@@ -65,7 +64,7 @@ A `Frame` maps user state fields to solver translation fields.
 For a two-component oscillator:
 
 ```python
-frame = Frame({"y": {"translation": "dy", "shape": (2,)}})
+frame = Frame.vector("y", translation="dy", length=2)
 ```
 
 The derivative writes into `out.dy` because `dy` is the translation field for `y`.
@@ -102,12 +101,12 @@ The scheme-facing contract is still prepared as an in-place kernel internally.
 
 ## Change the method
 
-Use `Method(scheme=...)` to choose a scheme.
+Use `Method(...)` to choose a scheme.
 
 ```python
-from stark.methods.schemes import SchemeBogackiShampine, SchemeCashKarp
+from stark.methods import SchemeBogackiShampine, SchemeCashKarp
 
-method = Method(scheme=SchemeCashKarp)
+method = Method(SchemeCashKarp)
 ```
 
 Run:
@@ -131,9 +130,9 @@ Internal steps are for accuracy and stability. Checkpoints are for output.
 Start with NumPy. Then try JAX or CuPy when you have a reason to use those array systems.
 
 ```powershell
-python -m examples.getting_started.interface.numpy
-python -m examples.getting_started.interface.jax
-python -m examples.getting_started.interface.cupy
+python -m examples.backends.numpy
+python -m examples.backends.jax
+python -m examples.backends.cupy
 ```
 
 JAX and CuPy support may be optional in your environment. The examples should report missing optional dependencies rather than fail mysteriously.

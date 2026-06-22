@@ -17,6 +17,12 @@ from stark.engines.shared.algebraist.frame import (
 from stark.engines.shared.algebraist.frame.path import AlgebraistFramePathLike
 from stark.problem.frame.norm import FrameNormPolicy, FrameNormRMS
 
+FrameFieldSpec = tuple[
+    AlgebraistFramePathLike,
+    AlgebraistFramePathLike,
+    tuple[int, ...] | list[int],
+]
+
 
 @dataclass(frozen=True, slots=True)
 class FrameField:
@@ -90,6 +96,71 @@ class Frame:
 
         object.__setattr__(self, "fields", normalized)
         self.to_algebraist_frame()
+
+    @classmethod
+    def scalar(
+        cls,
+        state: AlgebraistFramePathLike,
+        *,
+        translation: AlgebraistFramePathLike | None = None,
+        norm: FrameNormPolicy | AlgebraistFrameNormPolicy | None = None,
+    ) -> "Frame":
+        """Build a one-field frame for scalar-like state storage.
+
+        This is a convenience spelling for the full mapping syntax. The
+        resulting field still has shape `(1,)`, matching the single-entry
+        array style used by the getting-started examples.
+        """
+
+        spec: dict[str, Any] = {
+            "translation": translation if translation is not None else state,
+            "shape": (1,),
+        }
+        if norm is not None:
+            spec["norm"] = norm
+        return cls({state: spec})
+
+    @classmethod
+    def vector(
+        cls,
+        state: AlgebraistFramePathLike,
+        *,
+        translation: AlgebraistFramePathLike | None = None,
+        length: int,
+        norm: FrameNormPolicy | AlgebraistFrameNormPolicy | None = None,
+    ) -> "Frame":
+        """Build a one-field frame for vector state storage.
+
+        This is a convenience spelling for `Frame({state: {"translation": ...,
+        "shape": (length,)}})`.
+        """
+
+        spec: dict[str, Any] = {
+            "translation": translation if translation is not None else state,
+            "shape": (length,),
+        }
+        if norm is not None:
+            spec["norm"] = norm
+        return cls({state: spec})
+
+    @classmethod
+    def from_fields(cls, *fields: FrameField | FrameFieldSpec) -> "Frame":
+        """Build a frame from compact `(state, translation, shape)` entries.
+
+        This is a convenience spelling for small multi-field systems where the
+        full mapping syntax is visually heavier than the declaration itself.
+        For advanced field options, pass `FrameField(...)` objects or use the
+        full `Frame({...})` mapping syntax.
+        """
+
+        return cls(tuple(cls._coerce_field_spec(field) for field in fields))
+
+    @staticmethod
+    def _coerce_field_spec(field: FrameField | FrameFieldSpec) -> FrameField:
+        if isinstance(field, FrameField):
+            return field
+        state, translation, shape = field
+        return FrameField(state, translation=translation, shape=shape)
 
     @staticmethod
     def _coerce_field(

@@ -7,24 +7,30 @@ do, rather than from hand-written scalar wrapper classes.
 
 from __future__ import annotations
 
+from typing import Any
+
 from stark import Configuration, Frame, Tolerance
 from stark.core.block import Block
 from stark.core.block.operator import BlockOperatorDiagonal
 from stark.engines import EngineNumpy
-from stark.methods.inverters.relaxation import InverterRelaxationRichardson
+from stark.methods import InverterRelaxationRichardson
 from stark.methods.inverters.support import InverterDefect
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 
 
-def scale_by_two(source, target) -> None:
-    target.dx[:] = 2.0 * source.dx
-
-
 def main() -> None:
-    engine = EngineNumpy(Frame({"x": {"translation": "dx", "shape": (1,)}}))
+    engine = EngineNumpy(Frame.scalar("x", translation="dx"))
+    basis = engine.translation_basis()
+    coordinates = [0.0]
+    image = [0.0]
+
+    def scale_by_two(source: Any, target: Any) -> None:
+        basis.coordinates(source, coordinates)
+        image[0] = 2.0 * coordinates[0]
+        basis.synthesize(image, target)
 
     residual = engine.allocator.allocate_translation()
-    residual.dx[0] = 6.0
+    basis.synthesize([6.0], residual)
     output_delta = engine.allocator.allocate_translation()
 
     request = ResolventInverterRequest(
@@ -50,7 +56,8 @@ def main() -> None:
     print("problem:        2 * output = 6")
     print("initial output: 0")
     print(f"initial defect: {initial_defect:.6g}")
-    print(f"final output:   {output[0].dx[0]:.6g}")
+    basis.coordinates(output[0], coordinates)
+    print(f"final output:   {coordinates[0]:.6g}")
     print(f"final defect:   {final_defect:.6g}")
 
 

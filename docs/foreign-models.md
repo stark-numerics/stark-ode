@@ -2,7 +2,9 @@
 
 This page is for users whose model already has its own state objects and solver increments.
 
-Use the high-level `System`/`Frame` path when your state can be represented as named fields. Use this page when that would be artificial.
+Use the high-level `System`/`Frame` path when your state can be represented as
+named fields. Use this page when that would be artificial because the model
+already owns its state and increment objects.
 
 ## The idea
 
@@ -16,9 +18,23 @@ allocator    factory for states, translations, and scratch
 
 A foreign model integration provides these objects directly.
 
+## Nesting is still a Frame job
+
+Nested data does not require a custom allocator. A `Frame` path can name nested
+fields such as `model.particle.position`, and the engine will allocate matching
+state and translation objects. Prefer that route when the structure is just
+named scalar or array data.
+
+Custom state and custom allocators are for preserving an existing object model:
+objects with constructor requirements, invariants, non-array storage,
+external resources, or behavior that would be damaged by asking STARK to own
+the storage.
+
 ## Minimal custom state example
 
-This is a small harmonic oscillator with custom Python objects rather than `Frame`-generated state.
+This is a small harmonic oscillator with custom Python objects rather than
+`Frame`-generated state. It is deliberately lower-level than the preferred
+structured-state route.
 
 ```python
 from __future__ import annotations
@@ -89,11 +105,10 @@ for interval, state in Integrator().mutating_trajectory(stepper, interval, state
     print(f"t={interval.present:.1f}, x={state.position:.6f}, v={state.velocity:.6f}")
 ```
 
-Run the maintained version:
-
-```powershell
-python -m examples.features.structured_state_minimal
-```
+The runnable feature example `examples.features.structured_state_minimal`
+shows the preferred high-level `Frame` route for nested structured fields.
+The runnable feature example `examples.features.foreign_model_allocator`
+shows the lower-level custom allocator route for an existing object model.
 
 ## What the translation must do
 
@@ -123,7 +138,9 @@ Implicit methods and advanced inverters may require additional operator or block
 
 ## When to prefer `Frame`
 
-Use `Frame` if your model can be described as named array/scalar fields. The high-level path gives STARK more structure, which enables generated Algebraist kernels and backend acceleration.
+Use `Frame` if your model can be described as named array/scalar fields, even
+when those fields are nested. The high-level path gives STARK more structure,
+which enables generated Algebraist kernels and backend acceleration.
 
 Use custom state/translation only when preserving the foreign model representation is more important than the generated high-level path.
 

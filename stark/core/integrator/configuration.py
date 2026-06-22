@@ -8,4 +8,4 @@ class IntegratorConfiguration(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class IntegratorConfigurationDefault:
-    check_progress: bool = True
+    check_progress: bool = False

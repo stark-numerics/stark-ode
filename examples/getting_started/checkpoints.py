@@ -1,18 +1,12 @@
-from __future__ import annotations
-
 """Ask STARK for evenly spaced output without forcing fixed solver steps."""
+
+from __future__ import annotations
 
 import numpy as np
 
-from stark import (
-    Configuration,
-    Interval,
-    Frame,
-    Method,
-    System,
-)
+from stark import Frame, Interval, Method, System
 from stark.engines import EngineNumpy
-from stark.methods.schemes import SchemeCashKarp
+from stark.methods import SchemeCashKarp
 
 
 def oscillator_rhs(t: float, state, out) -> None:
@@ -21,19 +15,25 @@ def oscillator_rhs(t: float, state, out) -> None:
     out.dy[1] = -state.y[0]
 
 
-system = System(
-    derivative=oscillator_rhs,
-    frame=Frame({"y": {"translation": "dy", "shape": (2,)}}),
-)
-ivp = system.ivp(
-    initial={"y": np.array([1.0, 0.0])},
-    interval=Interval(present=0.0, step=0.05, stop=1.0),
-    method=Method(scheme=SchemeCashKarp),
-    engine=EngineNumpy,
-    configuration=Configuration(check_progress=False),
-)
+def build_ivp():
+    system = System(
+        derivative=oscillator_rhs,
+        frame=Frame.vector("y", translation="dy", length=2),
+    )
+    return system.ivp(
+        initial={"y": np.array([1.0, 0.0])},
+        interval=Interval(present=0.0, step=0.05, stop=1.0),
+        method=Method(SchemeCashKarp),
+        engine=EngineNumpy,
+    )
 
-print("Checkpointed harmonic oscillator")
-for interval, state in ivp.integrate(checkpoints=4):
-    position, velocity = state.y
-    print(f"checkpoint t={interval.present:.2f}, x={position:.6f}, v={velocity:.6f}")
+
+def main() -> None:
+    print("Checkpointed harmonic oscillator")
+    for interval, state in build_ivp().integrate(checkpoints=4):
+        position, velocity = state.y
+        print(f"checkpoint t={interval.present:.2f}, x={position:.6f}, v={velocity:.6f}")
+
+
+if __name__ == "__main__":
+    main()

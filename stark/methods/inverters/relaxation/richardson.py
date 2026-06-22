@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from typing import Generic
 
-from stark.core import Configuration
 from stark.core.contracts import (
     BlockLike,
     InverterOutputMode,
     InverterRequest,
     TranslationType,
 )
-from stark.methods.inverters.configuration import InverterConfiguration
+from stark.methods.inverters.configuration import (
+    InverterConfiguration,
+    InverterConfigurationDefault,
+)
 from stark.methods.inverters.relaxation.specialist import InverterRelaxationSpecialist
 from stark.methods.inverters.relaxation.stencil import InverterRelaxationStencilUpdate
 from stark.methods.inverters.support import (
@@ -49,6 +51,7 @@ class InverterRelaxationRichardson(Generic[TranslationType]):
         "monitor",
         "output_buffer",
         "output_size",
+        "redirect_call",
         "tolerance",
         "update_output",
     )
@@ -67,7 +70,7 @@ class InverterRelaxationRichardson(Generic[TranslationType]):
         if damping <= 0.0:
             raise ValueError("InverterRelaxationRichardson.damping must be positive.")
 
-        configuration = configuration if configuration is not None else Configuration()
+        configuration = configuration if configuration is not None else InverterConfigurationDefault()
         self.damping = damping
         self.tolerance = configuration.inverter_tolerance
         self.maximum_steps = configuration.inverter_maximum_steps
@@ -81,13 +84,38 @@ class InverterRelaxationRichardson(Generic[TranslationType]):
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
             self.call_body = self.call_specialized
+        self.redirect_call = self.call_monitored if monitor is not None else self.call_unmonitored
 
     def __call__(
         self,
         request: InverterRequest[TranslationType],
         output: BlockLike[TranslationType],
     ) -> None:
-        return self.call_body(request, output)
+        return self.redirect_call(request, output)
+
+    def call_unmonitored(
+        self,
+        request: InverterRequest[TranslationType],
+        output: BlockLike[TranslationType],
+    ) -> None:
+        self.call_body(request, output)
+
+    def call_monitored(
+        self,
+        request: InverterRequest[TranslationType],
+        output: BlockLike[TranslationType],
+    ) -> None:
+        converged, iteration_count, initial_residual, final_residual = self.call_body(
+            request,
+            output,
+        )
+        self.record_solve(
+            converged=converged,
+            iteration_count=iteration_count,
+            initial_residual=initial_residual,
+            final_residual=final_residual,
+            failure_reason=None if converged else "maximum steps reached",
+        )
 
     def prepare_specialized_kernels(
         self,
@@ -114,7 +142,7 @@ class InverterRelaxationRichardson(Generic[TranslationType]):
         self,
         request: InverterRequest[TranslationType],
         output: BlockLike[TranslationType],
-    ) -> None:
+    ) -> tuple[bool, int, float, float]:
         residual_norm = request.residual.norm()
 
         # 1. Compute defect = request.residual - request.operator(output).
@@ -122,13 +150,7 @@ class InverterRelaxationRichardson(Generic[TranslationType]):
 
         # 2. Accept if the defect norm is within tolerance.
         if self.tolerance.accepts(initial_defect, residual_norm):
-            self.record_solve(
-                converged=True,
-                iteration_count=0,
-                initial_residual=initial_defect,
-                final_residual=initial_defect,
-            )
-            return
+            return True, 0, initial_defect, initial_defect
 
         final_defect = initial_defect
         for step in range(1, self.maximum_steps + 1):
@@ -141,27 +163,15 @@ class InverterRelaxationRichardson(Generic[TranslationType]):
             # 4. Repeat until accepted or the step budget is exhausted.
             final_defect = self.defect(request, output)
             if self.tolerance.accepts(final_defect, residual_norm):
-                self.record_solve(
-                    converged=True,
-                    iteration_count=step,
-                    initial_residual=initial_defect,
-                    final_residual=final_defect,
-                )
-                return
+                return True, step, initial_defect, final_defect
 
-        self.record_solve(
-            converged=False,
-            iteration_count=self.maximum_steps,
-            initial_residual=initial_defect,
-            final_residual=final_defect,
-            failure_reason="maximum steps reached",
-        )
+        return False, self.maximum_steps, initial_defect, final_defect
 
     def call_specialized(
         self,
         request: InverterRequest[TranslationType],
         output: BlockLike[TranslationType],
-    ) -> None:
+    ) -> tuple[bool, int, float, float]:
         self.prepare_output_buffer(output)
         residual_norm = request.residual.norm()
         update_output = self.update_output
@@ -174,13 +184,7 @@ class InverterRelaxationRichardson(Generic[TranslationType]):
 
         # 2. Accept if the defect norm is within tolerance.
         if self.tolerance.accepts(initial_defect, residual_norm):
-            self.record_solve(
-                converged=True,
-                iteration_count=0,
-                initial_residual=initial_defect,
-                final_residual=initial_defect,
-            )
-            return
+            return True, 0, initial_defect, initial_defect
 
         final_defect = initial_defect
         for step in range(1, self.maximum_steps + 1):
@@ -194,21 +198,9 @@ class InverterRelaxationRichardson(Generic[TranslationType]):
             # 4. Repeat until accepted or the step budget is exhausted.
             final_defect = self.defect(request, output)
             if self.tolerance.accepts(final_defect, residual_norm):
-                self.record_solve(
-                    converged=True,
-                    iteration_count=step,
-                    initial_residual=initial_defect,
-                    final_residual=final_defect,
-                )
-                return
+                return True, step, initial_defect, final_defect
 
-        self.record_solve(
-            converged=False,
-            iteration_count=self.maximum_steps,
-            initial_residual=initial_defect,
-            final_residual=final_defect,
-            failure_reason="maximum steps reached",
-        )
+        return False, self.maximum_steps, initial_defect, final_defect
 
 
 __all__ = ["InverterRelaxationRichardson"]

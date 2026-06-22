@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Record scheme, resolvent, and inverter evidence with one Monitor.
 
 Monitoring is opt-in at each numerical layer. Schemes receive
@@ -8,20 +6,20 @@ and inverters receive their own monitor surfaces when they are exercised
 directly.
 """
 
+from __future__ import annotations
+
 import numpy as np
 
-from stark import Configuration, Interval, Monitor, Frame, Method, System, Tolerance
+from stark import Configuration, Frame, Interval, Method, Monitor, System, Tolerance
 from stark.core.block import Block
 from stark.core.block.operator import BlockOperatorDiagonal
 from stark.engines import EngineNumpy
-from stark.methods.inverters.relaxation import InverterRelaxationRichardson
-from stark.methods.resolvents import ResolventPicard
+from stark.methods import InverterRelaxationRichardson, ResolventPicard, SchemeEuler
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
-from stark.methods.schemes import SchemeEuler
 from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
 
 
-LAYOUT = Frame({"x": {"translation": "dx", "shape": (1,)}})
+FRAME = Frame.scalar("x", translation="dx")
 
 
 def constant_rhs(t: float, state, out) -> None:
@@ -39,20 +37,19 @@ def scale_by_two(source, target) -> None:
 
 
 def record_scheme_level(monitor: Monitor) -> None:
-    system = System(derivative=constant_rhs, frame=LAYOUT)
+    system = System(derivative=constant_rhs, frame=FRAME)
     ivp = system.ivp(
         initial={"x": np.array([0.0])},
         interval=Interval(present=0.0, step=0.1, stop=0.3),
-        method=Method(scheme=SchemeEuler, scheme_options={"monitor": monitor.scheme}),
+        method=Method(SchemeEuler, scheme_options={"monitor": monitor.scheme}),
         engine=EngineNumpy,
-        configuration=Configuration(check_progress=False),
     )
 
     ivp.final_result()
 
 
 def record_resolvent_level(monitor: Monitor) -> None:
-    engine = EngineNumpy(LAYOUT)
+    engine = EngineNumpy(FRAME)
     resolvent = ResolventPicard(engine.allocator)
     resolvent.assign_monitor(monitor.resolvent)
 
@@ -69,7 +66,7 @@ def record_resolvent_level(monitor: Monitor) -> None:
 
 
 def record_inverter_level(monitor: Monitor) -> None:
-    engine = EngineNumpy(LAYOUT)
+    engine = EngineNumpy(FRAME)
     residual = engine.allocator.allocate_translation()
     residual.dx[0] = 6.0
     output_delta = engine.allocator.allocate_translation()

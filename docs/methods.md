@@ -5,7 +5,7 @@ This page is for users who want to choose how STARK advances time.
 The high-level object is `Method`:
 
 ```python
-method = Method(scheme=SchemeCashKarp)
+method = Method(SchemeCashKarp)
 ```
 
 A method can also carry a resolvent, inverter, predictor, and other prepared pieces when you use implicit or custom solves.
@@ -32,7 +32,7 @@ python -m examples.getting_started.choose_scheme
 A scheme owns the stage structure and step update. Examples:
 
 ```python
-from stark.methods.schemes import SchemeCashKarp, SchemeKvaerno3, SchemeRK4
+from stark.methods import SchemeCashKarp, SchemeKvaerno3, SchemeRK4
 ```
 
 Use explicit schemes until stiffness forces an implicit method.

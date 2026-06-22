@@ -1,34 +1,32 @@
-from __future__ import annotations
-
 """Compare derivative declaration styles on the same scalar problem."""
+
+from __future__ import annotations
 
 import numpy as np
 
-from stark import Configuration, DerivativeStyle, Frame, Interval, Method, System
+from stark import DerivativeStyle, Frame, Interval, Method, System
 from stark.engines import EngineNumpy
-from stark.methods.schemes import SchemeCashKarp
+from stark.methods import SchemeCashKarp
 
 
-FRAME = Frame({"y": {"translation": "dy", "shape": (1,)}})
+FRAME = Frame.scalar("y", translation="dy")
 INITIAL = {"y": np.array([2.0])}
 INTERVAL = Interval(present=0.0, step=0.1, stop=0.2)
 
 
-@DerivativeStyle.in_place
+@DerivativeStyle.accepts_instant_writes
 def in_place_rhs(t: float, state, out) -> None:
-    del t
-    out.dy[:] = -0.5 * state.y
+    out.dy[:] = -(0.5 + 0.1 * t) * state.y
 
 
-@DerivativeStyle.returning
+@DerivativeStyle.accepts_instant_returns
 def returning_rhs(t: float, state):
-    del t
-    return {"dy": -0.5 * state.y}
+    return {"dy": -(0.5 + 0.1 * t) * state.y}
 
 
-@DerivativeStyle.kernel_returning(state=("y",), translation=("dy",))
-def kernel_returning_rhs(y):
-    return -0.5 * y
+@DerivativeStyle.kernel_accepts_instant_returns(state=("y",), translation=("dy",))
+def kernel_returning_rhs(t, y):
+    return -(0.5 + 0.1 * t) * y
 
 
 def final_value(derivative) -> float:
@@ -36,17 +34,21 @@ def final_value(derivative) -> float:
     ivp = system.ivp(
         initial={"y": INITIAL["y"].copy()},
         interval=INTERVAL,
-        method=Method(scheme=SchemeCashKarp),
+        method=Method(SchemeCashKarp),
         engine=EngineNumpy,
-        configuration=Configuration(check_progress=False),
     )
     return float(ivp.final_result().state.y[0])
 
 
-print("Derivative styles")
-for name, derivative in (
-    ("in-place", in_place_rhs),
-    ("returning", returning_rhs),
-    ("kernel returning", kernel_returning_rhs),
-):
-    print(f"{name:16s}: y(0.2) = {final_value(derivative):.6f}")
+def main() -> None:
+    print("Derivative styles")
+    for name, derivative in (
+        ("in-place", in_place_rhs),
+        ("returning", returning_rhs),
+        ("kernel returning", kernel_returning_rhs),
+    ):
+        print(f"{name:16s}: y(0.2) = {final_value(derivative):.6f}")
+
+
+if __name__ == "__main__":
+    main()

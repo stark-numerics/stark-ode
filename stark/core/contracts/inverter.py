@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Protocol
+from typing import Any, ClassVar, Protocol
 
 from stark.core.contracts.contract_audit import AuditRecorder
 from stark.core.contracts.block import BlockLike, BlockOperatorLike
@@ -43,8 +43,13 @@ class InverterRequest(Protocol[TranslationType]):
             Right-hand side block in the linear equation.
     """
 
-    operator: BlockOperatorLike[TranslationType]
-    residual: BlockLike[TranslationType]
+    @property
+    def operator(self) -> BlockOperatorLike[TranslationType]:
+        ...
+
+    @property
+    def residual(self) -> BlockLike[TranslationType]:
+        ...
 
 
 class Inverter(Protocol[TranslationType]):
@@ -56,7 +61,7 @@ class Inverter(Protocol[TranslationType]):
 
         request.operator(output) ≈ request.residual
     """
-    output_mode: InverterOutputMode
+    output_mode: ClassVar[InverterOutputMode]
 
     def __call__(
         self,

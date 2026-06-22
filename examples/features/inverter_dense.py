@@ -1,83 +1,68 @@
+"""Use the dense inverter with engine-owned translations.
+
+Dense inverters solve small coordinate systems internally. The engine can
+provide the translation basis used for that coordinate view, so user examples
+do not need to define custom basis classes just to inspect the inverter path.
+"""
+
 from __future__ import annotations
 
-"""Use the current request-shaped dense inverter on a tiny block system."""
+from typing import Any
 
-from dataclasses import dataclass
-from math import sqrt
-
+from stark import Frame
 from stark.core.block import Block, BlockBasis
-from stark.methods.inverters.dense import InverterDense
+from stark.core.block.operator import BlockOperatorDiagonal
+from stark.core.contracts import TranslationBasis
+from stark.engines import EngineNumpy
+from stark.methods import InverterDense
+from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 
 
-@dataclass
-class Vector:
-    values: list[float]
+class MatrixOperator:
+    """Apply and materialise ``[[2, 1], [1, 3]]`` on one translation field."""
 
-    def __init__(self, *values: float) -> None:
-        self.values = [float(value) for value in values]
+    def __init__(self, basis: TranslationBasis[Any]) -> None:
+        self.basis = basis
+        self.image = [0.0, 0.0]
+        self.result = [0.0, 0.0]
 
-    def norm(self) -> float:
-        return sqrt(sum(value * value for value in self.values))
+    def __call__(self, source: Any, target: Any) -> None:
+        self.basis.coordinates(source, self.image)
+        x, y = self.image
+        self.result[0] = 2.0 * x + y
+        self.result[1] = x + 3.0 * y
+        self.basis.synthesize(self.result, target)
 
-    def __add__(self, other: "Vector") -> "Vector":
-        return Vector(*(left + right for left, right in zip(self.values, other.values, strict=True)))
-
-    def __rmul__(self, scalar: float) -> "Vector":
-        return Vector(*(scalar * value for value in self.values))
-
-
-class VectorBasis:
-    dimension = 2
-
-    def vector(self, index: int, output: Vector) -> Vector:
-        output.values[:] = [0.0, 0.0]
-        output.values[index] = 1.0
-        return output
-
-    def coordinate(self, index: int, translation: Vector) -> float:
-        return translation.values[index]
-
-    def coordinates(self, translation: Vector, output: list[float]) -> list[float]:
-        output[:] = translation.values[:]
-        return output
-
-    def synthesize(self, coordinates: list[float], output: Vector) -> Vector:
-        output.values[:] = list(coordinates)
-        return output
+    def dense_fill(self, _basis: object, matrix: list[float], row: int, column: int, stride: int) -> None:
+        matrix[(row + 0) * stride + column + 0] = 2.0
+        matrix[(row + 0) * stride + column + 1] = 1.0
+        matrix[(row + 1) * stride + column + 0] = 1.0
+        matrix[(row + 1) * stride + column + 1] = 3.0
 
 
-class OperatorDiagonal:
-    def __len__(self) -> int:
-        return 1
+def main() -> None:
+    engine = EngineNumpy(Frame.vector("x", translation="dx", length=2))
+    basis = engine.translation_basis()
 
-    def __getitem__(self, index: int):
-        if index != 0:
-            raise IndexError(index)
-        return self.apply_one
+    residual = engine.allocator.allocate_translation()
+    basis.synthesize([1.0, 2.0], residual)
+    output_delta = engine.allocator.allocate_translation()
 
-    def __call__(self, source: Block[Vector], target: Block[Vector]) -> Block[Vector]:
-        self.apply_one(source[0], target[0])
-        return target
+    operator: BlockOperatorDiagonal[Any] = BlockOperatorDiagonal([MatrixOperator(basis)])
+    residual_block: Block[Any] = Block([residual])
+    request = ResolventInverterRequest(operator=operator, residual=residual_block)
+    output: Block[Any] = Block([output_delta])
+    inverter = InverterDense(BlockBasis([basis]))
 
-    @staticmethod
-    def apply_one(source: Vector, target: Vector) -> Vector:
-        x, y = source.values
-        target.values[:] = [2.0 * x + y, x + 3.0 * y]
-        return target
+    inverter(request, output)
+    coordinates = [0.0, 0.0]
+    basis.coordinates(output[0], coordinates)
 
-
-@dataclass
-class Request:
-    operator: OperatorDiagonal
-    residual: Block[Vector]
+    print("Dense inverter")
+    print("==============")
+    print("system:   [[2, 1], [1, 3]] x = [1, 2]")
+    print(f"solution: [{coordinates[0]:.6g}, {coordinates[1]:.6g}]")
 
 
-inverter = InverterDense(BlockBasis([VectorBasis()]))
-request = Request(OperatorDiagonal(), Block([Vector(1.0, 2.0)]))
-output = Block([Vector(0.0, 0.0)])
-
-inverter(request, output)  # solves [[2, 1], [1, 3]] x = [1, 2]
-
-print("Dense inverter")
-print("system: [[2, 1], [1, 3]] x = [1, 2]")
-print(f"solution: {output[0].values}")
+if __name__ == "__main__":
+    main()

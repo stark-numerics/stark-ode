@@ -243,7 +243,7 @@ def test_scheme_step_support_consumes_algebraist_linear_combine_contract() -> No
 
 
 def test_scheme_repr_includes_names_and_tableau() -> None:
-    split = Derivative.imex(implicit=_dummy_derivative, explicit=_dummy_derivative)
+    split = Derivative.split(implicit=_dummy_derivative, explicit=_dummy_derivative)
     imex_allocator = DummyAllocator()
     euler = SchemeEuler(_dummy_derivative, DummyAllocator())
     heun = SchemeHeun(_dummy_derivative, DummyAllocator())
@@ -426,7 +426,7 @@ def test_imex_euler_handles_purely_explicit_split() -> None:
         del interval, state
         out.value = 1.0
 
-    split = Derivative.imex(implicit=implicit, explicit=explicit)
+    split = Derivative.split(implicit=implicit, explicit=explicit)
     allocator = TimeAllocator()
     scheme = SchemeIMEXEuler(split, allocator, resolvent=_imex_picard(split, allocator, SchemeIMEXEuler.tableau))
     interval = Interval(present=0.0, step=0.5, stop=0.5)
@@ -447,7 +447,7 @@ def test_imex_ark324_accepts_constant_split_rhs() -> None:
         del interval, state
         out.value = 1.0
 
-    split = Derivative.imex(implicit=implicit, explicit=explicit)
+    split = Derivative.split(implicit=implicit, explicit=explicit)
     allocator = TimeAllocator()
     scheme = SchemeKennedyCarpenter32(
         split,

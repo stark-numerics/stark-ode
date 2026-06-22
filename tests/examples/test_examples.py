@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
     (
         (("examples",), "STARK examples"),
         (("examples.getting_started",), "All getting started examples completed."),
+        (("examples.backends",), "All backend examples completed."),
         (("examples.features",), "All feature examples completed."),
         (("examples.case_studies",), "Case study examples"),
         (("competition",), "Competition examples"),

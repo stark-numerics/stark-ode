@@ -166,7 +166,7 @@ def test_require_linear_residual_rejects_missing_linearize() -> None:
 
 
 def test_auditor_reports_ready_imex_derivative() -> None:
-    imex = Derivative.imex(implicit=derivative, explicit=derivative)
+    imex = Derivative.split(implicit=derivative, explicit=derivative)
 
     auditor = Auditor(
         state={"x": 1.0},
@@ -183,8 +183,8 @@ def test_auditor_reports_ready_imex_derivative() -> None:
 
 
 def test_derivative_style_declares_imex_split() -> None:
-    styled = DerivativeStyle.imex(implicit=derivative, explicit=derivative)
-    direct = Derivative.imex(implicit=derivative, explicit=derivative)
+    styled = DerivativeStyle.split(implicit=derivative, explicit=derivative)
+    direct = Derivative.split(implicit=derivative, explicit=derivative)
 
     assert isinstance(styled, DerivativeSplit)
     assert styled.implicit is derivative

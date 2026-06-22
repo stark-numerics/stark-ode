@@ -14,7 +14,7 @@ from stark.methods.inverters.dense import InverterDense
 from stark.methods.method import Method
 from stark.methods.resolvents import ResolventChord, ResolventNewton, ResolventVeryChord
 from stark.methods.schemes import SchemeKvaerno5
-from stark.problem.derivative.derivative import DerivativeStyle
+from stark.problem import DerivativeStyle
 from stark.problem.frame.frame import Frame
 from stark.problem.linearizer import LinearizerStyle
 from stark.problem.system.system import System
@@ -24,8 +24,8 @@ HIRES_FRAME = Frame({"y": {"translation": "dy", "shape": (8,)}})
 Array = Any
 
 
-@DerivativeStyle.kernel(state=("y",), translation=("dy",))
-def hires_rhs(y: Array, dy: Array) -> None:
+@DerivativeStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",))
+def hires_rhs(t: float, y: Array, dy: Array) -> None:
     reaction = 280.0 * y[5] * y[7]
     dy[0] = -1.71 * y[0] + 0.43 * y[1] + 8.32 * y[2] + 0.0007
     dy[1] = 1.71 * y[0] - 8.75 * y[1]
@@ -37,7 +37,8 @@ def hires_rhs(y: Array, dy: Array) -> None:
     dy[7] = -reaction + 1.81 * y[6]
 
 
-def hires_jacobian_apply(state_y: Array, source_dy: Array, out_dy: Array) -> None:
+def hires_jacobian_apply(t: float, state_y: Array, source_dy: Array, out_dy: Array) -> None:
+    del t
     y5 = state_y[5]
     y7 = state_y[7]
     source5 = source_dy[5]
@@ -86,30 +87,6 @@ hires_linearizer = LinearizerStyle.operator(
     source=("dy",),
     target=("dy",),
 )
-
-class HiresTranslationBasis:
-    """Coordinate basis for the HIRES translation field."""
-
-    dimension = 8
-
-    def vector(self, index: int, output) -> object:
-        output.dy[:] = 0.0
-        output.dy[index] = 1.0
-        return output
-
-    def coordinate(self, index: int, translation) -> float:
-        return float(translation.dy[index])
-
-    def coordinates(self, translation, output: list[float]) -> list[float]:
-        dy = translation.dy
-        for index in range(8):
-            output[index] = float(dy[index])
-        return output
-
-    def synthesize(self, coordinates: list[float], output) -> object:
-        output.dy[:] = coordinates
-        return output
-
 
 def stark_configuration(stark_parameters) -> Configuration:
     return Configuration(
@@ -180,7 +157,7 @@ def stark_solver(
 
 
 def newton_dense_resolvent(engine, linearizer, configuration, scheme):
-    inverter = InverterDense(basis=BlockBasis([HiresTranslationBasis()]))
+    inverter = InverterDense(basis=BlockBasis([engine.translation_basis()]))
     return ResolventNewton(
         engine.allocator,
         linearizer=linearizer,
@@ -192,7 +169,7 @@ def newton_dense_resolvent(engine, linearizer, configuration, scheme):
 
 
 def chord_dense_resolvent(engine, linearizer, configuration, scheme):
-    inverter = InverterDense(basis=BlockBasis([HiresTranslationBasis()]))
+    inverter = InverterDense(basis=BlockBasis([engine.translation_basis()]))
     return ResolventChord(
         engine.allocator,
         linearizer=linearizer,
@@ -204,7 +181,7 @@ def chord_dense_resolvent(engine, linearizer, configuration, scheme):
 
 
 def very_chord_dense_resolvent(engine, linearizer, configuration, scheme):
-    inverter = InverterDense(basis=BlockBasis([HiresTranslationBasis()]))
+    inverter = InverterDense(basis=BlockBasis([engine.translation_basis()]))
     return ResolventVeryChord(
         engine.allocator,
         linearizer=linearizer,

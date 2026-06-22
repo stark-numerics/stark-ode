@@ -4,7 +4,7 @@ from __future__ import annotations
 
 # JAX changes the derivative style.  JAX arrays are immutable, so the example
 # does not write into an output array.  Instead it returns the new translation
-# field value and lets DerivativeStyle.kernel_returning adapt that to STARK's
+# field value and lets DerivativeStyle.kernel_accepts_instant_returns adapt that to STARK's
 # derivative contract.
 #
 # This lesson is about backend syntax and backend expectations, not about
@@ -33,7 +33,7 @@ SIZE = 256
 
 
 def _kernel_returning_available() -> bool:
-    return callable(getattr(DerivativeStyle, "kernel_returning", None))
+    return callable(getattr(DerivativeStyle, "kernel_accepts_instant_returns", None))
 
 
 def initial_jax(size: int = SIZE):
@@ -46,12 +46,14 @@ def initial_jax(size: int = SIZE):
 def build_jax_derivative():
     if jnp is None:
         raise RuntimeError("JAX is not installed.")
-    kernel_returning = getattr(DerivativeStyle, "kernel_returning", None)
+    kernel_returning = getattr(DerivativeStyle, "kernel_accepts_instant_returns", None)
     if not callable(kernel_returning):
-        raise RuntimeError("This lesson requires DerivativeStyle.kernel_returning.")
+        raise RuntimeError(
+            "This lesson requires DerivativeStyle.kernel_accepts_instant_returns."
+        )
 
     @kernel_returning(state=("u",), translation=("du",), parameters=(DIFFUSION, REACTION))
-    def rhs_jax(u, diffusion: float, reaction: float):
+    def rhs_jax(t, u, diffusion: float, reaction: float):
         """Return-style JAX derivative.
 
         The expression is written as ordinary JAX array code.  There is no
@@ -100,7 +102,10 @@ def main() -> None:
         print("JAX is not installed; skipping this lesson.")
         return
     if not _kernel_returning_available():
-        print("DerivativeStyle.kernel_returning is not available; skipping this lesson.")
+        print(
+            "DerivativeStyle.kernel_accepts_instant_returns is not available; "
+            "skipping this lesson."
+        )
         return
 
     ivp = build_jax_ivp()

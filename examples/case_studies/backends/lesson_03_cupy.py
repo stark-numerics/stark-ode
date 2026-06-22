@@ -40,8 +40,8 @@ def initial_cupy(size: int = SIZE):
 
 if cp is not None:
 
-    @DerivativeStyle.kernel(state=("u",), translation=("du",), parameters=(DIFFUSION, REACTION))
-    def rhs_cupy(u, du, diffusion: float, reaction: float) -> None:
+    @DerivativeStyle.kernel_accepts_instant_writes(state=("u",), translation=("du",), parameters=(DIFFUSION, REACTION))
+    def rhs_cupy(t, u, du, diffusion: float, reaction: float) -> None:
         """In-place CuPy derivative.
 
         The syntax mirrors NumPy because CuPy arrays are mutable.  Generated

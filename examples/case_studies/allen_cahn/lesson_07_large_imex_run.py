@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
     implicit_derivative = AllenCahnImplicitDerivative(geometry, DIFFUSIVITY)
     explicit_derivative = AllenCahnExplicitDerivative(geometry)
-    derivative = Derivative.imex(
+    derivative = Derivative.split(
         implicit=implicit_derivative,
         explicit=explicit_derivative,
     )

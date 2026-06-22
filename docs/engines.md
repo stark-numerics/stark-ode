@@ -31,7 +31,7 @@ Use JAX when you want JAX arrays and JAX-compatible derivative expressions.
 Prefer return-style derivatives:
 
 ```python
-@DerivativeStyle.returning
+@DerivativeStyle.accepts_instant_returns
 def rhs(t, state):
     return {"dy": -0.5 * state.y}
 ```
@@ -49,7 +49,7 @@ Important caveat: JAX array support does not automatically mean the whole adapti
 Run:
 
 ```powershell
-python -m examples.getting_started.interface.jax
+python -m examples.backends.jax
 ```
 
 ## Use CuPy
@@ -67,7 +67,7 @@ For timing, synchronize before stopping the clock. Otherwise CPU timing may not 
 Run:
 
 ```powershell
-python -m examples.getting_started.interface.cupy
+python -m examples.backends.cupy
 ```
 
 ## Backend case study

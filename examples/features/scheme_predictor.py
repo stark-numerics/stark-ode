@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Seed implicit stage unknowns with scheme predictor workers."""
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -21,16 +21,21 @@ def scale(coefficient: float, source: Translation, target: Translation) -> Trans
     return target
 
 
-known = Translation(3.0)
-previous = Translation(2.0)
+def main() -> None:
+    known = Translation(3.0)
+    previous = Translation(2.0)
 
-for name, predictor in (
-    ("known", SchemePredictorKnown()),
-    ("zero", SchemePredictorZero()),
-    ("previous", SchemePredictorPrevious()),
-):
-    delta = Translation(-99.0)
-    predictor(known=known, previous=previous, delta=delta, scale=scale)
-    print(f"SchemePredictor{name.title():8s} -> initial delta {delta.value:.1f}")
+    for name, predictor in (
+        ("known", SchemePredictorKnown()),
+        ("zero", SchemePredictorZero()),
+        ("previous", SchemePredictorPrevious()),
+    ):
+        delta = Translation(-99.0)
+        predictor(known=known, previous=previous, delta=delta, scale=scale)
+        print(f"SchemePredictor{name.title():8s} -> initial delta {delta.value:.1f}")
 
-print("Predictors belong to schemes: they seed the stage solve before the resolvent runs.")
+    print("Predictors belong to schemes: they seed the stage solve before the resolvent runs.")
+
+
+if __name__ == "__main__":
+    main()

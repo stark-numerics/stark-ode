@@ -116,21 +116,21 @@ class InverterNucleusFactor:
     """
 
     __slots__ = (
-        "call",
         "dimension",
         "inverse",
         "lu",
         "pivot_rows",
+        "redirect_call",
         "rhs",
         "row_offsets",
         "size",
     )
 
-    call: InverterNucleusFactorCall
     dimension: int
     inverse: Matrix
     lu: Matrix
     pivot_rows: list[int]
+    redirect_call: InverterNucleusFactorCall
     rhs: Vector
     row_offsets: list[int]
     size: int
@@ -146,19 +146,19 @@ class InverterNucleusFactor:
 
         if dimension == 1:
             self.prepare_1x1(matrix)
-            self.call = self.call_1x1
+            self.redirect_call = self.call_1x1
         elif dimension == 2:
             self.prepare_2x2(matrix)
-            self.call = self.call_inverse
+            self.redirect_call = self.call_inverse
         elif dimension == 3:
             self.prepare_3x3(matrix)
-            self.call = self.call_inverse
+            self.redirect_call = self.call_inverse
         else:
             self.prepare_nxn(matrix)
-            self.call = self.call_nxn
+            self.redirect_call = self.call_nxn
 
     def __call__(self, image: Vector, result: Vector) -> None:
-        self.call(image, result)
+        self.redirect_call(image, result)
 
     def prepare_1x1(self, matrix: Matrix) -> None:
         self.inverse = [1.0 / matrix[0]]
@@ -343,18 +343,18 @@ class InverterNucleus:
     """
 
     __slots__ = (
-        "call",
         "dimension",
         "kernel",
+        "redirect_call",
         "rhs",
         "row_offsets",
         "size",
         "work",
     )
 
-    call: InverterNucleusCall
     dimension: int
     kernel: InverterNucleusKernel | None
+    redirect_call: InverterNucleusCall
     rhs: Vector
     row_offsets: list[int]
     size: int
@@ -372,17 +372,17 @@ class InverterNucleus:
         self.kernel = None
 
         if dimension == 1:
-            self.call = self.call_1x1
+            self.redirect_call = self.call_1x1
         elif dimension == 2:
-            self.call = self.call_2x2
+            self.redirect_call = self.call_2x2
         elif dimension == 3:
-            self.call = self.call_3x3
+            self.redirect_call = self.call_3x3
         else:
-            self.call = self.call_nxn
+            self.redirect_call = self.call_nxn
             self.prepare_accelerated_kernel(accelerator)
 
     def __call__(self, matrix: Matrix, image: Vector, result: Vector) -> None:
-        self.call(matrix, image, result)
+        self.redirect_call(matrix, image, result)
 
     def factor(self, matrix: Matrix) -> InverterNucleusFactor:
         """Prepare a reusable inverse action for a fixed matrix.
@@ -425,7 +425,7 @@ class InverterNucleus:
             return
 
         self.kernel = compiled
-        self.call = self.call_nxn_accelerated
+        self.redirect_call = self.call_nxn_accelerated
 
     def call_1x1(self, matrix: Matrix, image: Vector, result: Vector) -> None:
         result[0] = image[0] / matrix[0]

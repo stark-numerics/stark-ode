@@ -49,7 +49,7 @@ def dummy_derivative(interval, state, out: DummyTranslation) -> None:
 
 
 def make_imex_euler() -> SchemeIMEXEuler:
-    split = Derivative.imex(
+    split = Derivative.split(
         implicit=dummy_derivative,
         explicit=dummy_derivative,
     )

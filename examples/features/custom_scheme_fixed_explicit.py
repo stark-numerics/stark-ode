@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Configuration, Interval, Frame, Method, System
+from stark import Frame, Interval, Method, System
 from stark.engines import EngineNumpy
 
 
@@ -51,17 +51,23 @@ class ForwardEuler:
         return snapshot
 
 
-system = System(
-    derivative=derivative,
-    frame=Frame({"y": {"translation": "dy", "shape": (1,)}}),
-)
-ivp = system.ivp(
-    initial={"y": np.array([1.0])},
-    interval=Interval(present=0.0, step=0.1, stop=0.3),
-    method=Method(scheme=ForwardEuler),
-    engine=EngineNumpy,
-    configuration=Configuration(check_progress=False),
-)
+def build_ivp():
+    system = System(
+        derivative=derivative,
+        frame=Frame.scalar("y", translation="dy"),
+    )
+    return system.ivp(
+        initial={"y": np.array([1.0])},
+        interval=Interval(present=0.0, step=0.1, stop=0.3),
+        method=Method(ForwardEuler),
+        engine=EngineNumpy,
+    )
 
-for interval, state in ivp.stable_trajectory():
-    print(f"t={interval.present:.1f}, y={state.y[0]:.6f}")
+
+def main() -> None:
+    for interval, state in build_ivp().stable_trajectory():
+        print(f"t={interval.present:.1f}, y={state.y[0]:.6f}")
+
+
+if __name__ == "__main__":
+    main()

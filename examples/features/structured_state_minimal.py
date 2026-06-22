@@ -1,79 +1,56 @@
-from __future__ import annotations
+"""Represent nested structured state with named `Frame` paths.
 
-"""Minimal custom structured state example.
-
-Use this route when the natural model is not just one scalar or array. The
-state below has named fields, while the translation carries the matching
-increments used by the scheme.
+The minimal structured-state route is to name nested fields in a `Frame`.
+STARK then allocates matching state and translation objects through the
+selected engine. Nesting alone is not a reason to write a custom allocator;
+reserve that path for existing foreign model objects with their own storage,
+constructors, or invariants.
 """
 
-from dataclasses import dataclass
-from math import sqrt
+from __future__ import annotations
 
-from stark import Integrator, Interval, IntegratorStepper
-from stark.methods.schemes import SchemeRK4
+import numpy as np
 
-
-@dataclass(slots=True)
-class Particle:
-    position: float
-    velocity: float
+from stark import DerivativeStyle, Frame, Interval, Method, System
+from stark.engines import EngineNumpy
+from stark.methods import SchemeRK4
 
 
-@dataclass(slots=True)
-class ParticleDelta:
-    position: float = 0.0
-    velocity: float = 0.0
-
-    def __call__(self, origin: Particle, result: Particle) -> None:
-        result.position = origin.position + self.position
-        result.velocity = origin.velocity + self.velocity
-
-    def norm(self) -> float:
-        return sqrt(self.position * self.position + self.velocity * self.velocity)
-
-    def __add__(self, other: "ParticleDelta") -> "ParticleDelta":
-        return ParticleDelta(
-            self.position + other.position,
-            self.velocity + other.velocity,
-        )
-
-    def __rmul__(self, scalar: float) -> "ParticleDelta":
-        return ParticleDelta(
-            scalar * self.position,
-            scalar * self.velocity,
-        )
+@DerivativeStyle.accepts_instant_writes
+def harmonic_motion(_time: float, state, out) -> None:
+    out.delta.particle.position[:] = state.model.particle.velocity
+    out.delta.particle.velocity[:] = -state.model.particle.position
 
 
-class ParticleAllocator:
-    def allocate_state(self) -> Particle:
-        return Particle(0.0, 0.0)
-
-    def copy_state(self, source: Particle, out: Particle) -> None:
-        out.position = source.position
-        out.velocity = source.velocity
-
-    def allocate_translation(self) -> ParticleDelta:
-        return ParticleDelta()
+def build_system() -> System:
+    frame = Frame.from_fields(
+        ("model.particle.position", "delta.particle.position", (1,)),
+        ("model.particle.velocity", "delta.particle.velocity", (1,)),
+    )
+    return System(derivative=harmonic_motion, frame=frame)
 
 
-def harmonic_motion(
-    interval: Interval,
-    state: Particle,
-    out: ParticleDelta,
-) -> None:
-    del interval
-    out.position = state.velocity
-    out.velocity = -state.position
+def main() -> None:
+    ivp = build_system().ivp(
+        initial={
+            "model": {
+                "particle": {
+                    "position": np.array([1.0]),
+                    "velocity": np.array([0.0]),
+                }
+            }
+        },
+        interval=Interval(present=0.0, step=0.1, stop=0.5),
+        method=Method(SchemeRK4),
+        engine=EngineNumpy,
+    )
+
+    print("Nested structured state through Frame paths")
+    for interval, state in ivp.integrate():
+        position = state.model.particle.position[0]
+        velocity = state.model.particle.velocity[0]
+        print(f"t={interval.present:.1f}, x={position:.6f}, v={velocity:.6f}")
 
 
-allocator = ParticleAllocator()
-scheme = SchemeRK4(harmonic_motion, allocator)
-stepper = IntegratorStepper(scheme)
-interval = Interval(present=0.0, step=0.1, stop=0.5)
-state = Particle(position=1.0, velocity=0.0)
-
-print("Structured particle state")
-for interval, state in Integrator().mutating_trajectory(stepper, interval, state):
-    print(f"t={interval.present:.1f}, x={state.position:.6f}, v={state.velocity:.6f}")
-
+if __name__ == "__main__":
+    main()

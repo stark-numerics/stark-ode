@@ -30,16 +30,14 @@ from stark import (
 )
 from stark.core.block import BlockBasis
 from stark.engines import EngineNumpy
-from stark.methods.inverters.dense import InverterDense
-from stark.methods.resolvents import ResolventNewton
-from stark.methods.schemes import SchemeKvaerno3
+from stark.methods import InverterDense, ResolventNewton, SchemeKvaerno3
 
 
 MU = 12.0
 
 
-@DerivativeStyle.kernel(state=("y",), translation=("dy",), parameters=(MU,))
-def van_der_pol_rhs(y, dy, mu: float) -> None:
+@DerivativeStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",), parameters=(MU,))
+def van_der_pol_rhs(t, y, dy, mu: float) -> None:
     """Van der Pol oscillator.
 
         y0' = y1
@@ -53,7 +51,13 @@ def van_der_pol_rhs(y, dy, mu: float) -> None:
     dy[1] = mu * (1.0 - y0 * y0) * y1 - y0
 
 
-def van_der_pol_jacobian_apply(y, source_dy, out_dy, mu: float) -> None:
+@LinearizerStyle.kernel_accepts_instant_writes(
+    state=("y",),
+    source=("dy",),
+    target=("dy",),
+    parameters=(MU,),
+)
+def van_der_pol_jacobian_apply(t, y, source_dy, out_dy, mu: float) -> None:
     """Jacobian action J(y) source -> out.
 
     For
@@ -67,6 +71,7 @@ def van_der_pol_jacobian_apply(y, source_dy, out_dy, mu: float) -> None:
         [ -2*mu*y0*y1 - 1           mu*(1-y0**2)   ]
     """
 
+    del t
     y0 = y[0]
     y1 = y[1]
     v0 = source_dy[0]
@@ -76,6 +81,7 @@ def van_der_pol_jacobian_apply(y, source_dy, out_dy, mu: float) -> None:
     out_dy[1] = (-2.0 * mu * y0 * y1 - 1.0) * v0 + mu * (1.0 - y0 * y0) * v1
 
 
+@LinearizerStyle.dense(state=("y",), parameters=(MU,))
 def van_der_pol_jacobian_dense(
     y,
     matrix,
@@ -103,38 +109,11 @@ def van_der_pol_jacobian_dense(
 linearizer = LinearizerStyle.operator(
     apply=van_der_pol_jacobian_apply,
     dense=van_der_pol_jacobian_dense,
-    state=("y",),
-    source=("dy",),
-    target=("dy",),
-    parameters=(MU,),
 )
 
 
-class TranslationBasis:
-    """Coordinate basis for the two-component translation field."""
-
-    dimension = 2
-
-    def vector(self, index: int, output):
-        output.dy[:] = 0.0
-        output.dy[index] = 1.0
-        return output
-
-    def coordinate(self, index: int, translation) -> float:
-        return float(translation.dy[index])
-
-    def coordinates(self, translation, output: list[float]) -> list[float]:
-        output[0] = float(translation.dy[0])
-        output[1] = float(translation.dy[1])
-        return output
-
-    def synthesize(self, coordinates: list[float], output):
-        output.dy[:] = coordinates
-        return output
-
-
 def main() -> None:
-    frame = Frame({"y": {"translation": "dy", "shape": (2,)}})
+    frame = Frame.vector("y", translation="dy", length=2)
     system = System(
         derivative=van_der_pol_rhs,
         linearizer=linearizer,
@@ -143,7 +122,6 @@ def main() -> None:
     engine = EngineNumpy(frame)
 
     configuration = Configuration(
-        check_progress=False,
         scheme_tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6),
         resolvent_tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-8),
         resolvent_maximum_steps=12,
@@ -153,7 +131,7 @@ def main() -> None:
     assert prepared_linearizer is not None
 
     inverter = InverterDense(
-        basis=BlockBasis([TranslationBasis()]),
+        basis=BlockBasis([engine.translation_basis()]),
     )
     resolvent = ResolventNewton(
         engine.allocator,
@@ -167,7 +145,7 @@ def main() -> None:
     ivp = system.ivp(
         initial={"y": np.array([2.0, 0.0])},
         interval=Interval(present=0.0, step=0.02, stop=0.20),
-        method=Method(scheme=SchemeKvaerno3, resolvent=resolvent),
+        method=Method(SchemeKvaerno3, resolvent=resolvent),
         engine=lambda frame: engine,
         configuration=configuration,
     )

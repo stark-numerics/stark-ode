@@ -18,18 +18,19 @@ objects, and then assembles the stepper explicitly.
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
-from stark import Integrator, Interval, IntegratorStepper
+from stark import Frame, Integrator, Interval, IntegratorStepper
 from stark.engines import EngineNumpy
-from stark.problem.frame.frame import Frame
-from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.methods import SchemeRK4
 
 
 def growth(
     interval: Interval,
-    state: object,
-    out: object,
+    state: Any,
+    out: Any,
 ) -> None:
     """Derivative for y' = y."""
 
@@ -38,18 +39,19 @@ def growth(
 
 
 def main() -> None:
-    frame = Frame({"y": {"translation": "dy", "shape": (1,)}})
+    frame = Frame.scalar("y", translation="dy")
     engine = EngineNumpy(frame)
     allocator = engine.allocator
+    basis = engine.translation_basis()
 
     # Direct translations are useful in lower-level code that wants to express
     # displacements explicitly. The solver itself will allocate most of its
     # translations through the allocator.
-    state = allocator.allocate_state()
+    state: Any = allocator.allocate_state()
     state.y[...] = np.array([1.0])
-    displacement = allocator.allocate_translation()
-    displacement.dy[...] = np.array([0.25])
-    displaced_state = allocator.allocate_state()
+    displacement: Any = allocator.allocate_translation()
+    basis.synthesize([0.25], displacement)
+    displaced_state: Any = allocator.allocate_state()
     displacement(state, displaced_state)
 
     print("An engine translation represents a displacement:")

@@ -62,5 +62,14 @@ class Engine(Protocol):
         """Provider for backend specialist kernels."""
         ...
 
+    def translation_basis(self) -> Any:
+        """Coordinate basis for engine-owned translations.
+
+        This is an advanced inspection/materialisation hook. Ordinary problem
+        declarations should not need it; dense inverters and diagnostics can
+        use it when they need coordinates for backend translation objects.
+        """
+        ...
+
 
 __all__ = ["Engine"]

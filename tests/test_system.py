@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from stark import Configuration, Interval, Frame, FrameField, Method, System
-from stark.problem.derivative.derivative import DerivativeAdapterAcceptsInstant
+from stark.problem.derivative import DerivativeAdapterAcceptsInstantWrites
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines import EngineNumpy
 
@@ -83,7 +83,7 @@ def test_system_ivp_builds_engine_state_and_declared_scheme() -> None:
 
     assert factory_layouts == [frame]
     assert isinstance(ivp.scheme, ExplicitScheme)
-    assert isinstance(ivp.scheme.derivative, DerivativeAdapterAcceptsInstant)
+    assert isinstance(ivp.scheme.derivative, DerivativeAdapterAcceptsInstantWrites)
     assert ivp.scheme.derivative.function is derivative
     assert ivp.scheme.allocator is ivp.engine.allocator
     assert ivp.scheme.configuration is configuration

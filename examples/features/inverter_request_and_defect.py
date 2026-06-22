@@ -11,6 +11,8 @@ object is the inverter, not a hand-written scalar state model.
 
 from __future__ import annotations
 
+from typing import Any
+
 from stark import Frame
 from stark.core.block import Block
 from stark.core.block.operator import BlockOperatorDiagonal
@@ -27,22 +29,32 @@ class DampedRichardson:
         self.steps = steps
         self.defect = InverterDefect()
 
-    def __call__(self, request, output) -> None:
+    def __call__(self, request: Any, output: Block[Any]) -> None:
         for _ in range(self.steps):
             self.defect(request, output)
             assert self.defect.block is not None
-            output += self.damping * self.defect.block
-
-
-def scale_by_two(source, target) -> None:
-    target.dx[:] = 2.0 * source.dx
+            update = Block(
+                [
+                    self.damping * self.defect.block[index]
+                    for index in range(len(self.defect.block))
+                ]
+            )
+            output += update
 
 
 def main() -> None:
-    engine = EngineNumpy(Frame({"x": {"translation": "dx", "shape": (1,)}}))
+    engine = EngineNumpy(Frame.scalar("x", translation="dx"))
+    basis = engine.translation_basis()
+    coordinates = [0.0]
+    image = [0.0]
+
+    def scale_by_two(source: Any, target: Any) -> None:
+        basis.coordinates(source, coordinates)
+        image[0] = 2.0 * coordinates[0]
+        basis.synthesize(image, target)
 
     residual = engine.allocator.allocate_translation()
-    residual.dx[0] = 6.0
+    basis.synthesize([6.0], residual)
     output_delta = engine.allocator.allocate_translation()
 
     request = ResolventInverterRequest(
@@ -62,7 +74,8 @@ def main() -> None:
     print("residual:       6.0")
     print("initial output: 0.0")
     print(f"initial defect: {initial_defect:.6g}")
-    print(f"final output:   {output[0].dx[0]:.6g}")
+    basis.coordinates(output[0], coordinates)
+    print(f"final output:   {coordinates[0]:.6g}")
     print(f"final defect:   {final_defect:.6g}")
 
 
