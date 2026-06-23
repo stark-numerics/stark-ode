@@ -21,7 +21,7 @@ inverse-action ideas can support several resolvent styles.
 - Inverters may receive an accelerator, but they should not require callers to
   know which internal kernel will consume it.
 - Hot solve paths should trust already-constructed inputs. Expensive safety
-  checks belong at construction time, in experiments, or in tests.
+  checks belong at construction time, in private probes, or in tests.
 - Preconditioners are explicit Krylov collaborators. A missing preconditioner
   means unpreconditioned Arnoldi, not hidden diagonal magic.
 - Avoid external dense-solve provider dispatch in the hot path. Experiments
@@ -41,5 +41,5 @@ inverse-action ideas can support several resolvent styles.
   public design.
 - Sparse, factorised, and GPU-specialised inverse actions are future work.
 
-Use `benchmarks.experiments.probe_krylov_inverter` before promoting a Krylov
-example or changing Arnoldi defaults.
+Run a private local probe before promoting a Krylov example or changing Arnoldi
+defaults.

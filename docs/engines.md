@@ -87,7 +87,7 @@ python -m examples.engines.backend_jax
 python -m examples.engines.backend_cupy
 ```
 
-For timings, use benchmark experiments so setup, first-run, repeat-run, and
+For timings, use dedicated benchmarks so setup, first-run, repeat-run, and
 device synchronization costs can be labelled honestly.
 
 ## Acceleration boundaries

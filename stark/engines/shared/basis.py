@@ -2,7 +2,7 @@
 
 This module is intentionally engine support rather than ordinary user-facing
 problem API. An engine translation basis is useful for inspection, dense
-operator materialisation, and diagnostic experiments that need coordinates for
+operator materialisation, and diagnostic tools that need coordinates for
 a backend-owned translation object. Most application code should not need to
 touch it directly.
 """

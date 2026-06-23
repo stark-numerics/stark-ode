@@ -27,5 +27,5 @@ If the code has moved away from the note, update the note in the same change.
 
 ## Benchmarking and performance notes
 
-Benchmarking guidance should live with the benchmark tools and experiments.
+Benchmarking guidance should live with the benchmark tools.
 User-facing timing interpretation belongs in `docs/diagnostics.md`.

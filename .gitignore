@@ -13,6 +13,7 @@ venv/
 build/
 dist/
 dist-tmp/
+*.zip
 *.egg-info/
 
 # Test and tooling output
@@ -35,6 +36,7 @@ Thumbs.db
 
 # Local development
 TODO.md
+experiments/
 git_cribsheet.md
 naming_style.md
 devtools/

@@ -30,85 +30,32 @@ objects with constructor requirements, invariants, non-array storage,
 external resources, or behavior that would be damaged by asking STARK to own
 the storage.
 
-## Minimal custom state example
+## Runnable examples
 
-This is a small harmonic oscillator with custom Python objects rather than
-`Frame`-generated state. It is deliberately lower-level than the preferred
-structured-state route.
+Start with the preferred high-level route:
 
-```python
-from __future__ import annotations
-
-from dataclasses import dataclass
-from math import sqrt
-
-from stark import Integrator, Interval, IntegratorStepper
-from stark.methods.schemes import SchemeRK4
-
-
-@dataclass(slots=True)
-class Particle:
-    position: float
-    velocity: float
-
-
-@dataclass(slots=True)
-class ParticleDelta:
-    position: float = 0.0
-    velocity: float = 0.0
-
-    def __call__(self, origin: Particle, result: Particle) -> None:
-        result.position = origin.position + self.position
-        result.velocity = origin.velocity + self.velocity
-
-    def norm(self) -> float:
-        return sqrt(self.position * self.position + self.velocity * self.velocity)
-
-    def __add__(self, other: "ParticleDelta") -> "ParticleDelta":
-        return ParticleDelta(
-            self.position + other.position,
-            self.velocity + other.velocity,
-        )
-
-    def __rmul__(self, scalar: float) -> "ParticleDelta":
-        return ParticleDelta(
-            scalar * self.position,
-            scalar * self.velocity,
-        )
-
-
-class ParticleAllocator:
-    def allocate_state(self) -> Particle:
-        return Particle(0.0, 0.0)
-
-    def copy_state(self, source: Particle, out: Particle) -> None:
-        out.position = source.position
-        out.velocity = source.velocity
-
-    def allocate_translation(self) -> ParticleDelta:
-        return ParticleDelta()
-
-
-def harmonic_motion(interval: Interval, state: Particle, out: ParticleDelta) -> None:
-    del interval
-    out.position = state.velocity
-    out.velocity = -state.position
-
-
-allocator = ParticleAllocator()
-scheme = SchemeRK4(harmonic_motion, allocator)
-stepper = IntegratorStepper(scheme)
-interval = Interval(present=0.0, step=0.1, stop=0.5)
-state = Particle(position=1.0, velocity=0.0)
-
-for interval, state in Integrator().mutating_trajectory(stepper, interval, state):
-    print(f"t={interval.present:.1f}, x={state.position:.6f}, v={state.velocity:.6f}")
+```powershell
+python -m examples.problem.structured_state_minimal
 ```
 
-The runnable problem example `examples.problem.structured_state_minimal`
-shows the preferred high-level `Frame` route for nested structured fields.
-The runnable problem example `examples.problem.foreign_model_allocator`
-shows the lower-level custom allocator route for an existing object model.
+That example shows a nested state represented through named `Frame` paths. It
+is still structured, but STARK owns the generated state and translation objects.
+
+Then compare the lower-level custom allocator route:
+
+```powershell
+python -m examples.problem.foreign_model_allocator
+```
+
+That example shows the extra work needed when a model already owns its state
+and increment classes.
+
+Finally, use the plug-in solver example when you want to see STARK replacing an
+existing stepper without replacing the model:
+
+```powershell
+python -m examples.problem.foreign_model_plug_in_solver
+```
 
 ## What the translation must do
 

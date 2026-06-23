@@ -1,4 +1,4 @@
-"""Structured comparison reports for STARK solver experiments.
+"""Structured comparison reports for STARK solver runs.
 
 The comparison package owns reusable report data models and the development
 runner that compares several configured steppers on one problem. It is the

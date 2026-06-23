@@ -28,17 +28,17 @@ Linearized resolvents should delegate inverse actions to inverters. They should
 not grow solver-specific linear algebra internally unless that is the actual
 resolvent idea being tested.
 
-## Experiments First
+## Prove New Ideas Before Promotion
 
-New resolvent ideas should usually start in `benchmarks/experiments` or a
-competition example before being promoted. If a method can stall, the experiment
+New resolvent ideas should usually be tested in a private local probe or a
+competition example before being promoted. If a method can stall, the probe
 should expose the failure mode and the public construction should include a
 finite step/rejection limit.
 
 ## Secant-Style Resolvents
 
 The secant-style family (`ResolventAnderson`, `ResolventBroyden`, and related
-experiments) is intentionally not represented by a cheerful first-contact
+prototypes) is intentionally not represented by a cheerful first-contact
 example yet. These methods can be excellent when the problem and safeguards line
 up, but they are also the easiest family to make look frozen or mysterious on a
 poor toy problem.

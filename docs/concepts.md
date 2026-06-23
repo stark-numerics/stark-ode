@@ -216,7 +216,7 @@ Current public families:
 ```text
 Dense       small dense systems
 Krylov      matrix-free larger systems
-Relaxation  simple iterative baselines and structured experiments
+Relaxation  simple iterative baselines and structured probes
 ```
 
 Dense is usually best for very small stiff systems. Krylov becomes interesting
