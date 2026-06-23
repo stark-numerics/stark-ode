@@ -24,7 +24,13 @@ A method can also carry a resolvent, inverter, predictor, and other prepared pie
 Run the scheme selection example:
 
 ```powershell
-python -m examples.getting_started.choose_scheme
+python -m examples.methods.choose_scheme
+python -m examples.methods.scheme_family_explicit_fixed
+python -m examples.methods.scheme_family_explicit_adaptive
+python -m examples.methods.scheme_family_implicit_fixed
+python -m examples.methods.scheme_family_implicit_adaptive
+python -m examples.methods.scheme_family_imex_fixed
+python -m examples.methods.scheme_family_imex_adaptive
 ```
 
 ## Schemes advance time
@@ -52,6 +58,13 @@ VeryChord    reuses a linearization more aggressively
 
 Use Newton when you can provide a linearizer. Use simpler resolvents for teaching or when the equation is mild.
 
+Run:
+
+```powershell
+python -m examples.methods.resolvent_fixed_point
+python -m examples.methods.resolvent_linearized
+```
+
 ## Inverters solve linear correction equations
 
 Newton-style resolvents need to solve linear correction equations.
@@ -65,9 +78,9 @@ Newton-style resolvents need to solve linear correction equations.
 Run:
 
 ```powershell
-python -m examples.features.inverter_dense
-python -m examples.features.inverter_krylov
-python -m examples.features.inverter_relaxation_richardson
+python -m examples.inverters.inverter_dense
+python -m examples.inverters.inverter_krylov
+python -m examples.inverters.inverter_relaxation_richardson
 ```
 
 ## Predictors seed implicit stage guesses
@@ -85,7 +98,7 @@ SchemePredictorPrevious   reuse the previous solved increment when available
 Run:
 
 ```powershell
-python -m examples.features.scheme_predictor
+python -m examples.methods.scheme_predictor
 ```
 
 ## Custom method pieces

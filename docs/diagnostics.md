@@ -9,9 +9,9 @@ Diagnostics are useful, but they are not free. Keep observation and timing separ
 Use monitors when you want counts, summaries, residual history, or method behaviour.
 
 ```powershell
-python -m examples.features.monitor_scheme_steps
-python -m examples.features.monitoring_levels
-python -m examples.features.compare_with_monitor_summary
+python -m examples.diagnostics.monitor_scheme_steps
+python -m examples.diagnostics.monitoring_levels
+python -m examples.diagnostics.compare_with_monitor_summary
 ```
 
 A monitored run can answer:
@@ -38,7 +38,7 @@ unmonitored run    measure speed
 Run:
 
 ```powershell
-python -m examples.features.monitor_vs_timing
+python -m examples.diagnostics.monitor_vs_timing
 ```
 
 ## Read competition timing tables

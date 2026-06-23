@@ -16,9 +16,12 @@ ROOT = Path(__file__).resolve().parents[2]
     (
         (("examples",), "STARK examples"),
         (("examples.getting_started",), "All getting started examples completed."),
-        (("examples.backends",), "All backend examples completed."),
-        (("examples.features",), "All feature examples completed."),
-        (("examples.case_studies",), "Case study examples"),
+        (("examples.problem",), "All problem examples completed."),
+        (("examples.methods",), "All methods examples completed."),
+        (("examples.diagnostics",), "All diagnostics examples completed."),
+        (("examples.engines",), "All engines examples completed."),
+        (("examples.inverters",), "All inverters examples completed."),
+        (("examples.core",), "All core examples completed."),
         (("competition",), "Competition examples"),
         (("competition.check_reports", "--help"), "Run competition reports"),
     ),
@@ -37,7 +40,7 @@ def test_cheap_examples_run_without_traceback(
         env=environment,
         capture_output=True,
         text=True,
-        timeout=30.0,
+        timeout=45.0,
     )
 
     output = completed.stdout + completed.stderr

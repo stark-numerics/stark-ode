@@ -25,7 +25,7 @@ Start from a fixed explicit scheme. A scheme should look like a callable worker 
 Run:
 
 ```powershell
-python -m examples.features.custom_scheme_fixed_explicit
+python -m examples.methods.custom_scheme_fixed_explicit
 ```
 
 Keep the call shape simple:
@@ -49,9 +49,9 @@ Use `output_mode` to describe whether the inverter writes the output or improves
 Start from:
 
 ```powershell
-python -m examples.features.inverter_request_and_defect
-python -m examples.features.inverter_dense
-python -m examples.features.inverter_krylov
+python -m examples.inverters.inverter_request_and_defect
+python -m examples.inverters.inverter_dense
+python -m examples.inverters.inverter_krylov
 ```
 
 ## Write a preconditioner
@@ -67,8 +67,8 @@ A monitor observes; it should not change the solve. Keep monitored and unmonitor
 Start from:
 
 ```powershell
-python -m examples.features.monitor_scheme_steps
-python -m examples.features.monitoring_levels
+python -m examples.diagnostics.monitor_scheme_steps
+python -m examples.diagnostics.monitoring_levels
 ```
 
 ## Design rules for extensions
@@ -80,4 +80,4 @@ python -m examples.features.monitoring_levels
 - Do not import concrete method workers into `core`.
 - Do not add hidden optional dependencies to generic paths.
 
-Read [House style](contributing/house_style.md) before adding a new public family.
+Read [House style](contributing/house-style.md) before adding a new public family.

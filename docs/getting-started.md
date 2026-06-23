@@ -87,7 +87,7 @@ python -m examples.getting_started.numpy_oscillator
 Some backends, especially JAX, work better when derivatives return a translation instead of mutating an output object. Use this route when the natural derivative is an expression.
 
 ```powershell
-python -m examples.getting_started.returning_derivative
+python -m examples.problem.returning_derivative
 ```
 
 The important difference is:
@@ -112,7 +112,7 @@ method = Method(SchemeCashKarp)
 Run:
 
 ```powershell
-python -m examples.getting_started.choose_scheme
+python -m examples.methods.choose_scheme
 ```
 
 ## Ask for checkpoints
@@ -120,7 +120,7 @@ python -m examples.getting_started.choose_scheme
 The solver may take internal adaptive steps that do not match the output times you want. Use checkpoints when you want output at specific times.
 
 ```powershell
-python -m examples.getting_started.checkpoints
+python -m examples.diagnostics.checkpoints
 ```
 
 Internal steps are for accuracy and stability. Checkpoints are for output.
@@ -130,9 +130,9 @@ Internal steps are for accuracy and stability. Checkpoints are for output.
 Start with NumPy. Then try JAX or CuPy when you have a reason to use those array systems.
 
 ```powershell
-python -m examples.backends.numpy
-python -m examples.backends.jax
-python -m examples.backends.cupy
+python -m examples.engines.backend_numpy
+python -m examples.engines.backend_jax
+python -m examples.engines.backend_cupy
 ```
 
 JAX and CuPy support may be optional in your environment. The examples should report missing optional dependencies rather than fail mysteriously.

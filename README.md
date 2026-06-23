@@ -271,36 +271,38 @@ Accelerators follow the same philosophy. Built-in workers live under
 `stark.engines.shared.accelerators`, the contracts live under `stark.core.contracts`, and custom
 accelerators can be checked with `Auditor(..., accelerator=...)` before a run.
 
-For the mathematical view of the contracts, see
-[`docs/contracts_math.md`](docs/contracts_math.md). It explains how STARK's
-`State`, `Translation`, `LinearizerLike`, `Residual`, `Resolvent`, and `Inverter`
-concepts correspond to affine-space, vector-space, norm, and operator
-structures.
+For a terminology-first map of the main ideas, see
+[`docs/concepts.md`](docs/concepts.md). For the mathematical view of the
+low-level contracts, see [`docs/contract-maths.md`](docs/contract-maths.md).
 
 ## Examples
 
 Small executable examples live under [`examples/getting_started/`](examples/getting_started/)
-and [`examples/features/`](examples/features/). Longer narrative case studies
-live under [`examples/case_studies/`](examples/case_studies/).
+and concept folders such as [`examples/problem/`](examples/problem/),
+[`examples/methods/`](examples/methods/), and
+[`examples/diagnostics/`](examples/diagnostics/). Each example is a focused
+teaching script: if a longer story needs several concepts, it should be split
+into smaller runnable lessons.
 
 From a source checkout:
 
 ```powershell
 python -m pip install -e ".[examples]"
 python -m examples.getting_started
-python -m examples.features
-python -m examples.case_studies.three_body
-python -m examples.case_studies.allen_cahn
+python -m examples.problem
+python -m examples.methods
+python -m examples.diagnostics
 ```
 
-The three-body case study starts from a structured three-body model with an
-Euler stepper, shows why fixed-step Euler is fragile for Moore's figure-eight
-orbit, then adds the small STARK adapter layer needed for adaptive integration
-and checkpointed plotting.
+Useful starting points include:
 
-The Allen-Cahn case study walks through a structured one-dimensional problem,
-starting with explicit methods, then moving through implicit resolvents, Newton
-linearizers, and finally a custom IMEX spectral resolvent.
+```powershell
+python -m examples.problem.foreign_model_plug_in_solver
+python -m examples.problem.reaction_diffusion_array
+python -m examples.methods.imex_with_custom_spectral_resolvent
+python -m examples.methods.matrix_free_jacobian
+python -m examples.diagnostics.error_ratio_trace
+```
 
 ## Competition Reports
 

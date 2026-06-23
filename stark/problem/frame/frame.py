@@ -144,6 +144,30 @@ class Frame:
         return cls({state: spec})
 
     @classmethod
+    def array(
+        cls,
+        state: AlgebraistFramePathLike,
+        *,
+        translation: AlgebraistFramePathLike | None = None,
+        shape: tuple[int, ...] | list[int],
+        norm: FrameNormPolicy | AlgebraistFrameNormPolicy | None = None,
+    ) -> "Frame":
+        """Build a one-field frame for array state storage.
+
+        Use `array` when the field is naturally an array and its dimensionality
+        matters to the model. This is a convenience spelling for
+        `Frame({state: {"translation": ..., "shape": shape}})`.
+        """
+
+        spec: dict[str, Any] = {
+            "translation": translation if translation is not None else state,
+            "shape": tuple(shape),
+        }
+        if norm is not None:
+            spec["norm"] = norm
+        return cls({state: spec})
+
+    @classmethod
     def from_fields(cls, *fields: FrameField | FrameFieldSpec) -> "Frame":
         """Build a frame from compact `(state, translation, shape)` entries.
 

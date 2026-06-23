@@ -24,8 +24,8 @@ LinearizerStyle.operator or LinearizerStyle.dense
 Run:
 
 ```powershell
-python -m examples.features.linearizer_styles
-python -m examples.features.inverter_dense
+python -m examples.problem.linearizer_styles
+python -m examples.inverters.inverter_dense
 ```
 
 ## What the linearizer does
@@ -70,13 +70,13 @@ For a large periodic tridiagonal problem, a preconditioner might solve an approx
 Run the matrix-free example:
 
 ```powershell
-python -m examples.features.inverter_krylov
+python -m examples.inverters.inverter_krylov
 ```
 
-Run the larger case study/competition after the Krylov examples are available in your tree:
+Run the matrix-free Jacobian example when you want Krylov in a real Newton solve:
 
 ```powershell
-python -m competition.allen_cahn_1d.report
+python -m examples.methods.matrix_free_jacobian
 ```
 
 ## Chord and VeryChord

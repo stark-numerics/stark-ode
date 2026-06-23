@@ -44,12 +44,12 @@ from stark.engines import EngineJax
 ivp = system.ivp(..., engine=EngineJax)
 ```
 
-Important caveat: JAX array support does not automatically mean the whole adaptive solver loop is one JIT-compiled JAX program. STARK's intended accelerated high-level path is through generated Algebraist kernels where the `Frame` is known. Contributor notes for that path live in [Algebraist backend paths](contributing/algebraist_backends.md).
+Important caveat: JAX array support does not automatically mean the whole adaptive solver loop is one JIT-compiled JAX program. STARK's intended accelerated high-level path is through generated Algebraist kernels where the `Frame` is known. Contributor notes for that path live in `stark/engines/shared/algebraist/DESIGN.md`.
 
 Run:
 
 ```powershell
-python -m examples.backends.jax
+python -m examples.engines.backend_jax
 ```
 
 ## Use CuPy
@@ -67,25 +67,28 @@ For timing, synchronize before stopping the clock. Otherwise CPU timing may not 
 Run:
 
 ```powershell
-python -m examples.backends.cupy
+python -m examples.engines.backend_cupy
 ```
 
-## Backend case study
+## Backend timing
 
-The backend case study is intended to answer two questions:
+Backend timing work should answer two questions:
 
 ```text
 Can the same problem run on NumPy, JAX, and CuPy?
 At what size do alternative backends become useful, if at all?
 ```
 
-Run:
+For syntax, run the focused backend examples:
 
 ```powershell
-python -m examples.case_studies.backends
+python -m examples.engines.backend_numpy
+python -m examples.engines.backend_jax
+python -m examples.engines.backend_cupy
 ```
 
-The lessons should show backend setup directly. They should not hide all problem construction in a shared helper file; users need to see the syntax for each backend.
+For timings, use benchmark experiments so setup, first-run, repeat-run, and
+device synchronization costs can be labelled honestly.
 
 ## Acceleration boundaries
 

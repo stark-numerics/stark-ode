@@ -58,6 +58,13 @@ def test_stark_layout_vector_factory_matches_mapping_syntax() -> None:
     assert frame.fields == explicit.fields
 
 
+def test_stark_layout_array_factory_matches_mapping_syntax() -> None:
+    frame = Frame.array("u", translation="du", shape=(4, 5))
+    explicit = Frame({"u": {"translation": "du", "shape": (4, 5)}})
+
+    assert frame.fields == explicit.fields
+
+
 def test_stark_layout_fields_factory_matches_mapping_syntax() -> None:
     frame = Frame.from_fields(("u", "du", (2,)), ("v", "dv", (3,)))
     explicit = Frame(

@@ -11,60 +11,105 @@ Small first-contact examples for the high-level interface:
 python -m examples.getting_started
 python -m examples.getting_started.scalar_decay
 python -m examples.getting_started.numpy_oscillator
-python -m examples.getting_started.returning_derivative
-python -m examples.getting_started.in_place_derivative
-python -m examples.getting_started.multiple_fields
-python -m examples.getting_started.choose_scheme
-python -m examples.getting_started.checkpoints
-python -m examples.getting_started.engine_acceleration
 ```
 
-## Backends
+## Problem
 
-Backend examples show the same interface with different storage engines:
+Examples about describing a problem: derivatives, frames, linearizers,
+structured state, foreign object models, and norms.
 
 ```powershell
-python -m examples.backends
-python -m examples.backends.native
-python -m examples.backends.numpy
-python -m examples.backends.jax
-python -m examples.backends.cupy
+python -m examples.problem
+python -m examples.problem.returning_derivative
+python -m examples.problem.in_place_derivative
+python -m examples.problem.multiple_fields
+python -m examples.problem.structured_state_minimal
+python -m examples.problem.foreign_model_allocator
+python -m examples.problem.foreign_model_plug_in_solver
+python -m examples.problem.foreign_model_audit
+python -m examples.problem.reaction_diffusion_array
+python -m examples.problem.derivative_styles
+python -m examples.problem.linearizer_styles
+python -m examples.problem.norm_policy
 ```
 
-JAX and CuPy examples skip when their optional dependencies are not installed.
+## Methods
 
-## Features
-
-Focused examples for specific STARK extension points:
+Examples about choosing or extending the numerical method: schemes, resolvents,
+predictors, IMEX splitting, and matrix-free Jacobian actions.
 
 ```powershell
-python -m examples.features
-python -m examples.features.manual_stepper_setup
-python -m examples.features.custom_scheme_fixed_explicit
-python -m examples.features.structured_state_minimal
-python -m examples.features.foreign_model_allocator
-python -m examples.features.derivative_styles
-python -m examples.features.linearizer_styles
-python -m examples.features.norm_policy
-python -m examples.features.compare_two_schemes
-python -m examples.features.monitor_scheme_steps
-python -m examples.features.compare_with_monitor_summary
-python -m examples.features.inverter_dense
-python -m examples.features.inverter_krylov
+python -m examples.methods
+python -m examples.methods.choose_scheme
+python -m examples.methods.custom_scheme_fixed_explicit
+python -m examples.methods.imex_with_custom_spectral_resolvent
+python -m examples.methods.matrix_free_jacobian
+python -m examples.methods.resolvent_fixed_point
+python -m examples.methods.resolvent_linearized
+python -m examples.methods.scheme_family_explicit_fixed
+python -m examples.methods.scheme_family_explicit_adaptive
+python -m examples.methods.scheme_family_implicit_fixed
+python -m examples.methods.scheme_family_implicit_adaptive
+python -m examples.methods.scheme_family_imex_fixed
+python -m examples.methods.scheme_family_imex_adaptive
+python -m examples.methods.scheme_predictor
 ```
 
-## Case studies
+## Diagnostics
 
-Longer teaching examples:
+Examples about observing, comparing, and explaining integrations.
 
 ```powershell
-python -m examples.case_studies
-python -m examples.case_studies.three_body
-python -m examples.case_studies.allen_cahn
-python -m examples.case_studies.backends
+python -m examples.diagnostics
+python -m examples.diagnostics.checkpoints
+python -m examples.diagnostics.compare_two_schemes
+python -m examples.diagnostics.monitor_scheme_steps
+python -m examples.diagnostics.error_ratio_trace
+python -m examples.diagnostics.compare_with_monitor_summary
+python -m examples.diagnostics.monitor_vs_timing
+python -m examples.diagnostics.monitoring_levels
+```
+
+## Engines
+
+Examples about backend availability and acceleration. Optional backend examples
+are listed here, but the group runner skips them unless the manifest marks them
+as default.
+
+```powershell
+python -m examples.engines
+python -m examples.engines.engine_acceleration
+python -m examples.engines.backend_native
+python -m examples.engines.backend_numpy
+python -m examples.engines.backend_jax
+python -m examples.engines.backend_cupy
+```
+
+## Inverters
+
+Examples about linear correction solves used by implicit resolvents.
+
+```powershell
+python -m examples.inverters
+python -m examples.inverters.inverter_request_and_defect
+python -m examples.inverters.inverter_dense
+python -m examples.inverters.inverter_krylov
+python -m examples.inverters.inverter_relaxation_richardson
+python -m examples.inverters.inverter_relaxation_jacobi
+python -m examples.inverters.inverter_relaxation_specialist
+```
+
+## Core
+
+Lower-level examples for users who deliberately want the core integration
+objects rather than the high-level `System` path.
+
+```powershell
+python -m examples.core
+python -m examples.core.manual_stepper_setup
 ```
 
 ## Comparison
 
-Comparison reports and backend-oriented experiments live under
-`competition/`.
+Comparison reports live under `competition/`. Backend timing caveats belong in
+benchmarking and backend-focused examples.

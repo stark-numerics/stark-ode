@@ -3,7 +3,11 @@ from typing import Protocol
 
 
 class IntegratorConfiguration(Protocol):
-    check_progress: bool
+    """Configuration shape shared by integrator implementations."""
+
+    @property
+    def check_progress(self) -> bool:
+        ...
 
 
 @dataclass(frozen=True, slots=True)

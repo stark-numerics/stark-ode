@@ -15,25 +15,19 @@ def harmonic_oscillator(t: float, state, out) -> None:
     out.dy[1] = -state.y[0]
 
 
-def build_ivp():
+if __name__ == "__main__":
     system = System(
         derivative=harmonic_oscillator,
         frame=Frame.vector("y", translation="dy", length=2),
     )
-    return system.ivp(
+    ivp = system.ivp(
         initial={"y": np.array([1.0, 0.0])},
         interval=Interval(present=0.0, step=0.05, stop=0.5),
         method=Method(SchemeCashKarp),
         engine=EngineNumpy,
     )
 
-
-def main() -> None:
     print("NumPy harmonic oscillator")
-    for interval, state in build_ivp().integrate():
+    for interval, state in ivp.integrate():
         position, velocity = state.y
         print(f"t={interval.present:.2f}, x={position:.6f}, v={velocity:.6f}")
-
-
-if __name__ == "__main__":
-    main()

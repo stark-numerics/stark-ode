@@ -16,6 +16,42 @@ Tolerance   adaptive error scale, when needed
 
 A `Frame` says which fields live on the state and which fields carry solver increments.
 
+For common one-field problems, use the convenience constructors:
+
+```python
+scalar_frame = Frame.scalar("y", translation="dy")
+vector_frame = Frame.vector("y", translation="dy", length=3)
+array_frame = Frame.array("u", translation="du", shape=(32, 32))
+```
+
+These are synonyms for the fuller mapping syntax:
+
+```python
+scalar_frame = Frame({
+    "y": {"translation": "dy", "shape": (1,)},
+})
+
+vector_frame = Frame({
+    "y": {"translation": "dy", "shape": (3,)},
+})
+
+array_frame = Frame({
+    "u": {"translation": "du", "shape": (32, 32)},
+})
+```
+
+For small structured systems, `Frame.from_fields(...)` keeps the shape of the
+problem visible without the mapping punctuation:
+
+```python
+frame = Frame.from_fields(
+    ("position", "dposition", (3,)),
+    ("velocity", "dvelocity", (3,)),
+)
+```
+
+This is again just a concise spelling for the full syntax:
+
 ```python
 frame = Frame({
     "position": {"translation": "dposition", "shape": (3,)},
@@ -136,7 +172,7 @@ Use `LinearizerStyle.operator` when you can provide Jacobian action and, optiona
 Run the example:
 
 ```powershell
-python -m examples.features.linearizer_styles
+python -m examples.problem.linearizer_styles
 ```
 
 ## When the high-level problem path is not enough

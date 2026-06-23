@@ -105,9 +105,9 @@ for interval, state in Integrator().mutating_trajectory(stepper, interval, state
     print(f"t={interval.present:.1f}, x={state.position:.6f}, v={state.velocity:.6f}")
 ```
 
-The runnable feature example `examples.features.structured_state_minimal`
+The runnable problem example `examples.problem.structured_state_minimal`
 shows the preferred high-level `Frame` route for nested structured fields.
-The runnable feature example `examples.features.foreign_model_allocator`
+The runnable problem example `examples.problem.foreign_model_allocator`
 shows the lower-level custom allocator route for an existing object model.
 
 ## What the translation must do
@@ -146,6 +146,7 @@ Use custom state/translation only when preserving the foreign model representati
 
 ## Next
 
-- [Mathematical contracts](contracts_math.md) explains the formal state/translation model.
+- [Concepts and terminology](concepts.md) explains the state/translation model.
+- [Contract maths](contract-maths.md) gives the formal low-level view.
 - [Extending STARK](extending.md) explains method components such as schemes and inverters.
-- [Algebraist backend paths](contributing/algebraist_backends.md) explains why `Frame`-backed models can use generated kernels while foreign models may need runtime fallback.
+- `stark/engines/shared/algebraist/DESIGN.md` explains why `Frame`-backed models can use generated kernels while foreign models may need runtime fallback.

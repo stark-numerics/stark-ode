@@ -1,12 +1,11 @@
-"""Compare CuPy algebra-provider strategies on the backend case-study problem.
+"""Compare CuPy algebra-provider strategies on one large array problem.
 
 This is an experiment, not a public example. It asks one narrow question:
 which specialist strategy does CuPy actually want for the large array backend
-case study?
+shape used by backend timing experiments?
 
 The rows intentionally keep the problem, derivative, scheme, interval, and
-timing convention aligned with ``examples.case_studies.backends``. Only the
-CuPy engine's algebra providers change.
+timing convention aligned. Only the CuPy engine's algebra providers change.
 
 Run from the ``stark-ode`` directory with:
 
@@ -23,20 +22,9 @@ from typing import Any, Callable
 
 import numpy as np
 
-from examples.case_studies.backends.lesson_01_numpy import build_numpy_ivp
-from examples.case_studies.backends.lesson_02_jax import (
-    build_jax_ivp,
-    jnp,
-    synchronize_jax,
-)
-from examples.case_studies.backends.lesson_03_cupy import (
-    cp,
-    initial_cupy,
-    rhs_cupy,
-    synchronize_cupy,
-)
-from stark import Configuration, Frame, Interval, Method, System
+from stark import Configuration, DerivativeStyle, Frame, Interval, Method, System
 from stark.core.contracts.accelerator import Accelerator
+from stark.engines import EngineNumpy
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines.shared.algebraist.arity import AlgebraistArity
 from stark.engines.shared.algebraist.frame import (
@@ -65,9 +53,107 @@ from stark.engines.cupy.carriers import CarrierCupy, CarrierNormCupyMax, Carrier
 from stark.methods.schemes import SchemeCashKarp
 from stark.problem.frame.frame import Frame as ProblemFrame
 
+try:
+    import cupy as cp
+except ImportError:  # pragma: no cover - optional dependency experiment
+    cp = None
+
+try:
+    import jax.numpy as jnp
+except ImportError:  # pragma: no cover - optional dependency experiment
+    jnp = None
+
 
 SIZE = 65536
 PRECONDITION_SIZES = (256, 1024, 4096, 16384)
+DIFFUSION = 0.01
+REACTION = 0.25
+
+
+def initial_numpy(size: int = SIZE) -> np.ndarray:
+    x = np.linspace(0.0, 1.0, size, endpoint=False)
+    return 0.55 + 0.15 * np.sin(2.0 * np.pi * x) + 0.05 * np.cos(6.0 * np.pi * x)
+
+
+@DerivativeStyle.accepts_instant_writes
+def rhs_numpy(t, state, out) -> None:
+    del t
+    u = state.u
+    laplacian = np.roll(u, -1) - 2.0 * u + np.roll(u, 1)
+    out.du[...] = DIFFUSION * laplacian + REACTION * u * (1.0 - u)
+
+
+def build_numpy_ivp(*, accelerated: bool = False, size: int = SIZE):
+    frame = Frame({"u": {"translation": "du", "shape": (size,)}})
+    system = System(derivative=rhs_numpy, frame=frame)
+    engine = EngineNumpy if accelerated else lambda frame: EngineNumpy(frame, accelerator=AcceleratorNone())
+    return system.ivp(
+        initial={"u": initial_numpy(size)},
+        interval=Interval(present=0.0, step=0.005, stop=0.015),
+        method=Method(scheme=SchemeCashKarp),
+        engine=engine,
+        configuration=Configuration(check_progress=False),
+    )
+
+
+def initial_jax(size: int = SIZE):
+    if jnp is None:
+        raise RuntimeError("JAX is not installed.")
+    x = jnp.linspace(0.0, 1.0, size, endpoint=False)
+    return 0.55 + 0.15 * jnp.sin(2.0 * jnp.pi * x) + 0.05 * jnp.cos(6.0 * jnp.pi * x)
+
+
+def build_jax_ivp(*, size: int = SIZE):
+    if jnp is None:
+        raise RuntimeError("JAX is not installed.")
+    from stark.engines import EngineJax
+
+    @DerivativeStyle.accepts_instant_returns
+    def rhs_jax(t, state):
+        del t
+        u = state.u
+        laplacian = jnp.roll(u, -1) - 2.0 * u + jnp.roll(u, 1)
+        return {"du": DIFFUSION * laplacian + REACTION * u * (1.0 - u)}
+
+    frame = Frame({"u": {"translation": "du", "shape": (size,)}})
+    system = System(derivative=rhs_jax, frame=frame)
+    return system.ivp(
+        initial={"u": initial_jax(size)},
+        interval=Interval(present=0.0, step=0.005, stop=0.015),
+        method=Method(scheme=SchemeCashKarp),
+        engine=EngineJax,
+        configuration=Configuration(check_progress=False),
+    )
+
+
+def synchronize_jax(value) -> None:
+    block = getattr(value, "block_until_ready", None)
+    if callable(block):
+        block()
+
+
+def initial_cupy(size: int = SIZE):
+    if cp is None:
+        raise RuntimeError("CuPy is not installed.")
+    x = cp.linspace(0.0, 1.0, size, endpoint=False)
+    return 0.55 + 0.15 * cp.sin(2.0 * cp.pi * x) + 0.05 * cp.cos(6.0 * cp.pi * x)
+
+
+if cp is not None:
+
+    @DerivativeStyle.accepts_instant_writes
+    def rhs_cupy(t, state, out) -> None:
+        del t
+        u = state.u
+        laplacian = cp.roll(u, -1) - 2.0 * u + cp.roll(u, 1)
+        out.du[...] = DIFFUSION * laplacian + REACTION * u * (1.0 - u)
+else:
+    rhs_cupy = None
+
+
+def synchronize_cupy() -> None:
+    if cp is not None:
+        cp.cuda.Stream.null.synchronize()
 
 
 @dataclass(slots=True)
