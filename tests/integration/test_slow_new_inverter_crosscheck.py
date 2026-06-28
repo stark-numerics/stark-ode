@@ -5,7 +5,8 @@ from math import sqrt
 
 import pytest
 
-from stark import Tolerance, IntegratorStepper
+from stark import Tolerance
+from stark.core import IntegratorStepper
 from stark.core.block import Block, BlockBasis
 
 try:  # New name after the diagonal block-operator rename.

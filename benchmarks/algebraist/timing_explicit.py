@@ -10,7 +10,8 @@ from typing import Callable
 
 import numpy as np
 
-from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
+from stark import Configuration, Interval, Tolerance
+from stark.core import Integrator, IntegratorStepper
 from stark.engines.shared.accelerators import AcceleratorNone, AcceleratorNumba
 from stark.engines.shared.algebraist.arity import AlgebraistArity
 from stark.engines.shared.algebraist.generator import AlgebraistGeneratorLinearCombine, AlgebraistGeneratorSpecialist

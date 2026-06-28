@@ -1,6 +1,5 @@
 """Problem declaration objects."""
 
-from stark.methods.method import Method, MethodError
 from stark.problem.derivative import (
     Derivative,
     DerivativeImplementation,
@@ -38,8 +37,6 @@ __all__ = [
     "LinearizerImplementation",
     "LinearizerSignature",
     "LinearizerStyle",
-    "Method",
-    "MethodError",
     "System",
     "SystemFinalResult",
     "SystemIVP",

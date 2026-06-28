@@ -1,3 +1,5 @@
+"""Butcher tableau containers used by Runge-Kutta scheme families."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,6 +21,8 @@ def _format_entry(value: float) -> str:
 
 @dataclass(frozen=True, slots=True)
 class ButcherTableau:
+    """Coefficients for one Runge-Kutta method."""
+
     c: tuple[float, ...]
     a: tuple[tuple[float, ...], ...]
     b: tuple[float, ...]
@@ -147,6 +151,8 @@ class ButcherTableau:
 
 
 class ButcherTableauEmbedded(ButcherTableau):
+    """Convenience constructor for embedded high/low-order tableaus."""
+
     def __init__(
         self,
         *,
@@ -173,6 +179,8 @@ class ButcherTableauEmbedded(ButcherTableau):
 
 @dataclass(frozen=True, slots=True)
 class ButcherTableauImex:
+    """Matched explicit and implicit tableaus for an IMEX method."""
+
     explicit: ButcherTableau
     implicit: ButcherTableau
     short_name: str | None = None
@@ -236,8 +244,6 @@ class ButcherTableauImex:
 
 
 __all__ = ["ButcherTableau", "ButcherTableauEmbedded", "ButcherTableauImex"]
-
-
 
 
 

@@ -4,7 +4,8 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Integrator, Interval, IntegratorStepper, Tolerance
+from stark import Interval, Tolerance
+from stark.core import Integrator, IntegratorStepper
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.diagnostics.monitor import Monitor
 from stark.methods.resolvents import ResolventPicard

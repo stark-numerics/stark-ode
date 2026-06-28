@@ -113,7 +113,8 @@ def tight_configuration() -> Configuration:
 
 import pytest
 
-from stark import Integrator, Interval, IntegratorStepper
+from stark import Interval
+from stark.core import Integrator, IntegratorStepper
 from stark.diagnostics.monitor import Monitor
 from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
 from stark.methods.schemes.explicit.adaptive.fehlberg45 import SchemeFehlberg45

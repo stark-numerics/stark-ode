@@ -5,7 +5,8 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
-from stark import Integrator, Interval, IntegratorStepper, Tolerance
+from stark import Interval, Tolerance
+from stark.core import Integrator, IntegratorStepper
 from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
 from stark.methods.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince

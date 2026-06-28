@@ -1,3 +1,5 @@
+"""Resolvent-level monitoring records and summaries."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -6,6 +8,8 @@ from statistics import median
 
 @dataclass(frozen=True, slots=True)
 class MonitorResolventSummary:
+    """Summary of nonlinear stage solves recorded by resolvents."""
+
     solve_count: int
     failure_count: int
     iteration_min: int | None
@@ -29,6 +33,8 @@ class MonitorResolventSummary:
 
 @dataclass(slots=True)
 class MonitorResolventSolve:
+    """One nonlinear solve attempt recorded by a resolvent."""
+
     resolvent: str
     alpha: float
     block_size: int
@@ -62,6 +68,8 @@ def _min_median_max_int(values: list[int]) -> tuple[int | None, float | None, in
 
 @dataclass(slots=True)
 class MonitorResolvent:
+    """Recorder for nonlinear resolvent solve events."""
+
     solves: list[MonitorResolventSolve] = field(default_factory=list)
 
     def record_solve(

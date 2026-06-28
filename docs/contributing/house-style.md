@@ -291,7 +291,7 @@ Docs may include short snippets, but full scripts should live in `examples/`.
 
 Do not keep old names alive unless compatibility is an explicit project decision.
 
-Compatibility aliases, legacy wrappers, and deprecated paths are not free. They affect docs, tests, examples, search results, and contributor understanding.
+Compatibility aliases, old wrappers, and deprecated paths are not free. They affect docs, tests, examples, search results, and contributor understanding.
 
 If a family is being replaced, move examples and docs to the new family before deleting the old code.
 

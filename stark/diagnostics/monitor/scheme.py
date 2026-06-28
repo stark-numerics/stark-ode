@@ -1,3 +1,5 @@
+"""Scheme-level monitoring records and summaries."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -6,6 +8,8 @@ from statistics import median
 
 @dataclass(frozen=True, slots=True)
 class MonitorSchemeSummary:
+    """Summary of accepted fixed/adaptive scheme steps."""
+
     step_count: int
     fixed_step_count: int
     adaptive_step_count: int
@@ -31,6 +35,8 @@ class MonitorSchemeSummary:
 
 @dataclass(slots=True)
 class MonitorSchemeStepFixed:
+    """One accepted fixed-size scheme step."""
+
     scheme: str
     t_start: float
     t_end: float
@@ -46,6 +52,8 @@ class MonitorSchemeStepFixed:
 
 @dataclass(slots=True)
 class MonitorSchemeStepAdaptive:
+    """One accepted adaptive step, including rejected attempts before it."""
+
     scheme: str
     t_start: float
     t_end: float
@@ -74,6 +82,8 @@ def _min_median_max(values: list[float]) -> tuple[float | None, float | None, fl
 
 @dataclass(slots=True)
 class MonitorScheme:
+    """Recorder for scheme step events."""
+
     fixed_steps: list[MonitorSchemeStepFixed] = field(default_factory=list)
     adaptive_steps: list[MonitorSchemeStepAdaptive] = field(default_factory=list)
 

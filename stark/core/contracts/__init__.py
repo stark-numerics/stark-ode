@@ -33,9 +33,6 @@ from stark.core.contracts.inverter import (
     InverterInstancing,
     InverterOutputMode,
     InverterRequest,
-    LegacyInverterAudit,
-    LegacyInverterLike,
-    LegacyInverterPreconditionerLike,
 )
 from stark.core.contracts.linear_combine import (
     Combine2,
@@ -114,9 +111,6 @@ __all__ = [
     "InverterInstancing",
     "InverterOutputMode",
     "InverterRequest",
-    "LegacyInverterAudit",
-    "LegacyInverterLike",
-    "LegacyInverterPreconditionerLike",
     "LinearCombine",
     "LinearResidual",
     "LinearizerLike",

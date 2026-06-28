@@ -1,3 +1,5 @@
+"""Configuration protocol and defaults consumed by scheme implementations."""
+
 from __future__ import annotations
 
 from typing import Protocol
@@ -7,6 +9,8 @@ from stark.core.tolerance import Tolerance
 
 @dataclass(frozen=False, slots=True)
 class SchemeConfiguration(Protocol):
+    """Scheme configuration shape required by fixed and adaptive schemes."""
+
     scheme_tolerance: Tolerance
     adaptive_scheme_safety: float
     adaptive_scheme_min_factor: float
@@ -17,6 +21,8 @@ class SchemeConfiguration(Protocol):
 
 @dataclass(frozen=False, slots=True)
 class SchemeConfigurationDefault:
+    """Default scheme configuration used when only scheme settings are needed."""
+
     scheme_tolerance: Tolerance = field(default_factory=Tolerance)
     adaptive_scheme_safety: float = 0.8
     adaptive_scheme_min_factor: float = 0.1

@@ -1,3 +1,10 @@
+"""Runtime machinery behind `ComparisonRunner`.
+
+This module keeps the operational parts of comparison separate from the public
+report models: step counting, checkpoint capture, repeated timing, optional
+monitor observation, and cProfile bucketing.
+"""
+
 from __future__ import annotations
 
 import cProfile
@@ -23,6 +30,8 @@ from stark.diagnostics.monitor import Monitor, MonitorSummary
 
 @dataclass(slots=True)
 class ComparisonRunRecord:
+    """Raw output from one comparison solve."""
+
     state: Any
     checkpoints: list[Any]
     steps: int
@@ -31,6 +40,8 @@ class ComparisonRunRecord:
 
 @dataclass(slots=True)
 class ComparisonEntryEvaluation:
+    """Prepared evidence for one entry after observation, timing, and profiling."""
+
     state: Any
     checkpoints: list[Any]
     steps: int
@@ -41,6 +52,8 @@ class ComparisonEntryEvaluation:
 
 
 class ComparisonStepperCounting:
+    """Wrap a stepper so comparison runs can count accepted step calls."""
+
     __slots__ = ("stepper", "steps")
 
     def __init__(self, stepper: Any) -> None:
@@ -62,6 +75,8 @@ class ComparisonStepperCounting:
 
 
 class ComparisonProfileSurvey:
+    """Convert cProfile statistics into comparison profile buckets."""
+
     __slots__ = ()
 
     def __call__(
@@ -175,6 +190,8 @@ class ComparisonProfileSurvey:
 
 
 class ComparisonEntryRunner:
+    """Prepare, observe, time, and profile one comparison entry."""
+
     __slots__ = ("announce", "problem", "profile_survey", "repeats")
 
     def __init__(self, problem: ComparisonProblemLike, repeats: int, announce: Any | None = None) -> None:

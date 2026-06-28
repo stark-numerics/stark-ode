@@ -1,3 +1,11 @@
+"""Data models used by the comparison diagnostics runner.
+
+The comparison layer is deliberately more structured than a timing script. It
+records how each entry was prepared, timed, diagnosed, and profiled so reports
+can show whether a comparison is fair rather than only printing a stopwatch
+result.
+"""
+
 from __future__ import annotations
 
 import inspect
@@ -221,6 +229,8 @@ ComparisonEntryLike = ComparisonEntry | ComparisonEntryStepper
 
 @dataclass(slots=True)
 class ComparisonBreakdown:
+    """Profiled self-time grouped into STARK comparison buckets."""
+
     profiled: float
     problem: float
     method: float
@@ -262,6 +272,8 @@ class ComparisonBreakdown:
 
 @dataclass(slots=True)
 class ComparisonHotspot:
+    """One non-STARK profile hotspot reported for a custom comparison entry."""
+
     location: str
     self_time: float
     cumulative_time: float
@@ -284,6 +296,8 @@ class ComparisonHotspot:
 
 @dataclass(slots=True)
 class ComparisonTiming:
+    """Setup, warmup, and repeated-run timings for one comparison entry."""
+
     setup: float
     warmup: float
     median: float
@@ -308,6 +322,8 @@ class ComparisonTiming:
 
 @dataclass(slots=True)
 class ComparisonDiagnostics:
+    """Named final-state diagnostics supplied by a comparison problem."""
+
     values: dict[str, Any]
 
     def __bool__(self) -> bool:
@@ -344,6 +360,8 @@ class ComparisonDiagnostics:
 
 @dataclass(slots=True)
 class Comparison:
+    """Labelled pairwise matrix, usually final-state or trajectory errors."""
+
     labels: list[str]
     values: list[list[float]]
     note: str | None = None
@@ -401,6 +419,8 @@ class Comparison:
 
 @dataclass(slots=True)
 class ComparisonProfile:
+    """Profiler summary for one comparison entry."""
+
     breakdown: ComparisonBreakdown
     note: str | None
     custom_hotspots: list[ComparisonHotspot]
@@ -420,6 +440,8 @@ class ComparisonProfile:
 
 @dataclass(slots=True)
 class ComparisonResult:
+    """Complete observed result for one comparison entry."""
+
     name: str
     steps: int
     timing: ComparisonTiming
@@ -447,6 +469,8 @@ class ComparisonResult:
 
 @dataclass(slots=True)
 class ComparisonReport:
+    """Complete comparison report returned by `ComparisonRunner`."""
+
     problem_name: str
     repeats: int
     description: str | None
@@ -552,7 +576,7 @@ def _ivp_method_stepper(
 
 
 def _method_with_scheme_monitor(method: Any, monitor: Any) -> Any:
-    from stark.problem import Method
+    from stark.methods import Method
 
     scheme_options = dict(method.scheme_options)
     scheme_options["monitor"] = monitor.scheme

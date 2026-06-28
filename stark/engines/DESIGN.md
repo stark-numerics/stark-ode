@@ -23,6 +23,9 @@ Backend-specific carriers, allocators, translations, targets, and policies
 should live near the backend they serve. Shared abstractions belong in
 `engines/shared` only when more than one backend genuinely uses them.
 
+`engines/shared` should not become a second backend. Backend identity should
+remain visible in the concrete backend package.
+
 ## Role
 
 An engine owns:

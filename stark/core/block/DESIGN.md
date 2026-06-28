@@ -28,7 +28,7 @@ Blocks are not a user modelling layer. Users should normally model state with
 `Frame`, `System`, or a foreign state/translation pair.
 
 Blocks are also not the default path to dense arrays. Dense materialisation is
-an optional view used by dense inverters and related experiments; it should not
+an optional view used by dense inverters and related diagnostics; it should not
 become the core representation of a solve.
 
 ## Design Rule

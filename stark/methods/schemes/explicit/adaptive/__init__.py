@@ -1,4 +1,11 @@
-"""Embedded adaptive Runge-Kutta schemes."""
+"""Embedded adaptive Runge-Kutta schemes.
+
+Use these as the default first-contact family for non-stiff IVPs. Embedded
+pairs estimate local error and choose the next step size automatically.
+`SchemeCashKarp`, `SchemeDormandPrince`, and `SchemeTsitouras5` are the main
+practical choices; lower-order pairs are useful when cheap coarse control is
+enough.
+"""
 
 from stark.methods.schemes.explicit.adaptive.bogacki_shampine import BS23_TABLEAU, SchemeBogackiShampine
 from stark.methods.schemes.explicit.adaptive.cash_karp import RKCK_TABLEAU, SchemeCashKarp
@@ -18,7 +25,6 @@ __all__ = [
     "SchemeFehlberg45",
     "SchemeTsitouras5",
 ]
-
 
 
 

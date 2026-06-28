@@ -1,9 +1,36 @@
-# STARK Contracts
+# Contracts Design Notes
 
-`stark.core.contracts` is the public documentation layer for the shapes STARK
-accepts from user code. Runtime modules may use smaller local protocols when
-that reduces coupling, but these files should explain the stable concepts a
-user needs in order to supply custom objects.
+`stark.core.contracts` defines stable protocol shapes for users and advanced
+contributors who want to provide custom pieces.
+
+Contracts are not concrete implementations. They are the vocabulary that lets
+domains cooperate without importing each other's classes.
+
+## Role
+
+Use contracts when a boundary should accept user-defined or domain-defined
+objects:
+
+```text
+custom derivative       -> DerivativeLike
+custom linearizer       -> LinearizerLike
+custom scheme           -> SchemeLike
+custom inverter         -> Inverter
+custom state/translation -> StateLike / TranslationLike
+```
+
+Auditors can use these protocols to produce clearer errors than a later hot
+path crash. Implementations can also use smaller local protocols when a local
+shape is intentionally narrower than the public contract.
+
+## Dependency Rule
+
+Contracts belong in core because every other domain may need to depend on them.
+They should avoid importing concrete problem, method, engine, or diagnostic
+classes. If a contract needs to mention another shape, prefer another contract
+or a minimal protocol.
+
+## Import Map
 
 Prefer focused imports when writing docs or implementation code:
 

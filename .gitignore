@@ -23,6 +23,7 @@ pytest-cache-files-*/
 htmlcov/
 .profiles/
 .asv/
+docs/_build/
 examples/*.png
 examples/**/*.png
 examples/.ipynb_checkpoints/
@@ -39,7 +40,7 @@ TODO.md
 experiments/
 git_cribsheet.md
 naming_style.md
-devtools/
+devtools/tmp/
 
 # Benchmarks results
 benchmarks/schemes/results/

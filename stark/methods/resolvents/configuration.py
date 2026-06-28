@@ -1,3 +1,5 @@
+"""Configuration protocol and defaults consumed by resolvents."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -20,6 +22,8 @@ class ResolventConfiguration(Protocol):
 
 @dataclass(frozen=False, slots=True)
 class ResolventConfigurationDefault:
+    """Default resolvent configuration for standalone resolvent use."""
+
     resolvent_tolerance: Tolerance = field(
         default_factory=lambda: Tolerance(atol=1.0e-9, rtol=1.0e-9)
     )

@@ -11,7 +11,8 @@ from statistics import median
 from time import perf_counter
 from typing import Callable
 
-from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
+from stark import Configuration, Interval, Tolerance
+from stark.core import Integrator, IntegratorStepper
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventPicard
 from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine

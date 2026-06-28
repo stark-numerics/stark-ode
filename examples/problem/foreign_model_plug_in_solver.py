@@ -11,7 +11,8 @@ from copy import deepcopy
 from dataclasses import dataclass
 from math import sqrt
 
-from stark import Configuration, Integrator, Interval, IntegratorStepper, Tolerance
+from stark import Configuration, Interval, Tolerance
+from stark.core import Integrator, IntegratorStepper
 from stark.methods import SchemeDormandPrince
 
 

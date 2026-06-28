@@ -1,4 +1,10 @@
-"""Adaptive implicit schemes."""
+"""Adaptive implicit schemes.
+
+Use these for stiff problems where the step size should be selected from local
+error evidence. The Kvaerno family is currently the strongest public face of
+STARK's built-in implicit stack; `SchemeKvaerno5` is the method to try first
+when accuracy and robust adaptive behaviour matter.
+"""
 
 from stark.methods.schemes.implicit.adaptive.bdf2 import SchemeBDF2
 from stark.methods.schemes.implicit.adaptive.kvaerno3 import KVAERNO3_TABLEAU, SchemeKvaerno3
@@ -17,7 +23,6 @@ __all__ = [
     "SchemeKvaerno5",
     "SchemeSDIRK21",
 ]
-
 
 
 

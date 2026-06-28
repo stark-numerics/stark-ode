@@ -17,7 +17,7 @@ foreign state       -> runtime Algebraist fallback   -> flexible low-level path
 
 Do not treat `AlgebraistRuntime` as the default high-level path for ordinary `Frame` models.
 
-## Main path
+## Main Path
 
 For a high-level solve, the intended path is:
 
@@ -32,7 +32,8 @@ Frame
   -> schemes/resolvents/inverters call prepared algebra
 ```
 
-The engine is responsible for choosing carriers, allocator, backend array behaviour, accelerator, and Algebraist provider family.
+The engine is responsible for choosing carriers, allocator, backend array
+behaviour, accelerator, and Algebraist provider family.
 
 ## Generated path
 
@@ -50,7 +51,22 @@ specialist stage updates
 
 This is where backend acceleration should happen for ordinary high-level use.
 
-## Runtime path
+## Frame, Generator, and Target
+
+The Algebraist stack has three separable concerns:
+
+```text
+frame policy   describes the known Frame-backed state layout
+generator      emits prepared algebra for that layout
+target         chooses the backend expression style
+```
+
+Keep these separate. A backend may need a different target style without
+inventing a new problem API or bypassing the engine. This is especially
+important for JAX, CuPy, and future Torch support, where "array operations work"
+does not imply "the best generated expression shape is identical".
+
+## Runtime Path
 
 Use runtime Algebraist support when STARK cannot know enough structure to generate code safely.
 
@@ -118,7 +134,7 @@ allocator-installed prepared kernels
 
 If a new object is needed, it should belong clearly to one of those layers.
 
-## Questions to ask before changing backend code
+## Questions to Ask Before Changing Backend Code
 
 ```text
 Is this a Frame-backed path or a foreign-model path?

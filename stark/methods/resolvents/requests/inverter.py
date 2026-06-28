@@ -16,15 +16,10 @@ class ResolventInverterRequest(Generic[TranslationType]):
 
         operator(solution) = residual
 
-    produced during a nonlinear or implicit solve.
-
-    Attributes:
-        operator:
-            Linearized residual action assembled at the current trial state.
-
-        residual:
-            Right-hand side requested by the resolvent, typically the negated
-            nonlinear residual for Newton-style correction equations.
+    produced during a nonlinear or implicit solve. The operator is the
+    linearized residual action assembled at the current trial state. The
+    residual is the right-hand side requested by the resolvent, typically the
+    negated nonlinear residual for Newton-style correction equations.
     """
 
     operator: BlockOperatorLike[TranslationType]

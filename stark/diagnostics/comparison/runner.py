@@ -1,3 +1,5 @@
+"""High-level runner for fair, repeatable comparison reports."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -15,6 +17,8 @@ from stark.diagnostics.comparison.runtime import ComparisonEntryEvaluation, Comp
 
 
 class ComparisonRunner:
+    """Run a problem through multiple entries and return a structured report."""
+
     __slots__ = ("announce", "entries", "prewarm_builders", "problem", "repeats", "ComparisonEntryRunner")
 
     def __init__(

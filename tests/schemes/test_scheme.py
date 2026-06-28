@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from stark import IntegratorStepper
+from stark.core import IntegratorStepper
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines.shared.algebraist.arity import AlgebraistArity
 from stark.engines.shared.algebraist.generator import AlgebraistGeneratorLinearCombine

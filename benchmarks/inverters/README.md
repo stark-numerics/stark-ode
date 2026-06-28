@@ -14,6 +14,6 @@ python -m benchmarks.inverters.bench_richardson
 These scripts are local before/after checks only. They are not portable solver
 performance claims and are not CI gates.
 
-The old legacy Krylov refactor benchmark was removed because it targeted the
+The old Krylov refactor benchmark was removed because it targeted the
 unfinished bind-then-solve inverter surface. Add replacement Krylov benchmark
 coverage once the request-shaped Krylov API lands.

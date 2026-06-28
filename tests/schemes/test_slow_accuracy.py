@@ -5,7 +5,8 @@ from math import cos, sin, sqrt
 
 import pytest
 
-from stark import Configuration, IntegratorStepper, Integrator, Interval, Tolerance
+from stark import Configuration, Interval, Tolerance
+from stark.core import Integrator, IntegratorStepper
 from stark.methods.schemes import (
     SchemeBogackiShampine,
     SchemeCashKarp,

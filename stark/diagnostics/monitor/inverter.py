@@ -1,3 +1,5 @@
+"""Inverter-level monitoring records and summaries."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -6,6 +8,8 @@ from statistics import median
 
 @dataclass(frozen=True, slots=True)
 class MonitorInverterSummary:
+    """Summary of linear solves recorded by inverters."""
+
     solve_count: int
     failure_count: int
     iteration_min: int | None
@@ -32,6 +36,8 @@ class MonitorInverterSummary:
 
 @dataclass(slots=True)
 class MonitorInverterSolve:
+    """One linear solve attempt recorded by an inverter."""
+
     inverter: str
     converged: bool
     iteration_count: int | None
@@ -62,6 +68,8 @@ def _min_median_max_int(values: list[int]) -> tuple[int | None, float | None, in
 
 @dataclass(slots=True)
 class MonitorInverter:
+    """Recorder for linear inverter solve events."""
+
     solves: list[MonitorInverterSolve] = field(default_factory=list)
 
     def record_solve(

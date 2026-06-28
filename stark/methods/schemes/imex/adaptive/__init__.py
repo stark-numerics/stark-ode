@@ -1,4 +1,10 @@
-"""Adaptive IMEX Runge-Kutta schemes."""
+"""Adaptive IMEX Runge-Kutta schemes.
+
+These Kennedy-Carpenter ARK methods combine explicit and implicit tableaux with
+embedded error estimates. Use them for split problems where automatic step-size
+control matters and the implicit part is expensive enough to justify the extra
+method structure.
+"""
 
 from stark.methods.schemes.imex.adaptive.kennedy_carpenter32 import (
     ARK324L2SA_TABLEAU,
@@ -41,7 +47,6 @@ __all__ = [
     "SchemeKennedyCarpenter54",
     "SchemeKennedyCarpenter54b",
 ]
-
 
 
 

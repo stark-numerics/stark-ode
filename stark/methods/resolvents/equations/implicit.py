@@ -267,10 +267,6 @@ class ResolventImplicitEquation:
     def differential(self, block: Block[Translation], out) -> None:
         self._differential(block, out)
 
-    # Backward-compatible alias while Newton callers are migrated.
-    def linearize(self, block: Block[Translation], out) -> None:
-        self.differential(block, out)
-
     def _differential_missing(self, block: Block[Translation], out) -> None:
         del block, out
         raise RuntimeError(
@@ -450,9 +446,6 @@ class ResolventImplicitEquationCoupled:
 
     def differential(self, block: Block[Translation], out) -> None:
         self._differential(block, out)
-
-    def linearize(self, block: Block[Translation], out) -> None:
-        self.differential(block, out)
 
     def _differential_missing(self, block: Block[Translation], out) -> None:
         del block, out

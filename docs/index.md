@@ -2,6 +2,26 @@
 
 This manual is organised by what you are trying to do.
 
+```{toctree}
+:hidden:
+:maxdepth: 2
+
+concepts
+getting-started
+problem
+methods
+implicit
+engines
+diagnostics
+examples
+extending
+foreign-models
+contract-maths
+reference/index
+contributing/README
+contributing/house-style
+```
+
 ## Solve a problem
 
 1. [Concepts and terminology](concepts.md): learn STARK's names for ODE, IVP, state, derivative, linearizer, resolvent, inverter, and engine.
@@ -18,6 +38,8 @@ This manual is organised by what you are trying to do.
 - [Extending STARK](extending.md): write a scheme, resolvent, inverter, preconditioner, or monitor.
 - [Foreign models](foreign-models.md): connect existing model objects through custom state and translation contracts.
 - [Contract maths](contract-maths.md): formal reference for the low-level model.
+- [API reference](reference/index.md): generated reference pages for public
+  modules and advanced surfaces.
 
 ## Contributor and maintainer notes
 

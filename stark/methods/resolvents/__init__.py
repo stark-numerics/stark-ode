@@ -1,3 +1,13 @@
+"""Built-in implicit resolvent catalogue.
+
+Resolvents solve the nonlinear stage equations created by implicit and IMEX
+schemes. Fixed-point resolvents are simple and useful when the stage equation
+is strongly contractive. Linearized resolvents are the main serious implicit
+path. Secant-style resolvents are in development and should be treated as
+advanced tools until stronger examples and safeguards settle their public
+shape.
+"""
+
 from stark.methods.resolvents.method.descriptor import ResolventDescriptor
 from stark.methods.resolvents.method.errors import ResolventError
 from stark.methods.resolvents.configuration import ResolventConfiguration

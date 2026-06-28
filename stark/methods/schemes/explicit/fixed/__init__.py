@@ -1,4 +1,11 @@
-"""Classic explicit fixed-step Runge-Kutta schemes."""
+"""Classic explicit fixed-step Runge-Kutta schemes.
+
+Use these when a model already has a meaningful step size, when repeatable
+per-step cost matters more than automatic control, or when implementing and
+testing custom scheme behaviour. `SchemeRK4` is the familiar high-quality
+baseline; lower-order schemes are useful for teaching, debugging, and cheap
+probes.
+"""
 
 from stark.methods.schemes.explicit.fixed.euler import EULER_TABLEAU, SchemeEuler
 from stark.methods.schemes.explicit.fixed.heun import HEUN_TABLEAU, SchemeHeun
@@ -27,7 +34,6 @@ __all__ = [
     "SchemeRK38",
     "SchemeSSPRK33",
 ]
-
 
 
 

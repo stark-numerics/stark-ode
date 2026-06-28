@@ -1,3 +1,11 @@
+"""User-facing frame declarations for structured state.
+
+A `Frame` names the state fields a model owns, the translation fields where
+derivatives are written, each field's storage shape, and the norm policy used
+by adaptive methods. Engines translate this declaration into backend-specific
+allocation and algebra kernels.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping

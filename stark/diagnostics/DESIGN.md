@@ -30,8 +30,8 @@ Comparison helpers are for comparing method choices on the same problem. They
 are useful user tools, but they should remain transparent about setup, warmup,
 repeated timings, and profiling.
 
-Competition reports and benchmark experiments may build on diagnostics, but
-they should not collapse all timing categories into one headline.
+Competition reports and benchmarks may build on diagnostics, but they should
+not collapse all timing categories into one headline.
 
 ## Design Rule
 

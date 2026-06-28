@@ -3,11 +3,8 @@
 import importlib
 
 from stark import (
-    Auditor,
     Configuration,
-    Integrator,
     Interval,
-    IntegratorStepper,
     Derivative,
     DerivativeSignature,
     DerivativeStyle,
@@ -17,6 +14,7 @@ from stark import (
     System,
     Tolerance,
 )
+from stark.core import Auditor, Integrator, IntegratorStepper
 from stark.engines import Accelerator, AcceleratorNone
 from stark.engines.shared.accelerators import AcceleratorJax, AcceleratorNumba
 from stark.core.block.operator import BlockOperatorDiagonal

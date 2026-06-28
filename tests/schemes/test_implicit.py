@@ -5,7 +5,8 @@ from math import sqrt
 
 import pytest
 
-from stark import Integrator, IntegratorStepper, Tolerance
+from stark import Tolerance
+from stark.core import Integrator, IntegratorStepper
 from stark.core.interval import Interval
 from stark.methods.resolvents import (
     ResolventCoupledNewton,

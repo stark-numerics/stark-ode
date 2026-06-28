@@ -1,11 +1,10 @@
-from __future__ import annotations
-
-from stark.core import Configuration
-from stark.methods.resolvents.configuration import ResolventConfiguration
 """Newton-backed resolvent for one-stage shifted implicit solves."""
+
+from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from stark.core import Configuration
 from stark.core.block import Block, BlockOperatorDiagonal
 from stark.core.contracts import (
     Accelerator,
@@ -16,6 +15,7 @@ from stark.core.contracts import (
     Allocator,
 )
 from stark.engines.shared.accelerators import AcceleratorNone
+from stark.methods.resolvents.configuration import ResolventConfiguration
 from stark.methods.resolvents.method.descriptor import ResolventDescriptor
 from stark.methods.resolvents.method.errors import ResolventError
 from stark.methods.resolvents.monitoring.monitor import MonitorResolventLike

@@ -1,4 +1,10 @@
-"""Implicit Runge-Kutta schemes."""
+"""Fixed-step implicit Runge-Kutta schemes.
+
+Use these when stiffness matters but the caller wants direct control over the
+step size. Backward Euler and implicit midpoint are compact baselines; Radau,
+Lobatto, Gauss-Legendre, and DIRK variants offer stronger accuracy or stability
+properties at higher per-step cost.
+"""
 
 from stark.methods.schemes.implicit.fixed.backward_euler import BE_TABLEAU, SchemeBackwardEuler
 from stark.methods.schemes.implicit.fixed.crank_nicolson import (
@@ -48,7 +54,6 @@ __all__ = [
     "SchemeLobattoIIIC4",
     "SchemeRadauIIA5",
 ]
-
 
 
 

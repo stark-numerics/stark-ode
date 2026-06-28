@@ -10,7 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import sqrt
 
-from stark import Auditor, Interval, Tolerance
+from stark import Interval, Tolerance
+from stark.core import Auditor
 from stark.methods import SchemeRK4
 
 

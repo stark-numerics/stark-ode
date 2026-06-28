@@ -42,6 +42,12 @@ examples = [
     "matplotlib>=3.8",
     "numba>=0.60",
 ]
+docs = [
+    "myst-parser>=2",
+    "pydata-sphinx-theme>=0.15",
+    "sphinx>=7",
+    "sphinx-copybutton>=0.5",
+]
 comparison = [
     "diffrax>=0.6",
     "jax>=0.4",

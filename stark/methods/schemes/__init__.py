@@ -1,7 +1,20 @@
-"""Built-in scheme catalogue.
+"""Built-in time-stepping scheme catalogue.
 
 Scheme classes are loaded lazily so scheme implementation modules can import
 shared scheme support without recursively importing the whole catalogue.
+
+Scheme families answer different modelling questions:
+
+- explicit fixed schemes are simple, predictable-cost steppers for non-stiff
+  problems or externally controlled step sizes;
+- explicit adaptive schemes are the usual first choice for non-stiff problems
+  when automatic step-size control is helpful;
+- implicit fixed schemes target stiff or constraint-like problems where the
+  caller controls the step size;
+- implicit adaptive schemes target stiff problems where automatic step-size
+  control matters;
+- IMEX schemes target split derivatives where one part is best treated
+  explicitly and another part benefits from implicit treatment.
 """
 
 _SCHEMES = {

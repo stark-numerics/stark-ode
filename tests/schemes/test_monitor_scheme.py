@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from stark import Integrator, Interval, IntegratorStepper, Monitor, Tolerance
+from stark import Interval, Monitor
+from stark.core import Integrator, IntegratorStepper, Tolerance
 from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
 from stark.methods.schemes.explicit.fixed.euler import SchemeEuler
 from stark.methods.schemes.specialization.stencil import SchemeStencil

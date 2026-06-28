@@ -1,4 +1,11 @@
-"""Matrix-free Krylov inverter family."""
+"""Matrix-free Krylov inverter family.
+
+Krylov inverters approximate inverse actions using operator applications
+rather than materialising the full operator. They are intended for larger or
+operator-only linear systems, but this package is still in development:
+preconditioner coverage is deliberately small and contributors with real
+matrix-free workloads can help shape the public defaults.
+"""
 
 from stark.methods.inverters.krylov.arnoldi import (
     InverterKrylovArnoldi,

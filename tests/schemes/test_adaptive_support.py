@@ -158,7 +158,7 @@ def test_adaptive_support_records_accepted_report() -> None:
     assert report.rejection_count == 2
 
 
-def test_adaptive_scheme_exposes_step_control_without_legacy_report() -> None:
+def test_adaptive_scheme_exposes_step_control_without_report_alias() -> None:
     scheme = SchemeBogackiShampine(zero_rhs, ScalarAllocator())
 
     assert isinstance(scheme.step_control, SchemeStepControl)

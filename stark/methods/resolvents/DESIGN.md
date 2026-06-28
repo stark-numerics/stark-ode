@@ -28,20 +28,25 @@ Linearized resolvents should delegate inverse actions to inverters. They should
 not grow solver-specific linear algebra internally unless that is the actual
 resolvent idea being tested.
 
+## Differential Language
+
+Implicit equation workers expose `differential(...)` for the linearized action.
+Do not keep old compatibility aliases such as `linearize(...)` before the first
+public release unless they are intentionally part of the API.
+
 ## Prove New Ideas Before Promotion
 
-New resolvent ideas should usually be tested in a private local probe or a
-competition example before being promoted. If a method can stall, the probe
-should expose the failure mode and the public construction should include a
-finite step/rejection limit.
+New resolvent ideas should usually be tested against a problem that exposes
+their failure modes before being promoted. If a method can stall, the public
+construction should include a finite step/rejection limit.
 
 ## Secant-Style Resolvents
 
 The secant-style family (`ResolventAnderson`, `ResolventBroyden`, and related
 prototypes) is intentionally not represented by a cheerful first-contact
-example yet. These methods can be excellent when the problem and safeguards line
-up, but they are also the easiest family to make look frozen or mysterious on a
-poor toy problem.
+example yet. These methods can be excellent when the problem and safeguards
+line up, but they are also the easiest family to make look frozen or mysterious
+on a poor toy problem.
 
 Before promoting a secant-style feature example, make sure the example:
 

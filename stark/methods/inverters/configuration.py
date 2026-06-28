@@ -1,3 +1,5 @@
+"""Configuration protocol and defaults consumed by inverters."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

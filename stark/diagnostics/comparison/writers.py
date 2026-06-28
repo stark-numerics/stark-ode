@@ -1,3 +1,5 @@
+"""Plain-text writers for comparison diagnostics models."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -14,6 +16,8 @@ from stark.diagnostics.comparison.models import (
 
 
 class ComparisonTableWriter:
+    """Render simple aligned ASCII tables for comparison reports."""
+
     __slots__ = ()
 
     def __call__(self, headers: tuple[str, ...], rows: Iterable[tuple[str, ...]]) -> str:
@@ -33,6 +37,8 @@ class ComparisonTableWriter:
 
 
 class ComparisonDiagnosticsWriter:
+    """Render named diagnostics as a two-column table."""
+
     __slots__ = ("table",)
 
     def __init__(self) -> None:
@@ -51,6 +57,8 @@ class ComparisonDiagnosticsWriter:
 
 
 class ComparisonWriter:
+    """Render a labelled comparison matrix."""
+
     __slots__ = ("table",)
 
     def __init__(self) -> None:
@@ -68,6 +76,8 @@ class ComparisonWriter:
 
 
 class ComparisonProfileWriter:
+    """Render one entry's profile buckets and optional custom hotspots."""
+
     __slots__ = ("table",)
 
     def __init__(self) -> None:
@@ -118,6 +128,8 @@ class ComparisonProfileWriter:
 
 
 class ComparisonResultWriter:
+    """Render the detailed report section for one comparison entry."""
+
     __slots__ = ("table",)
 
     def __init__(self) -> None:
@@ -140,6 +152,8 @@ class ComparisonResultWriter:
 
 
 class ComparisonReportWriter:
+    """Render a complete comparison report."""
+
     __slots__ = ("table",)
 
     def __init__(self) -> None:

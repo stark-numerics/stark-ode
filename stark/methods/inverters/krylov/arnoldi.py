@@ -71,7 +71,7 @@ class InverterKrylovArnoldi(Generic[TranslationType]):
         5. Restart until accepted or the configured step budget is exhausted.
 
     The implementation deliberately follows the current inverter contract.  It
-    does not expose the legacy bind-then-solve API; repeated operator-specific
+    does not expose the old bind-then-solve API; repeated operator-specific
     use goes through instance(operator).
     """
 

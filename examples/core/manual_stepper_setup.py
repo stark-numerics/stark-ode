@@ -22,7 +22,8 @@ from typing import Any
 
 import numpy as np
 
-from stark import Frame, Integrator, Interval, IntegratorStepper
+from stark import Frame, Interval
+from stark.core import Integrator, IntegratorStepper
 from stark.engines import EngineNumpy
 from stark.methods import SchemeRK4
 

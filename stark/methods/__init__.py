@@ -1,4 +1,11 @@
-"""Public method-stack catalogue."""
+"""Public method-stack catalogue.
+
+`stark.methods` collects the pieces users combine into a `Method`: time
+schemes, implicit resolvents, and linear inverse-action inverters. For a first
+pass, most non-stiff problems should start with an explicit adaptive scheme
+such as `SchemeCashKarp` or `SchemeTsitouras5`; stiff problems usually need an
+implicit or IMEX scheme plus a resolvent and inverter.
+"""
 
 from importlib import import_module
 

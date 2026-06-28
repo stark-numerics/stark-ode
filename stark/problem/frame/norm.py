@@ -1,3 +1,5 @@
+"""Norm policies used by `FrameField` declarations."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

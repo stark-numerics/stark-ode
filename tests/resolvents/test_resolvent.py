@@ -2,7 +2,8 @@
 
 import importlib
 
-from stark import Auditor, Configuration, Integrator, Interval, IntegratorStepper, Tolerance
+from stark import Configuration, Interval, Tolerance
+from stark.core import Auditor, Integrator, IntegratorStepper
 from stark.engines import Accelerator, AcceleratorNone
 from stark.core.block.operator import BlockOperatorDiagonal
 from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblemManual

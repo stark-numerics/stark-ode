@@ -1,3 +1,12 @@
+"""Problem-layer assembly for reusable initial-value problems.
+
+`System` is the user-facing point where a derivative, frame, optional
+linearizer, method, engine, interval, and initial state become a prepared
+`SystemIVP`. The resulting IVP keeps the expensive preparation work together
+so scripts can run final-state solves, trajectories, benchmarks, and
+comparisons without rebuilding the whole stack each time.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator, Mapping

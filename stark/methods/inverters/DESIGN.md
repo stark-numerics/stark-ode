@@ -21,12 +21,13 @@ inverse-action ideas can support several resolvent styles.
 - Inverters may receive an accelerator, but they should not require callers to
   know which internal kernel will consume it.
 - Hot solve paths should trust already-constructed inputs. Expensive safety
-  checks belong at construction time, in private probes, or in tests.
+  checks belong at construction time, in benchmarks, or in tests.
 - Preconditioners are explicit Krylov collaborators. A missing preconditioner
   means unpreconditioned Arnoldi, not hidden diagonal magic.
-- Avoid external dense-solve provider dispatch in the hot path. Experiments
-  showed that dispatching to external providers was slower than the local
-  nucleus path for the small systems this package currently materialises.
+- Avoid external dense-solve provider dispatch in the hot path. Local
+  measurements showed that dispatching to external providers was slower than
+  the local nucleus path for the small systems this package currently
+  materialises.
 
 ## Known Gaps
 
@@ -41,5 +42,5 @@ inverse-action ideas can support several resolvent styles.
   public design.
 - Sparse, factorised, and GPU-specialised inverse actions are future work.
 
-Run a private local probe before promoting a Krylov example or changing Arnoldi
+Use a focused benchmark before promoting a Krylov example or changing Arnoldi
 defaults.
