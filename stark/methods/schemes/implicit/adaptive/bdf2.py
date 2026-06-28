@@ -79,10 +79,6 @@ class SchemeBDF2:
         self.call_step = self.call_monitored if monitor is not None else self.call_body
         self.redirect_call = self.call_step
 
-    @staticmethod
-    def default_adaptivity() -> float:
-        return 0.5
-
     @property
     def short_name(self) -> str:
         return self.descriptor.short_name

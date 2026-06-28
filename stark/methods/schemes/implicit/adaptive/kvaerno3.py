@@ -127,10 +127,6 @@ class SchemeKvaerno3:
                 self.call_step = self.call_body
                 self.redirect_call = self.call_step
 
-    @staticmethod
-    def default_adaptivity() -> float:
-        return 1.0 / 3.0
-
     def __call__(self, interval: IntervalLike, state: State) -> float:
         return self.redirect_call(interval, state)
 

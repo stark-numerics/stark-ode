@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from collections.abc import Callable
 
-from stark.core import Configuration
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.core.contracts import IntervalLike, State
 
@@ -185,28 +184,10 @@ class SchemeStepControl:
         return self._report
 
 
-def default_adaptive_error_exponent(scheme) -> float:
-    default_adaptivity = getattr(type(scheme), "default_adaptivity", None)
-    if default_adaptivity is None:
-        return Configuration().adaptive_scheme_error_exponent
-    value = default_adaptivity()
-    return value.error_exponent if hasattr(value, "error_exponent") else float(value)
-
-
-def default_scheme_configuration(scheme) -> Configuration:
-    return replace(
-        Configuration(),
-        adaptive_scheme_error_exponent=default_adaptive_error_exponent(scheme),
-    )
-
-
-
 __all__ = [
     "ErrorBound",
     "ErrorRatio",
     "SchemeStepAdaptiveProposal",
     "SchemeStepAdaptiveAdvanceReport",
     "SchemeStepControl",
-    "default_adaptive_error_exponent",
-    "default_scheme_configuration",
 ]

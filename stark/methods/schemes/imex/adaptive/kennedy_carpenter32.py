@@ -116,11 +116,6 @@ class SchemeKennedyCarpenter32(SchemeKennedyCarpenterAdaptive):
     def __call__(self, interval: IntervalLike, state: State) -> float:
         return self.redirect_call(interval, state)
 
-    @staticmethod
-    def default_adaptivity() -> float:
-        return 1.0 / 3.0
-
-
 __all__ = [
     "ARK324L2SA_EXPLICIT",
     "ARK324L2SA_IMPLICIT",

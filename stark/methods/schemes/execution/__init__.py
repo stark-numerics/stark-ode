@@ -11,8 +11,6 @@ from stark.methods.schemes.execution.step_control import (
     SchemeStepAdaptiveAdvanceReport,
     SchemeStepAdaptiveProposal,
     SchemeStepControl,
-    default_adaptive_error_exponent,
-    default_scheme_configuration,
 )
 
 
@@ -27,6 +25,4 @@ __all__ = [
     "SchemeStepAdaptiveAdvanceReport",
     "SchemeStepAdaptiveProposal",
     "SchemeStepControl",
-    "default_adaptive_error_exponent",
-    "default_scheme_configuration",
 ]
