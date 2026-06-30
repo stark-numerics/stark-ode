@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TypeVar, cast
+from typing import cast
 
 from stark.engines.shared.accelerators.none import AcceleratorNone
 from stark.core.contracts.accelerator import Accelerator
-
-KernelType = TypeVar("KernelType", bound=Callable[..., object])
 
 _COMPILED_KERNELS: dict[tuple[object, ...], Callable[..., object]] = {}
 
@@ -32,11 +30,11 @@ class AlgebraistGeneratorCompiler:
 
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
 
-    def compile(self, source: str) -> KernelType:
+    def compile(self, source: str) -> Callable[..., object]:
         cache_key = (*_accelerator_key(self.accelerator), source)
         cached = _COMPILED_KERNELS.get(cache_key)
         if cached is not None:
-            return cast(KernelType, cached)
+            return cached
 
         namespace: dict[str, object] = {}
         exec(source, namespace)
@@ -59,14 +57,14 @@ class AlgebraistGeneratorCompiler:
                 raise TypeError("generated kernel is not callable.")
 
             _COMPILED_KERNELS[cache_key] = kernel
-            return cast(KernelType, kernel)
+            return kernel
 
         kernel = namespace["kernel"]
         if not callable(kernel):
             raise TypeError("generated kernel is not callable.")
 
         compiled = cast(
-            KernelType,
+            Callable[..., object],
             self.accelerator.compile(kernel, label="algebraist.generator.kernel"),
         )
         _COMPILED_KERNELS[cache_key] = compiled

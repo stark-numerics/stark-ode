@@ -1,18 +1,34 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from collections.abc import MutableSequence
-from typing import cast
 
+from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines.shared.algebraist.arity import AlgebraistArity
 from stark.engines.shared.algebraist.runtime.linear_combine import AlgebraistRuntimeLinearCombine
-from stark.core.block import Block, BlockOperatorDiagonal
-from stark.core.contracts import Accelerator, DerivativeLike, IntervalLike, LinearizerLike, State, Translation, Allocator
+from stark.core.block import Block
+from stark.core.contracts import (
+    Accelerator,
+    BlockOperatorLike,
+    BlockLike,
+    DerivativeLike,
+    IntervalLike,
+    LinearizerLike,
+    State,
+    Translation,
+    Allocator,
+)
 from stark.core.contracts.translation_basis import TranslationBasis
 from stark.methods.resolvents.requests.resolvent import (
     ResolventRequestCoupled,
     ResolventRequest,
 )
 from stark.methods.resolvents.equations.workers import ResolventDerivative, ResolventLinearizer
+
+ResolventDenseFill = Callable[
+    [TranslationBasis[Translation], MutableSequence[float], int, int, int],
+    None,
+]
 
 
 class ResolventImplicitEquationJacobian:
@@ -22,8 +38,8 @@ class ResolventImplicitEquationJacobian:
 
     def __init__(self, method_name: str) -> None:
         self.method_name = method_name
-        self.apply = self._unconfigured
-        self.dense_fill = None
+        self.apply: Callable[[Translation, Translation], None] = self._unconfigured
+        self.dense_fill: ResolventDenseFill | None = None
 
     def __call__(self, translation: Translation, out: Translation) -> None:
         self.apply(translation, out)
@@ -50,8 +66,8 @@ class ResolventImplicitEquationDifferential:
 
     def __init__(self, combine2, allocate_translation, jacobian) -> None:
         self.combine2 = combine2
-        self.dense_fill = None
-        self.dense_fill_direct = self.dense_fill_configured
+        self.dense_fill: ResolventDenseFill | None = None
+        self.dense_fill_direct: ResolventDenseFill = self.dense_fill_configured
         self.jacobian_buffer = allocate_translation()
         self.jacobian = jacobian
         self.alpha = 0.0
@@ -120,9 +136,13 @@ class ResolventImplicitEquationDifferentialCoupled:
             jacobian.apply = jacobian._unconfigured
             jacobian.dense_fill = None
 
-    def __call__(self, block: Block[Translation], out: Block[Translation]) -> None:
+    def __call__(
+        self,
+        source: BlockLike[Translation],
+        target: BlockLike[Translation],
+    ) -> BlockLike[Translation]:
         for row_index, row in enumerate(self.matrix):
-            out_item = self.scale(0.0, out[row_index], out[row_index])
+            out_item = self.scale(0.0, target[row_index], target[row_index])
 
             for column_index, coefficient in enumerate(row):
                 if row_index == column_index:
@@ -130,7 +150,7 @@ class ResolventImplicitEquationDifferentialCoupled:
                         1.0,
                         out_item,
                         1.0,
-                        block[column_index],
+                        source[column_index],
                         out_item,
                     )
 
@@ -138,7 +158,7 @@ class ResolventImplicitEquationDifferentialCoupled:
                     continue
 
                 self.jacobians[column_index](
-                    block[column_index],
+                    source[column_index],
                     self.jacobian_buffer,
                 )
                 out_item = self.combine2(
@@ -149,7 +169,9 @@ class ResolventImplicitEquationDifferentialCoupled:
                     out_item,
                 )
 
-            out[row_index] = out_item
+            target[row_index] = out_item
+
+        return target
 
 
 class ResolventImplicitEquation:
@@ -194,6 +216,7 @@ class ResolventImplicitEquation:
     ) -> None:
         self.method_name = method_name
         translation_probe = allocator.allocate_translation()
+        accelerator = accelerator if accelerator is not None else AcceleratorNone()
         general = AlgebraistRuntimeLinearCombine(
             translation=translation_probe,
             allocator=allocator,
@@ -312,7 +335,6 @@ class ResolventImplicitEquationCoupled:
         "linearizer",
         "jacobian_operators",
         "residual_operator",
-        "block_operator",
         "_differential",
         "step",
     )
@@ -326,6 +348,7 @@ class ResolventImplicitEquationCoupled:
     ) -> None:
         self.method_name = method_name
         translation_probe = allocator.allocate_translation()
+        accelerator = accelerator if accelerator is not None else AcceleratorNone()
         general = AlgebraistRuntimeLinearCombine(
             translation=translation_probe,
             allocator=allocator,
@@ -350,7 +373,6 @@ class ResolventImplicitEquationCoupled:
         )
         self.jacobian_operators: list[ResolventImplicitEquationJacobian] = []
         self.residual_operator: ResolventImplicitEquationDifferentialCoupled | None = None
-        self.block_operator = None
         self._differential = (
             self._differential_configured
             if linearizer is not None
@@ -447,6 +469,20 @@ class ResolventImplicitEquationCoupled:
     def differential(self, block: Block[Translation], out) -> None:
         self._differential(block, out)
 
+    def refresh_differential_operator(
+        self,
+        block: Block[Translation],
+    ) -> BlockOperatorLike[Translation]:
+        """Refresh and return the coupled differential operator for `block`."""
+
+        residual_operator = self.residual_operator
+        if residual_operator is None:
+            raise RuntimeError(
+                f"{self.method_name} differential operator is not prepared."
+            )
+        self.differential(block, residual_operator)
+        return residual_operator
+
     def _differential_missing(self, block: Block[Translation], out) -> None:
         del block, out
         raise RuntimeError(
@@ -499,7 +535,6 @@ class ResolventImplicitEquationCoupled:
             self.jacobian_operators,
             self.matrix,
         )
-        self.block_operator = self.residual_operator
 
 
 __all__ = [

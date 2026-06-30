@@ -1,8 +1,5 @@
 """Built-in time-stepping scheme catalogue.
 
-Scheme classes are loaded lazily so scheme implementation modules can import
-shared scheme support without recursively importing the whole catalogue.
-
 Scheme families answer different modelling questions:
 
 - explicit fixed schemes are simple, predictable-cost steppers for non-stiff
@@ -17,49 +14,68 @@ Scheme families answer different modelling questions:
   explicitly and another part benefits from implicit treatment.
 """
 
-_SCHEMES = {
-    "SchemeBDF2": "stark.methods.schemes.implicit.adaptive.bdf2",
-    "SchemeBackwardEuler": "stark.methods.schemes.implicit.fixed.backward_euler",
-    "SchemeBogackiShampine": "stark.methods.schemes.explicit.adaptive.bogacki_shampine",
-    "SchemeCashKarp": "stark.methods.schemes.explicit.adaptive.cash_karp",
-    "SchemeCrankNicolson": "stark.methods.schemes.implicit.fixed.crank_nicolson",
-    "SchemeCrouzeixDIRK3": "stark.methods.schemes.implicit.fixed.crouzeix_dirk3",
-    "SchemeDormandPrince": "stark.methods.schemes.explicit.adaptive.dormand_prince",
-    "SchemeEuler": "stark.methods.schemes.explicit.fixed.euler",
-    "SchemeFehlberg45": "stark.methods.schemes.explicit.adaptive.fehlberg45",
-    "SchemeGaussLegendre4": "stark.methods.schemes.implicit.fixed.gauss_legendre4",
-    "SchemeHeun": "stark.methods.schemes.explicit.fixed.heun",
-    "SchemeIMEXEuler": "stark.methods.schemes.imex.fixed.euler",
-    "SchemeImplicitMidpoint": "stark.methods.schemes.implicit.fixed.implicit_midpoint",
-    "SchemeKennedyCarpenter32": "stark.methods.schemes.imex.adaptive.kennedy_carpenter32",
-    "SchemeKennedyCarpenter43_6": "stark.methods.schemes.imex.adaptive.kennedy_carpenter43_6",
-    "SchemeKennedyCarpenter43_7": "stark.methods.schemes.imex.adaptive.kennedy_carpenter43_7",
-    "SchemeKennedyCarpenter54": "stark.methods.schemes.imex.adaptive.kennedy_carpenter54",
-    "SchemeKennedyCarpenter54b": "stark.methods.schemes.imex.adaptive.kennedy_carpenter54b",
-    "SchemeKutta3": "stark.methods.schemes.explicit.fixed.kutta3",
-    "SchemeKvaerno3": "stark.methods.schemes.implicit.adaptive.kvaerno3",
-    "SchemeKvaerno4": "stark.methods.schemes.implicit.adaptive.kvaerno4",
-    "SchemeKvaerno5": "stark.methods.schemes.implicit.adaptive.kvaerno5",
-    "SchemeLobattoIIIC4": "stark.methods.schemes.implicit.fixed.lobatto_iiic4",
-    "SchemeMidpoint": "stark.methods.schemes.explicit.fixed.midpoint",
-    "SchemeRK4": "stark.methods.schemes.explicit.fixed.rk4",
-    "SchemeRK38": "stark.methods.schemes.explicit.fixed.rk38",
-    "SchemeRadauIIA5": "stark.methods.schemes.implicit.fixed.radau_iia5",
-    "SchemeRalston": "stark.methods.schemes.explicit.fixed.ralston",
-    "SchemeSDIRK21": "stark.methods.schemes.implicit.adaptive.sdirk21",
-    "SchemeSSPRK33": "stark.methods.schemes.explicit.fixed.ssprk33",
-    "SchemeTsitouras5": "stark.methods.schemes.explicit.adaptive.tsitouras5",
-}
+from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
+from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
+from stark.methods.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
+from stark.methods.schemes.explicit.adaptive.fehlberg45 import SchemeFehlberg45
+from stark.methods.schemes.explicit.adaptive.tsitouras5 import SchemeTsitouras5
+from stark.methods.schemes.explicit.fixed.euler import SchemeEuler
+from stark.methods.schemes.explicit.fixed.heun import SchemeHeun
+from stark.methods.schemes.explicit.fixed.kutta3 import SchemeKutta3
+from stark.methods.schemes.explicit.fixed.midpoint import SchemeMidpoint
+from stark.methods.schemes.explicit.fixed.ralston import SchemeRalston
+from stark.methods.schemes.explicit.fixed.rk38 import SchemeRK38
+from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
+from stark.methods.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter43_6 import SchemeKennedyCarpenter43_6
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter43_7 import SchemeKennedyCarpenter43_7
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter54 import SchemeKennedyCarpenter54
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter54b import SchemeKennedyCarpenter54b
+from stark.methods.schemes.imex.fixed.euler import SchemeIMEXEuler
+from stark.methods.schemes.implicit.adaptive.bdf2 import SchemeBDF2
+from stark.methods.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
+from stark.methods.schemes.implicit.adaptive.kvaerno4 import SchemeKvaerno4
+from stark.methods.schemes.implicit.adaptive.kvaerno5 import SchemeKvaerno5
+from stark.methods.schemes.implicit.adaptive.sdirk21 import SchemeSDIRK21
+from stark.methods.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
+from stark.methods.schemes.implicit.fixed.crank_nicolson import SchemeCrankNicolson
+from stark.methods.schemes.implicit.fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
+from stark.methods.schemes.implicit.fixed.gauss_legendre4 import SchemeGaussLegendre4
+from stark.methods.schemes.implicit.fixed.implicit_midpoint import SchemeImplicitMidpoint
+from stark.methods.schemes.implicit.fixed.lobatto_iiic4 import SchemeLobattoIIIC4
+from stark.methods.schemes.implicit.fixed.radau_iia5 import SchemeRadauIIA5
 
-__all__ = sorted(_SCHEMES)
-
-
-def __getattr__(name: str):
-    if name not in _SCHEMES:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-    from importlib import import_module
-
-    value = getattr(import_module(_SCHEMES[name]), name)
-    globals()[name] = value
-    return value
+__all__ = (
+    "SchemeBDF2",
+    "SchemeBackwardEuler",
+    "SchemeBogackiShampine",
+    "SchemeCashKarp",
+    "SchemeCrankNicolson",
+    "SchemeCrouzeixDIRK3",
+    "SchemeDormandPrince",
+    "SchemeEuler",
+    "SchemeFehlberg45",
+    "SchemeGaussLegendre4",
+    "SchemeHeun",
+    "SchemeIMEXEuler",
+    "SchemeImplicitMidpoint",
+    "SchemeKennedyCarpenter32",
+    "SchemeKennedyCarpenter43_6",
+    "SchemeKennedyCarpenter43_7",
+    "SchemeKennedyCarpenter54",
+    "SchemeKennedyCarpenter54b",
+    "SchemeKutta3",
+    "SchemeKvaerno3",
+    "SchemeKvaerno4",
+    "SchemeKvaerno5",
+    "SchemeLobattoIIIC4",
+    "SchemeMidpoint",
+    "SchemeRK4",
+    "SchemeRK38",
+    "SchemeRadauIIA5",
+    "SchemeRalston",
+    "SchemeSDIRK21",
+    "SchemeSSPRK33",
+    "SchemeTsitouras5",
+)

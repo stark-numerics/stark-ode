@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from numbers import Number
 from typing import TypeAlias
 
-CarrierNativeTupleValue: TypeAlias = tuple[Number, ...]
+from stark.engines.native.carriers.hints import HintNativeNumber
+
+CarrierNativeTupleValue: TypeAlias = tuple[HintNativeNumber, ...]
 
 
 @dataclass(frozen=True)

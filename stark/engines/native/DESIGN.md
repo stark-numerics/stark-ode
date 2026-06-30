@@ -26,19 +26,26 @@ Like NumPy, Native attempts to use `AcceleratorNumba` by default and falls back
 to `AcceleratorNone` when Numba is unavailable. The fallback should remain
 usable and visibly slower rather than failing import-time.
 
-## Review Note
+## Hint Types
 
-Native currently differs from NumPy, CuPy, and JAX in how generated linear
-combination support is installed. The engine constructs an
-`AlgebraistGeneratorLinearCombine`, but the allocator does not currently expose
-the arity-indexed `linear_combine` table that the other frame-backed engines
-install.
+Native carrier storage is ordinary Python data, but static typing still needs a
+boundary description. Use `HintNativeNumber` for the numeric operations native
+carriers require, such as addition, multiplication, absolute value, and
+conversion to `float`.
 
-This may be intentional if Native translations use a different fallback path,
-but it should be checked during the engine correctness pass. If Native is meant
-to be a first-class generated-Algebraist backend, its allocator-installed
-prepared algebra should mirror the other engines unless there is a documented
-reason not to.
+Do not annotate native carrier values with `numbers.Number` merely because the
+runtime check uses it. Pyright treats `Number` as an abstract marker and cannot
+infer the arithmetic operations that these carriers intentionally rely on.
+
+## Generated Linear Combine
+
+Native mirrors the other frame-backed engines by installing the generated
+arity-indexed `linear_combine` table on its allocator.
+
+Translations expose that allocator-provided table through their
+`linear_combine` property. This keeps scheme/runtime support on prepared
+Algebraist kernels instead of falling back to generic translation arithmetic
+when the `Frame` is known.
 
 ## Design Rule
 

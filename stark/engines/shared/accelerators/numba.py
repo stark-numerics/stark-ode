@@ -109,14 +109,15 @@ class AcceleratorNumba:
         function: AcceleratorTarget,
         *examples: Any,
     ) -> AcceleratorTarget:
-        if not examples or not callable(function) or not hasattr(function, "compile"):
+        compile_method = getattr(function, "compile", None)
+        if not examples or not callable(function) or not callable(compile_method):
             return function
 
         compiled_any = False
         for example in examples:
             arguments = example if isinstance(example, tuple) else (example,)
             try:
-                function.compile(tuple(self._typeof(argument) for argument in arguments))
+                compile_method(tuple(self._typeof(argument) for argument in arguments))
             except Exception:
                 continue
             else:

@@ -21,26 +21,9 @@ def values(block: Block[TranslationFixture]) -> tuple[float, ...]:
 
 
 class SpecialistFixture:
-    def provide(self, stencil: SchemeStencil) -> Callable[..., TranslationFixture]:
+    def provide_delta(self, stencil: SchemeStencil) -> Callable[..., TranslationFixture]:
         coefficients = stencil.coefficients
         fixed_scale = stencil.scale
-
-        if stencil.apply:
-
-            def apply_kernel(
-                step: float,
-                origin: TranslationFixture,
-                *terms: TranslationFixture,
-            ) -> TranslationFixture:
-                sources = terms[:-1]
-                result = terms[-1]
-                result.value = origin.value + step * fixed_scale * sum(
-                    coefficient * source.value
-                    for coefficient, source in zip(coefficients, sources, strict=True)
-                )
-                return result
-
-            return apply_kernel
 
         def delta_kernel(
             step: float,
@@ -55,6 +38,25 @@ class SpecialistFixture:
             return out
 
         return delta_kernel
+
+    def provide_apply(self, stencil: SchemeStencil) -> Callable[..., TranslationFixture]:
+        coefficients = stencil.coefficients
+        fixed_scale = stencil.scale
+
+        def apply_kernel(
+            step: float,
+            origin: TranslationFixture,
+            *terms: TranslationFixture,
+        ) -> TranslationFixture:
+            sources = terms[:-1]
+            result = terms[-1]
+            result.value = origin.value + step * fixed_scale * sum(
+                coefficient * source.value
+                for coefficient, source in zip(coefficients, sources, strict=True)
+            )
+            return result
+
+        return apply_kernel
 
 
 def test_block_specialist_lifts_delta_kernel_entrywise() -> None:

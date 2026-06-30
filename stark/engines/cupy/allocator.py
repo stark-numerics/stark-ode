@@ -23,14 +23,14 @@ class EngineAllocatorCupy:
     def allocate_state(self) -> SimpleNamespace:
         state = SimpleNamespace()
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
-            field.state_path.set(state, carrier.allocation.zero_state())
+            field.state_path.assign(state, carrier.allocation.zero_state())
         return state
 
     def copy_state(self, source: object, out: object) -> object:
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
-            field.state_path.set(
+            field.state_path.assign(
                 out,
-                carrier.allocation.copy_state(field.state_path.get(source)),
+                carrier.allocation.copy_state(field.state_path(source)),
             )
         return out
 
@@ -44,7 +44,7 @@ class EngineAllocatorCupy:
             norm_kernel=self.norm,
         )
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
-            field.translation_path.set(translation, carrier.allocation.zero_translation())
+            field.translation_path.assign(translation, carrier.allocation.zero_translation())
         return translation
 
 

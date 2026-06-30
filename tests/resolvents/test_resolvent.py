@@ -53,7 +53,7 @@ from stark.methods.schemes.implicit.fixed import (
     LOBATTO_IIIC4_TABLEAU,
     RADAU_IIA5_TABLEAU,
 )
-from stark.methods.schemes.method.tableau import ButcherTableau, ButcherTableauImex
+from stark.methods.schemes.method.tableau import Tableau, TableauImex
 
 
 def test_package_imports() -> None:
@@ -247,10 +247,10 @@ def test_core_objects_have_readable_representations() -> None:
     configuration = Configuration()
     configuration_tolerance = Tolerance(atol=1.0e-8, rtol=1.0e-6)
     scheme_tolerance = Tolerance(atol=1.0e-8, rtol=1.0e-6)
-    tableau = ButcherTableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="E")
-    imex_tableau = ButcherTableauImex(
-        explicit=ButcherTableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="E"),
-        implicit=ButcherTableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="I"),
+    tableau = Tableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="E")
+    imex_tableau = TableauImex(
+        explicit=Tableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="E"),
+        implicit=Tableau(c=(0.0,), a=((),), b=(1.0,), order=1, short_name="I"),
     )
     stepper = IntegratorStepper(MinimalScheme())
     auditor = Auditor(interval=interval, stepper=stepper, snapshots=True, exercise=False)
@@ -258,7 +258,7 @@ def test_core_objects_have_readable_representations() -> None:
     auto_picard = ResolventPicard(allocator, accelerator=AcceleratorNone())
     auto_coupled_picard = ResolventCoupledPicard(
         allocator,
-        tableau=ButcherTableau(
+        tableau=Tableau(
             c=(0.5, 0.5),
             a=((0.25, 0.25), (0.25, 0.25)),
             b=(0.5, 0.5),
@@ -281,7 +281,7 @@ def test_core_objects_have_readable_representations() -> None:
     )
     auto_coupled_newton = ResolventCoupledNewton(
         allocator,
-        tableau=ButcherTableau(
+        tableau=Tableau(
             c=(0.5, 0.5),
             a=((0.25, 0.25), (0.25, 0.25)),
             b=(0.5, 0.5),
@@ -311,8 +311,8 @@ def test_core_objects_have_readable_representations() -> None:
     assert repr(configuration_tolerance) == "Tolerance(atol=1e-08, rtol=1e-06)"
     assert repr(scheme_tolerance) == "Tolerance(atol=1e-08, rtol=1e-06)"
     assert str(configuration_tolerance) == "atol=1e-08, rtol=1e-06"
-    assert repr(tableau) == "ButcherTableau(stages=1, order=1, embedded_order=None, name='E')"
-    assert "ButcherTableauImex" in repr(imex_tableau)
+    assert repr(tableau) == "Tableau(stages=1, order=1, embedded_order=None, name='E')"
+    assert "TableauImex" in repr(imex_tableau)
     assert IMEX_EULER_TABLEAU is not None
     assert BE_TABLEAU is not None
     assert IMPLICIT_MIDPOINT_TABLEAU is not None

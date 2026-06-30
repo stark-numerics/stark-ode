@@ -9,7 +9,7 @@ from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
 from stark.engines.numpy.engine import EngineNumpy
-from stark.problem import DerivativeStyle
+from stark.problem import Derivative, DerivativeStyle
 from stark.problem.frame.frame import Frame
 from stark.methods.method import Method
 from stark.problem.system.system import System
@@ -141,14 +141,18 @@ def full_derivative(parameters: FitzHughNagumoParameters):
 
 def imex_derivative(parameters: FitzHughNagumoParameters):
     return DerivativeStyle.split(
-        implicit=fitzhugh_nagumo_implicit_rhs.with_parameters(
-            parameters.diffusivity_u,
-            parameters.inv_dx2,
+        implicit=Derivative(
+            fitzhugh_nagumo_implicit_rhs.with_parameters(
+                parameters.diffusivity_u,
+                parameters.inv_dx2,
+            )
         ),
-        explicit=fitzhugh_nagumo_explicit_rhs.with_parameters(
-            parameters.epsilon,
-            parameters.a,
-            parameters.b,
+        explicit=Derivative(
+            fitzhugh_nagumo_explicit_rhs.with_parameters(
+                parameters.epsilon,
+                parameters.a,
+                parameters.b,
+            )
         ),
     )
 
@@ -195,7 +199,7 @@ class FitzHughNagumoSpectralResolvent:
         delta.du[:] = np.fft.ifft(self.u_hat).real - state.u
 
 
-def stark_layout(parameters: FitzHughNagumoParameters) -> Frame:
+def stark_frame(parameters: FitzHughNagumoParameters) -> Frame:
     shape = (parameters.grid_size,)
     return Frame(
         {
@@ -240,7 +244,7 @@ def stark_ivp(
 ):
     system = System(
         derivative=full_derivative(parameters) if derivative is None else derivative,
-        frame=stark_layout(parameters),
+        frame=stark_frame(parameters),
     )
     return system.ivp(
         initial=initial_values,

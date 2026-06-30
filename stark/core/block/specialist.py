@@ -5,10 +5,10 @@ from dataclasses import dataclass
 from typing import Generic, Protocol, TypeVar
 
 from stark.core.block.block import Block
+from stark.core.contracts.translation import TranslationType
 
 
-StencilType = TypeVar("StencilType")
-TranslationType = TypeVar("TranslationType")
+StencilType = TypeVar("StencilType", contravariant=True)
 ItemKernel = Callable[..., object]
 BlockKernel = Callable[..., Block[TranslationType]]
 
@@ -16,7 +16,10 @@ BlockKernel = Callable[..., Block[TranslationType]]
 class BlockItemSpecialist(Protocol[StencilType]):
     """Provider of entry-level kernels that can be lifted to Blocks."""
 
-    def provide(self, stencil: StencilType) -> ItemKernel:
+    def provide_delta(self, stencil: StencilType) -> ItemKernel:
+        ...
+
+    def provide_apply(self, stencil: StencilType) -> ItemKernel:
         ...
 
 
@@ -27,9 +30,8 @@ class BlockSpecialist(Generic[StencilType, TranslationType]):
     specialist: BlockItemSpecialist[StencilType]
 
     def provide(self, stencil: StencilType) -> BlockKernel[TranslationType]:
-        item_kernel = self.specialist.provide(stencil)
-
         if getattr(stencil, "apply", False):
+            item_kernel = self.specialist.provide_apply(stencil)
 
             def apply_kernel(
                 step: float,
@@ -52,6 +54,8 @@ class BlockSpecialist(Generic[StencilType, TranslationType]):
                 return result
 
             return apply_kernel
+
+        item_kernel = self.specialist.provide_delta(stencil)
 
         def delta_kernel(
             step: float,

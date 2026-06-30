@@ -26,8 +26,8 @@ def explicit_rhs(t, state, out) -> None:
 if __name__ == "__main__":
     system = System(
         derivative=Derivative.split(
-            implicit=implicit_rhs,
-            explicit=explicit_rhs,
+            implicit=Derivative(implicit_rhs),
+            explicit=Derivative(explicit_rhs),
         ),
         frame=Frame.scalar("y", translation="dy"),
     )

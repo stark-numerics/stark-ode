@@ -7,8 +7,10 @@ from typing import Generic, TypeVar
 
 from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
+    AlgebraistFrameLooped,
     AlgebraistFrameNormMax,
     AlgebraistFrameNormRMS,
+    AlgebraistFrameUnravel,
 )
 
 TranslationType = TypeVar("TranslationType")
@@ -31,11 +33,19 @@ class AlgebraistRuntimeInnerProduct(Generic[TranslationType]):
                     continue
                 scale = 1.0
                 if isinstance(field.norm, AlgebraistFrameNormRMS):
-                    scale = float(prod(field.policy.shape))
+                    policy = field.policy
+                    if isinstance(policy, AlgebraistFrameLooped):
+                        if policy.shape is None:
+                            raise ValueError("Runtime inner product requires shaped RMS looped fields.")
+                        scale = float(prod(policy.shape))
+                    elif isinstance(policy, AlgebraistFrameUnravel):
+                        scale = float(prod(policy.shape))
+                    else:
+                        raise ValueError("Runtime inner product requires shaped RMS fields.")
                 elif not isinstance(field.norm, AlgebraistFrameNormMax):
                     raise ValueError("Runtime inner product requires RMS or max norm fields.")
-                left_value = field.translation_path.get(left)
-                right_value = field.translation_path.get(right)
+                left_value = field.translation_path(left)
+                right_value = field.translation_path(right)
                 total += float((left_value * right_value).sum()) / scale
             return total
 

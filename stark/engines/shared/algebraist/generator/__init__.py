@@ -1,3 +1,12 @@
+"""Generated Algebraist providers for known `Frame` layouts.
+
+Generator providers emit backend-shaped kernels for algebra that schemes,
+resolvents, and inverters call repeatedly. Backend authors usually customize
+the target rather than bypassing this package: NumPy, CuPy, JAX, and future
+Torch engines may want different expression styles while preserving the same
+high-level `Frame` contract.
+"""
+
 from stark.engines.shared.algebraist.generator.compiler import AlgebraistGeneratorCompiler
 from stark.engines.shared.algebraist.generator.emitter import AlgebraistGeneratorEmitter
 from stark.engines.shared.algebraist.generator.inner_product import AlgebraistGeneratorInnerProduct

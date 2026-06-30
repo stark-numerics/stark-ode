@@ -3,9 +3,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from math import sqrt
-from typing import ClassVar, Generic
+from typing import ClassVar, Generic, cast
 
-from stark.core.block import Block, BlockAllocator
+from stark.core.block import Block, BlockAllocationAllocator, BlockAllocator
 from stark.core.contracts import (
     Accelerator,
     Allocator,
@@ -14,7 +14,6 @@ from stark.core.contracts import (
     InnerProduct,
     InverterOutputMode,
     InverterRequest,
-    Translation,
     TranslationType,
 )
 from stark.engines.shared.accelerators import AcceleratorNone
@@ -25,13 +24,14 @@ from stark.methods.inverters.configuration import (
 )
 from stark.methods.inverters.krylov.basis import InverterKrylovBasis
 from stark.methods.inverters.krylov.preconditioners import (
+    InverterPreconditionerNone,
     InverterKrylovPreconditionerLike,
-    PreconditionerNone,
 )
 from stark.methods.inverters.krylov.projection import InverterKrylovProjection
 from stark.methods.inverters.support import (
     InverterDefect,
     InverterDescriptor,
+    InverterRecordSolve,
     MonitorInverterLike,
     with_inverter_monitoring,
 )
@@ -86,9 +86,11 @@ class InverterKrylovArnoldi(Generic[TranslationType]):
 
     descriptor: ClassVar[InverterDescriptor] = InverterDescriptor("Krylov", "Arnoldi Krylov")
     output_mode: ClassVar[InverterOutputMode] = InverterOutputMode.improve
+    # Installed by with_inverter_monitoring from stark.methods.inverters.support.
+    record_solve: ClassVar[InverterRecordSolve]
 
     block_allocator: BlockAllocator[TranslationType] = field(init=False, repr=False)
-    sample: Translation = field(init=False, repr=False)
+    sample: TranslationType = field(init=False, repr=False)
     scale: Callable[..., TranslationType] = field(init=False, repr=False)
     combine2: Callable[..., TranslationType] = field(init=False, repr=False)
     defect: InverterDefect[TranslationType] = field(init=False, repr=False)
@@ -118,19 +120,24 @@ class InverterKrylovArnoldi(Generic[TranslationType]):
         self.accelerator = accelerator
         self.tolerance = configuration.inverter_tolerance
         self.maximum_steps = configuration.inverter_maximum_steps
-        self.block_allocator = BlockAllocator(self.allocator)
-        self.sample = self.allocator.allocate_translation()
+        block_allocation_allocator = cast(
+            BlockAllocationAllocator[TranslationType],
+            self.allocator,
+        )
+        self.block_allocator = BlockAllocator(block_allocation_allocator)
+        self.sample = cast(TranslationType, self.allocator.allocate_translation())
         kernels = AlgebraistRuntimeLinearCombine(
             translation=self.sample,
             allocator=self.allocator,
             accelerator=accelerator,
         ).as_tuple(2)
+        kernels = cast(tuple[Callable[..., TranslationType], ...], kernels)
         self.scale = kernels[0]
         self.combine2 = kernels[1]
         self.precondition = (
             self.preconditioner
             if self.preconditioner is not None
-            else PreconditionerNone(self.copy_block)
+            else InverterPreconditionerNone[TranslationType](self.copy_block)
         )
         self.defect = InverterDefect()
         self.basis = InverterKrylovBasis(self, self.restart)

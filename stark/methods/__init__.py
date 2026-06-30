@@ -7,15 +7,13 @@ such as `SchemeCashKarp` or `SchemeTsitouras5`; stiff problems usually need an
 implicit or IMEX scheme plus a resolvent and inverter.
 """
 
-from importlib import import_module
-
 from stark.methods.inverters import (
     InverterConfiguration,
     InverterDense,
     InverterDescriptor,
     InverterKrylovArnoldi,
-    PreconditionerDiagonalInverse,
-    PreconditionerNone,
+    InverterPreconditionerDiagonalInverse,
+    InverterPreconditionerNone,
     InverterRelaxationJacobi,
     InverterRelaxationRichardson,
     InverterRelaxationSpecialist,
@@ -36,15 +34,47 @@ from stark.methods.resolvents import (
     ResolventPicard,
     ResolventVeryChord,
 )
-from stark.methods.schemes import __all__ as _SCHEME_NAMES
+from stark.methods.schemes import (
+    SchemeBDF2,
+    SchemeBackwardEuler,
+    SchemeBogackiShampine,
+    SchemeCashKarp,
+    SchemeCrankNicolson,
+    SchemeCrouzeixDIRK3,
+    SchemeDormandPrince,
+    SchemeEuler,
+    SchemeFehlberg45,
+    SchemeGaussLegendre4,
+    SchemeHeun,
+    SchemeIMEXEuler,
+    SchemeImplicitMidpoint,
+    SchemeKennedyCarpenter32,
+    SchemeKennedyCarpenter43_6,
+    SchemeKennedyCarpenter43_7,
+    SchemeKennedyCarpenter54,
+    SchemeKennedyCarpenter54b,
+    SchemeKutta3,
+    SchemeKvaerno3,
+    SchemeKvaerno4,
+    SchemeKvaerno5,
+    SchemeLobattoIIIC4,
+    SchemeMidpoint,
+    SchemeRK4,
+    SchemeRK38,
+    SchemeRadauIIA5,
+    SchemeRalston,
+    SchemeSDIRK21,
+    SchemeSSPRK33,
+    SchemeTsitouras5,
+)
 
-_EXPORTED_NAMES = {
+__all__ = (
     "InverterConfiguration",
     "InverterDense",
     "InverterDescriptor",
     "InverterKrylovArnoldi",
-    "PreconditionerDiagonalInverse",
-    "PreconditionerNone",
+    "InverterPreconditionerDiagonalInverse",
+    "InverterPreconditionerNone",
     "InverterRelaxationJacobi",
     "InverterRelaxationRichardson",
     "InverterRelaxationSpecialist",
@@ -63,17 +93,35 @@ _EXPORTED_NAMES = {
     "ResolventNewton",
     "ResolventPicard",
     "ResolventVeryChord",
-}
-
-__all__ = sorted(_EXPORTED_NAMES | set(_SCHEME_NAMES))
-
-
-def __getattr__(name: str):
-    """Lazily expose built-in schemes from `stark.methods`."""
-
-    if name not in _SCHEME_NAMES:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-    value = getattr(import_module("stark.methods.schemes"), name)
-    globals()[name] = value
-    return value
+    "SchemeBDF2",
+    "SchemeBackwardEuler",
+    "SchemeBogackiShampine",
+    "SchemeCashKarp",
+    "SchemeCrankNicolson",
+    "SchemeCrouzeixDIRK3",
+    "SchemeDormandPrince",
+    "SchemeEuler",
+    "SchemeFehlberg45",
+    "SchemeGaussLegendre4",
+    "SchemeHeun",
+    "SchemeIMEXEuler",
+    "SchemeImplicitMidpoint",
+    "SchemeKennedyCarpenter32",
+    "SchemeKennedyCarpenter43_6",
+    "SchemeKennedyCarpenter43_7",
+    "SchemeKennedyCarpenter54",
+    "SchemeKennedyCarpenter54b",
+    "SchemeKutta3",
+    "SchemeKvaerno3",
+    "SchemeKvaerno4",
+    "SchemeKvaerno5",
+    "SchemeLobattoIIIC4",
+    "SchemeMidpoint",
+    "SchemeRK4",
+    "SchemeRK38",
+    "SchemeRadauIIA5",
+    "SchemeRalston",
+    "SchemeSDIRK21",
+    "SchemeSSPRK33",
+    "SchemeTsitouras5",
+)

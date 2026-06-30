@@ -1,9 +1,28 @@
 from __future__ import annotations
 
-from stark.core.contracts import BlockLike, BlockOperatorLike, TranslationType
+from typing import Generic, Protocol, cast
+
+from stark.core.contracts import (
+    BlockLike,
+    BlockOperatorDiagonalLike,
+    BlockOperatorLike,
+    TranslationType,
+    TranslationTypeContravariant,
+)
 
 
-class PreconditionerDiagonalInverse:
+class InverterPreconditionerInvertibleEntry(Protocol[TranslationTypeContravariant]):
+    """Diagonal operator entry that exposes an inverse action."""
+
+    def inverse(
+        self,
+        source: TranslationTypeContravariant,
+        target: TranslationTypeContravariant,
+    ) -> None:
+        ...
+
+
+class InverterPreconditionerDiagonalInverse(Generic[TranslationType]):
     """Block-diagonal preconditioner using entry-level inverse actions.
 
     This preconditioner is intentionally narrow. It expects the operator to be
@@ -21,8 +40,15 @@ class PreconditionerDiagonalInverse:
         source: BlockLike[TranslationType],
         target: BlockLike[TranslationType],
     ) -> None:
+        diagonal = cast(BlockOperatorDiagonalLike[TranslationType], operator)
         for index in range(len(source)):
-            operator[index].inverse(source[index], target[index])  # type: ignore[index, union-attr]
+            entry = diagonal[index]
+            if entry is None:
+                raise RuntimeError(
+                    f"Krylov diagonal preconditioner entry {index} is not configured."
+                )
+            invertible = cast(InverterPreconditionerInvertibleEntry[TranslationType], entry)
+            invertible.inverse(source[index], target[index])
 
 
-__all__ = ["PreconditionerDiagonalInverse"]
+__all__ = ["InverterPreconditionerDiagonalInverse"]

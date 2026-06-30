@@ -30,7 +30,7 @@ class AlgebraistRuntimeNorm(Generic[TranslationType]):
             for field, norm in fields_and_norms:
                 if not field.norm.include:
                     continue
-                field_norm = norm(field.translation_path.get(translation))
+                field_norm = norm(field.translation_path(translation))
                 total += field_norm * field_norm
             return sqrt(total)
 

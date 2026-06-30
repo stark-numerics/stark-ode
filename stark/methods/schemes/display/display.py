@@ -5,10 +5,10 @@ from math import isclose
 from typing import Any
 
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
-from stark.methods.schemes.method.tableau import ButcherTableau, ButcherTableauImex
+from stark.methods.schemes.method.tableau import Tableau, TableauImex
 
 
-def _is_stiffly_accurate(tableau: ButcherTableau) -> bool:
+def _is_stiffly_accurate(tableau: Tableau) -> bool:
     if not tableau.a:
         return False
     last_row = tableau.a[-1]
@@ -17,7 +17,7 @@ def _is_stiffly_accurate(tableau: ButcherTableau) -> bool:
     return all(isclose(left, right, rel_tol=0.0, abs_tol=1.0e-14) for left, right in zip(last_row, tableau.b, strict=True))
 
 
-def _is_lower_triangular(tableau: ButcherTableau) -> bool:
+def _is_lower_triangular(tableau: Tableau) -> bool:
     for row_index, row in enumerate(tableau.a):
         for column_index in range(row_index + 1, len(row)):
             if not isclose(row[column_index], 0.0, rel_tol=0.0, abs_tol=1.0e-14):
@@ -25,7 +25,7 @@ def _is_lower_triangular(tableau: ButcherTableau) -> bool:
     return True
 
 
-def display_implicit_resolvent_problem(tableau: ButcherTableau, short_name: str, full_name: str) -> str:
+def display_implicit_resolvent_problem(tableau: Tableau, short_name: str, full_name: str) -> str:
     stage_count = len(tableau.c)
     lines = [
         f"{short_name} resolvent problem ({full_name})",
@@ -70,7 +70,7 @@ def display_implicit_resolvent_problem(tableau: ButcherTableau, short_name: str,
     return "\n".join(lines)
 
 
-def display_imex_resolvent_problem(tableau: ButcherTableauImex, short_name: str, full_name: str) -> str:
+def display_imex_resolvent_problem(tableau: TableauImex, short_name: str, full_name: str) -> str:
     stage_count = len(tableau.c)
     lines = [
         f"{short_name} IMEX resolvent problem ({full_name})",

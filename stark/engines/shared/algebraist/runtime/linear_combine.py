@@ -9,13 +9,9 @@ from stark.engines.shared.algebraist.arity import AlgebraistArity
 from stark.engines.shared.algebraist.linear_combine import AlgebraistLinearCombineKernel
 from stark.engines.shared.algebraist.runtime.support import AlgebraistRuntimeSupport
 from stark.engines.shared.algebraist.allocator import AlgebraistAllocator
+from stark.engines.shared.algebraist.frame import AlgebraistFrame
 from stark.core.contracts.accelerator import Accelerator
 from stark.core.contracts.translation import Translation
-
-try:
-    from stark.engines.shared.algebraist.frame import AlgebraistFrame
-except Exception:  # pragma: no cover
-    AlgebraistFrame = object  # type: ignore[misc, assignment]
 
 TranslationType = TypeVar("TranslationType", bound=Translation)
 

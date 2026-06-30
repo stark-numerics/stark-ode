@@ -3,17 +3,17 @@ from __future__ import annotations
 from typing import Protocol
 
 from stark.core.block import BlockKernel
-from stark.core.contracts import Translation, TranslationTypeCovariant
+from stark.core.contracts import Translation, TranslationType
 from stark.methods.inverters.relaxation.stencil import InverterRelaxationStencil, InverterRelaxationStencilUpdate
 
 
-class InverterRelaxationSpecialist(Protocol[TranslationTypeCovariant]):
+class InverterRelaxationSpecialist(Protocol[TranslationType]):
     """Provider of fixed-coefficient Block kernels for relaxation inverters."""
 
     def provide(
         self,
         stencil: InverterRelaxationStencil | InverterRelaxationStencilUpdate,
-    ) -> BlockKernel[TranslationTypeCovariant]:
+    ) -> BlockKernel[TranslationType]:
         ...
 
 

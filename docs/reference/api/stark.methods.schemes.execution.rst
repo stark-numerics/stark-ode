@@ -4,6 +4,14 @@ stark.methods.schemes.execution package
 Submodules
 ----------
 
+stark.methods.schemes.execution.call module
+-------------------------------------------
+
+.. automodule:: stark.methods.schemes.execution.call
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 stark.methods.schemes.execution.derivative module
 -------------------------------------------------
 

@@ -5,19 +5,17 @@ from stark.core.contracts import DerivativeLike, IntervalLike, State, Allocator
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_adaptive_step_monitoring
+from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.execution.step_control import SchemeStepControl
-from stark.methods.schemes.explicit._support import (
-    initialise_explicit_support,
-    explicit_snapshot_state,
-)
+from stark.methods.schemes.explicit.runtime import SchemeRuntimeExplicit
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
 from stark.methods.schemes.specialization.specialist import SchemeSpecialist
 from stark.methods.schemes.specialization.stencil import SchemeStencilTableau
-from stark.methods.schemes.method.tableau import ButcherTableau
+from stark.methods.schemes.method.tableau import Tableau
 
 
-TSIT5_TABLEAU = ButcherTableau(
+TSIT5_TABLEAU = Tableau(
     c=(0.0, 0.161, 0.327, 0.9, 0.9800255409045097, 1.0, 1.0),
     a=(
         (),
@@ -88,7 +86,7 @@ TSIT5_ERROR_WEIGHTS = tuple(
 
 
 # Optional extension: adds human-readable scheme metadata and formatting helpers.
-# Provides: with_scheme_display, display_tableau, short_name, full_name, __repr__, __str__, and __format__.
+# Provides: with_scheme_display, display_tableau, __repr__, __str__, and __format__.
 @with_scheme_display
 # Optional extension: records accepted/rejected adaptive-step monitor events.
 # Provides: call_monitored.
@@ -124,6 +122,9 @@ class SchemeTsitouras5:
     # Assigned by initialise_adaptive_runtime from stark.methods.schemes.execution.step_control.
     step_control: SchemeStepControl
 
+    # Installed by the scheme monitoring decorator above this class.
+    call_monitored: SchemeCall
+
     __slots__ = (
         "monitor",
         "step_control",
@@ -135,7 +136,7 @@ class SchemeTsitouras5:
         "derivative",
         "error",
         "error_delta",
-        "explicit",
+        "runtime",
         "k1",
         "k2",
         "k3",
@@ -156,7 +157,10 @@ class SchemeTsitouras5:
     )
 
     descriptor = SchemeDescriptor('TSIT5', 'Tsitouras 5')
-    snapshot_state = explicit_snapshot_state
+
+    def snapshot_state(self, state: State) -> State:
+        return self.runtime.snapshot_state(state)
+
     tableau = TSIT5_TABLEAU
 
     def __init__(
@@ -167,7 +171,10 @@ class SchemeTsitouras5:
         specialist: SchemeSpecialist | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
-        initialise_explicit_support(self, derivative, allocator)
+        self.runtime = SchemeRuntimeExplicit(derivative, allocator)
+        self.derivative = self.runtime.derivative
+        self.workspace = self.runtime.workspace
+        self.k1 = self.runtime.k1
         self.step_control = SchemeStepControl(configuration if configuration is not None else SchemeConfigurationDefault())
 
         self.initialise_buffers()
@@ -217,16 +224,16 @@ class SchemeTsitouras5:
         stencils = SchemeStencilTableau(self.tableau)
 
         # Stage rows build staged states from the tableau's A matrix.
-        self.stage2_update = specialist.provide(stencils.stage(1))
-        self.stage3_update = specialist.provide(stencils.stage(2))
-        self.stage4_update = specialist.provide(stencils.stage(3))
-        self.stage5_update = specialist.provide(stencils.stage(4))
-        self.stage6_update = specialist.provide(stencils.stage(5))
-        self.stage7_update = specialist.provide(stencils.stage(6))
+        self.stage2_update = specialist.provide_apply(stencils.stage(1))
+        self.stage3_update = specialist.provide_apply(stencils.stage(2))
+        self.stage4_update = specialist.provide_apply(stencils.stage(3))
+        self.stage5_update = specialist.provide_apply(stencils.stage(4))
+        self.stage6_update = specialist.provide_apply(stencils.stage(5))
+        self.stage7_update = specialist.provide_apply(stencils.stage(6))
 
         # The accepted advance and embedded error are translation deltas.
-        self.advance_delta = specialist.provide(stencils.advance_delta())
-        self.error_delta = specialist.provide(stencils.error_delta())
+        self.advance_delta = specialist.provide_delta(stencils.advance_delta())
+        self.error_delta = specialist.provide_delta(stencils.error_delta())
 
     def call_inline(
         self,
@@ -402,7 +409,7 @@ class SchemeTsitouras5:
                 dt,
                 error_ratio,
                 remaining,
-                self.short_name,
+                self.tableau.short_name,
             )
 
         accepted_dt = dt
@@ -516,7 +523,7 @@ class SchemeTsitouras5:
                 dt,
                 error_ratio,
                 remaining,
-                self.short_name,
+                self.tableau.short_name,
             )
 
         accepted_dt = dt

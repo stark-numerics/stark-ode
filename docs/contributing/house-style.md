@@ -174,6 +174,31 @@ If a thing is owned by `Frame`, its name starts with `Frame`. If a thing is owne
 
 Do not shorten names by removing the owner when the owner carries architectural meaning.
 
+## Prefer explanatory names over underscore privacy
+
+Python underscore names are a convention, not a real privacy boundary. STARK
+uses them sparingly for module-local helpers, but an underscore should not be
+used to hide an architectural concept that contributors need to understand.
+
+Prefer names that say what an object does:
+
+```text
+KennedyCarpenterAdaptiveStep
+SchemeStepControl
+InverterDenseInstance
+```
+
+over names that rely on privacy theatre:
+
+```text
+_BaseScheme
+_Runner
+_Helper
+```
+
+If a shared object exists because several public classes depend on it, give it
+a clear role name even if it is not meant to be imported by first-contact users.
+
 ## Protocols and concrete workers
 
 Protocols describe what one domain needs from another. Concrete classes do the work.
@@ -206,7 +231,7 @@ For example:
 
 ```text
 core.contracts.SchemePredictorLike
-methods.schemes.predictors.SchemePredictorKnown
+methods.schemes.predictor.SchemePredictorKnown
 ```
 
 `core` may know the shape. It should not import the concrete method worker.

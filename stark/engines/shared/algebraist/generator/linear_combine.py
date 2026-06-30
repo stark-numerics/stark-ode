@@ -15,8 +15,9 @@ from stark.engines.shared.algebraist.generator.target import (
 from stark.engines.shared.algebraist.frame import AlgebraistFrame
 from stark.engines.shared.algebraist.allocator import AlgebraistAllocator
 from stark.core.contracts.accelerator import Accelerator
+from stark.core.contracts.translation import Translation
 
-TranslationType = TypeVar("TranslationType")
+TranslationType = TypeVar("TranslationType", bound=Translation)
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,7 +34,7 @@ class AlgebraistGeneratorLinearCombine(Generic[TranslationType]):
     def source_string(self, request: AlgebraistArity) -> str:
         source = getattr(self.target, "source_linear_combine", None)
         if callable(source):
-            return source(self.frame, request)
+            return cast(str, source(self.frame, request))
         return AlgebraistGeneratorEmitter(self.frame, target=self.target).general(request)
 
     def compile(self, source: str) -> Callable[..., TranslationType]:

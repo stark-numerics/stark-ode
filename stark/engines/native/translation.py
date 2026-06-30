@@ -15,12 +15,13 @@ class EngineTranslationNative:
     algebraist_frame: AlgebraistFrame = field(repr=False)
     carriers: tuple[CarrierNativeArray, ...] = field(repr=False)
     allocator: Any = field(repr=False)
+    linear_combine_kernels: tuple[Any, ...] = field(default=(), repr=False)
     apply_translation: Any = field(default=None, repr=False)
     norm_kernel: Any = field(default=None, repr=False)
 
     @property
     def linear_combine(self) -> tuple[Any, ...]:
-        return ()
+        return self.linear_combine_kernels
 
     def __call__(self, origin: object, result: object) -> None:
         if self.apply_translation is not None:
@@ -29,10 +30,10 @@ class EngineTranslationNative:
 
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             carrier.arithmetic.translate(
-                field.state_path.get(origin),
+                field.state_path(origin),
                 1.0,
-                field.translation_path.get(self),
-                field.state_path.get(result),
+                field.translation_path(self),
+                field.state_path(result),
             )
 
     def __add__(self, other: EngineTranslationNative) -> EngineTranslationNative:
@@ -42,9 +43,9 @@ class EngineTranslationNative:
         result = self.allocator.allocate_translation()
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             carrier.arithmetic.add(
-                field.translation_path.get(self),
-                field.translation_path.get(other),
-                field.translation_path.get(result),
+                field.translation_path(self),
+                field.translation_path(other),
+                field.translation_path(result),
             )
         return result
 
@@ -53,8 +54,8 @@ class EngineTranslationNative:
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             carrier.arithmetic.scale(
                 scalar,
-                field.translation_path.get(self),
-                field.translation_path.get(result),
+                field.translation_path(self),
+                field.translation_path(result),
             )
         return result
 
@@ -69,7 +70,7 @@ class EngineTranslationNative:
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             if not field.norm.include:
                 continue
-            field_norm = carrier.norm(field.translation_path.get(self))
+            field_norm = carrier.norm(field.translation_path(self))
             total += field_norm * field_norm
         return sqrt(total)
 

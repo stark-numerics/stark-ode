@@ -1,28 +1,26 @@
 from __future__ import annotations
 
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
-from stark.methods.schemes.predictors import resolve_scheme_predictor
+from stark.methods.schemes.predictor import SchemePredictorKnown
 from stark.core.block import Block
 from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
 from stark.core.contracts.errors import StarkErrorRecoverable
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_adaptive_step_monitoring
+from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.execution.step_control import SchemeStepControl
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
-from stark.methods.schemes.implicit._support import (
-    initialise_implicit_support,
-    implicit_display_resolvent_problem,
-    implicit_snapshot_state,
-)
+from stark.methods.schemes.display.display import display_implicit_resolvent_problem
+from stark.methods.schemes.implicit.runtime import SchemeRuntimeImplicit
 from stark.methods.schemes.specialization.specialist import SchemeSpecialist
-from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
+from stark.methods.schemes.request import SchemeResolventRequest
 from stark.methods.schemes.specialization.stencil import (
     SchemeStencil,
     esdirk_stage_increment_stencils,
 )
-from stark.methods.schemes.method.tableau import ButcherTableau
+from stark.methods.schemes.method.tableau import Tableau
 
 
 KVAERNO3_GAMMA = 0.43586652150
@@ -33,7 +31,7 @@ KVAERNO3_A41 = (6.0 * KVAERNO3_GAMMA - 1.0) / (12.0 * KVAERNO3_GAMMA)
 KVAERNO3_A42 = -1.0 / ((24.0 * KVAERNO3_GAMMA - 12.0) * KVAERNO3_GAMMA)
 KVAERNO3_A43 = (-6.0 * KVAERNO3_GAMMA * KVAERNO3_GAMMA + 6.0 * KVAERNO3_GAMMA - 1.0) / (6.0 * KVAERNO3_GAMMA - 3.0)
 
-KVAERNO3_TABLEAU = ButcherTableau(
+KVAERNO3_TABLEAU = Tableau(
     c=(0.0, 2.0 * KVAERNO3_GAMMA, 1.0, 1.0),
     a=(
         (),
@@ -58,7 +56,7 @@ _STAGE_INCREMENT_WEIGHTS_ERROR = _STAGE_STENCILS.error_delta
 
 
 # Optional extension: adds human-readable scheme metadata and formatting helpers.
-# Provides: with_scheme_display, display_tableau, short_name, full_name, __repr__, __str__, and __format__.
+# Provides: with_scheme_display, display_tableau, __repr__, __str__, and __format__.
 @with_scheme_display
 # Optional extension: records accepted/rejected adaptive-step monitor events.
 # Provides: call_monitored.
@@ -77,7 +75,11 @@ class SchemeKvaerno3:
         7. Accept/reject through the adaptive controller.
     """
 
+    # Assigned by initialise_adaptive_runtime from stark.methods.schemes.execution.step_control.
     step_control: SchemeStepControl
+
+    # Installed by the scheme monitoring decorator above this class.
+    call_monitored: SchemeCall
 
     __slots__ = (
         "monitor",
@@ -85,14 +87,23 @@ class SchemeKvaerno3:
         "call_body",
         "step_control", "block_allocator", "call_step", "delta1", "delta2", "delta2_block",
         "delta3", "delta3_block", "delta4", "delta4_block", "derivative", "error",
-        "error_delta_call", "high_delta_call", "implicit", "known2_call", "known2_block",
+        "error_delta_call", "high_delta_call", "runtime", "known2_call", "known2_block",
         "known3_call", "known3", "known3_block", "known4_call", "known4", "known4_block",
         "redirect_call", "resolvent", "stage1_rate", "trial", "workspace",
     )
 
     descriptor = SchemeDescriptor("Kvaerno3", "Kvaerno 3(2)")
-    display_resolvent_problem = classmethod(implicit_display_resolvent_problem)
-    snapshot_state = implicit_snapshot_state
+    @classmethod
+    def display_resolvent_problem(cls) -> str:
+        return display_implicit_resolvent_problem(
+            cls.tableau,
+            cls.descriptor.short_name,
+            cls.descriptor.full_name,
+        )
+
+    def snapshot_state(self, state: State) -> State:
+        return self.runtime.snapshot_state(state)
+
     tableau = KVAERNO3_TABLEAU
 
     def __init__(self, derivative: DerivativeLike, allocator: Allocator, resolvent: Resolvent, *, configuration: SchemeConfiguration | None = None, specialist: SchemeSpecialist | None = None, monitor: SchemeMonitor | None = None) -> None:
@@ -102,8 +113,11 @@ class SchemeKvaerno3:
         self.known3_call = unbound_scheme_call
         self.known4_call = unbound_scheme_call
         self.resolvent = resolvent
-        initialise_implicit_support(self, derivative, allocator)
-        self.predictor = resolve_scheme_predictor(configuration)
+        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
+        self.derivative = self.runtime.derivative
+        self.workspace = self.runtime.workspace
+        self.block_allocator = self.runtime.block_allocator
+        self.predictor = configuration.scheme_predictor if configuration is not None and configuration.scheme_predictor is not None else SchemePredictorKnown()
         self.derivative = derivative
         workspace = self.workspace
         self.stage1_rate = workspace.allocate_translation()
@@ -131,11 +145,11 @@ class SchemeKvaerno3:
         return self.redirect_call(interval, state)
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
-        self.known2_call = specialist.provide(SchemeStencil((1.0,), scale=KVAERNO3_GAMMA))
-        self.known3_call = specialist.provide(SchemeStencil(_KNOWN3_WEIGHTS))
-        self.known4_call = specialist.provide(SchemeStencil(_KNOWN4_WEIGHTS))
-        self.high_delta_call = specialist.provide(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_HIGH))
-        self.error_delta_call = specialist.provide(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_ERROR))
+        self.known2_call = specialist.provide_delta(SchemeStencil((1.0,), scale=KVAERNO3_GAMMA))
+        self.known3_call = specialist.provide_delta(SchemeStencil(_KNOWN3_WEIGHTS))
+        self.known4_call = specialist.provide_delta(SchemeStencil(_KNOWN4_WEIGHTS))
+        self.high_delta_call = specialist.provide_delta(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_HIGH))
+        self.error_delta_call = specialist.provide_delta(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_ERROR))
 
     def _solve_stage(self, interval: IntervalLike, state: State, dt: float, stage_shift: float, alpha: float, known_shift, known_block: Block, delta_block: Block, previous=None):
         known_block[0] = known_shift
@@ -168,7 +182,7 @@ class SchemeKvaerno3:
         proposed_dt = proposal.proposed_dt
         t_start = proposal.t_start
         rejection_count = 0
-        scheme_name = self.tableau.short_name or type(self).__name__
+        scheme_name = self.tableau.short_name
         derivative(interval, state, self.stage1_rate)
         while True:
             # 2. delta1 = gamma h k1.
@@ -231,7 +245,7 @@ class SchemeKvaerno3:
         proposed_dt = proposal.proposed_dt
         t_start = proposal.t_start
         rejection_count = 0
-        scheme_name = self.tableau.short_name or type(self).__name__
+        scheme_name = self.tableau.short_name
         derivative(interval, state, self.stage1_rate)
         while True:
             delta1 = self.known2_call(dt, self.stage1_rate, self.delta1)

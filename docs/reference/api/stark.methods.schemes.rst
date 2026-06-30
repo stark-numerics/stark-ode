@@ -14,8 +14,6 @@ Subpackages
    stark.methods.schemes.implicit
    stark.methods.schemes.method
    stark.methods.schemes.monitoring
-   stark.methods.schemes.predictors
-   stark.methods.schemes.requests
    stark.methods.schemes.specialization
 
 Submodules
@@ -25,6 +23,22 @@ stark.methods.schemes.configuration module
 ------------------------------------------
 
 .. automodule:: stark.methods.schemes.configuration
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+stark.methods.schemes.predictor module
+--------------------------------------
+
+.. automodule:: stark.methods.schemes.predictor
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+stark.methods.schemes.request module
+------------------------------------
+
+.. automodule:: stark.methods.schemes.request
    :members:
    :show-inheritance:
    :undoc-members:

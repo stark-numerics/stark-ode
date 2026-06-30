@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Generic
 
 from stark.core.contracts.block import BlockLike
-
-
-TranslationType = TypeVar("TranslationType")
+from stark.core.contracts.translation import TranslationType
 BlockEntryOperator = Callable[[TranslationType, TranslationType], None]
 
 

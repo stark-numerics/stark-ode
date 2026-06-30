@@ -16,7 +16,7 @@ from stark.core.block.operator import BlockOperatorDiagonal
 from stark.engines import EngineNumpy
 from stark.methods import InverterRelaxationRichardson, ResolventPicard, SchemeEuler
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
-from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
+from stark.methods.schemes.request import SchemeResolventRequest
 
 
 FRAME = Frame.scalar("x", translation="dx")
@@ -67,8 +67,9 @@ def record_resolvent_level(monitor: Monitor) -> None:
 
 def record_inverter_level(monitor: Monitor) -> None:
     engine = EngineNumpy(FRAME)
+    basis = engine.translation_basis()
     residual = engine.allocator.allocate_translation()
-    residual.dx[0] = 6.0
+    basis.synthesize([6.0], residual)
     output_delta = engine.allocator.allocate_translation()
 
     request = ResolventInverterRequest(

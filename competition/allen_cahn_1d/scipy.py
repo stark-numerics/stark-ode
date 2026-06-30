@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
+
+solve_ivp: Any
+diags: Any
 
 try:
     from scipy.integrate import solve_ivp
     from scipy.sparse import diags
 except ImportError:  # pragma: no cover - optional dependency for local use
+    solve_ivp = diags = None
     SCIPY_AVAILABLE = False
 else:
     SCIPY_AVAILABLE = True

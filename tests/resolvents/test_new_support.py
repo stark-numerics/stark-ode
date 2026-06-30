@@ -7,7 +7,7 @@ from stark.methods.resolvents.specialization.stencil import ResolventStencilBloc
 
 
 class ItemSpecialist:
-    def provide(self, stencil):
+    def provide_delta(self, stencil):
         def kernel(step, *items):
             sources = items[:-1]
             out = items[-1]
@@ -18,6 +18,9 @@ class ItemSpecialist:
             return out
 
         return kernel
+
+    def provide_apply(self, stencil):
+        raise NotImplementedError("This fixture only provides delta kernels.")
 
 
 @dataclass

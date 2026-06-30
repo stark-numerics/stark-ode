@@ -49,7 +49,7 @@ class RecordingItemSpecialist:
         self.stencils: list[InverterRelaxationStencilUpdate] = []
         self.calls = 0
 
-    def provide(
+    def provide_delta(
         self,
         stencil: InverterRelaxationStencilUpdate,
     ) -> Callable[..., TranslationScalar]:
@@ -69,6 +69,12 @@ class RecordingItemSpecialist:
             return result
 
         return kernel
+
+    def provide_apply(
+        self,
+        stencil: InverterRelaxationStencilUpdate,
+    ) -> Callable[..., TranslationScalar]:
+        raise NotImplementedError("Relaxation update fixtures only provide delta kernels.")
 
 
 def scale_by_two(source: TranslationScalar, target: TranslationScalar) -> None:

@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Generic, Protocol, TypeVar
+from typing import Generic, Protocol
 
 from stark.core.block.block import Block
+from stark.core.contracts.translation import TranslationType, TranslationTypeCovariant
 
 
-TranslationType = TypeVar("TranslationType")
-
-
-class BlockAllocationAllocator(Protocol[TranslationType]):
+class BlockAllocationAllocator(Protocol[TranslationTypeCovariant]):
     """Allocator subset required for block allocation."""
 
-    def allocate_translation(self) -> TranslationType:
+    def allocate_translation(self) -> TranslationTypeCovariant:
         ...
 
 

@@ -73,17 +73,19 @@ class ResolventAndersonHistory:
         self.residual_differences: list[Block[Translation]] = []
         self.previous_fixed_point: Block[Translation] | None = None
         self.previous_residual: Block[Translation] | None = None
-        self.least_squares = self.accelerator.compile(
-            ResolventSecantLeastSquares(depth),
+        least_squares = cast(Any, ResolventSecantLeastSquares(depth))
+        self.least_squares = cast(ResolventSecantLeastSquares, self.accelerator.compile(
+            least_squares,
             label="resolvent_anderson_least_squares",
-        )
+        ))
 
     def bind_accelerator(self, accelerator: Accelerator) -> None:
         self.accelerator = accelerator
-        self.least_squares = accelerator.compile(
-            ResolventSecantLeastSquares(self.depth),
+        least_squares = cast(Any, ResolventSecantLeastSquares(self.depth))
+        self.least_squares = cast(ResolventSecantLeastSquares, accelerator.compile(
+            least_squares,
             label="resolvent_anderson_least_squares",
-        )
+        ))
 
     def __len__(self) -> int:
         return self.count

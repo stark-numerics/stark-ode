@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic
+from typing import ClassVar, Generic
 
 from stark.core.contracts import (
     BlockLike,
@@ -17,6 +17,7 @@ from stark.methods.inverters.relaxation.stencil import InverterRelaxationStencil
 from stark.methods.inverters.support import (
     InverterDefect,
     InverterDescriptor,
+    InverterRecordSolve,
     MonitorInverterLike,
     with_inverter_monitoring,
 )
@@ -56,8 +57,10 @@ class InverterRelaxationRichardson(Generic[TranslationType]):
         "update_output",
     )
 
-    descriptor = InverterDescriptor("Richardson", "Richardson relaxation")
-    output_mode = InverterOutputMode.improve
+    descriptor: ClassVar[InverterDescriptor] = InverterDescriptor("Richardson", "Richardson relaxation")
+    output_mode: ClassVar[InverterOutputMode] = InverterOutputMode.improve
+    # Installed by with_inverter_monitoring from stark.methods.inverters.support.
+    record_solve: ClassVar[InverterRecordSolve]
 
     def __init__(
         self,

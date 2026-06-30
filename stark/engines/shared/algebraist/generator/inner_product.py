@@ -39,7 +39,7 @@ class AlgebraistGeneratorInnerProduct(Generic[TranslationType]):
         del request
         source = getattr(self.target, "source_inner_product", None)
         if callable(source):
-            return source(self.frame)
+            return cast(str, source(self.frame))
         parameters = []
         for field in self.frame.norm_fields:
             parameters.append(f"left_{field.translation_name}")
@@ -63,7 +63,7 @@ class AlgebraistGeneratorInnerProduct(Generic[TranslationType]):
                     self._looped_field_lines(
                         left_name=left_name,
                         right_name=right_name,
-                        shape=policy.shape,
+                        shape=tuple(policy.shape),
                         norm=norm,
                         vectorized=isinstance(
                             self.target,
@@ -80,7 +80,7 @@ class AlgebraistGeneratorInnerProduct(Generic[TranslationType]):
                     self._unravelled_field_lines(
                         left_name=left_name,
                         right_name=right_name,
-                        shape=policy.shape,
+                        shape=tuple(policy.shape),
                         norm=norm,
                     )
                 )

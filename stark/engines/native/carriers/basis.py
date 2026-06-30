@@ -4,16 +4,17 @@ from __future__ import annotations
 
 from array import array
 from dataclasses import dataclass, field
-from numbers import Number
-from typing import Any
+from numbers import Real
+from typing import Any, cast
 
 from stark.engines.native.carriers.array import CarrierStorageNativeArray
 from stark.engines.native.carriers.array.basis import CarrierBasisNativeArray
+from stark.engines.native.carriers.hints import HintNativeNumber
 from stark.engines.native.carriers.list import CarrierStorageNativeList
 from stark.engines.native.carriers.list.basis import CarrierBasisNativeList
 from stark.engines.native.carriers.scalar import CarrierStorageNativeScalar
 from stark.engines.native.carriers.scalar.basis import CarrierBasisNativeScalar
-from stark.engines.native.carriers.storage import CarrierNativeValue, CarrierStorageNative
+from stark.engines.native.carriers.storage import CarrierNativeValue
 from stark.engines.native.carriers.tuple import CarrierStorageNativeTuple
 from stark.engines.native.carriers.tuple.basis import CarrierBasisNativeTuple
 
@@ -22,11 +23,11 @@ from stark.engines.native.carriers.tuple.basis import CarrierBasisNativeTuple
 class CarrierBasisNative:
     """Facade that selects the native basis matching the storage shape."""
 
-    storage: CarrierStorageNative | CarrierStorageNativeScalar | CarrierStorageNativeList | CarrierStorageNativeTuple | CarrierStorageNativeArray
+    storage: CarrierStorageNativeScalar | CarrierStorageNativeList | CarrierStorageNativeTuple | CarrierStorageNativeArray
     concrete: Any = field(init=False)
 
     def __post_init__(self) -> None:
-        storage = self.storage.concrete if isinstance(self.storage, CarrierStorageNative) else self.storage
+        storage = self.storage
         if isinstance(storage, CarrierStorageNativeScalar):
             concrete = CarrierBasisNativeScalar(storage)
         elif isinstance(storage, CarrierStorageNativeList):
@@ -41,8 +42,8 @@ class CarrierBasisNative:
 
     @classmethod
     def from_template(cls, template: CarrierNativeValue) -> "CarrierBasisNative":
-        if isinstance(template, Number):
-            return cls(CarrierStorageNativeScalar(template))
+        if isinstance(template, Real):
+            return cls(CarrierStorageNativeScalar(cast(HintNativeNumber, template)))
         if isinstance(template, list):
             return cls(CarrierStorageNativeList.from_template(template))
         if isinstance(template, tuple):

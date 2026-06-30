@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import jax  # type: ignore[import-not-found]
 import jax.numpy as jnp  # type: ignore[import-not-found]
@@ -22,12 +22,13 @@ from stark.engines.shared.algebraist.generator import (
 )
 from stark.engines.jax.allocator import EngineAllocatorJax
 from stark.engines.jax.carriers import CarrierJax
+from stark.engines.jax.carriers.storage import CarrierJaxValue
 from stark.engines.shared.basis import EngineTranslationBasis
 from stark.problem.frame.frame import Frame
 
 
 def _jax_x64_enabled() -> bool:
-    return bool(jax.config.jax_enable_x64)
+    return bool(getattr(jax.config, "jax_enable_x64", False))
 
 
 def _resolve_jax_dtype(dtype: Any | None) -> Any:
@@ -118,7 +119,8 @@ class EngineJax:
                 raise ValueError(
                     "EngineJax requires every frame field to declare shape."
                 )
-            carriers.append(CarrierJax(jnp.zeros(policy.shape, dtype=dtype)))
+            template = cast(CarrierJaxValue, jnp.zeros(policy.shape, dtype=dtype))
+            carriers.append(CarrierJax(template))
 
         carrier_tuple = tuple(carriers)
         allocator = EngineAllocatorJax(

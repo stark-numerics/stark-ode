@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, overload
+from typing import Any, ClassVar, cast, overload
 
 from stark.core.contracts.accelerator import AcceleratorTarget
 
@@ -87,7 +87,7 @@ class AcceleratorJax:
             for example in examples:
                 arguments = example if isinstance(example, tuple) else (example,)
                 try:
-                    lower(*arguments).compile()
+                    cast(Any, lower(*arguments)).compile()
                 except Exception:
                     continue
                 else:

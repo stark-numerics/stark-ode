@@ -6,32 +6,30 @@ from stark.core.contracts import DerivativeSplitLike, IntervalLike, Resolvent, S
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
-from stark.methods.schemes.imex._support import (
-    initialise_imex_support,
-    imex_display_resolvent_problem,
-    imex_snapshot_state,
-)
+from stark.methods.schemes.execution.call import SchemeCall
+from stark.methods.schemes.display.display import display_imex_resolvent_problem
+from stark.methods.schemes.imex.runtime import SchemeRuntimeImex
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
 from stark.methods.schemes.specialization.imex_stencil import SchemeStencilImexTableau
 from stark.methods.schemes.specialization.specialist import SchemeSpecialist
-from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
-from stark.methods.schemes.method.tableau import ButcherTableau, ButcherTableauImex
+from stark.methods.schemes.request import SchemeResolventRequest
+from stark.methods.schemes.method.tableau import Tableau, TableauImex
 
 
-IMEX_EULER_EXPLICIT = ButcherTableau(
+IMEX_EULER_EXPLICIT = Tableau(
     c=(0.0, 1.0),
     a=((), (1.0,)),
     b=(1.0, 0.0),
     order=1,
 )
-IMEX_EULER_IMPLICIT = ButcherTableau(
+IMEX_EULER_IMPLICIT = Tableau(
     c=(0.0, 1.0),
     a=((), (0.0, 1.0)),
     b=(0.0, 1.0),
     order=1,
 )
-IMEX_EULER_TABLEAU = ButcherTableauImex(
+IMEX_EULER_TABLEAU = TableauImex(
     explicit=IMEX_EULER_EXPLICIT,
     implicit=IMEX_EULER_IMPLICIT,
     short_name="IMEXEuler",
@@ -40,7 +38,7 @@ IMEX_EULER_TABLEAU = ButcherTableauImex(
 
 
 # Optional extension: adds human-readable scheme metadata and formatting helpers.
-# Provides: with_scheme_display, display_tableau, short_name, full_name, __repr__, __str__, and __format__.
+# Provides: with_scheme_display, display_tableau, __repr__, __str__, and __format__.
 @with_scheme_display
 # Optional extension: records fixed-step monitor events.
 # Provides: call_monitored.
@@ -63,6 +61,9 @@ class SchemeIMEXEuler:
     one-stage implicit solve.
     """
 
+    # Installed by the scheme monitoring decorator above this class.
+    call_monitored: SchemeCall
+
     __slots__ = (
         "monitor",
         "advance_call",
@@ -77,12 +78,21 @@ class SchemeIMEXEuler:
         "resolvent",
         "rhs",
         "rhs_block",
+        "runtime",
         "workspace",
     )
 
     descriptor = SchemeDescriptor("IMEXEuler", "IMEX Euler")
-    display_resolvent_problem = classmethod(imex_display_resolvent_problem)
-    snapshot_state = imex_snapshot_state
+    @classmethod
+    def display_resolvent_problem(cls) -> str:
+        return display_imex_resolvent_problem(
+            cls.tableau,
+            cls.descriptor.short_name,
+            cls.descriptor.full_name,
+        )
+
+    def snapshot_state(self, state: State) -> State:
+        return self.runtime.snapshot_state(state)
 
     tableau = IMEX_EULER_TABLEAU
 
@@ -97,11 +107,15 @@ class SchemeIMEXEuler:
         monitor: SchemeMonitor | None = None,
     ) -> None:
         del configuration
-        self.monitor = monitor
         self.advance_call = unbound_scheme_call
+        self.monitor = monitor
+        self.call_body = self.call_inline
+        self.call_step = self.call_monitored if monitor is not None else self.call_body
+        self.redirect_call = self.call_step
         self.resolvent = resolvent
 
-        initialise_imex_support(self, derivative, allocator)
+        self.runtime = SchemeRuntimeImex(derivative, allocator)
+        self.workspace = self.runtime.workspace
         self.explicit_derivative = derivative.explicit
         self.implicit_derivative = derivative.implicit
 
@@ -109,10 +123,6 @@ class SchemeIMEXEuler:
         self.explicit_rate, self.rhs, self.delta = workspace.allocate_translation_buffers(3)
         self.rhs_block = Block([self.rhs])
         self.delta_block = Block([self.delta])
-
-        self.call_body = self.call_inline
-        self.call_step = self.call_monitored if monitor is not None else self.call_body
-        self.redirect_call = self.call_step
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
@@ -131,7 +141,7 @@ class SchemeIMEXEuler:
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
         stencils = SchemeStencilImexTableau(self.tableau)
         # Step 1 builds the explicit right-hand side from the first explicit row.
-        self.advance_call = specialist.provide(stencils.stage_rhs(1))
+        self.advance_call = specialist.provide_delta(stencils.stage_rhs(1))
 
     def call_inline(
         self,

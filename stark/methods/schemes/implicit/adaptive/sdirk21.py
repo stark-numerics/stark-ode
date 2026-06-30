@@ -1,28 +1,26 @@
 from __future__ import annotations
 
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
-from stark.methods.schemes.predictors import resolve_scheme_predictor
+from stark.methods.schemes.predictor import SchemePredictorKnown
 from stark.core.block import Block
 from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
 from stark.core.contracts.errors import StarkErrorRecoverable
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_adaptive_step_monitoring
+from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.execution.step_control import SchemeStepControl
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
-from stark.methods.schemes.implicit._support import (
-    initialise_implicit_support,
-    implicit_display_resolvent_problem,
-    implicit_snapshot_state,
-)
+from stark.methods.schemes.display.display import display_implicit_resolvent_problem
+from stark.methods.schemes.implicit.runtime import SchemeRuntimeImplicit
 from stark.methods.schemes.specialization.specialist import SchemeSpecialist
-from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
+from stark.methods.schemes.request import SchemeResolventRequest
 from stark.methods.schemes.specialization.stencil import (
     SchemeStencil,
     esdirk_stage_increment_stencils,
 )
-from stark.methods.schemes.method.tableau import ButcherTableau
+from stark.methods.schemes.method.tableau import Tableau
 
 from math import sqrt
 
@@ -49,7 +47,7 @@ SDIRK21_BHAT3 = (
 )
 SDIRK21_BHAT1 = 1.0 - SDIRK21_BHAT2 - SDIRK21_BHAT3
 
-SDIRK21_TABLEAU = ButcherTableau(
+SDIRK21_TABLEAU = Tableau(
     c=(0.0, 2.0 * SDIRK21_GAMMA, 1.0),
     a=(
         (),
@@ -72,7 +70,7 @@ _STAGE_INCREMENT_WEIGHTS_ERROR = _STAGE_STENCILS.error_delta
 
 
 # Optional extension: adds human-readable scheme metadata and formatting helpers.
-# Provides: with_scheme_display, display_tableau, short_name, full_name, __repr__, __str__, and __format__.
+# Provides: with_scheme_display, display_tableau, __repr__, __str__, and __format__.
 @with_scheme_display
 # Optional extension: records accepted/rejected adaptive-step monitor events.
 # Provides: call_monitored.
@@ -96,7 +94,11 @@ class SchemeSDIRK21:
     nonlinear one-block solve.
     """
 
+    # Assigned by initialise_adaptive_runtime from stark.methods.schemes.execution.step_control.
     step_control: SchemeStepControl
+
+    # Installed by the scheme monitoring decorator above this class.
+    call_monitored: SchemeCall
 
     __slots__ = (
         "monitor",
@@ -104,14 +106,23 @@ class SchemeSDIRK21:
         "call_body",
         "step_control", "block_allocator", "call_step", "delta1", "delta2",
         "delta2_block", "delta3", "delta3_block", "derivative", "error",
-        "error_delta_call", "high_delta_call", "implicit", "known2_call",
+        "error_delta_call", "high_delta_call", "runtime", "known2_call",
         "known2_block", "known3_call", "known3", "known3_block",
         "redirect_call", "resolvent", "stage1_rate", "trial", "workspace",
     )
 
     descriptor = SchemeDescriptor("SDIRK21", "ESDIRK 2(1)")
-    display_resolvent_problem = classmethod(implicit_display_resolvent_problem)
-    snapshot_state = implicit_snapshot_state
+    @classmethod
+    def display_resolvent_problem(cls) -> str:
+        return display_implicit_resolvent_problem(
+            cls.tableau,
+            cls.descriptor.short_name,
+            cls.descriptor.full_name,
+        )
+
+    def snapshot_state(self, state: State) -> State:
+        return self.runtime.snapshot_state(state)
+
     tableau = SDIRK21_TABLEAU
 
     def __init__(
@@ -130,8 +141,11 @@ class SchemeSDIRK21:
         self.known3_call = unbound_scheme_call
         self.resolvent = resolvent
 
-        initialise_implicit_support(self, derivative, allocator)
-        self.predictor = resolve_scheme_predictor(configuration)
+        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
+        self.derivative = self.runtime.derivative
+        self.workspace = self.runtime.workspace
+        self.block_allocator = self.runtime.block_allocator
+        self.predictor = configuration.scheme_predictor if configuration is not None and configuration.scheme_predictor is not None else SchemePredictorKnown()
         self.derivative = derivative
 
         workspace = self.workspace
@@ -162,12 +176,12 @@ class SchemeSDIRK21:
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
         # Step 2 forms delta1 = gamma h k1.
-        self.known2_call = specialist.provide(SchemeStencil((1.0,), scale=SDIRK21_GAMMA))
+        self.known2_call = specialist.provide_delta(SchemeStencil((1.0,), scale=SDIRK21_GAMMA))
         # Step 4 forms the known final-stage shift from solved increments.
-        self.known3_call = specialist.provide(SchemeStencil(_KNOWN3_WEIGHTS))
+        self.known3_call = specialist.provide_delta(SchemeStencil(_KNOWN3_WEIGHTS))
         # Step 6 builds high-order and error increments in the stage-increment basis.
-        self.high_delta_call = specialist.provide(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_HIGH))
-        self.error_delta_call = specialist.provide(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_ERROR))
+        self.high_delta_call = specialist.provide_delta(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_HIGH))
+        self.error_delta_call = specialist.provide_delta(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_ERROR))
 
     def _solve_stage(
         self,
@@ -218,7 +232,7 @@ class SchemeSDIRK21:
         proposed_dt = proposal.proposed_dt
         t_start = proposal.t_start
         rejection_count = 0
-        scheme_name = self.tableau.short_name or type(self).__name__
+        scheme_name = self.tableau.short_name
 
         while True:
             # 1. k1 = f(t, y).
@@ -306,7 +320,7 @@ class SchemeSDIRK21:
         proposed_dt = proposal.proposed_dt
         t_start = proposal.t_start
         rejection_count = 0
-        scheme_name = self.tableau.short_name or type(self).__name__
+        scheme_name = self.tableau.short_name
 
         while True:
             # 1. k1 = f(t, y).

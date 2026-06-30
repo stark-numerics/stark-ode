@@ -25,12 +25,12 @@ def assign_returned_translation(result: Any, out: Any) -> None:
     fields_ = getattr(frame, "fields", None)
     if fields_ is not None:
         field_tuple = tuple(fields_)
-        values = returned_values_for_layout(result, field_tuple)
+        values = _returned_values_for_frame(result, field_tuple)
         for field_, value in zip(field_tuple, values, strict=True):
-            field_.translation_path.set(out, value)
+            field_.translation_path.assign(out, value)
         return
 
-    assign_returned_without_layout(result, out)
+    _assign_returned_without_frame(result, out)
 
 
 def assign_returned_fields(result: Any, out: Any, paths: tuple[str, ...]) -> None:
@@ -41,48 +41,48 @@ def assign_returned_fields(result: Any, out: Any, paths: tuple[str, ...]) -> Non
 
     normalized = tuple(AlgebraistFramePath(path) for path in paths)
     if isinstance(result, Mapping):
-        values = [mapping_value(result, path, path) for path in normalized]
+        values = [_mapping_value(result, path, path) for path in normalized]
     elif len(normalized) == 1:
         values = [result]
     elif isinstance(result, tuple | list) and len(result) == len(normalized):
         values = list(result)
     else:
-        values = [object_value(result, path, path) for path in normalized]
+        values = [_object_value(result, path, path) for path in normalized]
 
     for path, value in zip(normalized, values, strict=True):
-        path.set(out, value)
+        path.assign(out, value)
 
 
-def returned_values_for_layout(result: Any, fields_: tuple[Any, ...]) -> tuple[Any, ...]:
+def _returned_values_for_frame(result: Any, fields_: tuple[Any, ...]) -> tuple[Any, ...]:
     """Return translation values from a user result, aligned to frame fields."""
 
     if isinstance(result, Mapping):
         return tuple(
-            mapping_value(result, field_.translation_path, field_.state_path)
+            _mapping_value(result, field_.translation_path, field_.state_path)
             for field_ in fields_
         )
     if len(fields_) == 1:
         field_ = fields_[0]
-        value = object_value_or_missing(result, field_.translation_path, field_.state_path)
+        value = _object_value_or_missing(result, field_.translation_path, field_.state_path)
         if value is not _MISSING:
             return (value,)
         return (result,)
     if isinstance(result, tuple | list) and len(result) == len(fields_):
         return tuple(result)
     return tuple(
-        object_value(result, field_.translation_path, field_.state_path)
+        _object_value(result, field_.translation_path, field_.state_path)
         for field_ in fields_
     )
 
 
-def mapping_value(
+def _mapping_value(
     result: Mapping[Any, Any],
     translation_path: AlgebraistFramePath,
     state_path: AlgebraistFramePath,
 ) -> Any:
     """Read one frame field from a mapping-style derivative return value."""
 
-    for key in path_keys(translation_path, state_path):
+    for key in _path_keys(translation_path, state_path):
         if key in result:
             return result[key]
     raise KeyError(
@@ -91,14 +91,14 @@ def mapping_value(
     )
 
 
-def object_value(
+def _object_value(
     result: Any,
     translation_path: AlgebraistFramePath,
     state_path: AlgebraistFramePath,
 ) -> Any:
     """Read one frame field from an object-style derivative return value."""
 
-    value = object_value_or_missing(result, translation_path, state_path)
+    value = _object_value_or_missing(result, translation_path, state_path)
     if value is _MISSING:
         raise AttributeError(
             "Return-style derivative did not provide translation field "
@@ -107,7 +107,7 @@ def object_value(
     return value
 
 
-def object_value_or_missing(
+def _object_value_or_missing(
     result: Any,
     translation_path: AlgebraistFramePath,
     state_path: AlgebraistFramePath,
@@ -116,13 +116,13 @@ def object_value_or_missing(
 
     for path in (translation_path, state_path):
         try:
-            return path.get(result)
+            return path(result)
         except AttributeError:
             continue
     return _MISSING
 
 
-def path_keys(
+def _path_keys(
     translation_path: AlgebraistFramePath,
     state_path: AlgebraistFramePath,
 ) -> tuple[Any, ...]:
@@ -134,7 +134,7 @@ def path_keys(
     return tuple(dict.fromkeys(keys))
 
 
-def assign_returned_without_layout(result: Any, out: Any) -> None:
+def _assign_returned_without_frame(result: Any, out: Any) -> None:
     """Best-effort return assignment for tests and simple ad-hoc translations."""
 
     if isinstance(result, Mapping):
@@ -147,7 +147,7 @@ def assign_returned_without_layout(result: Any, out: Any) -> None:
                 )
         return
 
-    names = writable_field_names(out)
+    names = _writable_field_names(out)
     if len(names) == 1:
         setattr(out, names[0], result)
         return
@@ -158,7 +158,7 @@ def assign_returned_without_layout(result: Any, out: Any) -> None:
     )
 
 
-def writable_field_names(out: Any) -> tuple[str, ...]:
+def _writable_field_names(out: Any) -> tuple[str, ...]:
     """Return likely writable public field names for a translation-like object."""
 
     if is_dataclass(out):
@@ -183,11 +183,4 @@ _MISSING = object()
 __all__ = [
     "assign_returned_fields",
     "assign_returned_translation",
-    "assign_returned_without_layout",
-    "mapping_value",
-    "object_value",
-    "object_value_or_missing",
-    "path_keys",
-    "returned_values_for_layout",
-    "writable_field_names",
 ]

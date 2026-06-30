@@ -174,8 +174,9 @@ def test_imex_adaptive_specialist_path_prepares_expected_kernel_family(
     scheme_cls: type[Any],
 ) -> None:
     scheme = make_array_scheme(scheme_cls, specialist=True)
+    adaptive_step = scheme.adaptive_step
 
     stage_count = len(scheme_cls.tableau.c)
-    assert len(scheme.stage_rhs_kernels) == stage_count
-    assert callable(scheme.advance_delta_kernel)
-    assert callable(scheme.error_delta_kernel)
+    assert len(adaptive_step.stage_rhs_kernels) == stage_count
+    assert callable(adaptive_step.advance_delta_kernel)
+    assert callable(adaptive_step.error_delta_kernel)

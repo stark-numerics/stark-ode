@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 from competition.allen_cahn_1d import common
+
+jax: Any
+dfx: Any
+eqx: Any
+jnp: Any
 
 try:
     import jax
@@ -12,6 +19,7 @@ try:
     import equinox as eqx
     import jax.numpy as jnp
 except ImportError:  # pragma: no cover - optional dependency for local use
+    jax = dfx = eqx = jnp = None
     DIFFRAX_AVAILABLE = False
 else:
     DIFFRAX_AVAILABLE = True

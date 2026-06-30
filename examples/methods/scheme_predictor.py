@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
-from stark.methods.schemes.predictors import (
+from stark.methods.schemes.predictor import (
     SchemePredictorKnown,
     SchemePredictorPrevious,
     SchemePredictorZero,
@@ -12,25 +13,37 @@ from stark.methods.schemes.predictors import (
 
 
 @dataclass
-class Translation:
+class ToyTranslation:
     value: float
 
+    def __call__(self, origin, result) -> None:
+        result.value = origin.value + self.value
 
-def scale(coefficient: float, source: Translation, target: Translation) -> Translation:
-    target.value = coefficient * source.value
-    return target
+    def norm(self) -> float:
+        return abs(self.value)
+
+    def __add__(self, other: ToyTranslation) -> ToyTranslation:
+        return ToyTranslation(self.value + other.value)
+
+    def __rmul__(self, scalar: float) -> ToyTranslation:
+        return ToyTranslation(scalar * self.value)
+
+
+def scale(a: float, x: Any, out: Any) -> Any:
+    out.value = a * x.value
+    return out
 
 
 if __name__ == "__main__":
-    known = Translation(3.0)
-    previous = Translation(2.0)
+    known = ToyTranslation(3.0)
+    previous = ToyTranslation(2.0)
 
     for name, predictor in (
         ("known", SchemePredictorKnown()),
         ("zero", SchemePredictorZero()),
         ("previous", SchemePredictorPrevious()),
     ):
-        delta = Translation(-99.0)
+        delta = ToyTranslation(-99.0)
         predictor(known=known, previous=previous, delta=delta, scale=scale)
         print(f"SchemePredictor{name.title():8s} -> initial delta {delta.value:.1f}")
 

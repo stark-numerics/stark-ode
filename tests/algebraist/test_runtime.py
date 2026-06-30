@@ -166,7 +166,7 @@ def test_runtime_specialist_binds_delta_coefficients() -> None:
         translation=TranslationWithLinearCombine(),
         allocator=Allocator(),
     )
-    kernel = specialist.provide(SchemeStencil(scale=0.5, coefficients=(1.0, 2.0)))
+    kernel = specialist.provide_delta(SchemeStencil(scale=0.5, coefficients=(1.0, 2.0)))
     out = Translation()
 
     result = kernel(4.0, Translation(3.0), Translation(5.0), out)
@@ -180,7 +180,7 @@ def test_runtime_specialist_applies_delta_to_origin_state() -> None:
         translation=TranslationWithLinearCombine(),
         allocator=Allocator(),
     )
-    kernel = specialist.provide(
+    kernel = specialist.provide_apply(
         SchemeStencil(scale=1.0, coefficients=(0.25, 0.75), apply=True)
     )
 
@@ -197,7 +197,7 @@ def test_runtime_specialist_binds_empty_stencil_as_zero_delta() -> None:
         translation=TranslationWithLinearCombine(),
         allocator=Allocator(),
     )
-    kernel = specialist.provide(SchemeStencil(coefficients=()))
+    kernel = specialist.provide_delta(SchemeStencil(coefficients=()))
     out = Translation(5.0)
 
     result = kernel(2.0, out)

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from numbers import Number
+from numbers import Real
+from typing import cast
 
 from stark.engines.native.carriers.tuple.storage import CarrierNativeTupleValue, CarrierStorageNativeTuple
 
@@ -24,6 +25,6 @@ class CarrierValidationNativeTuple:
             raise TypeError(f"Native tuple carrier {role} must be a tuple.")
         if len(value) != self.storage.length:
             raise ValueError(f"Native tuple carrier {role} length does not match template.")
-        if not all(isinstance(item, Number) for item in value):
+        if not all(isinstance(item, Real) for item in value):
             raise TypeError(f"Native tuple carrier {role} must contain numeric values.")
-        return value
+        return cast(CarrierNativeTupleValue, value)

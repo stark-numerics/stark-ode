@@ -47,12 +47,12 @@ class EngineTranslationBasis:
         for current, (field, carrier) in enumerate(
             zip(self.algebraist_frame.fields, self.carriers, strict=True)
         ):
-            value = field.translation_path.get(output)
+            value = field.translation_path(output)
             if current == field_index:
                 value = carrier.basis.vector(local_index, value)
             else:
                 value = carrier.basis.synthesize([0.0] * carrier.basis.dimension, value)
-            field.translation_path.set(output, value)
+            field.translation_path.assign(output, value)
         return output
 
     def coordinate(self, index: int, translation: Any) -> float:
@@ -63,7 +63,7 @@ class EngineTranslationBasis:
         carrier = self.carriers[field_index]
         return carrier.basis.coordinate(
             local_index,
-            field.translation_path.get(translation),
+            field.translation_path(translation),
         )
 
     def coordinates(
@@ -78,7 +78,7 @@ class EngineTranslationBasis:
         ):
             start = self.offsets[index]
             local = [0.0] * carrier.basis.dimension
-            carrier.basis.coordinates(field.translation_path.get(translation), local)
+            carrier.basis.coordinates(field.translation_path(translation), local)
             for local_index, coordinate in enumerate(local):
                 output[start + local_index] = coordinate
         return output
@@ -93,9 +93,9 @@ class EngineTranslationBasis:
             stop = self.offsets[index + 1]
             value = carrier.basis.synthesize(
                 coordinates[start:stop],
-                field.translation_path.get(output),
+                field.translation_path(output),
             )
-            field.translation_path.set(output, value)
+            field.translation_path.assign(output, value)
         return output
 
     def local_index(self, index: int) -> tuple[int, int]:

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from numbers import Number
+from numbers import Real
+from typing import cast
 
 from stark.engines.native.carriers.scalar.storage import (
     CarrierNativeScalarValue,
@@ -23,6 +24,6 @@ class CarrierValidationNativeScalar:
         return self.validate_value(value, "translation")
 
     def validate_value(self, value: object, role: str) -> CarrierNativeScalarValue:
-        if not isinstance(value, Number):
+        if not isinstance(value, Real):
             raise TypeError(f"Native scalar carrier {role} must be numeric.")
-        return value
+        return cast(CarrierNativeScalarValue, value)

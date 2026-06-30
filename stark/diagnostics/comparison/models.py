@@ -12,7 +12,7 @@ import inspect
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, dataclass, field
 from math import sqrt
-from typing import Any
+from typing import Any, SupportsFloat, cast
 
 from stark.diagnostics.monitor import MonitorSummary
 
@@ -548,10 +548,10 @@ def _ivp_state_difference(ivp: Any) -> Difference:
         for field, carrier in zip(ivp.engine.algebraist_frame.fields, ivp.engine.carriers, strict=True):
             carrier.arithmetic.combine2(
                 1.0,
-                field.state_path.get(right),
+                field.state_path(right),
                 -1.0,
-                field.state_path.get(left),
-                field.translation_path.get(delta),
+                field.state_path(left),
+                field.translation_path(delta),
             )
         return delta.norm()
 
@@ -600,9 +600,9 @@ def _squared_norm(value: Any) -> float:
     flat = _flatten_value(value)
     dot = getattr(flat, "dot", None)
     if callable(dot):
-        return float(dot(flat))
+        return float(cast(SupportsFloat, dot(flat)))
     try:
-        return float(flat * flat)
+        return float(cast(SupportsFloat, flat * flat))
     except TypeError:
         return float(sum(item * item for item in flat))
 

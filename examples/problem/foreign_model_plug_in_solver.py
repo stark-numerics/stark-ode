@@ -10,9 +10,11 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 from math import sqrt
+from typing import cast
 
 from stark import Configuration, Interval, Tolerance
 from stark.core import Integrator, IntegratorStepper
+from stark.core.contracts import DerivativeLike
 from stark.methods import SchemeDormandPrince
 
 
@@ -95,7 +97,7 @@ if __name__ == "__main__":
     configuration = Configuration(
         scheme_tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-8),
     )
-    scheme = SchemeDormandPrince(oscillator_rhs, allocator)
+    scheme = SchemeDormandPrince(cast(DerivativeLike, oscillator_rhs), allocator)
     stepper = IntegratorStepper(scheme)
     integrator = Integrator(configuration=configuration)
 

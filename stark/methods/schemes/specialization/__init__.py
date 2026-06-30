@@ -3,7 +3,6 @@
 from stark.methods.schemes.specialization.imex_stencil import SchemeStencilImexTableau
 from stark.methods.schemes.specialization.specialist import (
     SchemeSpecialist,
-    SchemeSpecialistKernel,
     SchemeSpecialistKernelApply,
     SchemeSpecialistKernelDelta,
 )
@@ -17,7 +16,6 @@ from stark.methods.schemes.specialization.stencil import (
 
 __all__ = [
     "SchemeSpecialist",
-    "SchemeSpecialistKernel",
     "SchemeSpecialistKernelApply",
     "SchemeSpecialistKernelDelta",
     "SchemeStageIncrementStencils",

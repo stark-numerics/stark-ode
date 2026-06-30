@@ -5,18 +5,16 @@ from stark.core.contracts import DerivativeLike, IntervalLike, State, Allocator
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
-from stark.methods.schemes.explicit._support import (
-    explicit_snapshot_state,
-    initialise_explicit_support,
-)
+from stark.methods.schemes.execution.call import SchemeCall
+from stark.methods.schemes.explicit.runtime import SchemeRuntimeExplicit
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
 from stark.methods.schemes.specialization.specialist import SchemeSpecialist
 from stark.methods.schemes.specialization.stencil import SchemeStencilTableau
-from stark.methods.schemes.method.tableau import ButcherTableau
+from stark.methods.schemes.method.tableau import Tableau
 
 
-HEUN_TABLEAU = ButcherTableau(
+HEUN_TABLEAU = Tableau(
     c=(0.0, 1.0),
     a=((), (1.0,)),
     b=(0.5, 0.5),
@@ -27,7 +25,7 @@ HEUN_B = HEUN_TABLEAU.b
 
 
 # Optional extension: adds human-readable scheme metadata and formatting helpers.
-# Provides: with_scheme_display, display_tableau, short_name, full_name, __repr__, __str__, and __format__.
+# Provides: with_scheme_display, display_tableau, __repr__, __str__, and __format__.
 @with_scheme_display
 # Optional extension: records fixed-step monitor events.
 # Provides: call_monitored.
@@ -52,13 +50,16 @@ class SchemeHeun:
     Further reading: https://en.wikipedia.org/wiki/Heun%27s_method
     """
 
+    # Installed by the scheme monitoring decorator above this class.
+    call_monitored: SchemeCall
+
     __slots__ = (
         "monitor",
         "advance_update",
         "call_body",
         "call_step",
         "derivative",
-        "explicit",
+        "runtime",
         "k1",
         "k2",
         "redirect_call",
@@ -69,7 +70,9 @@ class SchemeHeun:
     )
 
     descriptor = SchemeDescriptor("Heun", "Heun")
-    snapshot_state = explicit_snapshot_state
+
+    def snapshot_state(self, state: State) -> State:
+        return self.runtime.snapshot_state(state)
 
     tableau = HEUN_TABLEAU
 
@@ -89,7 +92,10 @@ class SchemeHeun:
         self.call_step = self.call_monitored if monitor is not None else self.call_body
         self.redirect_call = self.call_step
 
-        initialise_explicit_support(self, derivative, allocator)
+        self.runtime = SchemeRuntimeExplicit(derivative, allocator)
+        self.derivative = self.runtime.derivative
+        self.workspace = self.runtime.workspace
+        self.k1 = self.runtime.k1
 
         workspace = self.workspace
         self.stage = workspace.allocate_state_buffer()
@@ -118,10 +124,10 @@ class SchemeHeun:
         stencils = SchemeStencilTableau(self.tableau)
 
         # Step 2 builds the second-stage state from row 1 of the A matrix.
-        self.stage2_update = specialist.provide(stencils.stage(1))
+        self.stage2_update = specialist.provide_apply(stencils.stage(1))
 
         # Step 3 advances the accepted state from the tableau's b weights.
-        self.advance_update = specialist.provide(stencils.advance_update())
+        self.advance_update = specialist.provide_apply(stencils.advance_update())
 
     def call_inline(
         self,

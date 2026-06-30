@@ -5,18 +5,16 @@ from stark.core.contracts import DerivativeLike, IntervalLike, State, Allocator
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
-from stark.methods.schemes.explicit._support import (
-    explicit_snapshot_state,
-    initialise_explicit_support,
-)
+from stark.methods.schemes.execution.call import SchemeCall
+from stark.methods.schemes.explicit.runtime import SchemeRuntimeExplicit
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
 from stark.methods.schemes.specialization.specialist import SchemeSpecialist
 from stark.methods.schemes.specialization.stencil import SchemeStencilTableau
-from stark.methods.schemes.method.tableau import ButcherTableau
+from stark.methods.schemes.method.tableau import Tableau
 
 
-EULER_TABLEAU = ButcherTableau(
+EULER_TABLEAU = Tableau(
     c=(0.0,),
     a=((),),
     b=(1.0,),
@@ -27,7 +25,7 @@ EULER_B = EULER_TABLEAU.b
 
 
 # Optional extension: adds human-readable scheme metadata and formatting helpers.
-# Provides: with_scheme_display, display_tableau, short_name, full_name, __repr__, __str__, and __format__.
+# Provides: with_scheme_display, display_tableau, __repr__, __str__, and __format__.
 @with_scheme_display
 # Optional extension: records fixed-step monitor events.
 # Provides: call_monitored.
@@ -52,6 +50,9 @@ class SchemeEuler:
     Further reading: https://en.wikipedia.org/wiki/Euler_method
     """
 
+    # Installed by the scheme monitoring decorator above this class.
+    call_monitored: SchemeCall
+
     __slots__ = (
         "monitor",
         "advance_delta_buffer",
@@ -59,14 +60,16 @@ class SchemeEuler:
         "call_body",
         "call_step",
         "derivative",
-        "explicit",
+        "runtime",
         "k1",
         "redirect_call",
         "workspace",
     )
 
     descriptor = SchemeDescriptor("Euler", "Forward Euler")
-    snapshot_state = explicit_snapshot_state
+
+    def snapshot_state(self, state: State) -> State:
+        return self.runtime.snapshot_state(state)
 
     tableau = EULER_TABLEAU
 
@@ -85,7 +88,10 @@ class SchemeEuler:
         self.call_step = self.call_monitored if monitor is not None else self.call_body
         self.redirect_call = self.call_step
 
-        initialise_explicit_support(self, derivative, allocator)
+        self.runtime = SchemeRuntimeExplicit(derivative, allocator)
+        self.derivative = self.runtime.derivative
+        self.workspace = self.runtime.workspace
+        self.k1 = self.runtime.k1
         self.advance_delta_buffer = self.workspace.allocate_translation()
 
         if specialist is not None:
@@ -111,7 +117,7 @@ class SchemeEuler:
         stencils = SchemeStencilTableau(self.tableau)
 
         # Step 2 advances the accepted state from the tableau's b weights.
-        self.advance_update = specialist.provide(stencils.advance_update())
+        self.advance_update = specialist.provide_apply(stencils.advance_update())
 
     def call_inline(
         self,

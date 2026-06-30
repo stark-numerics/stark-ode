@@ -12,9 +12,15 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from inspect import Parameter, signature
-from typing import Any
+from typing import Any, cast
 
-from stark.core.contracts import DerivativeSplitLike, IntervalLike, State
+from stark.core.contracts import (
+    DerivativeLike,
+    DerivativeSplitLike,
+    IntervalLike,
+    SchemeLike,
+    State,
+)
 from stark.core.contracts.engine import Engine
 from stark.core.configuration import Configuration
 from stark.core.integrator.integrator import Checkpoints, Integrator
@@ -262,7 +268,7 @@ class System:
         for field, carrier in zip(engine.algebraist_frame.fields, engine.carriers, strict=True):
             value = self.initial_value(initial, field.state_path)
             validated = carrier.validation.validate_state(value)
-            field.state_path.set(state, carrier.allocation.copy_state(validated))
+            field.state_path.assign(state, carrier.allocation.copy_state(validated))
         return state
 
     def initial_value(self, initial: object, path: object) -> object:
@@ -289,7 +295,7 @@ class System:
         engine: Engine,
         derivative: object,
         configuration: Configuration,
-    ) -> object:
+    ) -> SchemeLike:
         prepared_linearizer = self.prepare_linearizer(engine)
 
         inverter = None
@@ -323,17 +329,20 @@ class System:
                 options=method.resolvent_options,
             )
 
-        return self.construct_component(
-            "scheme",
-            method.scheme,
-            available={
-                "derivative": derivative,
-                "allocator": engine.allocator,
-                "configuration": configuration,
-                "specialist": engine.algebraist_specialist,
-                "resolvent": resolvent,
-            },
-            options=method.scheme_options,
+        return cast(
+            SchemeLike,
+            self.construct_component(
+                "scheme",
+                method.scheme,
+                available={
+                    "derivative": derivative,
+                    "allocator": engine.allocator,
+                    "configuration": configuration,
+                    "specialist": engine.algebraist_specialist,
+                    "resolvent": resolvent,
+                },
+                options=method.scheme_options,
+            ),
         )
 
     def prepare_linearizer(self, engine: Engine) -> LinearizerImplementation | None:
@@ -348,7 +357,7 @@ class System:
             return Linearizer(linearizer).accelerate(engine.accelerator)
         raise TypeError("System linearizer must be callable or a linearizer signature.")
 
-    def prepare_derivative(self, engine: Engine) -> object:
+    def prepare_derivative(self, engine: Engine) -> DerivativeLike | DerivativeSplitLike:
         derivative = self.derivative
         if isinstance(derivative, DerivativeSplitLike):
             return DerivativeSplit(
@@ -357,13 +366,13 @@ class System:
             )
         return self.prepare_derivative_part(derivative, engine)
 
-    def prepare_derivative_part(self, derivative: object, engine: Engine) -> object:
+    def prepare_derivative_part(self, derivative: object, engine: Engine) -> DerivativeLike:
         if isinstance(derivative, Derivative):
-            return derivative.accelerate(engine.accelerator)
+            return cast(DerivativeLike, derivative.accelerate(engine.accelerator))
         if isinstance(derivative, DerivativeSignature):
-            return Derivative(derivative).accelerate(engine.accelerator)
+            return cast(DerivativeLike, Derivative(derivative).accelerate(engine.accelerator))
         if callable(derivative):
-            return Derivative(derivative).accelerate(engine.accelerator)
+            return cast(DerivativeLike, Derivative(derivative).accelerate(engine.accelerator))
         raise TypeError("System derivative must be callable or a derivative signature.")
 
     def construct_component(

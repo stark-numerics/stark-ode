@@ -7,7 +7,9 @@ from typing import Protocol
 class ResolventSafety(Protocol):
     """Safety controls consumed directly by resolvent workers."""
 
-    block_sizes: bool
+    @property
+    def block_sizes(self) -> bool:
+        ...
 
 
 @dataclass(frozen=True, slots=True)

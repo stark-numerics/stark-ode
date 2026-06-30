@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from statistics import median
 from time import perf_counter
-from typing import Any
+from typing import Any, cast
 
 from stark.diagnostics.comparison.models import (
     ComparisonEntryLike,
@@ -24,7 +24,9 @@ from stark.diagnostics.comparison.models import (
     ComparisonTiming,
     ProfileCategory,
 )
+from stark.core.contracts import IntervalLike, State
 from stark.core.integrator.integrator import Integrator
+from stark.core.integrator.stepper import IntegratorStepper
 from stark.diagnostics.monitor import Monitor, MonitorSummary
 
 
@@ -60,18 +62,18 @@ class ComparisonStepperCounting:
         self.stepper = stepper
         self.steps = 0
 
-    def __call__(self, interval: Any, state: Any) -> None:
+    def __call__(self, interval: IntervalLike, state: State) -> None:
         self.steps += 1
         self.stepper(interval, state)
 
-    def snapshot_state(self, state: Any) -> Any:
+    def snapshot_state(self, state: State) -> State:
         snapshot_state = getattr(self.stepper, "snapshot_state", None)
         if not callable(snapshot_state):
             raise TypeError(
                 "ComparisonRunner checkpoint comparison requires stepper.snapshot_state(state). "
                 "Use IntegratorStepper(...) or add snapshot_state(state) to the custom stepper."
             )
-        return snapshot_state(state)
+        return cast(State, snapshot_state(state))
 
 
 class ComparisonProfileSurvey:
@@ -262,7 +264,8 @@ class ComparisonEntryRunner:
         stepper.steps = 0
         checkpoints: list[Any] = []
         started = perf_counter()
-        for _interval, _state in integrator.mutating_trajectory(stepper, interval, state, checkpoints=self.problem.checkpoints):
+        integrator_stepper = cast(IntegratorStepper, stepper)
+        for _interval, _state in integrator.mutating_trajectory(integrator_stepper, interval, state, checkpoints=self.problem.checkpoints):
             if self.problem.checkpoints is not None:
                 checkpoints.append(stepper.snapshot_state(state))
         elapsed = perf_counter() - started
@@ -280,7 +283,8 @@ class ComparisonEntryRunner:
         profiler = cProfile.Profile()
         profiler.enable()
         try:
-            for _interval, _state in integrator.mutating_trajectory(stepper, interval, state, checkpoints=self.problem.checkpoints):
+            integrator_stepper = cast(IntegratorStepper, stepper)
+            for _interval, _state in integrator.mutating_trajectory(integrator_stepper, interval, state, checkpoints=self.problem.checkpoints):
                 pass
         finally:
             profiler.disable()

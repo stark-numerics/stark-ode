@@ -1,7 +1,7 @@
 """Storage checks for CuPy-backed carrier values."""
 
 from dataclasses import dataclass
-from typing import Protocol, TypeAlias, cast
+from typing import Any, Protocol, TypeAlias, cast
 
 import cupy as cp
 
@@ -12,13 +12,19 @@ class HintCupyArray(Protocol):
     shape: tuple[int, ...]
     dtype: object
 
+    def reshape(self, shape: Any) -> "HintCupyArray": ...
+    def item(self) -> Any: ...
+    def __getitem__(self, index: Any) -> Any: ...
+    def __setitem__(self, index: Any, value: Any) -> None: ...
+    def __pow__(self, other: Any) -> "HintCupyArray": ...
+
 
 class HintCupyModule(Protocol):
     """Subset of the CuPy module used by carrier storage."""
 
     ndarray: type[HintCupyArray]
 
-    def asarray(self, value: HintCupyArray) -> HintCupyArray: ...
+    def asarray(self, value: Any) -> HintCupyArray: ...
 
 
 cupy = cast(HintCupyModule, cp)

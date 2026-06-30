@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from stark.core.contracts.translation import TranslationType
+from stark.core.contracts.translation import TranslationType, TranslationTypeContravariant
 
 
 class BlockLike(Protocol[TranslationType]):
@@ -86,7 +86,7 @@ class BlockOperatorDiagonalLike(Protocol[TranslationType]):
         ...
 
 
-class BlockOperatorEntryLike(Protocol[TranslationType]):
+class BlockOperatorEntryLike(Protocol[TranslationTypeContravariant]):
     """
     Structural contract for a linear operator on one block entry.
 
@@ -102,7 +102,7 @@ class BlockOperatorEntryLike(Protocol[TranslationType]):
     """
     def __call__(
         self,
-        source: TranslationType,
-        target: TranslationType,
+        source: TranslationTypeContravariant,
+        target: TranslationTypeContravariant,
     ) -> None:
         ...

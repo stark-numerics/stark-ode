@@ -7,14 +7,11 @@ from stark.core.contracts.errors import StarkErrorRecoverable
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_adaptive_step_monitoring
+from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.execution.step_control import SchemeStepControl
-from stark.methods.schemes.implicit._support import (
-    initialise_implicit_support,
-    implicit_display_resolvent_problem,
-    implicit_snapshot_state,
-)
+from stark.methods.schemes.implicit.runtime import SchemeRuntimeImplicit
 from stark.methods.schemes.specialization.specialist import SchemeSpecialist
-from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
+from stark.methods.schemes.request import SchemeResolventRequest
 
 
 # Optional extension: records accepted/rejected adaptive-step monitor events.
@@ -36,17 +33,22 @@ class SchemeBDF2:
 
     step_control: SchemeStepControl
 
+    # Installed by the scheme monitoring decorator above this class.
+    call_monitored: SchemeCall
+
     __slots__ = (
         "monitor",
         "call_body",
         "step_control", "block_allocator", "call_step", "derivative", "error",
-        "has_history", "implicit", "known_shift", "known_shift_block", "low",
+        "has_history", "runtime", "known_shift", "known_shift_block", "low",
         "previous_delta", "previous_step", "redirect_call", "resolvent",
         "startup_rate", "trial_block", "workspace",
     )
 
     descriptor = SchemeDescriptor("BDF2", "Backward Differentiation Formula 2")
-    snapshot_state = implicit_snapshot_state
+
+    def snapshot_state(self, state: State) -> State:
+        return self.runtime.snapshot_state(state)
 
     def __init__(
         self,
@@ -60,7 +62,10 @@ class SchemeBDF2:
     ) -> None:
         del specialist
         self.resolvent = resolvent
-        initialise_implicit_support(self, derivative, allocator)
+        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
+        self.derivative = self.runtime.derivative
+        self.workspace = self.runtime.workspace
+        self.block_allocator = self.runtime.block_allocator
         self.derivative = derivative
 
         workspace = self.workspace
@@ -78,14 +83,6 @@ class SchemeBDF2:
         self.monitor = monitor
         self.call_step = self.call_monitored if monitor is not None else self.call_body
         self.redirect_call = self.call_step
-
-    @property
-    def short_name(self) -> str:
-        return self.descriptor.short_name
-
-    @property
-    def full_name(self) -> str:
-        return self.descriptor.full_name
 
     @classmethod
     def display_method(cls) -> str:
@@ -118,7 +115,7 @@ class SchemeBDF2:
     def __repr__(self) -> str:
         return "\n".join(
             [
-                f"{type(self).__name__}(short_name={self.short_name!r}, full_name={self.full_name!r})",
+                f"{type(self).__name__}(short_name={self.descriptor.short_name!r}, full_name={self.descriptor.full_name!r})",
                 self.display_method(),
             ]
         )
@@ -168,13 +165,13 @@ class SchemeBDF2:
                     delta_high, error_ratio = self.solve_startup_step(interval, state, dt, ratio_fn)
             except StarkErrorRecoverable:
                 rejection_count += 1
-                dt = self.step_control.rejected_step(dt, 1.0, remaining, self.short_name)
+                dt = self.step_control.rejected_step(dt, 1.0, remaining, self.descriptor.short_name)
                 continue
 
             if error_ratio <= 1.0:
                 break
             rejection_count += 1
-            dt = self.step_control.rejected_step(dt, error_ratio, remaining, self.short_name)
+            dt = self.step_control.rejected_step(dt, error_ratio, remaining, self.descriptor.short_name)
 
         accepted_dt = dt
         apply_delta(delta_high, state)

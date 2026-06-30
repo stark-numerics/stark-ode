@@ -87,7 +87,7 @@ def test_generator_specialist_bakes_delta_coefficients():
     assert "_a0 = step * 1.0" in source
     assert "_a1 = step * 0.5" in source
 
-    kernel = provider.provide(stencil)
+    kernel = provider.provide_delta(stencil)
     x0 = Translation(2.0, [1.0, 2.0])
     x1 = Translation(4.0, [3.0, 4.0])
     out = Translation(0.0, [0.0, 0.0])
@@ -106,7 +106,7 @@ def test_generator_specialist_applies_delta_to_origin():
         frame=frame(),
     )
     stencil = SchemeStencil(scale=1.0, coefficients=(0.5, 0.25), apply=True)
-    kernel = provider.provide(stencil)
+    kernel = provider.provide_apply(stencil)
 
     origin = State(100.0, [10.0, 20.0])
     result = State(0.0, [0.0, 0.0])
@@ -160,7 +160,7 @@ def test_generator_specialist_looped_update_matches_tableau_algebra():
             )
         ),
     )
-    kernel = provider.provide(
+    kernel = provider.provide_apply(
         SchemeStencil(coefficients=(0.5, 0.25), apply=True)
     )
 

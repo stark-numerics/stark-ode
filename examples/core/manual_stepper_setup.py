@@ -18,12 +18,13 @@ objects, and then assembles the stepper explicitly.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
 from stark import Frame, Interval
 from stark.core import Integrator, IntegratorStepper
+from stark.core.contracts import DerivativeLike
 from stark.engines import EngineNumpy
 from stark.methods import SchemeRK4
 
@@ -61,7 +62,7 @@ if __name__ == "__main__":
     print()
 
     # Manual solver assembly. System would normally hide this wiring.
-    scheme = SchemeRK4(growth, allocator)
+    scheme = SchemeRK4(cast(DerivativeLike, growth), allocator)
     stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
 

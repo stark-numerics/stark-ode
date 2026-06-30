@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from array import array
 from dataclasses import dataclass
-from numbers import Number
+from numbers import Real
 from collections.abc import Iterable
 
 from stark.engines.native.carriers.array.storage import CarrierNativeArrayValue, CarrierStorageNativeArray
@@ -36,6 +36,6 @@ class CarrierValidationNativeArray:
             )
         if len(value) != self.storage.length:
             raise ValueError(f"Native array carrier {role} length does not match template.")
-        if not all(isinstance(item, Number) for item in value):
+        if not all(isinstance(item, Real) for item in value):
             raise TypeError(f"Native array carrier {role} must contain numeric values.")
         return value

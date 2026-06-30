@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
+
+solve_ivp: Any
 
 try:
     from scipy.integrate import solve_ivp
 except ImportError:  # pragma: no cover - optional dependency for local use
+    solve_ivp = None
     SCIPY_AVAILABLE = False
 else:
     SCIPY_AVAILABLE = True

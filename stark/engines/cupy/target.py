@@ -57,11 +57,11 @@ class AlgebraistGeneratorTargetCupy:
     def source_norm(self, frame: AlgebraistFrame) -> str:
         lines = ["import cupy as cp", "", "def kernel(translation):", "    total = 0.0"]
         for field in frame.norm_fields:
-            self._require_looped(field)
+            shape = self._require_looped_shape(field)
             name = field.translation_expression("translation")
             norm = field.norm
             if isinstance(norm, AlgebraistFrameNormRMS):
-                scale = float(prod(field.policy.shape))
+                scale = float(prod(shape))
                 lines.append(f"    total = total + cp.sum(cp.abs({name}) ** 2) / {scale!r}")
                 continue
             if isinstance(norm, AlgebraistFrameNormMax):
@@ -75,12 +75,12 @@ class AlgebraistGeneratorTargetCupy:
     def source_inner_product(self, frame: AlgebraistFrame) -> str:
         lines = ["import cupy as cp", "", "def kernel(left, right):", "    total = 0.0"]
         for field in frame.norm_fields:
-            self._require_looped(field)
+            shape = self._require_looped_shape(field)
             left = field.translation_expression("left")
             right = field.translation_expression("right")
             norm = field.norm
             if isinstance(norm, AlgebraistFrameNormRMS):
-                scale = float(prod(field.policy.shape))
+                scale = float(prod(shape))
             elif isinstance(norm, AlgebraistFrameNormMax):
                 scale = 1.0
             else:
@@ -100,7 +100,7 @@ class AlgebraistGeneratorTargetCupy:
     ) -> str:
         lines = ["import cupy as cp", ""]
         for index, field in enumerate(frame.fields):
-            self._require_looped(field)
+            self._require_looped_shape(field)
             lines.extend(
                 self._elementwise_kernel_lines(
                     field_index=index,
@@ -262,9 +262,10 @@ class AlgebraistGeneratorTargetCupy:
         return arguments
 
     @staticmethod
-    def _require_looped(field: AlgebraistFrameField) -> None:
+    def _require_looped_shape(field: AlgebraistFrameField) -> tuple[int, ...]:
         if not isinstance(field.policy, AlgebraistFrameLooped) or field.policy.shape is None:
             raise ValueError("CuPy generated algebra requires shaped looped frame fields.")
+        return tuple(field.policy.shape)
 
 
 __all__ = ["AlgebraistGeneratorTargetCupy"]

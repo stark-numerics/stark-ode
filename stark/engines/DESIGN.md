@@ -45,6 +45,26 @@ algebra is the fallback for unknown or foreign user state shapes.
 This matters for performance and for mental model clarity: ordinary high-level
 models should give engines enough structure to optimise.
 
+## Hint Types
+
+Names with the `Hint` prefix are intentional type-checking scaffolding for
+backend boundaries. They are not public STARK concepts and should not be
+renamed into domain nouns.
+
+Use `Hint*` protocols and aliases when a backend depends on a small, practical
+surface of an optional external object. For example:
+
+```text
+HintJaxArray       the JAX array operations carriers actually use
+HintCupyArray      the CuPy array operations carriers actually use
+HintNativeNumber   the Python numeric operations native carriers actually use
+```
+
+When Pyright complains that an optional backend value lacks an operation, first
+ask whether the nearest `Hint*` type should describe that operation. This keeps
+casts and `Any` at the backend boundary instead of spreading them through hot
+carrier code.
+
 ## Design Rule
 
 When adding or changing a backend, ask whether a reader can inspect one package

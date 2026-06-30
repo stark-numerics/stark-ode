@@ -233,10 +233,11 @@ def test_kennedy_carpenter32_specialist_path_matches_generic_path() -> None:
 
 def test_kennedy_carpenter32_specialist_path_prepares_expected_kernel_family() -> None:
     scheme = make_array_scheme(specialist=True)
+    adaptive_step = scheme.adaptive_step
 
-    assert len(scheme.stage_rhs_kernels) == len(SchemeKennedyCarpenter32.tableau.c)
-    assert callable(scheme.advance_delta_kernel)
-    assert callable(scheme.error_delta_kernel)
+    assert len(adaptive_step.stage_rhs_kernels) == len(SchemeKennedyCarpenter32.tableau.c)
+    assert callable(adaptive_step.advance_delta_kernel)
+    assert callable(adaptive_step.error_delta_kernel)
 
 
 def test_kennedy_carpenter32_clips_to_remaining_interval() -> None:
@@ -272,7 +273,7 @@ def test_kennedy_carpenter32_monitoring_uses_scheme_owned_boundary() -> None:
     assert len(monitor.scheme.adaptive_steps) == 1
 
     record = monitor.scheme.adaptive_steps[0]
-    assert record.scheme == scheme.short_name
+    assert record.scheme == scheme.descriptor.short_name
     assert record.t_start == pytest.approx(0.0)
     assert record.t_end == pytest.approx(0.1)
     assert record.proposed_dt == pytest.approx(0.1)

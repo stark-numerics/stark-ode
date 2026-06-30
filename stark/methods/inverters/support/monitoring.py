@@ -17,6 +17,20 @@ class MonitorInverterLike(Protocol):
     ) -> None: ...
 
 
+class InverterRecordSolve(Protocol):
+    """Decorator-installed solve recorder on monitored inverters."""
+
+    def __call__(
+        self,
+        *,
+        converged: bool,
+        iteration_count: int | None,
+        initial_residual: float | None,
+        final_residual: float | None,
+        failure_reason: str | None = None,
+    ) -> None: ...
+
+
 def with_inverter_monitoring(cls):
     """Install optional solve recording for an inverter class."""
 
@@ -47,4 +61,4 @@ def with_inverter_monitoring(cls):
     return cls
 
 
-__all__ = ["MonitorInverterLike", "with_inverter_monitoring"]
+__all__ = ["InverterRecordSolve", "MonitorInverterLike", "with_inverter_monitoring"]

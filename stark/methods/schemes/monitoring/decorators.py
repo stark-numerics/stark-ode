@@ -15,7 +15,7 @@ def with_fixed_step_monitoring(cls):
         accepted_dt = self.call_body(interval, state)
         monitor = self.monitor
         if monitor is not None and accepted_dt > 0.0:
-            monitor.record_fixed_step(self.short_name, t_start, accepted_dt)
+            monitor.record_fixed_step(self.descriptor.short_name, t_start, accepted_dt)
         return accepted_dt
 
     cls.call_monitored = call_monitored
@@ -36,7 +36,7 @@ def with_adaptive_step_monitoring(cls):
 
         if monitor is not None:
             monitor.record_adaptive_step(
-                self.short_name,
+                self.descriptor.short_name,
                 report.t_start,
                 report.proposed_dt,
                 report.accepted_dt,

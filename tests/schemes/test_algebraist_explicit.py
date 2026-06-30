@@ -70,7 +70,7 @@ class ArrayDerivative:
 
 
 class ArraySpecialist:
-    def provide(self, stencil):
+    def provide_delta(self, stencil):
         coefficients = tuple(stencil.coefficients)
         stencil_scale = stencil.scale
 
@@ -97,6 +97,8 @@ class ArraySpecialist:
             return out
 
         return delta_kernel
+
+    provide_apply = provide_delta
 
 
 def _combine_delta(

@@ -1,22 +1,21 @@
 from __future__ import annotations
 
-from stark.core.contracts import IntervalLike, State
-from stark.methods.schemes.monitoring.monitor import SchemeMonitor
+from stark.core.contracts import Allocator, DerivativeSplitLike, IntervalLike, Resolvent, State
+from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
+from stark.methods.schemes.execution.call import SchemeCall
+from stark.methods.schemes.execution.step_control import SchemeStepControl
 from stark.methods.schemes.monitoring.decorators import with_adaptive_step_monitoring
-from stark.methods.schemes.execution.step_control import (
-    SchemeStepControl,
-)
-from stark.methods.schemes.imex._support import (
-    imex_display_resolvent_problem,
-    imex_snapshot_state,
-)
+from stark.methods.schemes.monitoring.monitor import SchemeMonitor
+from stark.methods.schemes.display.display import display_imex_resolvent_problem
+from stark.methods.schemes.imex.runtime import SchemeRuntimeImex
 from stark.methods.schemes.display.decorators import with_scheme_display
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
-from stark.methods.schemes.method.tableau import ButcherTableau, ButcherTableauImex
-from stark.methods.schemes.imex.adaptive._kennedy_carpenter import SchemeKennedyCarpenterAdaptive
+from stark.methods.schemes.method.tableau import Tableau, TableauImex
+from stark.methods.schemes.imex.adaptive.kennedy_carpenter import KennedyCarpenterAdaptiveStep
+from stark.methods.schemes.specialization.specialist import SchemeSpecialist
 
 
-ARK548L2SA_EXPLICIT = ButcherTableau(
+ARK548L2SA_EXPLICIT = Tableau(
     c=(0.0, 41.0 / 100.0, 2935347310677.0 / 11292855782101.0, 1426016391358.0 / 7196633302097.0, 92.0 / 100.0, 24.0 / 100.0, 3.0 / 5.0, 1.0),
     a=(
         (),
@@ -33,7 +32,7 @@ ARK548L2SA_EXPLICIT = ButcherTableau(
     b_embedded=(-975461918565.0 / 9796059967033.0, 0.0, 0.0, 78070527104295.0 / 32432590147079.0, -548382580838.0 / 3424219808633.0, -33438840321285.0 / 15594753105479.0, 3629800801594.0 / 4656183773603.0, 4035322873751.0 / 18575991585200.0),
     embedded_order=4,
 )
-ARK548L2SA_IMPLICIT = ButcherTableau(
+ARK548L2SA_IMPLICIT = Tableau(
     c=ARK548L2SA_EXPLICIT.c,
     a=(
         (),
@@ -50,7 +49,7 @@ ARK548L2SA_IMPLICIT = ButcherTableau(
     b_embedded=ARK548L2SA_EXPLICIT.b_embedded,
     embedded_order=4,
 )
-ARK548L2SA_TABLEAU = ButcherTableauImex(
+ARK548L2SA_TABLEAU = TableauImex(
     explicit=ARK548L2SA_EXPLICIT,
     implicit=ARK548L2SA_IMPLICIT,
     short_name="ARK548L2SA",
@@ -60,19 +59,75 @@ KENNEDY_CARPENTER54_TABLEAU = ARK548L2SA_TABLEAU
 
 
 # Optional extension: adds human-readable scheme metadata and formatting helpers.
-# Provides: with_scheme_display, display_tableau, short_name, full_name, __repr__, __str__, and __format__.
+# Provides: with_scheme_display, display_tableau, __repr__, __str__, and __format__.
 @with_scheme_display
 # Optional extension: records accepted/rejected adaptive-step monitor events.
 # Provides: call_monitored.
 @with_adaptive_step_monitoring
-class SchemeKennedyCarpenter54(SchemeKennedyCarpenterAdaptive):
+class SchemeKennedyCarpenter54:
     """Adaptive Kennedy-Carpenter ARK5(4)8L[2]SA IMEX method."""
 
     step_control: SchemeStepControl
+
+    # Installed by the scheme monitoring decorator above this class.
+    call_monitored: SchemeCall
+
+    __slots__ = (
+        "adaptive_step",
+        "call_body",
+        "call_step",
+        "monitor",
+        "redirect_call",
+        "step_control",
+        "runtime",
+        "workspace",
+    )
+
     descriptor = SchemeDescriptor("KC54", "Kennedy-Carpenter 5(4)")
-    display_resolvent_problem = classmethod(imex_display_resolvent_problem)
-    snapshot_state = imex_snapshot_state
+    @classmethod
+    def display_resolvent_problem(cls) -> str:
+        return display_imex_resolvent_problem(
+            cls.tableau,
+            cls.descriptor.short_name,
+            cls.descriptor.full_name,
+        )
+
+    def snapshot_state(self, state: State) -> State:
+        return self.runtime.snapshot_state(state)
+
     tableau = KENNEDY_CARPENTER54_TABLEAU
+
+    def __init__(
+        self,
+        derivative: DerivativeSplitLike,
+        allocator: Allocator,
+        resolvent: Resolvent,
+        *,
+        configuration: SchemeConfiguration | None = None,
+        specialist: SchemeSpecialist | None = None,
+        monitor: SchemeMonitor | None = None,
+    ) -> None:
+        self.runtime = SchemeRuntimeImex(derivative, allocator)
+        self.workspace = self.runtime.workspace
+        self.adaptive_step = KennedyCarpenterAdaptiveStep(
+            tableau=self.tableau,
+            derivative=derivative,
+            workspace=self.workspace,
+            resolvent=resolvent,
+            configuration=configuration if configuration is not None else SchemeConfigurationDefault(),
+            specialist=specialist,
+        )
+        self.step_control = self.adaptive_step.step_control
+        self.call_body = self.call_specialized if specialist is not None else self.call_inline
+        self.monitor = monitor
+        self.call_step = self.call_monitored if monitor is not None else self.call_body
+        self.redirect_call = self.call_step
+
+    def call_inline(self, interval: IntervalLike, state: State) -> float:
+        return self.adaptive_step.call_inline(interval, state)
+
+    def call_specialized(self, interval: IntervalLike, state: State) -> float:
+        return self.adaptive_step.call_specialized(interval, state)
 
     def __call__(self, interval: IntervalLike, state: State) -> float:
         return self.redirect_call(interval, state)

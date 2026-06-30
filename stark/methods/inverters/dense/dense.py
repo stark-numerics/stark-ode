@@ -2,21 +2,26 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import ClassVar, Generic
+from typing import ClassVar, Generic, cast
 
 from stark.core.block import BlockBasis
 from stark.core.block.materialize import BlockOperatorDiagonalMaterialize
 from stark.core.contracts import (
     Accelerator,
     BlockLike,
-    BlockOperatorLike,
+    BlockOperatorDiagonalLike,
     InverterOutputMode,
     InverterRequest,
     TranslationType,
 )
 from stark.core.contracts.translation_basis import TranslationBasis
 from stark.methods.inverters.nucleus import InverterNucleus, InverterNucleusFactor
-from stark.methods.inverters.support import InverterDescriptor, MonitorInverterLike, with_inverter_monitoring
+from stark.methods.inverters.support import (
+    InverterDescriptor,
+    InverterRecordSolve,
+    MonitorInverterLike,
+    with_inverter_monitoring,
+)
 
 
 @dataclass(slots=True)
@@ -147,6 +152,8 @@ class InverterDense(Generic[TranslationType]):
 
     descriptor: ClassVar[InverterDescriptor] = InverterDescriptor("Dense", "Dense direct")
     output_mode: ClassVar[InverterOutputMode] = InverterOutputMode.overwrite
+    # Installed by with_inverter_monitoring from stark.methods.inverters.support.
+    record_solve: ClassVar[InverterRecordSolve]
 
     def __post_init__(self) -> None:
         self.redirect_call = self.call_prepare
@@ -166,6 +173,7 @@ class InverterDense(Generic[TranslationType]):
         request: InverterRequest[TranslationType],
         output: BlockLike[TranslationType],
     ) -> None:
+        operator = cast(BlockOperatorDiagonalLike[TranslationType], request.operator)
         source = 0.0 * output  # type: ignore[operator]
         image = 0.0 * output  # type: ignore[operator]
         self.matrices = []
@@ -180,7 +188,7 @@ class InverterDense(Generic[TranslationType]):
             self.nuclei.append(self.make_nucleus(dimension))
 
         self.materializer = BlockOperatorDiagonalMaterialize(
-            operator=request.operator,  # type: ignore[arg-type]
+            operator=operator,
             bases=self.basis.bases,
             source=source,
             image=image,
@@ -207,14 +215,15 @@ class InverterDense(Generic[TranslationType]):
         output: BlockLike[TranslationType],
     ) -> None:
         materializer = self.materializer
+        operator = cast(BlockOperatorDiagonalLike[TranslationType], request.operator)
         basis = self.basis.bases[0]
         matrix = self.matrices[0]
         image = self.images[0]
         result = self.results[0]
 
-        materializer.refresh_block_prepared(  # type: ignore[union-attr, arg-type]
+        materializer.refresh_block_prepared(  # type: ignore[union-attr]
             0,
-            request.operator,
+            operator,
             matrix,
         )
         basis.coordinates(request.residual[0], image)
@@ -240,15 +249,16 @@ class InverterDense(Generic[TranslationType]):
         output: BlockLike[TranslationType],
     ) -> None:
         materializer = self.materializer
+        operator = cast(BlockOperatorDiagonalLike[TranslationType], request.operator)
         bases = self.basis.bases
 
         for block_index, basis in enumerate(bases):
             matrix = self.matrices[block_index]
             image = self.images[block_index]
             result = self.results[block_index]
-            materializer.refresh_block_prepared(  # type: ignore[union-attr, arg-type]
+            materializer.refresh_block_prepared(  # type: ignore[union-attr]
                 block_index,
-                request.operator,
+                operator,
                 matrix,
             )
             basis.coordinates(request.residual[block_index], image)
@@ -270,7 +280,7 @@ class InverterDense(Generic[TranslationType]):
 
     def instance(
         self,
-        operator: BlockOperatorLike[TranslationType],
+        operator: BlockOperatorDiagonalLike[TranslationType],
     ) -> InverterDenseInstance[TranslationType] | InverterDenseInstanceSingle[TranslationType]:
         matrices: list[list[float]] = []
         images: list[list[float]] = []

@@ -6,7 +6,7 @@ from stark.methods.resolvents.configuration import ResolventConfiguration, Resol
 
 from typing import TYPE_CHECKING, Any, cast
 
-from stark.core.block import Block, BlockAllocator, BlockOperatorDiagonal
+from stark.core.block import Block, BlockAllocator
 from stark.core.contracts import (
     Accelerator,
     BlockOperatorLike,
@@ -58,7 +58,6 @@ class ResolventCoupledNewton:
         "correction",
         "inverter",
         "newton_update",
-        "operator",
         "max_iterations",
         "redirect_call",
         "equation",
@@ -123,7 +122,6 @@ class ResolventCoupledNewton:
         self.correction = None
         self.residual_buffer = None
         self.rhs_buffer = None
-        self.operator = None
         self.newton_update = None
         self.size = -1
 
@@ -171,22 +169,6 @@ class ResolventCoupledNewton:
         self.correction = self.allocator.allocate_like(delta)
         self.residual_buffer = self.allocator.allocate_like(delta)
         self.rhs_buffer = self.allocator.allocate_like(delta)
-        self.operator = BlockOperatorDiagonal(None for _ in range(size))
-
-    def operator_for(self, delta: Block[Translation]) -> BlockOperatorDiagonal[Translation]:
-        """Return the operator object that will receive the coupled Jacobian.
-
-        A coupled implicit equation owns a block operator when the Jacobian action
-        is naturally expressed as one coupled matrix action. Other residual
-        workers can fall back to the ordinary per-entry BlockOperatorDiagonal buffer.
-        """
-
-        residual_owned_operator = self.equation.block_operator
-        if residual_owned_operator is not None:
-            return residual_owned_operator
-
-        self.prepare_buffers(delta)
-        return cast(BlockOperatorDiagonal[Translation], self.operator)
 
     def call_inline(
         self,
@@ -216,9 +198,7 @@ class ResolventCoupledNewton:
                 return delta
 
             # 3. Build the coupled differential DF(delta).
-            operator = self.operator_for(delta)
-            operator.reset()
-            equation.differential(delta, operator)
+            operator = equation.refresh_differential_operator(delta)
 
             # 4. Solve DF(delta) correction = -F(delta).
             rhs.replace(-1.0 * residual)
@@ -273,9 +253,7 @@ class ResolventCoupledNewton:
                 return delta
 
             # 3. Build the coupled differential DF(delta).
-            operator = self.operator_for(delta)
-            operator.reset()
-            equation.differential(delta, operator)
+            operator = equation.refresh_differential_operator(delta)
 
             # 4. Solve DF(delta) correction = -F(delta).
             rhs.replace(-1.0 * residual)

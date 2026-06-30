@@ -1,34 +1,26 @@
 from __future__ import annotations
 
-from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
+from collections.abc import Iterable
+
 from stark.core.block import Block
-from stark.core.contracts import DerivativeSplitLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DerivativeSplitLike, IntervalLike, Resolvent, State, Translation
 from stark.core.contracts.errors import StarkErrorRecoverable
-from stark.methods.schemes.monitoring.monitor import SchemeMonitor
+from stark.methods.schemes.configuration import SchemeConfiguration
 from stark.methods.schemes.execution.step_control import SchemeStepControl
-from stark.methods.schemes.imex._support import initialise_imex_support
+from stark.methods.schemes.execution.step_support import SchemeStepSupport
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
+from stark.methods.schemes.method.tableau import TableauImex
+from stark.methods.schemes.request import SchemeResolventRequest
 from stark.methods.schemes.specialization.imex_stencil import SchemeStencilImexTableau
-from stark.methods.schemes.specialization.specialist import SchemeSpecialist
-from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
+from stark.methods.schemes.specialization.specialist import SchemeSpecialist, SchemeSpecialistKernelDelta
 
 
-class SchemeKennedyCarpenterAdaptive:
-    """Shared implementation for Kennedy-Carpenter adaptive IMEX schemes.
-
-    Concrete subclasses provide only the paired IMEX tableau, descriptor, and
-    docstring. The algorithm remains visible here because all members of this
-    family have the same additive Runge-Kutta structure.
-    """
-
-    step_control: SchemeStepControl
+class KennedyCarpenterAdaptiveStep:
+    """Prepared adaptive step body shared by Kennedy-Carpenter IMEX schemes."""
 
     __slots__ = (
-        "monitor",
-        "step_control",
         "advance_delta_kernel",
         "call_body",
-        "call_step",
         "delta",
         "delta_high",
         "error_delta",
@@ -37,33 +29,41 @@ class SchemeKennedyCarpenterAdaptive:
         "implicit_derivative",
         "k_explicit",
         "k_implicit",
-        "redirect_call",
         "resolvent",
         "rhs",
         "stage_rhs_kernels",
         "stage_states",
+        "step_control",
+        "tableau",
         "workspace",
     )
 
+    tableau: TableauImex
+    workspace: SchemeStepSupport
+    step_control: SchemeStepControl
+    stage_rhs_kernels: tuple[SchemeSpecialistKernelDelta[Translation], ...]
+    advance_delta_kernel: SchemeSpecialistKernelDelta[Translation]
+    error_delta_kernel: SchemeSpecialistKernelDelta[Translation]
+
     def __init__(
         self,
-        derivative: DerivativeSplitLike,
-        allocator: Allocator,
-        resolvent: Resolvent,
         *,
-        configuration: SchemeConfiguration | None = None,
+        tableau: TableauImex,
+        derivative: DerivativeSplitLike,
+        workspace: SchemeStepSupport,
+        resolvent: Resolvent,
+        configuration: SchemeConfiguration,
         specialist: SchemeSpecialist | None = None,
-        monitor: SchemeMonitor | None = None,
     ) -> None:
-        initialise_imex_support(self, derivative, allocator)
-        self.step_control = SchemeStepControl(configuration if configuration is not None else SchemeConfigurationDefault())
+        self.tableau = tableau
+        self.workspace = workspace
+        self.step_control = SchemeStepControl(configuration)
 
         self.explicit_derivative = derivative.explicit
         self.implicit_derivative = derivative.implicit
         self.resolvent = resolvent
 
-        workspace = self.workspace
-        stage_count = len(self.tableau.implicit.a)
+        stage_count = len(tableau.implicit.a)
 
         self.delta = Block(list(workspace.allocate_translation_buffers(stage_count)))
         self.rhs = Block(list(workspace.allocate_translation_buffers(stage_count)))
@@ -79,23 +79,17 @@ class SchemeKennedyCarpenterAdaptive:
         self.error_delta_kernel = unbound_scheme_call
 
         self.call_body = self.call_inline
-        self.monitor = monitor
-        self.call_step = self.call_monitored if monitor is not None else self.call_body
-        self.redirect_call = self.call_step
 
         if specialist is not None:
             self.prepare_specialized_kernels(specialist)
             self.call_body = self.call_specialized
-            if monitor is None:
-                self.call_step = self.call_body
-                self.redirect_call = self.call_step
 
     def __call__(
         self,
         interval: IntervalLike,
         state: State,
     ) -> float:
-        return self.redirect_call(interval, state)
+        return self.call_body(interval, state)
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
         """Prepare fixed-coefficient kernels for the specialized IMEX path."""
@@ -107,30 +101,30 @@ class SchemeKennedyCarpenterAdaptive:
         # implicit derivative buffers. The diagonal implicit coefficient is
         # deliberately excluded from these stencils.
         self.stage_rhs_kernels = tuple(
-            specialist.provide(stencils.stage_rhs(index))
+            specialist.provide_delta(stencils.stage_rhs(index))
             for index in range(stage_count)
         )
 
         # Steps 4 and 5 build the accepted increment and embedded error
         # estimate from the split derivative families.
-        self.advance_delta_kernel = specialist.provide(stencils.advance_delta())
-        self.error_delta_kernel = specialist.provide(stencils.error_delta())
+        self.advance_delta_kernel = specialist.provide_delta(stencils.advance_delta())
+        self.error_delta_kernel = specialist.provide_delta(stencils.error_delta())
 
     def call_inline(
         self,
         interval: IntervalLike,
         state: State,
     ) -> float:
-        return self._call(interval, state, specialized=False)
+        return self.call(interval, state, specialized=False)
 
     def call_specialized(
         self,
         interval: IntervalLike,
         state: State,
     ) -> float:
-        return self._call(interval, state, specialized=True)
+        return self.call(interval, state, specialized=True)
 
-    def _call(
+    def call(
         self,
         interval: IntervalLike,
         state: State,
@@ -148,11 +142,11 @@ class SchemeKennedyCarpenterAdaptive:
         proposed_dt = proposal.proposed_dt
         t_start = proposal.t_start
         rejection_count = 0
-        scheme_name = self.tableau.short_name or type(self).__name__
+        scheme_name = self.tableau.short_name
 
         while True:
             try:
-                self._trial_step(interval, state, dt, specialized=specialized)
+                self.trial_step(interval, state, dt, specialized=specialized)
             except StarkErrorRecoverable:
                 rejection_count += 1
                 dt = self.step_control.rejected_step(dt, 1.0, remaining, scheme_name)
@@ -193,7 +187,7 @@ class SchemeKennedyCarpenterAdaptive:
         )
         return report.accepted_dt
 
-    def _trial_step(
+    def trial_step(
         self,
         interval: IntervalLike,
         state: State,
@@ -222,11 +216,11 @@ class SchemeKennedyCarpenterAdaptive:
             if specialized:
                 rhs[stage_index] = self.stage_rhs_kernels[stage_index](
                     dt,
-                    *self._stage_sources(stage_index),
+                    *self.stage_sources(stage_index),
                     rhs[stage_index],
                 )
             else:
-                rhs[stage_index] = self._stage_rhs_inline(
+                rhs[stage_index] = self.stage_rhs_inline(
                     stage_index,
                     dt,
                     rhs[stage_index],
@@ -270,46 +264,57 @@ class SchemeKennedyCarpenterAdaptive:
             # 4. Build the high-order accepted increment.
             self.delta_high = self.advance_delta_kernel(
                 dt,
-                *self._advance_sources(),
+                *self.advance_sources(),
                 self.delta_high,
             )
             # 5. Build the embedded error increment.
             self.error_delta = self.error_delta_kernel(
                 dt,
-                *self._advance_sources(),
+                *self.advance_sources(),
                 self.error_delta,
             )
         else:
             # 4. Build the high-order accepted increment.
-            self.delta_high = self._advance_inline(dt, self.delta_high, error=False)
+            self.delta_high = self.advance_inline(dt, self.delta_high, error=False)
             # 5. Build the embedded error increment.
-            self.error_delta = self._advance_inline(dt, self.error_delta, error=True)
+            self.error_delta = self.advance_inline(dt, self.error_delta, error=True)
 
-    def _stage_sources(self, stage_index: int):
+    def stage_sources(self, stage_index: int) -> tuple[Translation, ...]:
         return (
             *self.k_explicit[:stage_index],
             *self.k_implicit[:stage_index],
         )
 
-    def _advance_sources(self):
+    def advance_sources(self) -> tuple[Translation, ...]:
         return (*self.k_explicit, *self.k_implicit)
 
-    def _stage_rhs_inline(self, stage_index: int, dt: float, out):
+    def stage_rhs_inline(
+        self,
+        stage_index: int,
+        dt: float,
+        out: Translation,
+    ) -> Translation:
         explicit_coefficients = self.tableau.explicit.a[stage_index][:stage_index]
         implicit_coefficients = self.tableau.implicit.a[stage_index][:stage_index]
         terms = (
             *(zip(explicit_coefficients, self.k_explicit[:stage_index], strict=True)),
             *(zip(implicit_coefficients, self.k_implicit[:stage_index], strict=True)),
         )
-        return self._linear_combination_inline(dt, out, terms)
+        return self.linear_combination_inline(dt, out, terms)
 
-    def _advance_inline(self, dt: float, out, *, error: bool):
+    def advance_inline(
+        self,
+        dt: float,
+        out: Translation,
+        *,
+        error: bool,
+    ) -> Translation:
         if error:
-            explicit_coefficients = _difference(
+            explicit_coefficients = difference(
                 self.tableau.explicit.b_high,
                 self.tableau.explicit.b_low,
             )
-            implicit_coefficients = _difference(
+            implicit_coefficients = difference(
                 self.tableau.implicit.b_high,
                 self.tableau.implicit.b_low,
             )
@@ -321,9 +326,14 @@ class SchemeKennedyCarpenterAdaptive:
             *(zip(explicit_coefficients, self.k_explicit, strict=True)),
             *(zip(implicit_coefficients, self.k_implicit, strict=True)),
         )
-        return self._linear_combination_inline(dt, out, terms)
+        return self.linear_combination_inline(dt, out, terms)
 
-    def _linear_combination_inline(self, dt: float, out, terms):
+    def linear_combination_inline(
+        self,
+        dt: float,
+        out: Translation,
+        terms: Iterable[tuple[float, Translation]],
+    ) -> Translation:
         workspace = self.workspace
         first = True
 
@@ -342,11 +352,11 @@ class SchemeKennedyCarpenterAdaptive:
         return out
 
 
-def _difference(high, low) -> tuple[float, ...]:
+def difference(high: Iterable[float], low: Iterable[float]) -> tuple[float, ...]:
     return tuple(
         high_weight - low_weight
         for high_weight, low_weight in zip(tuple(high), tuple(low), strict=True)
     )
 
 
-__all__ = ["SchemeKennedyCarpenterAdaptive"]
+__all__ = ["KennedyCarpenterAdaptiveStep", "difference"]

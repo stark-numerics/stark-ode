@@ -9,9 +9,9 @@ from stark.core.block import Block
 from stark.core.block.operator import BlockOperatorDiagonal
 from stark.core.contracts import InverterRequest
 from stark.methods.inverters.krylov import (
+    InverterPreconditionerDiagonalInverse,
+    InverterPreconditionerNone,
     InverterKrylovArnoldi,
-    PreconditionerDiagonalInverse,
-    PreconditionerNone,
 )
 
 
@@ -155,7 +155,7 @@ def test_krylov_request_shape_remains_structural() -> None:
     assert accepts_request(request) == pytest.approx(3.0)
 
 
-def test_preconditioner_none_uses_inverter_copy_semantics() -> None:
+def test_inverter_preconditioner_none_uses_inverter_copy_semantics() -> None:
     copy_calls = 0
 
     def copy_block(
@@ -167,7 +167,7 @@ def test_preconditioner_none_uses_inverter_copy_semantics() -> None:
         for index in range(len(source)):
             target[index].value = source[index].value
 
-    preconditioner = PreconditionerNone(copy_block)
+    preconditioner = InverterPreconditionerNone(copy_block)
     source = Block([ScalarTranslation(2.0), ScalarTranslation(3.0)])
     target = Block([ScalarTranslation(0.0), ScalarTranslation(0.0)])
 
@@ -179,7 +179,7 @@ def test_preconditioner_none_uses_inverter_copy_semantics() -> None:
     assert target[0] is not source[0]
 
 
-def test_preconditioner_diagonal_inverse_uses_entry_inverse_actions() -> None:
+def test_inverter_preconditioner_diagonal_inverse_uses_entry_inverse_actions() -> None:
     @dataclass(slots=True)
     class ScaleEntry:
         scale: float
@@ -202,7 +202,7 @@ def test_preconditioner_diagonal_inverse_uses_entry_inverse_actions() -> None:
     source = Block([ScalarTranslation(6.0), ScalarTranslation(8.0)])
     target = Block([ScalarTranslation(0.0), ScalarTranslation(0.0)])
 
-    PreconditionerDiagonalInverse()(operator, source, target)
+    InverterPreconditionerDiagonalInverse()(operator, source, target)
 
     assert target[0].value == pytest.approx(3.0)
     assert target[1].value == pytest.approx(2.0)

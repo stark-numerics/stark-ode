@@ -20,7 +20,7 @@ def _format_entry(value: float) -> str:
 
 
 @dataclass(frozen=True, slots=True)
-class ButcherTableau:
+class Tableau:
     """Coefficients for one Runge-Kutta method."""
 
     c: tuple[float, ...]
@@ -29,14 +29,14 @@ class ButcherTableau:
     order: int
     b_embedded: tuple[float, ...] | None = None
     embedded_order: int | None = None
-    short_name: str | None = None
-    full_name: str | None = None
+    short_name: str = ""
+    full_name: str = ""
 
     def __repr__(self) -> str:
         name = " ".join(part for part in (self.short_name, self.full_name) if part).strip()
         name_text = f", name={name!r}" if name else ""
         return (
-            "ButcherTableau("
+            "Tableau("
             f"stages={len(self.c)}, "
             f"order={self.order!r}, "
             f"embedded_order={self.embedded_order!r}"
@@ -150,7 +150,7 @@ class ButcherTableau:
         return self.display()
 
 
-class ButcherTableauEmbedded(ButcherTableau):
+class TableauEmbedded(Tableau):
     """Convenience constructor for embedded high/low-order tableaus."""
 
     def __init__(
@@ -162,8 +162,8 @@ class ButcherTableauEmbedded(ButcherTableau):
         b_low: tuple[float, ...],
         high_order: int,
         low_order: int,
-        short_name: str | None = None,
-        full_name: str | None = None,
+        short_name: str = "",
+        full_name: str = "",
     ) -> None:
         super().__init__(
             c=c,
@@ -178,13 +178,13 @@ class ButcherTableauEmbedded(ButcherTableau):
 
 
 @dataclass(frozen=True, slots=True)
-class ButcherTableauImex:
+class TableauImex:
     """Matched explicit and implicit tableaus for an IMEX method."""
 
-    explicit: ButcherTableau
-    implicit: ButcherTableau
-    short_name: str | None = None
-    full_name: str | None = None
+    explicit: Tableau
+    implicit: Tableau
+    short_name: str = ""
+    full_name: str = ""
 
     def __post_init__(self) -> None:
         if len(self.explicit.c) != len(self.implicit.c):
@@ -200,7 +200,7 @@ class ButcherTableauImex:
         name = " ".join(part for part in (self.short_name, self.full_name) if part).strip()
         name_text = f", name={name!r}" if name else ""
         return (
-            "ButcherTableauImex("
+            "TableauImex("
             f"stages={len(self.explicit.c)!r}, "
             f"order={self.order!r}, "
             f"embedded_order={self.embedded_order!r}"
@@ -243,11 +243,4 @@ class ButcherTableauImex:
         return self.display()
 
 
-__all__ = ["ButcherTableau", "ButcherTableauEmbedded", "ButcherTableauImex"]
-
-
-
-
-
-
-
+__all__ = ["Tableau", "TableauEmbedded", "TableauImex"]

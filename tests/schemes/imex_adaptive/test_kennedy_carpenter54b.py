@@ -146,7 +146,7 @@ def test_kennedy_carpenter54b_monitoring_uses_scheme_owned_boundary() -> None:
     assert len(monitor.scheme.adaptive_steps) == 1
 
     record = monitor.scheme.adaptive_steps[0]
-    assert record.scheme == scheme.short_name
+    assert record.scheme == scheme.descriptor.short_name
     assert record.t_start == pytest.approx(0.0)
     assert record.t_end == pytest.approx(0.1)
     assert record.proposed_dt == pytest.approx(0.1)

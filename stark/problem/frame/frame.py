@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
@@ -61,7 +61,7 @@ class FrameField:
     def algebraist_norm(self) -> AlgebraistFrameNormPolicy:
         norm = self.norm
         if hasattr(norm, "to_algebraist_norm"):
-            return norm.to_algebraist_norm()
+            return cast(FrameNormPolicy, norm).to_algebraist_norm()
         return norm
 
     def algebraist_policy(self) -> AlgebraistFramePolicy:
@@ -91,9 +91,10 @@ class Frame:
         | Iterable[FrameField | AlgebraistFramePathLike | Mapping[str, Any]],
     ) -> None:
         if isinstance(fields, Mapping):
+            field_mapping = cast(Mapping[AlgebraistFramePathLike, Any], fields)
             normalized = tuple(
                 self._field_from_mapping_item(state, spec)
-                for state, spec in fields.items()
+                for state, spec in field_mapping.items()
             )
         elif isinstance(fields, FrameField) or isinstance(fields, str):
             normalized = (self._coerce_field(fields),)

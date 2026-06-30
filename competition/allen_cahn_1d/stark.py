@@ -92,6 +92,8 @@ def prepare_sdirk21_newton_krylov(problem_parameters, stark_parameters, initial_
         linearizer=make_linearizer(problem_parameters),
     )
     linearizer = system.prepare_linearizer(engine)
+    if linearizer is None:
+        raise RuntimeError("Allen-Cahn competition requires a configured linearizer.")
     configuration = stark_configuration(stark_parameters)
     inverter = InverterKrylovArnoldi(
         engine.allocator,

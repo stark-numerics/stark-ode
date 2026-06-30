@@ -49,7 +49,7 @@ class ScalarAllocator:
 
 
 class StubSpecialist:
-    def provide(self, stencil: SchemeStencil):
+    def provide_delta(self, stencil: SchemeStencil):
         coefficients = stencil.coefficients
         fixed_scale = stencil.scale
 
@@ -85,6 +85,8 @@ class StubSpecialist:
             return out
 
         return delta_kernel
+
+    provide_apply = provide_delta
 
 
 def constant_rhs(

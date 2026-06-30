@@ -6,6 +6,7 @@ from typing import Protocol
 from dataclasses import dataclass, field
 from stark.core.contracts.scheme_predictor import SchemePredictorLike
 from stark.core.tolerance import Tolerance
+from stark.methods.schemes.predictor import SchemePredictorKnown
 
 @dataclass(frozen=False, slots=True)
 class SchemeConfiguration(Protocol):
@@ -29,7 +30,7 @@ class SchemeConfigurationDefault:
     adaptive_scheme_max_factor: float = 5.0
     adaptive_scheme_error_exponent: float = 0.2
     adaptive_scheme_maximum_rejections: int | None = 64
-    scheme_predictor: SchemePredictorLike | None = None
+    scheme_predictor: SchemePredictorLike | None = field(default_factory=SchemePredictorKnown)
 
 
 __all__ = ["SchemeConfiguration", "SchemeConfigurationDefault"]

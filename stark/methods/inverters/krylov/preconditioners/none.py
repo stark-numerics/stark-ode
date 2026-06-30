@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Generic
 
 from stark.core.contracts import BlockLike, BlockOperatorLike, TranslationType
 
 
 @dataclass(slots=True)
-class PreconditionerNone:
+class InverterPreconditionerNone(Generic[TranslationType]):
     """Identity preconditioner used when Arnoldi should run unpreconditioned.
 
     The copy operation is supplied by the owning inverter so the preconditioner
@@ -20,11 +21,12 @@ class PreconditionerNone:
 
     def __call__(
         self,
-        _operator: BlockOperatorLike[TranslationType],
+        operator: BlockOperatorLike[TranslationType],
         source: BlockLike[TranslationType],
         target: BlockLike[TranslationType],
     ) -> None:
+        del operator
         self.copy_block(source, target)
 
 
-__all__ = ["PreconditionerNone"]
+__all__ = ["InverterPreconditionerNone"]

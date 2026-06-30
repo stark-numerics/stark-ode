@@ -51,7 +51,7 @@ class AlgebraistFramePath:
             raise ValueError(f"root {root!r} is not a valid identifier.")
         return ".".join((root, *self.parts))
 
-    def get(self, root: object) -> Any:
+    def __call__(self, root: object) -> Any:
         """Return the value reached by following this attribute path from `root`."""
 
         value = root
@@ -59,13 +59,13 @@ class AlgebraistFramePath:
             value = getattr(value, part)
         return value
 
-    def set(self, root: object, value: Any) -> None:
+    def assign(self, root: object, value: Any) -> None:
         """Assign `value` at this path, creating missing parent objects."""
 
-        target = self.ensure(root)
+        target = self.ensure_parent(root)
         setattr(target, self.parts[-1], value)
 
-    def ensure(self, root: object) -> object:
+    def ensure_parent(self, root: object) -> object:
         """Return this path's parent object, creating missing parents as needed."""
 
         target = root

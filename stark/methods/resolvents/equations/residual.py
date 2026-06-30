@@ -3,9 +3,16 @@ from __future__ import annotations
 from typing import Protocol, TypeVar
 
 from stark.core.block import Block
-from stark.core.contracts import Translation, OperatorType
+from stark.core.contracts import Operator, Translation
 
-class ResolventResidual(Protocol[OperatorType]):
+OperatorTypeContravariant = TypeVar(
+    "OperatorTypeContravariant",
+    bound=Operator,
+    contravariant=True,
+)
+
+
+class ResolventResidual(Protocol[OperatorTypeContravariant]):
     """Residual object used by new-paradigm resolvents."""
 
     def __call__(
@@ -18,7 +25,7 @@ class ResolventResidual(Protocol[OperatorType]):
     def differential(
         self,
         delta: Block[Translation],
-        out: OperatorType,
+        out: OperatorTypeContravariant,
     ) -> None:
         ...
 

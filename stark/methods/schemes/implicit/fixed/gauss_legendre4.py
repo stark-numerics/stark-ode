@@ -7,21 +7,19 @@ from typing import Any, cast
 from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
+from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.display.decorators import with_scheme_display
-from stark.methods.schemes.implicit._support import (
-    initialise_implicit_support,
-    implicit_display_resolvent_problem,
-    implicit_snapshot_state,
-)
+from stark.methods.schemes.display.display import display_implicit_resolvent_problem
+from stark.methods.schemes.implicit.runtime import SchemeRuntimeImplicit
 from stark.methods.schemes.specialization.specialist import SchemeSpecialist
-from stark.methods.schemes.requests.resolvent import SchemeResolventRequestCoupled
+from stark.methods.schemes.request import SchemeResolventRequestCoupled
 from stark.methods.schemes.specialization.stencil import SchemeStencil
-from stark.methods.schemes.method.tableau import ButcherTableau
+from stark.methods.schemes.method.tableau import Tableau
 
 
 GAUSS_LEGENDRE4_SQRT3 = sqrt(3.0)
-GAUSS_LEGENDRE4_TABLEAU = ButcherTableau(
+GAUSS_LEGENDRE4_TABLEAU = Tableau(
     c=(
         0.5 - GAUSS_LEGENDRE4_SQRT3 / 6.0,
         0.5 + GAUSS_LEGENDRE4_SQRT3 / 6.0,
@@ -42,7 +40,7 @@ GAUSS_LEGENDRE4_STAGE_INCREMENT_WEIGHTS = (
 
 
 # Optional extension: adds human-readable scheme metadata and formatting helpers.
-# Provides: with_scheme_display, display_tableau, short_name, full_name, __repr__, __str__, and __format__.
+# Provides: with_scheme_display, display_tableau, __repr__, __str__, and __format__.
 @with_scheme_display
 # Optional extension: records fixed-step monitor events.
 # Provides: call_monitored.
@@ -62,6 +60,9 @@ class SchemeGaussLegendre4:
     method is not stiffly accurate.
     """
 
+    # Installed by the scheme monitoring decorator above this class.
+    call_monitored: SchemeCall
+
     __slots__ = (
         "monitor",
         "advance_update",
@@ -73,12 +74,21 @@ class SchemeGaussLegendre4:
         "resolvent",
         "stage_delta",
         "trial",
+        "runtime",
         "workspace",
     )
 
     descriptor = SchemeDescriptor("GL4", "Gauss-Legendre 4")
-    display_resolvent_problem = classmethod(implicit_display_resolvent_problem)
-    snapshot_state = implicit_snapshot_state
+    @classmethod
+    def display_resolvent_problem(cls) -> str:
+        return display_implicit_resolvent_problem(
+            cls.tableau,
+            cls.descriptor.short_name,
+            cls.descriptor.full_name,
+        )
+
+    def snapshot_state(self, state: State) -> State:
+        return self.runtime.snapshot_state(state)
 
     tableau = GAUSS_LEGENDRE4_TABLEAU
 
@@ -99,7 +109,10 @@ class SchemeGaussLegendre4:
         self.resolvent = resolvent
         self.advance_update = None
 
-        initialise_implicit_support(self, derivative, allocator)
+        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
+        self.derivative = self.runtime.derivative
+        self.workspace = self.runtime.workspace
+        self.block_allocator = self.runtime.block_allocator
         self.stage_delta = self.block_allocator.allocate(2)
         self.trial = self.workspace.allocate_translation()
 
@@ -115,7 +128,7 @@ class SchemeGaussLegendre4:
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
         # Step 2 reconstructs the accepted update from stage increments.
-        self.advance_update = specialist.provide(
+        self.advance_update = specialist.provide_apply(
             SchemeStencil(GAUSS_LEGENDRE4_STAGE_INCREMENT_WEIGHTS, apply=True)
         )
 

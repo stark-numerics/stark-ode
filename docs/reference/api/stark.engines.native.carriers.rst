@@ -15,22 +15,6 @@ Subpackages
 Submodules
 ----------
 
-stark.engines.native.carriers.allocation module
------------------------------------------------
-
-.. automodule:: stark.engines.native.carriers.allocation
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.native.carriers.arithmetic module
------------------------------------------------
-
-.. automodule:: stark.engines.native.carriers.arithmetic
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 stark.engines.native.carriers.basis module
 ------------------------------------------
 
@@ -47,26 +31,10 @@ stark.engines.native.carriers.carrier module
    :show-inheritance:
    :undoc-members:
 
-stark.engines.native.carriers.norm module
------------------------------------------
-
-.. automodule:: stark.engines.native.carriers.norm
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 stark.engines.native.carriers.storage module
 --------------------------------------------
 
 .. automodule:: stark.engines.native.carriers.storage
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.native.carriers.validation module
------------------------------------------------
-
-.. automodule:: stark.engines.native.carriers.validation
    :members:
    :show-inheritance:
    :undoc-members:

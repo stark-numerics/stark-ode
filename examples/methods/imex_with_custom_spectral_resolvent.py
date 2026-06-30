@@ -64,8 +64,8 @@ class SpectralDiffusionResolvent:
 
 if __name__ == "__main__":
     derivative = Derivative.split(
-        implicit=implicit_diffusion,
-        explicit=explicit_reaction,
+        implicit=Derivative(implicit_diffusion),
+        explicit=Derivative(explicit_reaction),
     )
     system = System(
         derivative=derivative,

@@ -25,13 +25,13 @@ class EngineTranslationJax:
             return
 
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
-            field.state_path.set(
+            field.state_path.assign(
                 result,
                 carrier.arithmetic.translate(
-                    field.state_path.get(origin),
+                    field.state_path(origin),
                     1.0,
-                    field.translation_path.get(self),
-                    field.state_path.get(result),
+                    field.translation_path(self),
+                    field.state_path(result),
                 ),
             )
 
@@ -41,12 +41,12 @@ class EngineTranslationJax:
 
         result = self.allocator.allocate_translation()
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
-            field.translation_path.set(
+            field.translation_path.assign(
                 result,
                 carrier.arithmetic.add(
-                    field.translation_path.get(self),
-                    field.translation_path.get(other),
-                    field.translation_path.get(result),
+                    field.translation_path(self),
+                    field.translation_path(other),
+                    field.translation_path(result),
                 ),
             )
         return result
@@ -54,12 +54,12 @@ class EngineTranslationJax:
     def __rmul__(self, scalar: float) -> EngineTranslationJax:
         result = self.allocator.allocate_translation()
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
-            field.translation_path.set(
+            field.translation_path.assign(
                 result,
                 carrier.arithmetic.scale(
                     scalar,
-                    field.translation_path.get(self),
-                    field.translation_path.get(result),
+                    field.translation_path(self),
+                    field.translation_path(result),
                 ),
             )
         return result
@@ -75,7 +75,7 @@ class EngineTranslationJax:
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             if not field.norm.include:
                 continue
-            field_norm = carrier.norm(field.translation_path.get(self))
+            field_norm = carrier.norm(field.translation_path(self))
             total += field_norm * field_norm
         return sqrt(total)
 

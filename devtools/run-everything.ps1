@@ -1,6 +1,6 @@
 # run-everything.ps1
 #
-# Run the broad local verification sweep: tests, example runners, case studies,
+# Run the broad local verification sweep: tests, docs guards, example runners,
 # competition reports, and runnable benchmark scripts.
 #
 # Example:
@@ -20,7 +20,6 @@ param(
     [switch]$SkipDocs,
     [switch]$FailOnDocsWarning,
     [switch]$SkipExamples,
-    [switch]$SkipCaseStudies,
     [switch]$SkipCompetition,
     [switch]$SkipBenchmarks
 )
@@ -88,12 +87,12 @@ if (-not $SkipDocs) {
 
 if (-not $SkipExamples) {
     Invoke-PythonModule "examples: getting started" @("-m", "examples.getting_started")
-    Invoke-PythonModule "examples: features" @("-m", "examples.features")
-}
-
-if (-not $SkipCaseStudies) {
-    Invoke-PythonModule "case studies: three body" @("-m", "examples.case_studies.three_body")
-    Invoke-PythonModule "case studies: allen cahn" @("-m", "examples.case_studies.allen_cahn")
+    Invoke-PythonModule "examples: problem" @("-m", "examples.problem")
+    Invoke-PythonModule "examples: methods" @("-m", "examples.methods")
+    Invoke-PythonModule "examples: diagnostics" @("-m", "examples.diagnostics")
+    Invoke-PythonModule "examples: engines" @("-m", "examples.engines")
+    Invoke-PythonModule "examples: inverters" @("-m", "examples.inverters")
+    Invoke-PythonModule "examples: core" @("-m", "examples.core")
 }
 
 if (-not $SkipCompetition) {

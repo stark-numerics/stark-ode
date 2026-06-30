@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from stark.diagnostics.comparison import Comparison
@@ -45,7 +46,7 @@ def fput_rhs(
 class FPUTStarkProblem:
     __slots__ = ("problem_parameters", "system")
 
-    def __init__(self, problem_parameters: dict[str, Any]) -> None:
+    def __init__(self, problem_parameters: Mapping[str, Any]) -> None:
         chain_size = int(problem_parameters["chain_size"])
         self.problem_parameters = problem_parameters
         self.system = System(
@@ -60,10 +61,10 @@ class FPUTStarkProblem:
 
     def prepare_rkck(
         self,
-        problem_parameters: dict[str, Any],
-        tolerance_parameters: dict[str, Any],
-        initial_conditions: dict[str, Array],
-        reference: dict[str, Array],
+        problem_parameters: Mapping[str, Any],
+        tolerance_parameters: Mapping[str, Any],
+        initial_conditions: Mapping[str, Any],
+        reference: Mapping[str, Any],
     ):
         del problem_parameters
         return self.stark_solver(
@@ -76,10 +77,10 @@ class FPUTStarkProblem:
 
     def prepare_rkdp(
         self,
-        problem_parameters: dict[str, Any],
-        tolerance_parameters: dict[str, Any],
-        initial_conditions: dict[str, Array],
-        reference: dict[str, Array],
+        problem_parameters: Mapping[str, Any],
+        tolerance_parameters: Mapping[str, Any],
+        initial_conditions: Mapping[str, Any],
+        reference: Mapping[str, Any],
     ):
         del problem_parameters
         return self.stark_solver(
@@ -95,9 +96,9 @@ class FPUTStarkProblem:
         *,
         solver_name: str,
         scheme_type: type,
-        tolerance_parameters: dict[str, Any],
-        initial_conditions: dict[str, Array],
-        reference: dict[str, Array],
+        tolerance_parameters: Mapping[str, Any],
+        initial_conditions: Mapping[str, Any],
+        reference: Mapping[str, Any],
     ):
         ivp = self.system.ivp(
             initial=initial_conditions,
@@ -135,10 +136,10 @@ class FPUTStarkProblem:
 
 
 def prepare_rkck(
-    problem_parameters: dict[str, Any],
-    tolerance_parameters: dict[str, Any],
-    initial_conditions: dict[str, Array],
-    reference: dict[str, Array],
+    problem_parameters: Mapping[str, Any],
+    tolerance_parameters: Mapping[str, Any],
+    initial_conditions: Mapping[str, Any],
+    reference: Mapping[str, Any],
 ):
     return FPUTStarkProblem(problem_parameters).prepare_rkck(
         problem_parameters,
@@ -149,10 +150,10 @@ def prepare_rkck(
 
 
 def prepare_rkdp(
-    problem_parameters: dict[str, Any],
-    tolerance_parameters: dict[str, Any],
-    initial_conditions: dict[str, Array],
-    reference: dict[str, Array],
+    problem_parameters: Mapping[str, Any],
+    tolerance_parameters: Mapping[str, Any],
+    initial_conditions: Mapping[str, Any],
+    reference: Mapping[str, Any],
 ):
     return FPUTStarkProblem(problem_parameters).prepare_rkdp(
         problem_parameters,

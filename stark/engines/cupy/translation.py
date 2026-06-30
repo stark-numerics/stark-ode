@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from math import sqrt
-from typing import Any
+from typing import Any, SupportsFloat, cast
 
 from stark.engines.shared.algebraist.frame import AlgebraistFrame
 from stark.engines.cupy.carriers import CarrierCupy
@@ -26,10 +26,10 @@ class EngineTranslationCupy:
 
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             carrier.arithmetic.translate(
-                field.state_path.get(origin),
+                field.state_path(origin),
                 1.0,
-                field.translation_path.get(self),
-                field.state_path.get(result),
+                field.translation_path(self),
+                field.state_path(result),
             )
 
     def __add__(self, other: EngineTranslationCupy) -> EngineTranslationCupy:
@@ -39,9 +39,9 @@ class EngineTranslationCupy:
         result = self.allocator.allocate_translation()
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             carrier.arithmetic.add(
-                field.translation_path.get(self),
-                field.translation_path.get(other),
-                field.translation_path.get(result),
+                field.translation_path(self),
+                field.translation_path(other),
+                field.translation_path(result),
             )
         return result
 
@@ -50,8 +50,8 @@ class EngineTranslationCupy:
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             carrier.arithmetic.scale(
                 scalar,
-                field.translation_path.get(self),
-                field.translation_path.get(result),
+                field.translation_path(self),
+                field.translation_path(result),
             )
         return result
 
@@ -64,13 +64,13 @@ class EngineTranslationCupy:
             item = getattr(value, "item", None)
             if callable(item):
                 value = item()
-            return float(value)
+            return float(cast(SupportsFloat, value))
 
         total = 0.0
         for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
             if not field.norm.include:
                 continue
-            field_norm = carrier.norm(field.translation_path.get(self))
+            field_norm = carrier.norm(field.translation_path(self))
             total += field_norm * field_norm
         return sqrt(total)
 

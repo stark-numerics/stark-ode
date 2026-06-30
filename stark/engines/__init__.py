@@ -1,28 +1,65 @@
-"""Engine catalogue for backend runtime bundles."""
+"""Engine catalogue for backend runtime bundles.
+
+Engines decide where state lives and which algebra kernels a prepared IVP uses.
+Most examples can import `EngineNumpy`, `EngineNative`, `EngineCupy`, or
+`EngineJax` from this package. Deeper engine modules are primarily for backend
+authors and advanced users inspecting storage, carrier, or Algebraist details.
+"""
 
 from stark.core.contracts.engine import Engine
 from stark.engines.native import EngineNative
 from stark.engines.numpy import EngineNumpy
 from stark.engines.shared.accelerators import Accelerator, AcceleratorNone
 
-__all__ = [
-    "Accelerator",
-    "AcceleratorNone",
-    "Engine",
-    "EngineNative",
-    "EngineNumpy",
-]
-
+has_engine_cupy = False
 try:
     from stark.engines.cupy import EngineCupy
 except ImportError:
     pass
 else:
-    __all__ += ["EngineCupy"]
+    has_engine_cupy = True
 
+has_engine_jax = False
 try:
     from stark.engines.jax import EngineJax
 except ImportError:
     pass
 else:
-    __all__ += ["EngineJax"]
+    has_engine_jax = True
+
+if has_engine_cupy and has_engine_jax:
+    __all__ = (
+        "Accelerator",
+        "AcceleratorNone",
+        "Engine",
+        "EngineCupy",
+        "EngineJax",
+        "EngineNative",
+        "EngineNumpy",
+    )
+elif has_engine_cupy:
+    __all__ = (
+        "Accelerator",
+        "AcceleratorNone",
+        "Engine",
+        "EngineCupy",
+        "EngineNative",
+        "EngineNumpy",
+    )
+elif has_engine_jax:
+    __all__ = (
+        "Accelerator",
+        "AcceleratorNone",
+        "Engine",
+        "EngineJax",
+        "EngineNative",
+        "EngineNumpy",
+    )
+else:
+    __all__ = (
+        "Accelerator",
+        "AcceleratorNone",
+        "Engine",
+        "EngineNative",
+        "EngineNumpy",
+    )

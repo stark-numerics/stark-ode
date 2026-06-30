@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Generic
+from typing import ClassVar, Generic, cast
 
 from stark.core.contracts import (
     BlockOperatorEntryLike,
+    BlockOperatorDiagonalLike,
     BlockLike,
     InverterOutputMode,
     InverterRequest,
@@ -19,6 +20,7 @@ from stark.methods.inverters.relaxation.stencil import InverterRelaxationStencil
 from stark.methods.inverters.support import (
     InverterDefect,
     InverterDescriptor,
+    InverterRecordSolve,
     MonitorInverterLike,
     with_inverter_monitoring,
 )
@@ -66,8 +68,10 @@ class InverterRelaxationJacobi(Generic[TranslationType]):
         "update_size",
     )
 
-    descriptor = InverterDescriptor("Jacobi", "Jacobi relaxation")
-    output_mode = InverterOutputMode.improve
+    descriptor: ClassVar[InverterDescriptor] = InverterDescriptor("Jacobi", "Jacobi relaxation")
+    output_mode: ClassVar[InverterOutputMode] = InverterOutputMode.improve
+    # Installed by with_inverter_monitoring from stark.methods.inverters.support.
+    record_solve: ClassVar[InverterRecordSolve]
 
     def __init__(
         self,
@@ -172,17 +176,18 @@ class InverterRelaxationJacobi(Generic[TranslationType]):
         update = self.update
         assert defect is not None
         assert update is not None
+        operator = cast(BlockOperatorDiagonalLike[TranslationType], request.operator)
 
-        if len(request.operator) != len(defect):
+        if len(operator) != len(defect):
             raise ValueError("Jacobi operator size must match the defect size.")
 
         for index in range(len(defect)):
-            operator = request.operator[index]
-            if operator is None:
+            entry = operator[index]
+            if entry is None:
                 raise RuntimeError(
                     f"Jacobi operator diagonal entry {index} is not configured."
                 )
-            self.diagonal_inverse(operator, defect[index], update[index])
+            self.diagonal_inverse(entry, defect[index], update[index])
 
     def call_inline(
         self,

@@ -49,14 +49,14 @@ def test_layout_path_get_set_and_ensure_traverse_runtime_objects() -> None:
     path = AlgebraistFramePath.from_value("position.velocity")
     root = SimpleNamespace()
 
-    parent = path.ensure(root)
+    parent = path.ensure_parent(root)
 
     assert parent is root.position
 
-    path.set(root, 3.0)
+    path.assign(root, 3.0)
 
     assert root.position.velocity == 3.0
-    assert path.get(root) == 3.0
+    assert path(root) == 3.0
 
 
 def test_layout_field_normalizes_paths_and_policy() -> None:

@@ -124,7 +124,6 @@ def test_scheme_capability_matches_public_scheme_surface(
         assert capability.reason is None
         assert "specialist" in parameters
         assert "algebraist" not in parameters
-        assert hasattr(scheme_cls, "prepare_specialized_kernels")
         assert hasattr(scheme_cls, "call_specialized")
         return
 

@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import sqrt
-from typing import Generic, Iterator, Self, TypeVar
+from typing import Generic, Iterator, Self
 
 from stark.core.contracts.block import BlockLike
-
-
-TranslationType = TypeVar("TranslationType")
+from stark.core.contracts.translation import TranslationType
 
 
 @dataclass(slots=True)

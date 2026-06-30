@@ -25,7 +25,7 @@ def returning_rhs(t: float, state):
 
 
 @DerivativeStyle.kernel_accepts_instant_returns(state=("y",), translation=("dy",))
-def kernel_returning_rhs(t, y):
+def kernel_returns_rhs(t, y):
     return -(0.5 + 0.1 * t) * y
 
 
@@ -45,6 +45,6 @@ if __name__ == "__main__":
     for name, derivative in (
         ("in-place", in_place_rhs),
         ("returning", returning_rhs),
-        ("kernel returning", kernel_returning_rhs),
+        ("kernel returns", kernel_returns_rhs),
     ):
         print(f"{name:16s}: y(0.2) = {final_value(derivative):.6f}")

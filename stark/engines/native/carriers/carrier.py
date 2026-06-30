@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from array import array
-from numbers import Number
-from typing import Any
+from numbers import Real
+from typing import Any, cast
 
 from stark.engines.native.carriers.basis import CarrierBasisNative
 from stark.engines.native.carriers.array import CarrierNativeArray
+from stark.engines.native.carriers.hints import HintNativeNumber
 from stark.engines.native.carriers.list import CarrierNativeList
 from stark.engines.native.carriers.scalar import CarrierNativeScalar
 from stark.engines.native.carriers.storage import CarrierNativeValue
@@ -29,8 +30,8 @@ class CarrierNative:
 
     @staticmethod
     def _select(template: CarrierNativeValue) -> Any:
-        if isinstance(template, Number):
-            return CarrierNativeScalar(template)
+        if isinstance(template, Real):
+            return CarrierNativeScalar(cast(HintNativeNumber, template))
         if isinstance(template, list):
             return CarrierNativeList(template)
         if isinstance(template, tuple):

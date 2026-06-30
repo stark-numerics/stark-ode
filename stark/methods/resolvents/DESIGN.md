@@ -34,6 +34,12 @@ Implicit equation workers expose `differential(...)` for the linearized action.
 Do not keep old compatibility aliases such as `linearize(...)` before the first
 public release unless they are intentionally part of the API.
 
+Coupled implicit equation workers own their coupled differential operator.
+Resolvents should ask the equation worker to refresh that operator rather than
+carrying a diagonal fallback buffer. This keeps the difference between
+diagonal one-stage correction systems and genuinely coupled stage systems
+visible at the call site.
+
 ## Prove New Ideas Before Promotion
 
 New resolvent ideas should usually be tested against a problem that exposes

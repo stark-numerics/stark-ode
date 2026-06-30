@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from stark.core.contracts import IntervalLike
 from stark.methods.resolvents.requests.resolvent import ResolventRequest
-from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
+from stark.methods.schemes.request import SchemeResolventRequest
 
 
 class DummyTranslation:

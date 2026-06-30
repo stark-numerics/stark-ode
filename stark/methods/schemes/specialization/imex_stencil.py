@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from stark.methods.schemes.specialization.stencil import SchemeStencil
-from stark.methods.schemes.method.tableau import ButcherTableauImex
+from stark.methods.schemes.method.tableau import TableauImex
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,7 +21,7 @@ class SchemeStencilImexTableau:
         kE_0, ..., kE_{n-1}, kI_0, ..., kI_{n-1}
     """
 
-    tableau: ButcherTableauImex
+    tableau: TableauImex
     scale: float = 1.0
 
     def stage_rhs(self, index: int) -> SchemeStencil:

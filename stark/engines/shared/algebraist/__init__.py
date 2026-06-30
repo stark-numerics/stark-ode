@@ -4,6 +4,11 @@ Algebraist objects provide explicit kernels for vector-space operations used
 inside schemes and related workers. General providers supply arity-based
 translation combinations; specialist providers supply fixed-coefficient
 stencils for scheme stages, accepted increments, and embedded error estimates.
+
+This is an advanced contributor surface. Backend implementations use it to
+prepare fast algebra for known `Frame` layouts. Runtime providers remain useful
+for unknown or foreign state shapes, but generated providers are the intended
+path for ordinary high-level `Frame` models.
 """
 
 from stark.engines.shared.algebraist.algebraist import Algebraist, AlgebraistKernel, AlgebraistRequest

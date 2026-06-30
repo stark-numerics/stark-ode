@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Protocol, TypeVar
+from typing import Protocol
 
-TranslationType = TypeVar("TranslationType")
+from stark.core.contracts.translation import TranslationTypeCovariant
 
 
-class AlgebraistAllocator(Protocol[TranslationType]):
+class AlgebraistAllocator(Protocol[TranslationTypeCovariant]):
     """Minimal allocator surface needed by Algebraist runtime providers."""
 
-    def allocate_translation(self) -> TranslationType:
+    def allocate_translation(self) -> TranslationTypeCovariant:
         ...

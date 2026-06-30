@@ -8,6 +8,7 @@ import numpy as np
 from stark.core.block import BlockBasis
 from stark.diagnostics.comparison import Comparison
 from stark.core.configuration import Configuration
+from stark.core.contracts import SchemeLike
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
 from stark.engines import EngineNumpy
@@ -214,7 +215,7 @@ def stark_solver(
     initial_conditions,
     reference,
     resolvent_builder,
-    scheme=SchemeKvaerno4,
+    scheme: type[SchemeLike] = SchemeKvaerno4,
     accelerator=None,
 ):
     system, engine, linearizer, configuration = stark_runtime(
@@ -244,7 +245,7 @@ def stark_solver(
 
 def cubic_resolvent(engine, linearizer, configuration, scheme):
     del engine, linearizer, configuration
-    return RobertsonCubicResolvent(tableau=scheme.tableau)
+    return RobertsonCubicResolvent(tableau=scheme_tableau(scheme))
 
 
 def newton_dense_resolvent(engine, linearizer, configuration, scheme):
@@ -257,7 +258,7 @@ def newton_dense_resolvent(engine, linearizer, configuration, scheme):
         inverter=inverter,
         configuration=configuration,
         accelerator=engine.accelerator,
-        tableau=scheme.tableau,
+        tableau=scheme_tableau(scheme),
     )
 
 
@@ -271,7 +272,7 @@ def chord_dense_resolvent(engine, linearizer, configuration, scheme):
         inverter=inverter,
         configuration=configuration,
         accelerator=engine.accelerator,
-        tableau=scheme.tableau,
+        tableau=scheme_tableau(scheme),
     )
 
 
@@ -285,8 +286,12 @@ def very_chord_dense_resolvent(engine, linearizer, configuration, scheme):
         inverter=inverter,
         configuration=configuration,
         accelerator=engine.accelerator,
-        tableau=scheme.tableau,
+        tableau=scheme_tableau(scheme),
     )
+
+
+def scheme_tableau(scheme: type[SchemeLike]) -> Any:
+    return getattr(scheme, "tableau")
 
 
 def prepare_kvaerno4_cubic(problem_parameters, stark_parameters, initial_conditions, reference):

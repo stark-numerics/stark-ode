@@ -4,11 +4,10 @@ from dataclasses import dataclass
 
 from stark import Configuration
 from stark.methods.schemes.configuration import SchemeConfigurationDefault
-from stark.methods.schemes.predictors import (
+from stark.methods.schemes.predictor import (
     SchemePredictorKnown,
     SchemePredictorPrevious,
     SchemePredictorZero,
-    resolve_scheme_predictor,
 )
 
 
@@ -33,14 +32,6 @@ def test_scheme_predictor_known_uses_known_shift() -> None:
     assert delta.value == 3.0
 
 
-def test_scheme_predictor_known_zeroes_without_known_shift() -> None:
-    delta = TranslationScalar(8.0)
-
-    SchemePredictorKnown()(known=None, previous=TranslationScalar(5.0), delta=delta, scale=scale)
-
-    assert delta.value == 0.0
-
-
 def test_scheme_predictor_zero_always_zeroes_delta() -> None:
     delta = TranslationScalar(8.0)
 
@@ -57,14 +48,6 @@ def test_scheme_predictor_previous_prefers_previous_stage() -> None:
     assert delta.value == 5.0
 
 
-def test_scheme_predictor_previous_falls_back_to_known_shift() -> None:
-    delta = TranslationScalar(-1.0)
-
-    SchemePredictorPrevious()(known=TranslationScalar(2.0), previous=None, delta=delta, scale=scale)
-
-    assert delta.value == 2.0
-
-
 class CustomPredictor:
     def __call__(self, *, known, previous, delta, scale):
         del known, previous, scale
@@ -72,13 +55,12 @@ class CustomPredictor:
         return delta
 
 
-def test_resolve_scheme_predictor_uses_default_when_unconfigured() -> None:
-    assert isinstance(resolve_scheme_predictor(None), SchemePredictorKnown)
-    assert isinstance(resolve_scheme_predictor(SchemeConfigurationDefault()), SchemePredictorKnown)
+def test_scheme_configuration_default_supplies_known_predictor() -> None:
+    assert isinstance(SchemeConfigurationDefault().scheme_predictor, SchemePredictorKnown)
 
 
 def test_configuration_can_supply_custom_predictor() -> None:
     predictor = CustomPredictor()
     configuration = Configuration(scheme_predictor=predictor)
 
-    assert resolve_scheme_predictor(configuration) is predictor
+    assert configuration.scheme_predictor is predictor

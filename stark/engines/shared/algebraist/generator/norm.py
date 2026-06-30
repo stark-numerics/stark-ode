@@ -39,7 +39,7 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
         del request
         source = getattr(self.target, "source_norm", None)
         if callable(source):
-            return source(self.frame)
+            return cast(str, source(self.frame))
         parameters = [
             field.translation_name
             for field in self.frame.norm_fields
@@ -61,7 +61,7 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
                 lines.extend(
                     self._looped_field_lines(
                         name=name,
-                        shape=policy.shape,
+                        shape=tuple(policy.shape),
                         norm=norm,
                         vectorized=isinstance(
                             self.target,
@@ -77,7 +77,7 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
                 lines.extend(
                     self._unravelled_field_lines(
                         name=name,
-                        shape=policy.shape,
+                        shape=tuple(policy.shape),
                         norm=norm,
                     )
                 )

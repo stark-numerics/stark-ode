@@ -10,8 +10,8 @@ they become first-contact recommendations.
 from stark.methods.inverters.dense import InverterDense
 from stark.methods.inverters.krylov import (
     InverterKrylovArnoldi,
-    PreconditionerDiagonalInverse,
-    PreconditionerNone,
+    InverterPreconditionerDiagonalInverse,
+    InverterPreconditionerNone,
 )
 from stark.methods.inverters.relaxation import (
     InverterRelaxationJacobi,
@@ -29,8 +29,8 @@ __all__ = [
     "InverterDescriptor",
     "InverterDense",
     "InverterKrylovArnoldi",
-    "PreconditionerDiagonalInverse",
-    "PreconditionerNone",
+    "InverterPreconditionerDiagonalInverse",
+    "InverterPreconditionerNone",
     "InverterRelaxationJacobi",
     "InverterRelaxationRichardson",
     "InverterRelaxationSpecialist",

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from numbers import Number
+from numbers import Real
 from typing import TypeAlias
 
-CarrierNativeScalarValue: TypeAlias = Number
+from stark.engines.native.carriers.hints import HintNativeNumber
+
+CarrierNativeScalarValue: TypeAlias = HintNativeNumber
 
 
 @dataclass(frozen=True)
@@ -12,7 +14,7 @@ class CarrierStorageNativeScalar:
     template: CarrierNativeScalarValue
 
     def __post_init__(self) -> None:
-        if not isinstance(self.template, Number):
+        if not isinstance(self.template, Real):
             raise TypeError("Native scalar carrier template must be numeric.")
 
     def is_state(self, value: CarrierNativeScalarValue) -> bool:
@@ -22,4 +24,4 @@ class CarrierStorageNativeScalar:
         return self.matches_template(value)
 
     def matches_template(self, value: object) -> bool:
-        return isinstance(value, Number)
+        return isinstance(value, Real)

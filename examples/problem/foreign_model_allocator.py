@@ -10,9 +10,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import sqrt
+from typing import cast
 
 from stark import Interval
 from stark.core import Integrator, IntegratorStepper
+from stark.core.contracts import DerivativeLike
 from stark.methods import SchemeRK4
 
 
@@ -78,7 +80,7 @@ if __name__ == "__main__":
     state = PendulumState(angle=1.0, angular_velocity=0.0, label="foreign-pendulum")
     interval = Interval(present=0.0, step=0.1, stop=0.5)
 
-    scheme = SchemeRK4(pendulum, allocator)
+    scheme = SchemeRK4(cast(DerivativeLike, pendulum), allocator)
     stepper = IntegratorStepper(scheme)
 
     print("Foreign model through a custom allocator")

@@ -8,14 +8,10 @@ from stark.engines.shared.accelerators.none import AcceleratorNone
 from stark.engines.shared.algebraist.arity import AlgebraistArity
 from stark.engines.shared.algebraist.stencil import AlgebraistStencil
 from stark.engines.shared.algebraist.allocator import AlgebraistAllocator
+from stark.engines.shared.algebraist.frame import AlgebraistFrame
 from stark.core.contracts.accelerator import Accelerator
 from stark.core.contracts.state import State
 from stark.core.contracts.translation import Translation
-
-try:  # frame is optional context for runtime, but accepted for generator symmetry.
-    from stark.engines.shared.algebraist.frame import AlgebraistFrame
-except Exception:  # pragma: no cover - defensive during staged refactors
-    AlgebraistFrame = object  # type: ignore[misc, assignment]
 
 StateType = TypeVar("StateType", bound=State)
 TranslationType = TypeVar("TranslationType", bound=Translation)
@@ -134,12 +130,12 @@ class AlgebraistRuntimeDeltaKernel(Generic[TranslationType]):
             )
 
         effective_scale = step * self.scale
-        terms: list[object] = []
+        arguments: list[object] = []
         for coefficient, translation in zip(self.coefficients, translations):
-            terms.append(effective_scale * coefficient)
-            terms.append(translation)
-        terms.append(out)
-        return self.combine(*terms)
+            arguments.append(effective_scale * coefficient)
+            arguments.append(translation)
+        arguments.append(out)
+        return self.combine(*arguments)
 
 
 @dataclass(slots=True)
@@ -261,12 +257,12 @@ class AlgebraistRuntimeSupport(Generic[TranslationType]):
         *,
         request: AlgebraistStencil,
         coefficients: tuple[float, ...] | None = None,
-    ) -> Callable[..., StateType]:
+    ) -> Callable[..., State]:
         if coefficients is None:
             coefficients = _validate_coefficients(request.coefficients)
         delta = self.provide_delta(request=request, coefficients=coefficients)
         scratch = self.allocate_translation()
-        kernel = AlgebraistRuntimeApplyKernel[StateType, TranslationType](
+        kernel = AlgebraistRuntimeApplyKernel[State, TranslationType](
             delta=delta,
             scratch=scratch,
         )

@@ -6,24 +6,22 @@ from typing import Any, cast
 from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
+from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.display.decorators import with_scheme_display
-from stark.methods.schemes.implicit._support import (
-    initialise_implicit_support,
-    implicit_display_resolvent_problem,
-    implicit_snapshot_state,
-)
+from stark.methods.schemes.display.display import display_implicit_resolvent_problem
+from stark.methods.schemes.implicit.runtime import SchemeRuntimeImplicit
 from stark.methods.schemes.specialization.specialist import SchemeSpecialist
-from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
+from stark.methods.schemes.request import SchemeResolventRequest
 from stark.methods.schemes.specialization.stencil import (
     SchemeStencil,
     esdirk_stage_increment_stencils,
 )
-from stark.methods.schemes.method.tableau import ButcherTableau
+from stark.methods.schemes.method.tableau import Tableau
 
 
 CROUZEIX_DIRK3_GAMMA = 0.5
-CROUZEIX_DIRK3_TABLEAU = ButcherTableau(
+CROUZEIX_DIRK3_TABLEAU = Tableau(
     c=(0.5, 2.0 / 3.0, 0.5, 1.0),
     a=(
         (0.5,),
@@ -48,7 +46,7 @@ _STAGE_INCREMENT_WEIGHTS = _STAGE_STENCILS.high_delta
 
 
 # Optional extension: adds human-readable scheme metadata and formatting helpers.
-# Provides: with_scheme_display, display_tableau, short_name, full_name, __repr__, __str__, and __format__.
+# Provides: with_scheme_display, display_tableau, __repr__, __str__, and __format__.
 @with_scheme_display
 # Optional extension: records fixed-step monitor events.
 # Provides: call_monitored.
@@ -77,6 +75,9 @@ class SchemeCrouzeixDIRK3:
     implicit solves.
     """
 
+    # Installed by the scheme monitoring decorator above this class.
+    call_monitored: SchemeCall
+
     __slots__ = (
         "monitor",
         "block_allocator",
@@ -97,12 +98,21 @@ class SchemeCrouzeixDIRK3:
         "redirect_call",
         "resolvent",
         "trial",
+        "runtime",
         "workspace",
     )
 
     descriptor = SchemeDescriptor("Crouzeix3", "Crouzeix DIRK3")
-    display_resolvent_problem = classmethod(implicit_display_resolvent_problem)
-    snapshot_state = implicit_snapshot_state
+    @classmethod
+    def display_resolvent_problem(cls) -> str:
+        return display_implicit_resolvent_problem(
+            cls.tableau,
+            cls.descriptor.short_name,
+            cls.descriptor.full_name,
+        )
+
+    def snapshot_state(self, state: State) -> State:
+        return self.runtime.snapshot_state(state)
 
     tableau = CROUZEIX_DIRK3_TABLEAU
 
@@ -126,7 +136,10 @@ class SchemeCrouzeixDIRK3:
         self.known4_kernel = None
         self.final_update = None
 
-        initialise_implicit_support(self, derivative, allocator)
+        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
+        self.derivative = self.runtime.derivative
+        self.workspace = self.runtime.workspace
+        self.block_allocator = self.runtime.block_allocator
         self.delta1 = self.block_allocator.allocate(1)
         self.delta2 = self.block_allocator.allocate(1)
         self.delta3 = self.block_allocator.allocate(1)
@@ -148,14 +161,14 @@ class SchemeCrouzeixDIRK3:
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
         # Steps 2-4 build known shifts from previously solved stage increments.
-        self.known2_kernel = specialist.provide(SchemeStencil(_KNOWN2_WEIGHTS))
-        self.known3_kernel = specialist.provide(SchemeStencil(_KNOWN3_WEIGHTS))
-        self.known4_kernel = specialist.provide(
+        self.known2_kernel = specialist.provide_delta(SchemeStencil(_KNOWN2_WEIGHTS))
+        self.known3_kernel = specialist.provide_delta(SchemeStencil(_KNOWN3_WEIGHTS))
+        self.known4_kernel = specialist.provide_delta(
             SchemeStencil(_KNOWN4_WEIGHTS)
         )
 
         # Step 5 applies the final stage-increment combination to the state.
-        self.final_update = specialist.provide(
+        self.final_update = specialist.provide_apply(
             SchemeStencil(_STAGE_INCREMENT_WEIGHTS, apply=True)
         )
 

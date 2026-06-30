@@ -6,20 +6,18 @@ from typing import Any, cast
 from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
+from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.display.decorators import with_scheme_display
-from stark.methods.schemes.implicit._support import (
-    initialise_implicit_support,
-    implicit_display_resolvent_problem,
-    implicit_snapshot_state,
-)
+from stark.methods.schemes.display.display import display_implicit_resolvent_problem
+from stark.methods.schemes.implicit.runtime import SchemeRuntimeImplicit
 from stark.methods.schemes.specialization.specialist import SchemeSpecialist
-from stark.methods.schemes.requests.resolvent import SchemeResolventRequest
+from stark.methods.schemes.request import SchemeResolventRequest
 from stark.methods.schemes.specialization.stencil import SchemeStencil
-from stark.methods.schemes.method.tableau import ButcherTableau
+from stark.methods.schemes.method.tableau import Tableau
 
 
-CRANK_NICOLSON_TABLEAU = ButcherTableau(
+CRANK_NICOLSON_TABLEAU = Tableau(
     c=(0.0, 1.0),
     a=((), (0.5, 0.5)),
     b=(0.5, 0.5),
@@ -30,7 +28,7 @@ CRANK_NICOLSON_TABLEAU = ButcherTableau(
 
 
 # Optional extension: adds human-readable scheme metadata and formatting helpers.
-# Provides: with_scheme_display, display_tableau, short_name, full_name, __repr__, __str__, and __format__.
+# Provides: with_scheme_display, display_tableau, __repr__, __str__, and __format__.
 @with_scheme_display
 # Optional extension: records fixed-step monitor events.
 # Provides: call_monitored.
@@ -51,6 +49,9 @@ class SchemeCrankNicolson:
                y <- y + delta
     """
 
+    # Installed by the scheme monitoring decorator above this class.
+    call_monitored: SchemeCall
+
     __slots__ = (
         "monitor",
         "block_allocator",
@@ -63,12 +64,21 @@ class SchemeCrankNicolson:
         "redirect_call",
         "resolvent",
         "stage_delta",
+        "runtime",
         "workspace",
     )
 
     descriptor = SchemeDescriptor("CN", "Crank-Nicolson")
-    display_resolvent_problem = classmethod(implicit_display_resolvent_problem)
-    snapshot_state = implicit_snapshot_state
+    @classmethod
+    def display_resolvent_problem(cls) -> str:
+        return display_implicit_resolvent_problem(
+            cls.tableau,
+            cls.descriptor.short_name,
+            cls.descriptor.full_name,
+        )
+
+    def snapshot_state(self, state: State) -> State:
+        return self.runtime.snapshot_state(state)
 
     tableau = CRANK_NICOLSON_TABLEAU
 
@@ -89,7 +99,10 @@ class SchemeCrankNicolson:
         self.resolvent = resolvent
         self.known_rhs_kernel = None
 
-        initialise_implicit_support(self, derivative, allocator)
+        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
+        self.derivative = self.runtime.derivative
+        self.workspace = self.runtime.workspace
+        self.block_allocator = self.runtime.block_allocator
         self.k1 = self.workspace.allocate_translation()
         self.known_rhs = self.block_allocator.allocate(1)
         self.stage_delta = self.block_allocator.allocate(1)
@@ -106,7 +119,7 @@ class SchemeCrankNicolson:
 
     def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
         # Step 2 builds the known explicit contribution h/2 * k1.
-        self.known_rhs_kernel = specialist.provide(SchemeStencil((0.5,)))
+        self.known_rhs_kernel = specialist.provide_delta(SchemeStencil((0.5,)))
 
     def call_inline(self, interval: IntervalLike, state: State) -> float:
         remaining = interval.stop - interval.present

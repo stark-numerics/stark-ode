@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from stark.methods.schemes.method.tableau import ButcherTableau
+from stark.methods.schemes.method.tableau import Tableau
 
 
 SchemeStencilCoefficient: TypeAlias = float
@@ -58,7 +58,7 @@ class SchemeStencilTableau:
     For example, ``stage(1)`` returns the second tableau row.
     """
 
-    tableau: ButcherTableau
+    tableau: Tableau
     scale: float = 1.0
 
     def stage(self, index: int) -> SchemeStencil:
@@ -147,7 +147,7 @@ class SchemeStageIncrementStencils:
 
 
 def esdirk_stage_increment_stencils(
-    tableau: ButcherTableau,
+    tableau: Tableau,
     gamma: float,
 ) -> SchemeStageIncrementStencils:
     """Derive ESDIRK known-shift and error stencils from a tableau.

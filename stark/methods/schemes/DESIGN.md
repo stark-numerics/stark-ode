@@ -58,3 +58,40 @@ user-overridden. That override path is deliberate: future packages such as
 The default path should still be understandable without a specialist. The
 specialist is an acceleration or domain-extension seam, not the mathematical
 definition of the scheme.
+
+## Shared Family Objects
+
+Some method families genuinely share a step algorithm. Prefer a clearly named
+prepared object over a scheme base class when the shared object is implementation
+machinery rather than public scheme identity.
+
+For example, a concrete scheme can own a `KennedyCarpenterAdaptiveStep` instead
+of inheriting from a hidden base class. The concrete scheme keeps the descriptor,
+tableau, display support, monitoring wrapper, and public `__call__`; the shared
+step object owns the reusable stage algorithm.
+
+Do not hide these objects behind vague underscore names. Python underscores are
+only a convention, and overusing them makes the architecture harder to read.
+If contributors need to understand the object, give it a role-revealing name.
+
+## Runtime Objects
+
+The `explicit`, `implicit`, and `imex` scheme packages each have a `runtime.py`
+module. These modules contain owned runtime objects such as
+`SchemeRuntimeExplicit`, not base classes. They collect setup work that every
+scheme in a family needs:
+
+- auditing derivative and allocator compatibility;
+- allocating translation probes and `SchemeStepSupport`;
+- preparing family-specific helpers such as implicit block allocators;
+- checking family-specific construction rules, such as tableau compatibility.
+
+Schemes should instantiate their runtime object in `__init__`, then copy hot
+attributes such as `workspace`, `derivative`, `block_allocator`, or `k1` onto
+the scheme instance when direct access keeps the step body clearer. That copying
+is deliberate; it keeps the runtime object as construction machinery without
+forcing every stage operation through an extra indirection.
+
+Avoid one-line helper functions for things a scheme can say directly. A method
+such as `snapshot_state` is clearer as a small real method on the scheme than as
+a module-level function assigned onto the class.

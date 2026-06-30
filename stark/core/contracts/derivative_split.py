@@ -19,8 +19,13 @@ class DerivativeSplitLike(Protocol):
     translation object.
     """
 
-    implicit: DerivativeLike
-    explicit: DerivativeLike
+    @property
+    def implicit(self) -> DerivativeLike:
+        ...
+
+    @property
+    def explicit(self) -> DerivativeLike:
+        ...
 
 
 class DerivativeSplitAudit:

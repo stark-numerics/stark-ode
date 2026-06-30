@@ -1,6 +1,7 @@
 """Scheme execution-facing protocols and runtime helpers."""
 
 from stark.methods.schemes.execution.derivative import SchemeDerivative
+from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.execution.interval import SchemeShiftedInterval
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
@@ -15,6 +16,7 @@ from stark.methods.schemes.execution.step_control import (
 
 
 __all__ = [
+    "SchemeCall",
     "SchemeDerivative",
     "SchemeShiftedInterval",
     "SchemeStepSupport",

@@ -12,6 +12,19 @@ accelerator support where available
 prepared algebra support
 ```
 
+## Beta backend support
+
+The beta release ships the engine topology that future backend work should
+build on. Backend support is intentionally explicit about what is stable now
+and what is still a performance or optional-dependency frontier.
+
+| Backend | Beta status | Best current use | Caveats |
+| --- | --- | --- | --- |
+| NumPy | Supported | Default CPU backend for most users. | If Numba is available, first use may include generated-kernel compilation. |
+| Native | Supported | Small pure-Python inspection and low-dependency runs. | Currently supports one-dimensional frame fields. |
+| JAX | Beta | JAX array storage and return-style derivative expressions. | Solver control flow is not whole-program JIT; pass an explicit dtype for non-default precision or complex problems. |
+| CuPy | Beta | GPU-backed frame fields and generated CuPy algebra. | Synchronize before timing; tiny problems may be slower than CPU backends. |
+
 ## Start with NumPy
 
 Use NumPy for the default high-level path.
@@ -43,6 +56,11 @@ from stark.engines import EngineJax
 
 ivp = system.ivp(..., engine=EngineJax)
 ```
+
+If `dtype` is omitted, `EngineJax` follows JAX's active real precision:
+`float32` when x64 support is disabled and `float64` when x64 support is
+enabled. Requested `float64` and `complex128` dtypes require JAX x64 support.
+Use `jnp.float32` or `jnp.complex64` for the portable beta path.
 
 Important caveat: JAX array support does not automatically mean the whole adaptive solver loop is one JIT-compiled JAX program. STARK's intended accelerated high-level path is through generated Algebraist kernels where the `Frame` is known. Contributor notes for that path live in `stark/engines/shared/algebraist/DESIGN.md`.
 

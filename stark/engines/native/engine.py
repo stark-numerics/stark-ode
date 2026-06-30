@@ -4,6 +4,7 @@ from array import array
 from dataclasses import dataclass, field
 
 from stark.engines.shared.accelerators import AcceleratorNone, AcceleratorNumba
+from stark.engines.shared.algebraist.arity import AlgebraistArity
 from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorInnerProduct,
     AlgebraistGeneratorLinearCombine,
@@ -96,14 +97,18 @@ class EngineNative:
         object.__setattr__(self, "algebraist_frame", algebraist_frame)
         object.__setattr__(self, "carriers", carrier_tuple)
         object.__setattr__(self, "allocator", allocator)
+        algebraist_linear_combine = AlgebraistGeneratorLinearCombine(
+            translation=allocator.allocate_translation(),
+            allocator=allocator,
+            frame=algebraist_frame,
+            accelerator=self.accelerator,
+        )
         object.__setattr__(
-            self,
-            "algebraist_linear_combine",
-            AlgebraistGeneratorLinearCombine(
-                translation=allocator.allocate_translation(),
-                allocator=allocator,
-                frame=algebraist_frame,
-                accelerator=self.accelerator,
+            allocator,
+            "linear_combine",
+            tuple(
+                algebraist_linear_combine.provide(AlgebraistArity(arity))
+                for arity in range(1, 13)
             ),
         )
         algebraist_specialist = AlgebraistGeneratorSpecialist(
@@ -131,6 +136,7 @@ class EngineNative:
         object.__setattr__(allocator, "inner_product", algebraist_inner_product.provide())
 
         object.__setattr__(self, "algebraist_inner_product", algebraist_inner_product)
+        object.__setattr__(self, "algebraist_linear_combine", algebraist_linear_combine)
         object.__setattr__(self, "algebraist_norm", algebraist_norm)
         object.__setattr__(self, "algebraist_specialist", algebraist_specialist)
 

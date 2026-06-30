@@ -38,6 +38,17 @@ JAX array support is not the same thing as whole-solver JIT. STARK's adaptive
 control flow and Python object orchestration are still Python-level unless a
 future design explicitly moves that boundary.
 
+## Hint Types
+
+Names with the `Hint` prefix are intentionally type-hint scaffolding. Their
+sole job is to describe the small external-library surface STARK uses without
+turning optional backend objects into public abstractions.
+
+For example, `HintJaxArray` should be beefed up when carrier code uses more of
+the JAX array protocol. It should not be renamed to a domain noun such as
+`JaxArray`, because that would make it look like a STARK concept rather than a
+local typing aid.
+
 ## Design Rule
 
 Optimise JAX by improving generated functional algebra first. Do not contort

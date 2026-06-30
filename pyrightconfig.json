@@ -1,0 +1,17 @@
+{
+  "include": [
+    "stark",
+    "examples",
+    "competition"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    ".venv",
+    "docs/_build",
+    "devtools/tmp",
+    "experiments",
+    "competition/local"
+  ],
+  "typeCheckingMode": "standard",
+  "reportMissingTypeStubs": "none"
+}

@@ -24,6 +24,9 @@ inverse-action ideas can support several resolvent styles.
   checks belong at construction time, in benchmarks, or in tests.
 - Preconditioners are explicit Krylov collaborators. A missing preconditioner
   means unpreconditioned Arnoldi, not hidden diagonal magic.
+- Public preconditioners keep the inverter prefix. For example,
+  `InverterPreconditionerNone` and `InverterPreconditionerDiagonalInverse`
+  are inverter collaborators, not package-wide solver concepts.
 - Avoid external dense-solve provider dispatch in the hot path. Local
   measurements showed that dispatching to external providers was slower than
   the local nucleus path for the small systems this package currently
@@ -35,8 +38,9 @@ inverse-action ideas can support several resolvent styles.
   missing preconditioning can make it fail badly even on diagonal multi-block
   probes.
 - Preconditioner coverage is minimal. The current package only provides an
-  identity preconditioner and a diagonal inverse preconditioner for operators
-  whose entries expose `inverse(source, target)`.
+  `InverterPreconditionerNone` identity preconditioner and an
+  `InverterPreconditionerDiagonalInverse` preconditioner for operators whose
+  entries expose `inverse(source, target)`.
 - Dense support is intentionally local-first. Any future external-provider
   attempt needs a benchmark that beats `InverterNucleus` before it enters the
   public design.

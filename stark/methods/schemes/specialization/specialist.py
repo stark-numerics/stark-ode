@@ -1,24 +1,30 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Protocol, TypeVar
+from typing import Protocol
 
 from stark.methods.schemes.specialization.stencil import SchemeStencil
-from stark.core.contracts.state import State, StateType, StateTypeCovariant
-from stark.core.contracts.translation import Translation, TranslationType, TranslationTypeCovariant
+from stark.core.contracts.state import StateType
+from stark.core.contracts.translation import TranslationType, TranslationTypeContravariant
 
-SchemeSpecialistKernel = Callable[..., object]
 
-class SchemeSpecialist(Protocol[StateTypeCovariant, TranslationTypeCovariant]):
+class SchemeSpecialist(Protocol[StateType, TranslationType]):
     """Provider of scheme kernels from fixed-coefficient stencils.
 
-    ``stencil.apply`` selects the produced kernel semantics:
-
-    - ``False`` -> delta kernel
-    - ``True`` -> apply/update kernel
+    Use the method that matches the desired callable shape. This keeps the
+    generated path explicit at the call site and avoids making readers infer
+    semantics from ``stencil.apply``.
     """
 
-    def provide(self, stencil: SchemeStencil) -> SchemeSpecialistKernel:
+    def provide_delta(
+        self,
+        stencil: SchemeStencil,
+    ) -> SchemeSpecialistKernelDelta[TranslationType]:
+        ...
+
+    def provide_apply(
+        self,
+        stencil: SchemeStencil,
+    ) -> SchemeSpecialistKernelApply[StateType, TranslationType]:
         ...
 
 class SchemeSpecialistKernelDelta(Protocol[TranslationType]):
@@ -39,7 +45,7 @@ class SchemeSpecialistKernelDelta(Protocol[TranslationType]):
         ...
 
 
-class SchemeSpecialistKernelApply(Protocol[StateTypeCovariant, TranslationTypeCovariant]):
+class SchemeSpecialistKernelApply(Protocol[StateType, TranslationTypeContravariant]):
     """Kernel that applies a weighted translation delta to an origin state.
 
     Semantics:
@@ -54,7 +60,7 @@ class SchemeSpecialistKernelApply(Protocol[StateTypeCovariant, TranslationTypeCo
         self,
         step: float,
         origin: StateType,
-        *terms: Translation | State,
+        *terms: TranslationTypeContravariant | StateType,
     ) -> StateType:
         ...
 
@@ -63,6 +69,5 @@ class SchemeSpecialistKernelApply(Protocol[StateTypeCovariant, TranslationTypeCo
 __all__ = [
     "SchemeSpecialistKernelApply",
     "SchemeSpecialistKernelDelta",
-    "SchemeSpecialistKernel",
     "SchemeSpecialist",
 ]

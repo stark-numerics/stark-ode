@@ -8,7 +8,7 @@ from stark import Interval
 from stark.methods.schemes.execution.derivative import SchemeDerivative
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
-from stark.methods.schemes.explicit._support import SchemeSupportExplicit
+from stark.methods.schemes.explicit.runtime import SchemeRuntimeExplicit
 
 
 @dataclass(slots=True)
@@ -76,21 +76,21 @@ class FixedDelta:
         return FixedDelta()
 
 
-def test_explicit_support_constructs_prepared_derivative_and_step_support() -> None:
-    support = SchemeSupportExplicit.from_inputs(
+def test_explicit_runtime_constructs_prepared_derivative_and_step_support() -> None:
+    runtime = SchemeRuntimeExplicit(
         exponential_growth,
         ScalarAllocator(),
     )
 
-    assert isinstance(support.derivative, SchemeDerivative)
-    assert support.derivative is exponential_growth
-    assert isinstance(support.step_support, SchemeStepSupport)
-    assert isinstance(support.first_translation, ScalarTranslation)
-    assert support.k1 is support.first_translation
+    assert isinstance(runtime.derivative, SchemeDerivative)
+    assert runtime.derivative is exponential_growth
+    assert isinstance(runtime.workspace, SchemeStepSupport)
+    assert isinstance(runtime.first_translation, ScalarTranslation)
+    assert runtime.k1 is runtime.first_translation
 
 
-def test_explicit_support_prepared_derivative_calls_original_worker() -> None:
-    support = SchemeSupportExplicit.from_inputs(
+def test_explicit_runtime_prepared_derivative_calls_original_worker() -> None:
+    runtime = SchemeRuntimeExplicit(
         exponential_growth,
         ScalarAllocator(),
     )
@@ -98,19 +98,19 @@ def test_explicit_support_prepared_derivative_calls_original_worker() -> None:
     state = ScalarState(3.0)
     out = ScalarTranslation()
 
-    support.derivative(interval, state, out)
+    runtime.derivative(interval, state, out)
 
     assert out.value == pytest.approx(3.0)
 
 
-def test_explicit_support_snapshot_state_copies_through_step_support() -> None:
-    support = SchemeSupportExplicit.from_inputs(
+def test_explicit_runtime_snapshot_state_copies_through_step_support() -> None:
+    runtime = SchemeRuntimeExplicit(
         exponential_growth,
         ScalarAllocator(),
     )
     state = ScalarState(4.0)
 
-    snapshot = support.snapshot_state(state)
+    snapshot = runtime.snapshot_state(state)
 
     assert snapshot is not state
     assert snapshot.value == pytest.approx(4.0)
@@ -120,30 +120,30 @@ def test_explicit_support_snapshot_state_copies_through_step_support() -> None:
     assert snapshot.value == pytest.approx(4.0)
 
 
-def test_explicit_support_step_support_apply_delta_updates_state_in_place() -> None:
-    support = SchemeSupportExplicit.from_inputs(
+def test_explicit_runtime_workspace_apply_delta_updates_state_in_place() -> None:
+    runtime = SchemeRuntimeExplicit(
         exponential_growth,
         ScalarAllocator(),
     )
     state = ScalarState(2.0)
     delta = FixedDelta()
 
-    support.step_support.apply_delta(delta, state)
+    runtime.workspace.apply_delta(delta, state)
 
     assert state.value == pytest.approx(3.0)
 
-    support.step_support.apply_delta(delta, state)
+    runtime.workspace.apply_delta(delta, state)
 
     assert state.value == pytest.approx(4.0)
 
 
-def test_explicit_scheme_base_delegates_to_explicit_support() -> None:
+def test_explicit_scheme_owns_explicit_runtime() -> None:
     scheme = SchemeRK4(exponential_growth, ScalarAllocator())
 
-    assert isinstance(scheme.explicit, SchemeSupportExplicit)
-    assert scheme.derivative is scheme.explicit.derivative
-    assert scheme.workspace is scheme.explicit.step_support
-    assert scheme.k1 is scheme.explicit.k1
+    assert isinstance(scheme.runtime, SchemeRuntimeExplicit)
+    assert scheme.derivative is scheme.runtime.derivative
+    assert scheme.workspace is scheme.runtime.workspace
+    assert scheme.k1 is scheme.runtime.k1
 
 
 def test_existing_explicit_scheme_still_runs_after_support_extraction() -> None:

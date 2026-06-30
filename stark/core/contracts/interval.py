@@ -7,7 +7,7 @@ and `stop`, then advance the interval by the accepted step. Snapshot
 integrators also require `copy()` so they can yield stable interval records.
 """
 
-from typing import Any, Protocol, Self
+from typing import Any, Protocol, Self, cast
 
 from stark.core.contracts.contract_audit import AuditRecorder
 
@@ -51,6 +51,7 @@ class IntervalAudit:
                 recorder.record_exception("Interval.copy() succeeds.", exc)
             else:
                 recorder.check(True, "Interval.copy() succeeds.")
+                interval_copy = cast(IntervalLike, interval_copy)
                 copied_present = getattr(interval_copy, "present", None)
                 copied_step = getattr(interval_copy, "step", None)
                 copied_stop = getattr(interval_copy, "stop", None)
