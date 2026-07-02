@@ -11,6 +11,18 @@ from stark.core.block import BlockAllocator
 class TranslationFixture:
     value: float = 0.0
 
+    def __call__(self, origin: object, result: object) -> None:
+        del origin, result
+
+    def norm(self) -> float:
+        return abs(self.value)
+
+    def __add__(self, other: "TranslationFixture") -> "TranslationFixture":
+        return TranslationFixture(self.value + other.value)
+
+    def __rmul__(self, scalar: float) -> "TranslationFixture":
+        return TranslationFixture(scalar * self.value)
+
 
 class AllocatorFixture:
     def __init__(self) -> None:

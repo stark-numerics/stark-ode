@@ -1,4 +1,10 @@
-"""Inspect the accepted steps recorded by scheme monitoring."""
+"""Inspect fixed and adaptive step records from scheme monitoring.
+
+Scheme monitoring records accepted step intervals and, for adaptive schemes,
+the proposed step, accepted step, next step, error ratio, and rejection count.
+Use these records to explain why a solve took the steps it did; do not use a
+monitored run as a raw timing measurement.
+"""
 
 from __future__ import annotations
 

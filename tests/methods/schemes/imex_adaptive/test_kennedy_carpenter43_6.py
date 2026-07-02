@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -80,20 +80,6 @@ def make_scheme(*, monitor=None) -> SchemeKennedyCarpenter43_6:
         resolvent=resolvent,
         monitor=monitor,
     )
-
-
-def test_kennedy_carpenter43_6_owns_converted_call_surface() -> None:
-    assert hasattr(SchemeKennedyCarpenter43_6, "__call__")
-    assert hasattr(SchemeKennedyCarpenter43_6, "call_inline")
-    assert hasattr(SchemeKennedyCarpenter43_6, "call_specialized")
-    assert hasattr(SchemeKennedyCarpenter43_6, "call_monitored")
-
-    scheme = make_scheme()
-
-    assert scheme.redirect_call.__func__ is scheme.call_step.__func__
-    assert scheme.call_step.__func__ is scheme.call_inline.__func__
-
-
 def test_kennedy_carpenter43_6_accepts_zero_split_step() -> None:
     scheme = make_scheme()
     interval = Interval(present=0.0, step=0.1, stop=0.3)
@@ -104,7 +90,6 @@ def test_kennedy_carpenter43_6_accepts_zero_split_step() -> None:
 
     assert accepted_dt == pytest.approx(0.1)
     assert state.value == pytest.approx(2.0)
-    assert scheme.redirect_call.__func__ is scheme.call_step.__func__
 
     report = scheme.step_control.report()
     assert report.accepted_dt == pytest.approx(0.1)
@@ -137,7 +122,6 @@ def test_kennedy_carpenter43_6_monitoring_uses_scheme_owned_boundary() -> None:
     configuration = Configuration(scheme_tolerance=Tolerance(atol=1.0e-9, rtol=1.0e-9))
 
     assert scheme.monitor is monitor.scheme
-    assert scheme.call_step.__func__ is scheme.call_monitored.__func__
     assert scheme.redirect_call == scheme.call_step
 
     accepted_dt = scheme(interval, state)

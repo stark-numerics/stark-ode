@@ -8,9 +8,9 @@ result.
 
 from __future__ import annotations
 
-import inspect
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, dataclass, field
+from inspect import Parameter, signature
 from math import sqrt
 from typing import Any, SupportsFloat, cast
 
@@ -20,34 +20,10 @@ from stark.diagnostics.monitor import MonitorSummary
 Checkpoints = int | Iterable[float]
 StateBuilder = Callable[[], Any]
 IntervalBuilder = Callable[[], Any]
-StepperBuilder = Callable[[], Any]
-ObservedStepperBuilder = Callable[[Any], Any]
 Difference = Callable[[Any, Any], float]
 Diagnostics = Callable[[Any], Any]
 TrajectoryDifference = Callable[[list[Any], list[Any]], float]
 ProfileCategory = Callable[[str, int, str], str | None]
-
-
-def _normalize_stepper_builder(source: Any) -> StepperBuilder:
-    if _accepts_zero_arguments(source):
-        return source
-    return lambda: source
-
-
-def _accepts_zero_arguments(candidate: Any) -> bool:
-    if not callable(candidate):
-        return False
-
-    try:
-        signature = inspect.signature(candidate)
-    except (TypeError, ValueError):
-        return False
-
-    for parameter in signature.parameters.values():
-        if parameter.kind in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}:
-            if parameter.default is inspect.Parameter.empty:
-                return False
-    return True
 
 
 @dataclass(slots=True, init=False)
@@ -80,43 +56,6 @@ class ComparisonProblem:
         self.build_state = lambda: _copy_ivp_initial(ivp)
         self.build_interval = lambda: _copy_ivp_interval(ivp)
         self.difference = difference if difference is not None else _ivp_state_difference(ivp)
-        self.diagnostics = diagnostics
-        self.description = description
-        self.checkpoints = checkpoints
-        self.trajectory_difference = trajectory_difference
-
-
-@dataclass(slots=True, init=False)
-class ComparisonProblemManual:
-    """Low-level comparison problem with user-supplied state and interval builders."""
-
-    name: str
-    ivp: Any | None
-    build_state: StateBuilder
-    build_interval: IntervalBuilder
-    difference: Difference
-    diagnostics: Diagnostics | None = None
-    description: str | None = None
-    checkpoints: Checkpoints | None = None
-    trajectory_difference: TrajectoryDifference | None = None
-
-    def __init__(
-        self,
-        name: str,
-        *,
-        build_state: StateBuilder,
-        build_interval: IntervalBuilder,
-        difference: Difference,
-        diagnostics: Diagnostics | None = None,
-        description: str | None = None,
-        checkpoints: Checkpoints | None = None,
-        trajectory_difference: TrajectoryDifference | None = None,
-    ) -> None:
-        self.name = name
-        self.ivp = None
-        self.build_state = build_state
-        self.build_interval = build_interval
-        self.difference = difference
         self.diagnostics = diagnostics
         self.description = description
         self.checkpoints = checkpoints
@@ -175,58 +114,6 @@ class ComparisonEntry:
         return self.build_integrator(ivp)
 
 
-@dataclass(slots=True, init=False)
-class ComparisonEntryStepper:
-    """Low-level comparison entry backed by a user-supplied stepper."""
-
-    name: str
-    build_stepper: StepperBuilder = field(repr=False)
-    build_observed_stepper: ObservedStepperBuilder | None = field(default=None, repr=False)
-    build_integrator: Callable[[], Any] | None = None
-    profile_category: ProfileCategory | None = None
-    metadata: dict[str, Any] | None = None
-
-    def __init__(
-        self,
-        name: str,
-        stepper: Any,
-        build_observed_stepper: ObservedStepperBuilder | None = None,
-        build_integrator: Callable[[], Any] | None = None,
-        metadata: dict[str, Any] | None = None,
-        profile_category: ProfileCategory | None = None,
-    ) -> None:
-        self.name = name
-        self.build_stepper = _normalize_stepper_builder(stepper)
-        self.build_observed_stepper = build_observed_stepper
-        self.build_integrator = build_integrator
-        self.profile_category = profile_category
-        self.metadata = metadata
-
-    def make_stepper(self, ivp: Any | None = None) -> Any:
-        del ivp
-        source = self.build_stepper
-        if _accepts_zero_arguments(source):
-            return source()
-        return source
-
-    def make_observed_stepper(self, monitor: Any, ivp: Any | None = None) -> Any:
-        del ivp
-        source = self.build_observed_stepper
-        if source is None:
-            return self.make_stepper()
-        return source(monitor)
-
-    def make_integrator(self, ivp: Any | None = None) -> Any | None:
-        del ivp
-        if self.build_integrator is None:
-            return None
-        return self.build_integrator()
-
-
-ComparisonProblemLike = ComparisonProblem | ComparisonProblemManual
-ComparisonEntryLike = ComparisonEntry | ComparisonEntryStepper
-
-
 @dataclass(slots=True)
 class ComparisonBreakdown:
     """Profiled self-time grouped into STARK comparison buckets."""
@@ -260,15 +147,6 @@ class ComparisonBreakdown:
             "framework": self.framework,
             "other": self.other,
         }
-
-    @property
-    def scheme(self) -> float:
-        return self.method
-
-    @property
-    def resolver(self) -> float:
-        return self.resolvent
-
 
 @dataclass(slots=True)
 class ComparisonHotspot:
@@ -578,6 +456,9 @@ def _ivp_method_stepper(
 def _method_with_scheme_monitor(method: Any, monitor: Any) -> Any:
     from stark.methods import Method
 
+    if not _method_scheme_accepts_option(method, "monitor"):
+        return method
+
     scheme_options = dict(method.scheme_options)
     scheme_options["monitor"] = monitor.scheme
     return Method(
@@ -587,6 +468,17 @@ def _method_with_scheme_monitor(method: Any, monitor: Any) -> Any:
         scheme_options=scheme_options,
         resolvent_options=method.resolvent_options,
         inverter_options=method.inverter_options,
+    )
+
+
+def _method_scheme_accepts_option(method: Any, option: str) -> bool:
+    scheme = method.scheme
+    if not isinstance(scheme, type):
+        return False
+    parameters = signature(scheme).parameters
+    return option in parameters or any(
+        parameter.kind is Parameter.VAR_KEYWORD
+        for parameter in parameters.values()
     )
 
 
@@ -627,11 +519,7 @@ def _flatten_value(value: Any) -> Any:
 
 __all__ = [
     "ComparisonEntry",
-    "ComparisonEntryLike",
-    "ComparisonEntryStepper",
     "ComparisonProblem",
-    "ComparisonProblemLike",
-    "ComparisonProblemManual",
     "ComparisonReport",
     "Comparison",
     "ComparisonBreakdown",
@@ -643,8 +531,6 @@ __all__ = [
     "Difference",
     "Diagnostics",
     "IntervalBuilder",
-    "StepperBuilder",
-    "ObservedStepperBuilder",
     "ProfileCategory",
     "StateBuilder",
     "TrajectoryDifference",

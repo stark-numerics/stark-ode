@@ -39,7 +39,7 @@ class EngineAllocatorNative:
             algebraist_frame=self.algebraist_frame,
             carriers=self.carriers,
             allocator=self,
-            linear_combine=self.linear_combine,
+            linear_combine_kernels=self.linear_combine,
             apply_translation=self.apply_translation,
             norm_kernel=self.norm,
         )

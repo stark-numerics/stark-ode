@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Small protocols shared by STARK's audit workers.
 
 The audit layer is deliberately lightweight: each domain-specific audit object
 receives an `AuditRecorder`, records the checks it can perform, and optionally
 exercises the supplied object on small samples.
 """
+
+from __future__ import annotations
 
 from typing import Any, Protocol
 

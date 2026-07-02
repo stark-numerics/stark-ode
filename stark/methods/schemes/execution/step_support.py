@@ -1,12 +1,26 @@
 from __future__ import annotations
 
+from typing import Generic
+
 from stark.engines.shared.algebraist.runtime import AlgebraistRuntimeLinearCombine
-from stark.core.contracts import Allocator, State, Translation
+from stark.core.contracts import Allocator, StateType, TranslationType
 from stark.methods.schemes.execution.interval import SchemeShiftedInterval
 
 
-class SchemeStepSupport:
-    """Step-local allocation and arithmetic helpers for built-in schemes."""
+class SchemeStepSupport(Generic[StateType, TranslationType]):
+    """Step-local workspace for one concrete state and translation family.
+
+    Built-in schemes all need the same boring machinery: allocate scratch
+    states, allocate scratch translations, copy a state snapshot, shift an
+    interval to a stage time, and apply linear-combination kernels. This class
+    keeps that machinery in one object while preserving the exact state and
+    translation types supplied by the engine allocator.
+
+    The methods are intentionally small. Concrete schemes copy the hot-path
+    callables they need from this object and then run their tableau algorithm
+    directly, without asking the allocator or engine questions inside each
+    stage.
+    """
 
     __slots__ = (
         "allocate_state",
@@ -27,7 +41,11 @@ class SchemeStepSupport:
         "combine12",
     )
 
-    def __init__(self, allocator: Allocator, translation: Translation) -> None:
+    def __init__(
+        self,
+        allocator: Allocator[StateType, TranslationType],
+        translation: TranslationType,
+    ) -> None:
         self.allocate_state = allocator.allocate_state
         self.allocate_translation = allocator.allocate_translation
         self.copy_state = allocator.copy_state
@@ -51,19 +69,19 @@ class SchemeStepSupport:
             self.combine12,
         ) = algebraist.as_tuple(12)
 
-    def allocate_state_buffer(self) -> State:
+    def allocate_state_buffer(self) -> StateType:
         return self.allocate_state()
 
-    def allocate_translation_buffers(self, count: int) -> tuple[Translation, ...]:
+    def allocate_translation_buffers(self, count: int) -> tuple[TranslationType, ...]:
         if count < 0:
             raise ValueError("Translation buffer count must be non-negative.")
         return tuple(self.allocate_translation() for _ in range(count))
 
     @staticmethod
-    def apply_delta(delta: Translation, state: State) -> None:
+    def apply_delta(delta: TranslationType, state: StateType) -> None:
         delta(state, state)
 
-    def snapshot_state(self, state: State) -> State:
+    def snapshot_state(self, state: StateType) -> StateType:
         snapshot = self.allocate_state()
         self.copy_state(state, snapshot)
         return snapshot

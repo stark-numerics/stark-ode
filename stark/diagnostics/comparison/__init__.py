@@ -1,9 +1,8 @@
 """Structured comparison reports for STARK solver runs.
 
-The comparison package owns reusable report data models and the development
-runner that compares several configured steppers on one problem. It is the
-programmatic counterpart to the longer narrative examples under
-`competition/`.
+The comparison package owns reusable report data models and the runner that
+compares several configured `Method` choices on one `SystemIVP` problem. It is
+for tight method-selection runs before a longer scientific solve.
 """
 
 from stark.diagnostics.comparison.runner import ComparisonRunner
@@ -12,18 +11,12 @@ from stark.diagnostics.comparison.models import (
     ComparisonBreakdown,
     ComparisonDiagnostics,
     ComparisonEntry,
-    ComparisonEntryLike,
-    ComparisonEntryStepper,
     ComparisonHotspot,
     ComparisonProblem,
-    ComparisonProblemLike,
-    ComparisonProblemManual,
     ComparisonProfile,
     ComparisonReport,
     ComparisonResult,
     ComparisonTiming,
-    ObservedStepperBuilder,
-    StepperBuilder,
 )
 
 __all__ = [
@@ -32,16 +25,10 @@ __all__ = [
     "ComparisonBreakdown",
     "ComparisonDiagnostics",
     "ComparisonEntry",
-    "ComparisonEntryLike",
-    "ComparisonEntryStepper",
     "ComparisonHotspot",
     "ComparisonProblem",
-    "ComparisonProblemLike",
-    "ComparisonProblemManual",
     "ComparisonProfile",
     "ComparisonReport",
     "ComparisonResult",
     "ComparisonTiming",
-    "ObservedStepperBuilder",
-    "StepperBuilder",
 ]

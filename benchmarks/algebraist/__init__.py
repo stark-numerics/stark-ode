@@ -1,2 +1,0 @@
-"""Manual Algebraist benchmark scripts."""
-

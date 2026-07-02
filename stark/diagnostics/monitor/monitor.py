@@ -32,19 +32,6 @@ class Monitor:
     resolvent: MonitorResolvent = field(default_factory=MonitorResolvent)
     inverter: MonitorInverter = field(default_factory=MonitorInverter)
 
-    @classmethod
-    def with_scheme(
-        cls,
-        scheme: MonitorScheme | None = None,
-        resolvent: MonitorResolvent | None = None,
-        inverter: MonitorInverter | None = None,
-    ) -> Monitor:
-        return cls(
-            scheme=MonitorScheme() if scheme is None else scheme,
-            resolvent=MonitorResolvent() if resolvent is None else resolvent,
-            inverter=MonitorInverter() if inverter is None else inverter,
-        )
-
     def summary(self) -> MonitorSummary:
         return MonitorSummary(
             scheme=self.scheme.summary(),

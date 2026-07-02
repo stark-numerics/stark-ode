@@ -5,15 +5,17 @@ from __future__ import annotations
 from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass, field
 from itertools import accumulate
-from typing import Generic
+from typing import Generic, TypeVar
 
 from stark.core.contracts.block import BlockLike
-from stark.core.contracts.translation import TranslationType
 from stark.core.contracts.translation_basis import TranslationBasis
+
+BlockBasisValueType = TypeVar("BlockBasisValueType")
+"""Type variable for values analysed by each entry basis in a block basis."""
 
 
 @dataclass(frozen=True, slots=True)
-class BlockBasis(Generic[TranslationType]):
+class BlockBasis(Generic[BlockBasisValueType]):
     """
     Product-space basis for a block of translations.
 
@@ -22,7 +24,7 @@ class BlockBasis(Generic[TranslationType]):
     index to the corresponding block entry and local translation coordinate.
     """
 
-    bases: Sequence[TranslationBasis[TranslationType]]
+    bases: Sequence[TranslationBasis[BlockBasisValueType]]
     offsets: tuple[int, ...] = field(init=False)
     dimension: int = field(init=False)
 
@@ -33,7 +35,11 @@ class BlockBasis(Generic[TranslationType]):
         object.__setattr__(self, "offsets", offsets)
         object.__setattr__(self, "dimension", offsets[-1])
 
-    def vector(self, index: int, output: BlockLike[TranslationType]) -> BlockLike[TranslationType]:
+    def vector(
+        self,
+        index: int,
+        output: BlockLike[BlockBasisValueType],
+    ) -> BlockLike[BlockBasisValueType]:
         """Write or return the selected block basis vector."""
 
         block_index, local_index = self.local_index(index)
@@ -46,7 +52,7 @@ class BlockBasis(Generic[TranslationType]):
 
         return output
 
-    def coordinate(self, index: int, block: BlockLike[TranslationType]) -> float:
+    def coordinate(self, index: int, block: BlockLike[BlockBasisValueType]) -> float:
         """Apply the selected block coordinate form to a block."""
 
         block_index, local_index = self.local_index(index)
@@ -54,7 +60,7 @@ class BlockBasis(Generic[TranslationType]):
 
     def coordinates(
         self,
-        block: BlockLike[TranslationType],
+        block: BlockLike[BlockBasisValueType],
         output: MutableSequence[float],
     ) -> MutableSequence[float]:
         """Analyse a block into flat coordinates in this block basis."""
@@ -70,8 +76,8 @@ class BlockBasis(Generic[TranslationType]):
     def synthesize(
         self,
         coordinates: Sequence[float],
-        output: BlockLike[TranslationType],
-    ) -> BlockLike[TranslationType]:
+        output: BlockLike[BlockBasisValueType],
+    ) -> BlockLike[BlockBasisValueType]:
         """Reconstruct a block from flat coordinates in this block basis."""
 
         for basis_index, basis in enumerate(self.bases):

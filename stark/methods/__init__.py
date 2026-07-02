@@ -20,6 +20,7 @@ from stark.methods.inverters import (
     InverterRelaxationStencil,
     InverterRelaxationStencilUpdate,
 )
+from stark.methods.catalogue import METHOD_CATALOGUE
 from stark.methods.method import Method, MethodError
 from stark.methods.resolvents import (
     ResolventAnderson,
@@ -81,6 +82,7 @@ __all__ = (
     "InverterRelaxationStencil",
     "InverterRelaxationStencilUpdate",
     "Method",
+    "METHOD_CATALOGUE",
     "MethodError",
     "ResolventAnderson",
     "ResolventBroyden",

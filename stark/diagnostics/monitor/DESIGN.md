@@ -30,3 +30,14 @@ monitored solves make their extra work explicit
 
 A monitor should observe and summarise. It should not decide acceptance,
 convergence, step size, or correction values.
+
+## Beta Surface
+
+`Monitor` is user-facing. The high-level summary objects are intended to remain
+readable and stable enough for reports.
+
+The low-level event records, such as individual scheme steps, resolvent solves,
+and inverter solves, are diagnostic evidence. They are public enough to inspect
+while debugging, but their exact fields may change before the diagnostics API is
+declared stable. Prefer examples and docs that teach the summary-level workflow
+unless the lesson is explicitly about low-level evidence.

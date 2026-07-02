@@ -1,3 +1,17 @@
 """Diagnostics tools for observing and comparing STARK runs."""
 
-__all__: list[str] = []
+from stark.diagnostics.comparison import (
+    Comparison,
+    ComparisonEntry,
+    ComparisonProblem,
+    ComparisonRunner,
+)
+from stark.diagnostics.monitor import Monitor
+
+__all__ = [
+    "Comparison",
+    "ComparisonEntry",
+    "ComparisonProblem",
+    "ComparisonRunner",
+    "Monitor",
+]

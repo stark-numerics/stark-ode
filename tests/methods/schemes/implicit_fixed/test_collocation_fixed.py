@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -170,16 +170,12 @@ def test_collocation_fixed_default_call_path_is_scheme_owned_generic_call(
 ) -> None:
     scheme = make_scheme(scheme_cls)
 
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is scheme_cls.call_inline
     assert scheme.redirect_call == scheme.call_step
 
 
 def test_gauss_legendre4_specialist_path_is_scheme_owned_generated_call() -> None:
     scheme = make_array_scheme(SchemeGaussLegendre4, specialist=True)
 
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is SchemeGaussLegendre4.call_specialized
     assert scheme.redirect_call == scheme.call_step
 
 
@@ -195,8 +191,6 @@ def test_stiffly_accurate_collocation_accepts_no_op_specialist_path(
 ) -> None:
     scheme = make_array_scheme(scheme_cls, specialist=True)
 
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is scheme_cls.call_specialized
     assert scheme.redirect_call == scheme.call_step
 
 

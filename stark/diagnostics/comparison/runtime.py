@@ -15,8 +15,8 @@ from time import perf_counter
 from typing import Any, cast
 
 from stark.diagnostics.comparison.models import (
-    ComparisonEntryLike,
-    ComparisonProblemLike,
+    ComparisonEntry,
+    ComparisonProblem,
     ComparisonBreakdown,
     ComparisonDiagnostics,
     ComparisonHotspot,
@@ -88,23 +88,23 @@ class ComparisonProfileSurvey:
         profile_category: ProfileCategory | None = None,
     ) -> ComparisonProfile:
         return ComparisonProfile(
-            breakdown=self._breakdown(profiler, profile_category),
-            note=self._note(stepper),
-            custom_hotspots=self._custom_hotspots(profiler, stepper),
+            breakdown=self.breakdown(profiler, profile_category),
+            note=self.note(stepper),
+            custom_hotspots=self.custom_hotspots(profiler, stepper),
         )
 
-    def _breakdown(
+    def breakdown(
         self,
         profiler: cProfile.Profile,
         profile_category: ProfileCategory | None,
     ) -> ComparisonBreakdown:
         problem = method = resolvent = inverter = framework = other = 0.0
-        for filename, lineno, function_name, _total_calls, self_time, _cumulative_time in _profile_stats(profiler):
+        for filename, lineno, function_name, _total_calls, self_time, _cumulative_time in self.profile_stats(profiler):
             if function_name == "disable":
                 continue
             category = profile_category(filename, lineno, function_name) if profile_category is not None else None
             if category is None:
-                category = self._category(filename)
+                category = self.category(filename)
             if category == "problem":
                 problem += self_time
             elif category in {"method", "scheme"}:
@@ -129,22 +129,25 @@ class ComparisonProfileSurvey:
         )
 
     @staticmethod
-    def _category(filename: str) -> str:
+    def category(filename: str) -> str:
         if filename.startswith("~"):
             return "other"
         path = filename.replace("/", "\\").lower()
-        if "\\stark\\schemes\\" in path:
+        if "\\stark\\methods\\schemes\\" in path:
             return "method"
-        if "\\stark\\resolvents\\" in path:
+        if "\\stark\\methods\\resolvents\\" in path:
             return "resolvent"
-        if "\\stark\\inverters\\" in path or "\\stark\\linear_algebra\\" in path or "\\stark\\block\\" in path:
+        if (
+            "\\stark\\methods\\inverters\\" in path
+            or "\\stark\\core\\block\\" in path
+        ):
             return "inverter"
         if "\\stark\\" in path:
             return "framework"
         return "problem"
 
     @staticmethod
-    def _note(stepper: Any) -> str | None:
+    def note(stepper: Any) -> str | None:
         scheme = getattr(stepper, "scheme", None)
         if scheme is None:
             return (
@@ -159,12 +162,12 @@ class ComparisonProfileSurvey:
             "cannot reliably separate method logic from resolvent and problem work."
         )
 
-    def _custom_hotspots(self, profiler: cProfile.Profile, stepper: Any) -> list[ComparisonHotspot]:
-        if self._note(stepper) is None:
+    def custom_hotspots(self, profiler: cProfile.Profile, stepper: Any) -> list[ComparisonHotspot]:
+        if self.note(stepper) is None:
             return []
 
         hotspots: list[ComparisonHotspot] = []
-        for filename, lineno, function_name, total_calls, self_time, cumulative_time in _profile_stats(profiler):
+        for filename, lineno, function_name, total_calls, self_time, cumulative_time in self.profile_stats(profiler):
             if function_name == "disable":
                 continue
             path = filename.replace("/", "\\").lower()
@@ -174,7 +177,7 @@ class ComparisonProfileSurvey:
                 continue
             hotspots.append(
                 ComparisonHotspot(
-                    location=self._hotspot_location(filename, lineno, function_name),
+                    location=self.hotspot_location(filename, lineno, function_name),
                     self_time=self_time,
                     cumulative_time=cumulative_time,
                     calls=total_calls,
@@ -185,25 +188,46 @@ class ComparisonProfileSurvey:
         return hotspots[:5]
 
     @staticmethod
-    def _hotspot_location(filename: str, lineno: int, function_name: str) -> str:
+    def hotspot_location(filename: str, lineno: int, function_name: str) -> str:
         if filename == "~":
             return function_name
         return f"{Path(filename).name}:{lineno} {function_name}"
 
+    @staticmethod
+    def profile_stats(profiler: cProfile.Profile):
+        for entry in profiler.getstats():
+            code = entry.code
+            if isinstance(code, str):
+                filename = "~"
+                lineno = 0
+                function_name = code
+            else:
+                filename = getattr(code, "co_filename", "~")
+                lineno = getattr(code, "co_firstlineno", 0)
+                function_name = getattr(code, "co_name", str(code))
+            yield (
+                filename,
+                lineno,
+                function_name,
+                entry.reccallcount + entry.callcount,
+                entry.inlinetime,
+                entry.totaltime,
+            )
 
-class ComparisonEntryRunner:
+
+class ComparisonEntryEvaluator:
     """Prepare, observe, time, and profile one comparison entry."""
 
     __slots__ = ("announce", "problem", "profile_survey", "repeats")
 
-    def __init__(self, problem: ComparisonProblemLike, repeats: int, announce: Any | None = None) -> None:
+    def __init__(self, problem: ComparisonProblem, repeats: int, announce: Any | None = None) -> None:
         self.problem = problem
         self.repeats = repeats
         self.announce = announce
         self.profile_survey = ComparisonProfileSurvey()
 
-    def __call__(self, entry: ComparisonEntryLike) -> ComparisonEntryEvaluation:
-        self._announce(f"Comparing {entry.name}...")
+    def __call__(self, entry: ComparisonEntry) -> ComparisonEntryEvaluation:
+        self.announce_message(f"Comparing {entry.name}...")
 
         started = perf_counter()
         stepper = ComparisonStepperCounting(entry.make_stepper(self.problem.ivp))
@@ -212,22 +236,22 @@ class ComparisonEntryRunner:
             integrator = Integrator()
         setup_elapsed = perf_counter() - started
 
-        observed_state, observed_checkpoints, observed_steps, monitor_summary = self._observe_once(entry, integrator)
-        self._announce(f"Observed {entry.name}: steps={observed_steps}")
+        observed_state, observed_checkpoints, observed_steps, monitor_summary = self.observe_once(entry, integrator)
+        self.announce_message(f"Observed {entry.name}: steps={observed_steps}")
 
-        warmup = self._run_once(stepper, integrator)
-        self._announce(f"Warmup {entry.name}: steps={warmup.steps}, elapsed={warmup.elapsed:.3f}s")
+        warmup = self.run_once(stepper, integrator)
+        self.announce_message(f"Warmup {entry.name}: steps={warmup.steps}, elapsed={warmup.elapsed:.3f}s")
 
         durations = []
         for repeat in range(self.repeats):
-            timed = self._run_once(stepper, integrator)
+            timed = self.run_once(stepper, integrator)
             durations.append(timed.elapsed)
-            self._announce(
+            self.announce_message(
                 f"Timed {entry.name} repeat {repeat + 1}/{self.repeats}: "
                 f"steps={timed.steps}, elapsed={timed.elapsed:.3f}s"
             )
 
-        profile = self._profile_once(stepper, integrator, entry.profile_category)
+        profile = self.profile_once(stepper, integrator, entry.profile_category)
         diagnostics = self.problem.diagnostics(observed_state) if self.problem.diagnostics is not None else None
 
         return ComparisonEntryEvaluation(
@@ -245,20 +269,27 @@ class ComparisonEntryRunner:
             monitor_summary=monitor_summary,
         )
 
-    def _observe_once(
+    def observe_once(
         self,
-        entry: ComparisonEntryLike,
+        entry: ComparisonEntry,
         integrator: Integrator,
     ) -> tuple[Any, list[Any], int, MonitorSummary | None]:
         monitor = Monitor()
         stepper = ComparisonStepperCounting(entry.make_observed_stepper(monitor, self.problem.ivp))
-        observed = self._run_once(stepper, integrator)
+        observed = self.run_once(stepper, integrator)
         if entry.build_observed_stepper is None:
             return observed.state, observed.checkpoints, observed.steps, None
-        else:
-            return observed.state, observed.checkpoints, observed.steps, monitor.summary()
 
-    def _run_once(self, stepper: ComparisonStepperCounting, integrator: Integrator) -> ComparisonRunRecord:
+        summary = monitor.summary()
+        if (
+            summary.scheme.step_count == 0
+            and summary.resolvent.solve_count == 0
+            and summary.inverter.solve_count == 0
+        ):
+            return observed.state, observed.checkpoints, observed.steps, None
+        return observed.state, observed.checkpoints, observed.steps, summary
+
+    def run_once(self, stepper: ComparisonStepperCounting, integrator: Integrator) -> ComparisonRunRecord:
         state = self.problem.build_state()
         interval = self.problem.build_interval()
         stepper.steps = 0
@@ -271,7 +302,7 @@ class ComparisonEntryRunner:
         elapsed = perf_counter() - started
         return ComparisonRunRecord(state=state, checkpoints=checkpoints, steps=stepper.steps, elapsed=elapsed)
 
-    def _profile_once(
+    def profile_once(
         self,
         stepper: ComparisonStepperCounting,
         integrator: Integrator,
@@ -292,7 +323,7 @@ class ComparisonEntryRunner:
         profile = self.profile_survey(profiler, stepper.stepper, profile_category)
         breakdown = profile.breakdown
         if breakdown.profiled > 0.0:
-            self._announce(
+            self.announce_message(
                 "Profiled self-time breakdown: "
                 f"problem={100.0 * breakdown.problem / breakdown.profiled:.1f}%, "
                 f"method={100.0 * breakdown.method / breakdown.profiled:.1f}%, "
@@ -300,33 +331,17 @@ class ComparisonEntryRunner:
             )
         return profile
 
-    def _announce(self, message: str) -> None:
+    def announce_message(self, message: str) -> None:
         if self.announce is not None:
             self.announce(message)
 
-
-def _profile_stats(profiler: cProfile.Profile):
-    for entry in profiler.getstats():
-        code = entry.code
-        if isinstance(code, str):
-            filename = "~"
-            lineno = 0
-            function_name = code
-        else:
-            filename = getattr(code, "co_filename", "~")
-            lineno = getattr(code, "co_firstlineno", 0)
-            function_name = getattr(code, "co_name", str(code))
-        yield (
-            filename,
-            lineno,
-            function_name,
-            entry.reccallcount + entry.callcount,
-            entry.inlinetime,
-            entry.totaltime,
-        )
-
-
-__all__ = ["ComparisonEntryEvaluation", "ComparisonRunRecord", "ComparisonEntryRunner", "ComparisonStepperCounting", "ComparisonProfileSurvey"]
+__all__ = [
+    "ComparisonEntryEvaluation",
+    "ComparisonEntryEvaluator",
+    "ComparisonRunRecord",
+    "ComparisonStepperCounting",
+    "ComparisonProfileSurvey",
+]
 
 
 

@@ -7,8 +7,8 @@ from typing import Any, Protocol
 from stark.core.contracts.contract_audit import AuditRecorder
 from stark.core.contracts.interval import IntervalLike
 from stark.core.contracts.operator import Operator
-from stark.core.contracts.state import State
-from stark.core.contracts.translation import Translation
+from stark.core.contracts.state import State, StateTypeContravariant
+from stark.core.contracts.translation import Translation, TranslationTypeCovariant
 
 
 class _LinearizerOperatorProbe:
@@ -26,7 +26,7 @@ class _LinearizerOperatorProbe:
         self.apply(translation, out)
 
 
-class LinearizerLike(Protocol):
+class LinearizerLike(Protocol[StateTypeContravariant, TranslationTypeCovariant]):
     """
     Fill `out` with the local Jacobian action of the derivative at `state`.
 
@@ -42,9 +42,21 @@ class LinearizerLike(Protocol):
     as an `Operator`. STARK does not ask for a dense matrix. It asks for a
     callable linear operator that, given an input translation, writes the
     Jacobian image into `out`.
+
+    Linearizers consume state directly, but the translation type appears inside
+    the operator object they configure. That makes the state parameter
+    contravariant and the translation parameter covariant in the protocol: a
+    linearizer may be substituted safely when it can accept the requested state
+    and configure an operator compatible with the requested translation family.
     """
 
-    def __call__(self, interval: IntervalLike, state: State, out: Operator) -> None:
+    def __call__(
+        self,
+        interval: IntervalLike,
+        state: StateTypeContravariant,
+        out: Operator[TranslationTypeCovariant],
+    ) -> None:
+        """Configure `out` with the local Jacobian action at `state`."""
         ...
 
 

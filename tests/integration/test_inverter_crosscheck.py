@@ -5,22 +5,13 @@ from math import sqrt
 
 import pytest
 
-from stark import Tolerance
+from stark import Configuration, Tolerance
 from stark.core import IntegratorStepper
 from stark.core.block import Block, BlockBasis
-
-try:  # New name after the diagonal block-operator rename.
-    from stark.core.block import BlockOperatorDiagonal
-except ImportError:  # Compatibility while developing this slow integration test.
-    from stark.core.block import BlockOperator as BlockOperatorDiagonal
-
 from stark.core.interval import Interval
 from stark.methods.inverters.dense import InverterDense
 from stark.methods.inverters.relaxation import InverterRelaxationJacobi, InverterRelaxationRichardson
-from stark import Configuration, Tolerance
 from stark.methods.resolvents import ResolventNewton
-from stark import Configuration
-from stark import Tolerance
 from stark.methods.schemes.implicit.fixed import SchemeBackwardEuler
 
 
@@ -270,8 +261,7 @@ def assert_state_close(actual: VectorState, expected: VectorState) -> None:
         assert actual_value == pytest.approx(expected_value, abs=2.0e-9, rel=0.0)
 
 
-@pytest.mark.slow
-def test_slow_new_inverters_track_each_other_through_newton_resolvent_and_scheme() -> None:
+def test_inverters_track_each_other_through_newton_resolvent_and_scheme() -> None:
     references: dict[str, VectorState] = {}
 
     references["Dense"] = run_backward_euler_newton(make_dense_inverter())

@@ -28,10 +28,16 @@ class DummyInterval:
     step: float
     stop: float
 
+    def copy(self) -> "DummyInterval":
+        return DummyInterval(self.present, self.step, self.stop)
 
-def derivative(interval: IntervalLike, state: object, out: DummyTranslation) -> DummyTranslation:
-    del interval, state
-    return out
+    def increment(self, dt: float) -> None:
+        del dt
+        raise TypeError("Frozen interval fixture cannot be advanced.")
+
+
+def derivative(interval: IntervalLike, state: object, out: DummyTranslation) -> None:
+    del interval, state, out
 
 
 def accepts_stage_problem(

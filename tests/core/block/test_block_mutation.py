@@ -9,10 +9,13 @@ class Translation:
     def __init__(self, value: float) -> None:
         self.value = value
 
-    def __add__(self, other):
+    def __call__(self, origin: object, result: object) -> None:
+        del origin, result
+
+    def __add__(self, other: "Translation") -> "Translation":
         return Translation(self.value + other.value)
 
-    def __rmul__(self, scalar: float):
+    def __rmul__(self, scalar: float) -> "Translation":
         return Translation(scalar * self.value)
 
     def norm(self) -> float:

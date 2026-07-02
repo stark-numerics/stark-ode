@@ -8,9 +8,8 @@ concrete state frame.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Self, TypeVar # type: ignore
 from numbers import Real
-from typing import Any
+from typing import Any, Protocol, Self, TypeVar
 
 from stark.core.contracts.contract_audit import AuditRecorder
 
@@ -46,25 +45,41 @@ class Translation(Protocol):
         ...
 
 
-# Use invariant types when a protocol both accepts and returns the type.
-# Example: validate_translation(value: TranslationType) -> TranslationType.
 TranslationType = TypeVar("TranslationType", bound=Translation)
+"""Invariant type variable for protocols that both accept and return translations.
 
-# Use covariant types when a protocol only returns the type.
-# Example: zero_translation() -> TranslationTypeCovariant.
+Use this when a contract must preserve the exact translation family across
+input and output positions. Examples include coordinate bases, mutable block
+containers, and helpers that receive a translation and return the same concrete
+translation type.
+"""
+
 TranslationTypeCovariant = TypeVar(
     "TranslationTypeCovariant",
     bound=Translation,
     covariant=True,
 )
+"""Covariant type variable for producers of translation objects.
 
-# Use contravariant types when a protocol only accepts the type.
-# Example: norm(value: TranslationTypeContravariant) -> float.
+Use this when a contract only returns translations, such as allocator methods
+that manufacture blank translation work buffers. A producer of a concrete
+translation is safely usable wherever a broader translation producer is
+expected.
+"""
+
 TranslationTypeContravariant = TypeVar(
     "TranslationTypeContravariant",
     bound=Translation,
     contravariant=True,
 )
+"""Contravariant type variable for consumers of translation objects.
+
+Use this when a contract only accepts translations, such as derivative workers,
+operators, inner products, and norms. Consumer protocols are contravariant so a
+worker that can handle a broad translation type can also stand in for a worker
+that is only required to handle a narrower one.
+"""
+
 
 class TranslationAudit:
     """Record checks for the translation algebra contract."""
@@ -164,5 +179,5 @@ __all__ = [
     "TranslationType",
     "TranslationTypeCovariant",
     "TranslationTypeContravariant",
-    "TranslationAudit"
-    ]
+    "TranslationAudit",
+]

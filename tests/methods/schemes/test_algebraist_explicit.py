@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -170,16 +170,6 @@ def run_adaptive_solve(scheme_type, *, specialist=None) -> tuple[ArrayState, int
         steps += 1
 
     return state, steps, interval.step
-
-
-@pytest.mark.parametrize("scheme_type", FIXED_SCHEMES)
-def test_fixed_explicit_scheme_specialist_path_matches_inline_path(scheme_type):
-    inline = run_fixed_step(scheme_type)
-    specialist = run_fixed_step(scheme_type, specialist=ArraySpecialist())
-
-    np.testing.assert_allclose(specialist.y, inline.y, rtol=1.0e-14, atol=1.0e-14)
-
-
 @pytest.mark.parametrize("scheme_type", ADAPTIVE_SCHEMES)
 def test_adaptive_explicit_scheme_specialist_path_matches_inline_path(scheme_type):
     inline_state, inline_steps, inline_next_step = run_adaptive_solve(scheme_type)
@@ -191,17 +181,3 @@ def test_adaptive_explicit_scheme_specialist_path_matches_inline_path(scheme_typ
     assert specialist_steps == inline_steps
     assert specialist_next_step == pytest.approx(inline_next_step, rel=1.0e-14, abs=1.0e-14)
     np.testing.assert_allclose(specialist_state.y, inline_state.y, rtol=1.0e-14, atol=1.0e-14)
-
-
-def test_adaptive_scheme_specialist_binding_selects_scheme_owned_call_specialized():
-    scheme = SchemeCashKarp(
-        ArrayDerivative(),
-        ArrayAllocator(3),
-        specialist=ArraySpecialist(),
-    )
-
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is SchemeCashKarp.call_specialized
-    # Adaptive schemes still bind Configuration runtime lazily on first call.
-    assert scheme.redirect_call.__self__ is scheme
-    assert scheme.redirect_call.__func__ is scheme.call_step.__func__

@@ -3,12 +3,20 @@
 from __future__ import annotations
 
 from collections.abc import MutableSequence, Sequence
-from typing import Protocol
+from typing import Protocol, TypeVar
 
-from stark.core.contracts.translation import TranslationType
+BasisValueType = TypeVar("BasisValueType")
+"""Type variable for values described by a coordinate basis.
+
+Coordinate bases are used both for full STARK translation objects and for
+backend carrier values that live inside a structured translation. A carrier
+value may be a list, tuple, NumPy array, CuPy array, JAX array, or scalar, so
+this type variable is intentionally not bound to the public `Translation`
+protocol.
+"""
 
 
-class TranslationBasis(Protocol[TranslationType]):
+class TranslationBasis(Protocol[BasisValueType]):
     """
     Coordinate basis for a translation space.
 
@@ -34,18 +42,19 @@ class TranslationBasis(Protocol[TranslationType]):
         """Number of scalar coordinates in this basis."""
         ...
 
-    def vector(self, index: int, output: TranslationType) -> TranslationType:
+    def vector(self, index: int, output: BasisValueType, /) -> BasisValueType:
         """Write or return the selected basis vector."""
         ...
 
-    def coordinate(self, index: int, translation: TranslationType) -> float:
+    def coordinate(self, index: int, translation: BasisValueType, /) -> float:
         """Apply the selected coordinate form to a translation."""
         ...
 
     def coordinates(
         self,
-        translation: TranslationType,
+        translation: BasisValueType,
         output: MutableSequence[float],
+        /,
     ) -> MutableSequence[float]:
         """Analyse a translation into coordinates in this basis."""
         ...
@@ -53,10 +62,11 @@ class TranslationBasis(Protocol[TranslationType]):
     def synthesize(
         self,
         coordinates: Sequence[float],
-        output: TranslationType,
-    ) -> TranslationType:
+        output: BasisValueType,
+        /,
+    ) -> BasisValueType:
         """Reconstruct a translation from coordinates in this basis."""
         ...
 
 
-__all__ = ["TranslationBasis"]
+__all__ = ["BasisValueType", "TranslationBasis"]

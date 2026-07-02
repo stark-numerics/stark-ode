@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Protocols for acceleration backends.
 
 Accelerators compile plain callable kernels. They do not inspect whether a
@@ -8,6 +6,8 @@ that role information belongs to the object constructing the callable. This
 keeps the accelerator contract small enough for users and backend authors to
 reason about.
 """
+
+from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Any, ClassVar, Protocol, TypeVar, overload

@@ -2,11 +2,13 @@
 
 import importlib
 
-from stark import Configuration, Interval, Tolerance
+import numpy as np
+
+from stark import Configuration, Frame, Interval, Method, System, Tolerance
 from stark.core import Auditor, Integrator, IntegratorStepper
-from stark.engines import Accelerator, AcceleratorNone
+from stark.engines import Accelerator, AcceleratorNone, EngineNumpy
 from stark.core.block.operator import BlockOperatorDiagonal
-from stark.diagnostics.comparison import ComparisonRunner, ComparisonEntryStepper, ComparisonProblemManual
+from stark.diagnostics.comparison import ComparisonEntry, ComparisonProblem, ComparisonRunner
 from stark.core.block import Block
 from stark.core.contracts import Resolvent
 from stark.methods.inverters.support import InverterDescriptor
@@ -25,6 +27,7 @@ from stark.methods.schemes import (
     SchemeBackwardEuler,
     SchemeCrankNicolson,
     SchemeCrouzeixDIRK3,
+    SchemeEuler,
     SchemeGaussLegendre4,
     SchemeIMEXEuler,
     SchemeImplicitMidpoint,
@@ -223,16 +226,27 @@ class MinimalInverter:
 
 
 def test_core_objects_have_readable_representations() -> None:
-    bakeoff_problem = ComparisonProblemManual(
-        "Dummy",
-        build_state=lambda: object(),
-        build_interval=lambda: object(),
-        difference=lambda left, right: 0.0,
+    def rhs(t, state, out) -> None:
+        del t
+        out.dy[0] = state.y[0]
+
+    system = System(
+        derivative=rhs,
+        frame=Frame.scalar("y", translation="dy"),
     )
-    bakeoff_entry = ComparisonEntryStepper("Dummy", lambda: object())
+    bakeoff_problem = ComparisonProblem(
+        "Dummy",
+        system.ivp(
+            initial={"y": np.array([1.0])},
+            interval=Interval(0.0, 0.1, 0.2),
+            method=Method(SchemeEuler),
+            engine=EngineNumpy,
+        ),
+    )
+    bakeoff_entry = ComparisonEntry("Dummy", Method(SchemeEuler))
     bakeoff = ComparisonRunner(
         bakeoff_problem,
-        [bakeoff_entry, ComparisonEntryStepper("Other", lambda: object())],
+        [bakeoff_entry, ComparisonEntry("Other", Method(SchemeEuler))],
         repeats=1,
     )
     interval = Interval(0.0, 0.1, 1.0)
@@ -293,8 +307,8 @@ def test_core_objects_have_readable_representations() -> None:
     )
 
     assert repr(interval) == "Interval(present=0.0, step=0.1, stop=1.0)"
-    assert repr(bakeoff_problem).startswith("ComparisonProblemManual(")
-    assert repr(bakeoff_entry).startswith("ComparisonEntryStepper(")
+    assert repr(bakeoff_problem).startswith("ComparisonProblem(")
+    assert repr(bakeoff_entry).startswith("ComparisonEntry(")
     assert "ComparisonRunner(" in repr(bakeoff)
     assert str(interval) == "[0, 1] step=0.1"
     assert repr(block) == "Block(size=0)"

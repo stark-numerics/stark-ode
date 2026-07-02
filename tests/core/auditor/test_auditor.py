@@ -4,6 +4,7 @@ from stark.engines.shared.accelerators import AcceleratorNone
 from stark import Derivative, DerivativeStyle
 from stark.core.auditor import AuditError, Auditor
 from stark import Tolerance
+from stark.core.contracts import IntervalLike
 from stark.core.interval import Interval
 from stark.problem.derivative import DerivativeSplit
 
@@ -62,7 +63,7 @@ class BadAllocator:
         return DummyTranslation()
 
 
-def derivative(interval: Interval, state: dict[str, float], out: DummyTranslation) -> None:
+def derivative(interval: IntervalLike, state: dict[str, float], out: DummyTranslation) -> None:
     del interval
     out.value = state["x"]
 

@@ -6,10 +6,12 @@ from typing import Any, Protocol, runtime_checkable
 
 from stark.core.contracts.contract_audit import AuditRecorder
 from stark.core.contracts.derivative import DerivativeLike
+from stark.core.contracts.state import StateTypeContravariant
+from stark.core.contracts.translation import TranslationTypeContravariant
 
 
 @runtime_checkable
-class DerivativeSplitLike(Protocol):
+class DerivativeSplitLike(Protocol[StateTypeContravariant, TranslationTypeContravariant]):
     """
     Scheme-facing implicit-explicit derivative split.
 
@@ -17,14 +19,25 @@ class DerivativeSplitLike(Protocol):
     treated explicitly. Both workers use the standard derivative call shape
     `worker(interval, state, translation)` and write into the supplied
     translation object.
+
+    Both parts share the same state and translation consumer types. The
+    protocol is contravariant for the same reason as `DerivativeLike`: a split
+    derivative that can consume a broader state or translation family can stand
+    in for one that only needs to consume a narrower family.
     """
 
     @property
-    def implicit(self) -> DerivativeLike:
+    def implicit(
+        self,
+    ) -> DerivativeLike[StateTypeContravariant, TranslationTypeContravariant]:
+        """Derivative worker used for the implicit part of the split."""
         ...
 
     @property
-    def explicit(self) -> DerivativeLike:
+    def explicit(
+        self,
+    ) -> DerivativeLike[StateTypeContravariant, TranslationTypeContravariant]:
+        """Derivative worker used for the explicit part of the split."""
         ...
 
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from time import perf_counter
 
 import pytest
@@ -8,51 +7,18 @@ import pytest
 from stark import Interval
 from stark.core import Integrator, IntegratorStepper
 from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
-
-
-@dataclass(slots=True)
-class ScalarState:
-    value: float = 0.0
-
-
-@dataclass(slots=True)
-class ScalarTranslation:
-    value: float = 0.0
-
-    def __call__(self, origin: ScalarState, result: ScalarState) -> None:
-        result.value = origin.value + self.value
-
-    def norm(self) -> float:
-        return abs(self.value)
-
-    def __add__(self, other: ScalarTranslation) -> ScalarTranslation:
-        return ScalarTranslation(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> ScalarTranslation:
-        return ScalarTranslation(scalar * self.value)
-
-
-class ScalarAllocator:
-    def allocate_state(self) -> ScalarState:
-        return ScalarState()
-
-    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
-        out.value = source.value
-
-    def allocate_translation(self) -> ScalarTranslation:
-        return ScalarTranslation()
-
-
-def exponential_growth(interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
-    del interval
-    out.value = state.value
+from tests.support import (
+    DummyScalarAllocator,
+    DummyScalarState,
+    dummy_exponential_growth_rhs,
+)
 
 
 def run_rk4_steps(n_steps: int) -> float:
-    scheme = SchemeRK4(exponential_growth, ScalarAllocator())
+    scheme = SchemeRK4(dummy_exponential_growth_rhs, DummyScalarAllocator())
     stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=1.0 / n_steps, stop=1.0)
-    state = ScalarState(1.0)
+    state = DummyScalarState(1.0)
 
     start = perf_counter()
     for _interval, _state in Integrator().mutating_trajectory(stepper, interval, state):

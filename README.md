@@ -323,7 +323,6 @@ python -m competition.robertson.report
 ```powershell
 python -m pip install -e ".[dev]"
 python -m pytest
-python -m pytest -m slow
 ```
 
 Contributors working on performance-sensitive internals can use the ASV suite

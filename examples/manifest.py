@@ -206,6 +206,12 @@ EXAMPLES: tuple[ExampleSpec, ...] = (
         "Compare method choices on one problem.",
     ),
     ExampleSpec(
+        "examples.diagnostics.compare_custom_scheme",
+        "Compare custom scheme",
+        "diagnostics",
+        "Compare a user-defined scheme through the Method API.",
+    ),
+    ExampleSpec(
         "examples.diagnostics.monitor_scheme_steps",
         "Monitor scheme steps",
         "diagnostics",

@@ -34,7 +34,7 @@ from stark.methods.schemes.explicit.fixed.rk38 import SchemeRK38
 from stark.methods.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 from stark import Derivative
-from stark.core.contracts import DerivativeSplitLike
+from stark.core.contracts import DerivativeSplitLike, IntervalLike
 
 
 @dataclass(slots=True)
@@ -387,7 +387,7 @@ class TimeAllocator:
 
 def test_midpoint_uses_stage_time_for_non_autonomous_derivative() -> None:
     class TimeDerivative:
-        def __call__(self, interval: Interval, state: TimeState, out: TimeTranslation) -> None:
+        def __call__(self, interval: IntervalLike, state: TimeState, out: TimeTranslation) -> None:
             del state
             out.value = interval.present
 
@@ -403,7 +403,7 @@ def test_midpoint_uses_stage_time_for_non_autonomous_derivative() -> None:
 
 def test_stepper_keeps_explicitly_supplied_scheme_derivative() -> None:
     class ConstantDerivative:
-        def __call__(self, interval: Interval, state: TimeState, out: TimeTranslation) -> None:
+        def __call__(self, interval: IntervalLike, state: TimeState, out: TimeTranslation) -> None:
             del interval, state
             out.value = 1.0
 
@@ -418,11 +418,11 @@ def test_stepper_keeps_explicitly_supplied_scheme_derivative() -> None:
 
 
 def test_imex_euler_handles_purely_explicit_split() -> None:
-    def implicit(interval: Interval, state: TimeState, out: TimeTranslation) -> None:
+    def implicit(interval: IntervalLike, state: TimeState, out: TimeTranslation) -> None:
         del interval, state
         out.value = 0.0
 
-    def explicit(interval: Interval, state: TimeState, out: TimeTranslation) -> None:
+    def explicit(interval: IntervalLike, state: TimeState, out: TimeTranslation) -> None:
         del interval, state
         out.value = 1.0
 
@@ -439,11 +439,11 @@ def test_imex_euler_handles_purely_explicit_split() -> None:
 
 
 def test_imex_ark324_accepts_constant_split_rhs() -> None:
-    def implicit(interval: Interval, state: TimeState, out: TimeTranslation) -> None:
+    def implicit(interval: IntervalLike, state: TimeState, out: TimeTranslation) -> None:
         del interval, state
         out.value = 0.0
 
-    def explicit(interval: Interval, state: TimeState, out: TimeTranslation) -> None:
+    def explicit(interval: IntervalLike, state: TimeState, out: TimeTranslation) -> None:
         del interval, state
         out.value = 1.0
 

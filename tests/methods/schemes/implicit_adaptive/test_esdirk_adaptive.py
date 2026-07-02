@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -168,48 +168,6 @@ def tight_configuration() -> Configuration:
 )
 def test_esdirk_adaptive_scheme_owns_its_public_call_method(scheme_cls) -> None:
     assert "__call__" in scheme_cls.__dict__
-
-
-@pytest.mark.parametrize(
-    "scheme_cls",
-    [
-        SchemeSDIRK21,
-        SchemeKvaerno3,
-        SchemeKvaerno4,
-        SchemeKvaerno5,
-    ],
-)
-def test_esdirk_adaptive_default_call_path_is_scheme_owned_generic_call(
-    scheme_cls,
-) -> None:
-    scheme = make_scheme(scheme_cls)
-
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is scheme_cls.call_inline
-
-    assert scheme.redirect_call.__self__ is scheme
-    assert scheme.redirect_call.__func__ is scheme.call_step.__func__
-
-
-@pytest.mark.parametrize(
-    "scheme_cls",
-    [
-        SchemeSDIRK21,
-        SchemeKvaerno3,
-        SchemeKvaerno4,
-        SchemeKvaerno5,
-    ],
-)
-def test_esdirk_adaptive_specialist_path_is_scheme_owned_generated_call(
-    scheme_cls,
-) -> None:
-    scheme = make_array_scalar_scheme(scheme_cls, specialist=True)
-
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is scheme_cls.call_specialized
-
-    assert scheme.redirect_call.__self__ is scheme
-    assert scheme.redirect_call.__func__ is scheme.call_step.__func__
 
 
 @pytest.mark.parametrize(

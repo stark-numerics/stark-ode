@@ -238,7 +238,6 @@ class RiccatiDerivative:
         out.dx = constant_coefficient(t) + linear_coefficient(t) * x + quadratic_coefficient(t) * x * x
 
 
-@pytest.mark.slow
 @pytest.mark.parametrize("case", SCHEME_CASES, ids=lambda case: case.label)
 def test_scheme_matches_time_dependent_riccati_solution(case: SchemeCase) -> None:
     state = RiccatiState(0.0, exact_solution(0.0))

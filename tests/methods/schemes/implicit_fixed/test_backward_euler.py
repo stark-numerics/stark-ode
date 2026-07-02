@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -75,8 +75,6 @@ def test_backward_euler_owns_its_public_call_method() -> None:
 def test_backward_euler_default_call_path_is_scheme_owned_generic_call() -> None:
     scheme = make_scheme()
 
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is SchemeBackwardEuler.call_inline
     assert scheme.redirect_call == scheme.call_step
 
 

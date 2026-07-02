@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import sqrt
-from typing import Generic, Iterator, Self
+from typing import Generic, Iterator, Self, TypeVar
 
 from stark.core.contracts.block import BlockLike
-from stark.core.contracts.translation import TranslationType
+
+BlockItemType = TypeVar("BlockItemType")
+"""Type variable for values stored by the concrete block container."""
 
 
 @dataclass(slots=True)
-class Block(Generic[TranslationType]):
+class Block(Generic[BlockItemType]):
     """Product-space collection of translation-like entries.
 
     A ``Block`` is intentionally not a full Translation. It is the
@@ -21,7 +23,7 @@ class Block(Generic[TranslationType]):
     Algebraist provider.
     """
 
-    items: list[TranslationType]
+    items: list[BlockItemType]
 
     def __post_init__(self) -> None:
         self.items = list(self.items)
@@ -35,21 +37,21 @@ class Block(Generic[TranslationType]):
     def __len__(self) -> int:
         return len(self.items)
 
-    def __iter__(self) -> Iterator[TranslationType]:
+    def __iter__(self) -> Iterator[BlockItemType]:
         return iter(self.items)
 
-    def __getitem__(self, index: int) -> TranslationType:
+    def __getitem__(self, index: int) -> BlockItemType:
         return self.items[index]
 
-    def __setitem__(self, index: int, value: TranslationType) -> None:
+    def __setitem__(self, index: int, value: BlockItemType) -> None:
         self.items[index] = value
 
-    def replace(self, other: BlockLike[TranslationType]) -> None:
+    def replace(self, other: BlockLike[BlockItemType]) -> None:
         """Replace this block's entries with another block's entries."""
 
         self.items[:] = [other[index] for index in range(len(other))]
 
-    def __add__(self, other: Block[TranslationType]) -> Block[TranslationType]:
+    def __add__(self, other: Block[BlockItemType]) -> Block[BlockItemType]:
         return type(self)(
             [
                 left + right  # type: ignore[operator]
@@ -57,7 +59,7 @@ class Block(Generic[TranslationType]):
             ]
         )
 
-    def __sub__(self, other: Block[TranslationType]) -> Block[TranslationType]:
+    def __sub__(self, other: Block[BlockItemType]) -> Block[BlockItemType]:
         return type(self)(
             [
                 left + (-1.0 * right)  # type: ignore[operator]
@@ -65,7 +67,7 @@ class Block(Generic[TranslationType]):
             ]
         )
 
-    def __rmul__(self, scalar: float) -> Block[TranslationType]:
+    def __rmul__(self, scalar: float) -> Block[BlockItemType]:
         return type(self)(
             [
                 scalar * item  # type: ignore[operator]
@@ -73,11 +75,11 @@ class Block(Generic[TranslationType]):
             ]
         )
 
-    def __iadd__(self, other: Block[TranslationType]) -> Self:
+    def __iadd__(self, other: Block[BlockItemType]) -> Self:
         self.replace(self + other)
         return self
 
-    def __isub__(self, other: Block[TranslationType]) -> Self:
+    def __isub__(self, other: Block[BlockItemType]) -> Self:
         self.replace(self - other)
         return self
 

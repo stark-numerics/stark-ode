@@ -1,4 +1,10 @@
-"""Run a monitored observation pass separately from an unmonitored timing pass."""
+"""Run monitored observation separately from unmonitored timing.
+
+Monitoring is diagnostic instrumentation: it records events, allocates summary
+objects, and deliberately adds work. This script shows the recommended pattern:
+first run with a `Monitor` to understand behaviour, then run the same problem
+without monitoring when measuring solver speed.
+"""
 
 from __future__ import annotations
 

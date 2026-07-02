@@ -1,4 +1,11 @@
-"""Compare two built-in schemes on one small vector-field problem."""
+"""Compare two built-in methods on the same prepared problem.
+
+`ComparisonRunner` is for short method-selection runs. It prepares each
+`ComparisonEntry` from the same `ComparisonProblem`, then reports timing,
+final-state differences, diagnostics, monitor summaries, and a coarse profile
+breakdown. Use it before a long solve when you want evidence for choosing one
+method configuration over another.
+"""
 
 from __future__ import annotations
 

@@ -105,6 +105,50 @@ For a machine-readable report:
 .\devtools\check-types.ps1 -Json
 ```
 
+## Cache cleanup
+
+```powershell
+.\devtools\clean-caches.ps1
+```
+
+This removes Python bytecode caches, pytest caches, coverage files, and common
+tool caches. If a cache was created by an automation sandbox, Windows may report
+access denied when a normal user shell tries to delete it. In that case, remove
+it from the same automation context or rerun the tests without pytest's cache
+provider for temporary checks:
+
+```powershell
+python -m pytest -p no:cacheprovider
+```
+
+## Benchmark checks
+
+ASV discovery and tiered runs are wrapped so you do not need to remember the
+full ASV command line:
+
+```powershell
+.\devtools\check-benchmarks.ps1
+```
+
+Run the current IVP smoke benchmarks:
+
+```powershell
+.\devtools\check-benchmarks.ps1 -RunSmoke
+```
+
+Run broader benchmark tiers:
+
+```powershell
+.\devtools\check-benchmarks.ps1 -RunRepresentative
+.\devtools\check-benchmarks.ps1 -RunFull
+```
+
+Run a narrower ASV benchmark pattern:
+
+```powershell
+.\devtools\check-benchmarks.ps1 -RunSmoke -Bench BenchmarkTimeIVPSmokeRepeatSolve
+```
+
 ## Broad local sweep
 
 ```powershell
@@ -112,8 +156,8 @@ For a machine-readable report:
 ```
 
 This runs the default tests, docs consistency guard, current example groups,
-competition report smoke, and maintained runnable benchmark scripts. Use the
-skip switches when you only need a slice:
+competition report smoke, and ASV benchmark discovery. Use the skip switches
+when you only need a slice:
 
 ```powershell
 .\devtools\run-everything.ps1 -SkipBenchmarks

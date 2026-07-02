@@ -1,11 +1,21 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, TypeVar
 
-from stark.core.contracts.translation import TranslationType, TranslationTypeContravariant
+BlockEntryType = TypeVar("BlockEntryType")
+"""Type variable for entries stored in a block container.
+
+Most method-level blocks contain full STARK translations, but coordinate
+materialisation also uses blocks of backend carrier values. The container
+contract is therefore intentionally unbound; contracts that need translation
+algebra should keep using `TranslationType`.
+"""
+
+BlockEntryTypeContravariant = TypeVar("BlockEntryTypeContravariant", contravariant=True)
+"""Contravariant type variable for callables that consume block entries."""
 
 
-class BlockLike(Protocol[TranslationType]):
+class BlockLike(Protocol[BlockEntryType]):
     """
     Structural contract for a block of translations.
 
@@ -26,20 +36,20 @@ class BlockLike(Protocol[TranslationType]):
     def __len__(self) -> int:
         ...
 
-    def __getitem__(self, index: int) -> TranslationType:
+    def __getitem__(self, index: int) -> BlockEntryType:
         ...
 
-    def __setitem__(self, index: int, value: TranslationType) -> None:
+    def __setitem__(self, index: int, value: BlockEntryType) -> None:
         ...
 
-    def replace(self, other: "BlockLike[TranslationType]") -> None:
+    def replace(self, other: "BlockLike[BlockEntryType]", /) -> None:
         ...
 
     def norm(self) -> float:
         ...
 
 
-class BlockOperatorLike(Protocol[TranslationType]):
+class BlockOperatorLike(Protocol[BlockEntryType]):
     """
     General block operator.
 
@@ -52,13 +62,14 @@ class BlockOperatorLike(Protocol[TranslationType]):
 
     def __call__(
         self,
-        source: BlockLike[TranslationType],
-        target: BlockLike[TranslationType],
-    ) -> BlockLike[TranslationType]:
+        source: BlockLike[BlockEntryType],
+        target: BlockLike[BlockEntryType],
+        /,
+    ) -> BlockLike[BlockEntryType]:
         ...
 
 
-class BlockOperatorDiagonalLike(Protocol[TranslationType]):
+class BlockOperatorDiagonalLike(Protocol[BlockEntryType]):
     """
     Diagonal block operator.
 
@@ -75,18 +86,19 @@ class BlockOperatorDiagonalLike(Protocol[TranslationType]):
     def __getitem__(
         self,
         index: int,
-    ) -> BlockOperatorEntryLike[TranslationType] | None:
+    ) -> BlockOperatorEntryLike[BlockEntryType] | None:
         ...
 
     def __call__(
         self,
-        source: BlockLike[TranslationType],
-        target: BlockLike[TranslationType],
-    ) -> BlockLike[TranslationType]:
+        source: BlockLike[BlockEntryType],
+        target: BlockLike[BlockEntryType],
+        /,
+    ) -> BlockLike[BlockEntryType]:
         ...
 
 
-class BlockOperatorEntryLike(Protocol[TranslationTypeContravariant]):
+class BlockOperatorEntryLike(Protocol[BlockEntryTypeContravariant]):
     """
     Structural contract for a linear operator on one block entry.
 
@@ -102,7 +114,8 @@ class BlockOperatorEntryLike(Protocol[TranslationTypeContravariant]):
     """
     def __call__(
         self,
-        source: TranslationTypeContravariant,
-        target: TranslationTypeContravariant,
+        source: BlockEntryTypeContravariant,
+        target: BlockEntryTypeContravariant,
+        /,
     ) -> None:
         ...

@@ -1,1 +1,0 @@
-"""Manual resolvent benchmark scripts."""

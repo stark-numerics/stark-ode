@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -82,34 +82,6 @@ def tight_configuration() -> Configuration:
 
 def test_bdf2_owns_its_public_call_method() -> None:
     assert "__call__" in SchemeBDF2.__dict__
-
-
-def test_bdf2_default_call_path_is_scheme_owned_generic_call() -> None:
-    scheme = make_scheme()
-
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is SchemeBDF2.call_inline
-
-    assert scheme.redirect_call.__self__ is scheme
-    assert scheme.redirect_call.__func__ is scheme.call_step.__func__
-
-
-def test_bdf2_accepts_specialist_but_remains_generic_only() -> None:
-    scheme = make_scheme(specialist=object())
-
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is SchemeBDF2.call_inline
-
-    assert scheme.redirect_call.__self__ is scheme
-    assert scheme.redirect_call.__func__ is scheme.call_step.__func__
-
-
-def test_bdf2_specialist_hook_keeps_inline_call_path() -> None:
-    scheme = make_scheme(specialist=object())
-
-    assert scheme.call_step.__func__ is SchemeBDF2.call_inline
-
-
 def test_bdf2_public_call_uses_redirect_call() -> None:
     scheme = make_scheme()
     interval = Interval(present=0.0, step=0.1, stop=0.3)

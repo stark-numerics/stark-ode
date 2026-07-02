@@ -7,24 +7,24 @@ from math import sqrt
 from typing import Any
 
 from stark.diagnostics.comparison.models import (
-    ComparisonEntryLike,
-    ComparisonProblemLike,
+    ComparisonEntry,
+    ComparisonProblem,
     ComparisonReport,
     Comparison,
     ComparisonResult,
 )
-from stark.diagnostics.comparison.runtime import ComparisonEntryEvaluation, ComparisonEntryRunner
+from stark.diagnostics.comparison.runtime import ComparisonEntryEvaluation, ComparisonEntryEvaluator
 
 
 class ComparisonRunner:
     """Run a problem through multiple entries and return a structured report."""
 
-    __slots__ = ("announce", "entries", "prewarm_builders", "problem", "repeats", "ComparisonEntryRunner")
+    __slots__ = ("announce", "entries", "entry_evaluator", "prewarm_builders", "problem", "repeats")
 
     def __init__(
         self,
-        problem: ComparisonProblemLike,
-        entries: Iterable[ComparisonEntryLike],
+        problem: ComparisonProblem,
+        entries: Iterable[ComparisonEntry],
         repeats: int = 5,
         prewarm_builders: bool = True,
         announce: Any | None = None,
@@ -38,7 +38,7 @@ class ComparisonRunner:
         self.repeats = repeats
         self.prewarm_builders = prewarm_builders
         self.announce = announce
-        self.ComparisonEntryRunner = ComparisonEntryRunner(problem, repeats, announce)
+        self.entry_evaluator = ComparisonEntryEvaluator(problem, repeats, announce)
 
     def __repr__(self) -> str:
         return (
@@ -54,8 +54,8 @@ class ComparisonRunner:
 
     def __call__(self) -> ComparisonReport:
         if self.prewarm_builders:
-            self._prewarm_builders()
-        baked = [self.ComparisonEntryRunner(entry) for entry in self.entries]
+            self.prewarm_entry_builders()
+        baked = [self.entry_evaluator(entry) for entry in self.entries]
         results = [
             ComparisonResult(
                 name=entry.name,
@@ -76,41 +76,41 @@ class ComparisonRunner:
             results=results,
             final_differences=Comparison(
                 labels=[result.name for result in results],
-                values=self._pairwise_final_differences(baked),
+                values=self.pairwise_final_differences(baked),
             ),
-            trajectory_differences=self._trajectory_comparison(results, baked),
+            trajectory_differences=self.trajectory_comparison(results, baked),
         )
 
-    def _prewarm_builders(self) -> None:
-        self._announce("Prewarming entry builders...")
+    def prewarm_entry_builders(self) -> None:
+        self.announce_message("Prewarming entry builders...")
         for entry in self.entries:
             entry.make_stepper(self.problem.ivp)
             entry.make_integrator(self.problem.ivp)
 
-    def _pairwise_final_differences(self, baked: list[ComparisonEntryEvaluation]) -> list[list[float]]:
+    def pairwise_final_differences(self, baked: list[ComparisonEntryEvaluation]) -> list[list[float]]:
         return [[self.problem.difference(left.state, right.state) for right in baked] for left in baked]
 
-    def _pairwise_trajectory_differences(self, baked: list[ComparisonEntryEvaluation]) -> list[list[float]] | None:
+    def pairwise_trajectory_differences(self, baked: list[ComparisonEntryEvaluation]) -> list[list[float]] | None:
         if self.problem.checkpoints is None:
             return None
         difference = (
             self.problem.trajectory_difference
             if self.problem.trajectory_difference is not None
-            else self._default_trajectory_difference
+            else self.default_trajectory_difference
         )
         return [[difference(left.checkpoints, right.checkpoints) for right in baked] for left in baked]
 
-    def _trajectory_comparison(self, results: list[ComparisonResult], baked: list[ComparisonEntryEvaluation]) -> Comparison | None:
-        values = self._pairwise_trajectory_differences(baked)
+    def trajectory_comparison(self, results: list[ComparisonResult], baked: list[ComparisonEntryEvaluation]) -> Comparison | None:
+        values = self.pairwise_trajectory_differences(baked)
         if values is None:
             return None
         return Comparison(
             labels=[result.name for result in results],
             values=values,
-            note=self._trajectory_difference_note(),
+            note=self.trajectory_difference_note(),
         )
 
-    def _trajectory_difference_note(self) -> str | None:
+    def trajectory_difference_note(self) -> str | None:
         if self.problem.checkpoints is None:
             return None
         if self.problem.trajectory_difference is not None:
@@ -120,7 +120,7 @@ class ComparisonRunner:
             "computed from ComparisonProblem.difference(...)."
         )
 
-    def _default_trajectory_difference(self, left: list[Any], right: list[Any]) -> float:
+    def default_trajectory_difference(self, left: list[Any], right: list[Any]) -> float:
         if len(left) != len(right):
             raise ValueError("ComparisonRunner trajectory checkpoints must line up entry-to-entry.")
         if not left:
@@ -131,7 +131,7 @@ class ComparisonRunner:
             total += delta * delta
         return sqrt(total / len(left))
 
-    def _announce(self, message: str) -> None:
+    def announce_message(self, message: str) -> None:
         if self.announce is not None:
             self.announce(message)
 

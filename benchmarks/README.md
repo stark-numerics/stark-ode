@@ -1,169 +1,91 @@
 # Benchmarks
 
-This directory contains two different kinds of benchmark material:
+This directory is contributor-facing. Users do not need it to solve ODEs with
+STARK; contributors use it to check whether package changes alter performance.
 
-- manual smoke benchmarks for quick local before/after checks;
-- ASV benchmarks for repeatable performance history across commits.
+The benchmark suite has three independent axes:
 
-Neither kind of benchmark is a CI gate by default. Timings are local,
-machine-specific evidence for contributors.
+- representative problems;
+- method stacks from `stark.methods.METHOD_CATALOGUE`;
+- engines.
 
-## Which Benchmark Should I Run?
+This matters because a useful benchmark suite should answer questions such as:
 
-Use the manual smoke benchmarks while you are actively editing code and want a
-fast answer from the current dirty working tree:
+- did a scheme/resolvent/inverter stack regress on a stiff problem?
+- did an engine change help large array states but hurt small scalar states?
+- did an optimisation help Newton+dense while damaging IMEX or explicit paths?
 
-- did this refactor obviously slow a hot path?
-- should I pause before committing?
-- did a small support-layer change affect scheme, resolvent, or inverter calls?
+## Structure
 
-Use ASV when you want durable history across commits:
+`benchmarks.catalogue` contains the benchmark-facing metadata. It does not run
+benchmarks. `benchmarks.problems` contains the reusable problem definitions that
+can build a `System`, fresh initial values, an interval, and optionally a
+final-state reference. `benchmarks.builders` turns catalogue axes into runnable
+IVPs.
 
-- did this branch get faster or slower than `main`?
-- did setup improve but steady solves regress?
-- did an optimization still help after several related commits?
-- which commit introduced a performance change?
+The layers are:
 
-The short version:
+- `stark.methods.catalogue`: package-level catalogue of method components and
+  method-stack recipes;
+- `benchmarks.catalogue`: benchmark-only catalogue of representative problems
+  and engines;
+- `benchmarks.problems`: reusable problem definitions used by benchmark
+  runners;
+- `benchmarks.builders`: construction helpers for problem/method/engine axes;
+- ASV benchmark classes: small timing harnesses that combine problem, method,
+  and engine entries from the catalogues.
 
-- dirty tree, immediate feedback: run a manual smoke benchmark;
-- committed code, historical comparison: run ASV.
+See `DESIGN.md` for the benchmark architecture notes.
 
-## Manual Smoke Benchmarks
+## What ASV Does
 
-Run these from the `stark-ode` directory. Use the virtual environment explicitly
-when working in this repository:
+ASV, or Airspeed Velocity, is a benchmark runner for tracking performance across
+commits. Unit tests answer "is the result correct?". ASV answers "did this
+change make a selected workload faster or slower?".
 
-```powershell
-& ..\.venv\Scripts\python.exe -m benchmarks.schemes.bench_scheme_refactor
-& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_defect
-& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_jacobi
-& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_richardson
-```
+The important difference from an ordinary timing script is history. ASV runs the
+same benchmark classes against selected commits, records the timings, and can
+publish an HTML report showing regressions and improvements over time. That is
+why ASV is most useful after code is committed: it compares named revisions
+rather than just the current dirty working tree.
 
-More stable local runs:
+For STARK, ASV should track combinations of representative problems, method
+stacks, and engines. That lets us catch regressions where, for example, an
+engine optimisation helps large array states but hurts a small stiff Newton
+solve.
 
-```powershell
-& ..\.venv\Scripts\python.exe -m benchmarks.schemes.bench_scheme_refactor --warmup 3 --repeat 10
-& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_defect
-& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_jacobi
-& ..\.venv\Scripts\python.exe -m benchmarks.inverters.bench_richardson
-```
+## Current ASV Layer
 
-Save a local baseline before risky work:
+`time_ivp.py` contains the first catalogue-driven ASV classes:
 
-```powershell
-& ..\.venv\Scripts\python.exe -m benchmarks.schemes.bench_scheme_refactor --warmup 3 --repeat 10 --save-baseline pre-change
-```
+- `BenchmarkTimeIVPSmoke...`;
+- `BenchmarkTimeIVPRepresentative...`;
+- `BenchmarkTimeIVPFull...`.
 
-Compare against that baseline later:
+Each tier has setup, first-solve, repeat-solve, and error tracking classes.
 
-```powershell
-& ..\.venv\Scripts\python.exe -m benchmarks.schemes.bench_scheme_refactor --warmup 3 --repeat 10 --compare-baseline pre-change
-```
+## Quick Commands
 
-Manual baseline files are written under:
-
-- `benchmarks/schemes/results/`
-
-These directories are git-ignored. Commit only deliberately curated reference
-baselines.
-
-## ASV Benchmarks
-
-ASV is the long-term benchmark layer. Use it after committing the code you want
-to compare.
-
-Install ASV support:
+Check ASV discovery against the current virtual environment:
 
 ```powershell
-& ..\.venv\Scripts\python.exe -m pip install -e ".[asv]"
+.\devtools\check-benchmarks.ps1
 ```
 
-Check that ASV can discover the suite against the current virtual environment:
+Run the IVP smoke benchmarks quickly:
 
 ```powershell
-& ..\.venv\Scripts\python.exe -m asv check -E existing:..\.venv\Scripts\python.exe
+.\devtools\check-benchmarks.ps1 -RunSmoke
 ```
 
-Run a quick ASV smoke benchmark against the current environment:
+Run the representative benchmark tier:
 
 ```powershell
-& ..\.venv\Scripts\python.exe -m asv run --quick -E existing:..\.venv\Scripts\python.exe --bench TimeAlgebraist
+.\devtools\check-benchmarks.ps1 -RunRepresentative
 ```
 
-After committing on a feature branch, compare the current branch against
-`main`:
+Run the full currently compatible IVP matrix:
 
 ```powershell
-& ..\.venv\Scripts\python.exe -m asv run main..HEAD
+.\devtools\check-benchmarks.ps1 -RunFull
 ```
-
-This range only selects commits when `HEAD` is ahead of `main`. Check that with:
-
-```powershell
-git log --oneline main..HEAD
-```
-
-If that prints nothing, ASV will report `No commit hashes selected`.
-
-When working directly on `main`, compare explicit commits instead. For example,
-after making one new commit:
-
-```powershell
-& ..\.venv\Scripts\python.exe -m asv run HEAD~1..HEAD
-```
-
-For a named baseline commit:
-
-```powershell
-& ..\.venv\Scripts\python.exe -m asv run OLD_COMMIT..HEAD
-```
-
-Run only a targeted ASV benchmark family:
-
-```powershell
-& ..\.venv\Scripts\python.exe -m asv run main..HEAD --bench TimeAlgebraist
-& ..\.venv\Scripts\python.exe -m asv run main..HEAD --bench TimeFPUTExplicit
-& ..\.venv\Scripts\python.exe -m asv run main..HEAD --bench TimeInterface
-```
-
-Use the same explicit range rule for targeted runs:
-
-```powershell
-& ..\.venv\Scripts\python.exe -m asv run HEAD~1..HEAD --bench TimeAlgebraist
-& ..\.venv\Scripts\python.exe -m asv run OLD_COMMIT..HEAD --bench TimeAlgebraist
-```
-
-Publish and preview local HTML results:
-
-```powershell
-& ..\.venv\Scripts\python.exe -m asv publish
-& ..\.venv\Scripts\python.exe -m asv preview
-```
-
-ASV stores generated environments, raw results, and HTML output under `.asv/`.
-
-## Current ASV Coverage
-
-The current ASV suite covers:
-
-- FPUT explicit solves;
-- interface-layer costs;
-- Algebraist combination and setup costs.
-
-The manual scheme, resolvent, and inverter smoke benchmarks are not yet ASV
-classes. They are useful immediate checks, but they do not yet create durable
-ASV history.
-
-## Useful Habit
-
-Before a performance-sensitive refactor:
-
-1. commit the current clean state;
-2. save manual baselines for the hot paths you expect to touch;
-3. optionally run targeted ASV on the current commit;
-4. make the refactor;
-5. rerun the manual comparisons while still in the dirty tree;
-6. commit once tests and smoke benchmarks are acceptable;
-7. run ASV over `main..HEAD` or over the relevant commit range.

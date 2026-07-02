@@ -63,6 +63,7 @@ Examples about observing, comparing, and explaining integrations.
 python -m examples.diagnostics
 python -m examples.diagnostics.checkpoints
 python -m examples.diagnostics.compare_two_schemes
+python -m examples.diagnostics.compare_custom_scheme
 python -m examples.diagnostics.monitor_scheme_steps
 python -m examples.diagnostics.error_ratio_trace
 python -m examples.diagnostics.compare_with_monitor_summary
@@ -111,5 +112,6 @@ python -m examples.core.manual_stepper_setup
 
 ## Comparison
 
-Comparison reports live under `competition/`. Backend timing caveats belong in
-benchmarking and backend-focused examples.
+Method-comparison reports live under diagnostics examples. Competition reports
+are separate showcase scripts with their own timing tables, and benchmark timing
+caveats belong in ASV benchmarks or backend-focused examples.

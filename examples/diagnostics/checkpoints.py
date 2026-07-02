@@ -1,4 +1,10 @@
-"""Ask STARK for evenly spaced output without forcing fixed solver steps."""
+"""Ask STARK for output checkpoints without forcing solver step boundaries.
+
+Checkpoints are observation times, not instructions to the scheme. Adaptive
+methods may take whatever internal steps they need, while `ivp.integrate`
+yields interpolated or copied states at the requested output cadence. Use this
+when plotting, saving, or comparing trajectories on a common time grid.
+"""
 
 from __future__ import annotations
 

@@ -63,15 +63,19 @@ def test_monitor_clear_clears_scheme_records() -> None:
     assert monitor.inverter.solves == []
 
 
-def test_monitor_default_and_scheme_constructor_are_explicit() -> None:
+def test_monitor_default_and_explicit_channels_are_independent() -> None:
     default = Monitor()
-    constructed = Monitor.with_scheme()
+    constructed = Monitor()
     existing_scheme = MonitorScheme()
     existing_resolvent = MonitorResolvent()
     existing_inverter = MonitorInverter()
-    manual = Monitor.with_scheme(existing_scheme)
-    manual_with_resolvent = Monitor.with_scheme(existing_scheme, existing_resolvent)
-    manual_with_all = Monitor.with_scheme(existing_scheme, existing_resolvent, existing_inverter)
+    manual = Monitor(scheme=existing_scheme)
+    manual_with_resolvent = Monitor(scheme=existing_scheme, resolvent=existing_resolvent)
+    manual_with_all = Monitor(
+        scheme=existing_scheme,
+        resolvent=existing_resolvent,
+        inverter=existing_inverter,
+    )
 
     assert isinstance(default.scheme, MonitorScheme)
     assert isinstance(default.resolvent, MonitorResolvent)

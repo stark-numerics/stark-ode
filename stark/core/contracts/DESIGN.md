@@ -30,6 +30,24 @@ They should avoid importing concrete problem, method, engine, or diagnostic
 classes. If a contract needs to mention another shape, prefer another contract
 or a minimal protocol.
 
+## Type Documentation
+
+Protocol and `TypeVar` docstrings are part of the public documentation layer.
+Many users and contributors will meet these names first through IDE hover text,
+not by opening the source file, so comments that explain variance, ownership,
+and intended use should usually be docstrings attached to the symbol.
+
+This is especially important for generic contract variables such as
+`StateType`, `TranslationType`, and their covariant or contravariant variants.
+Their names are short because they appear in many signatures, so their
+docstrings must explain when to use each one. Good hover text keeps type hints
+from becoming decorative noise.
+
+Consistent use of these types is also what lets Pyright and similar tools give
+useful warnings. If a contract falls back to `object`, `Any`, or an untyped
+protocol too early, the checker stops seeing the state/translation handshake
+that STARK relies on.
+
 ## Import Map
 
 Prefer focused imports when writing docs or implementation code:

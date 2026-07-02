@@ -5,11 +5,11 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from stark.core.contracts.contract_audit import AuditRecorder
-from stark.core.contracts.state import State
-from stark.core.contracts.translation import Translation
+from stark.core.contracts.state import State, StateType
+from stark.core.contracts.translation import Translation, TranslationTypeCovariant
 
 
-class Allocator(Protocol):
+class Allocator(Protocol[StateType, TranslationTypeCovariant]):
     """
     Factory for reusable scratch objects and state-copy operations.
 
@@ -20,17 +20,26 @@ class Allocator(Protocol):
     - copy one state into another
     - allocate translation objects compatible with that state
 
-    Once this contract is satisfied, the built-in schemes, resolvents, and
-    inverters can reuse those objects without knowing the concrete state shape.
+    `Allocator` is generic in the state and translation it owns. This lets a
+    concrete allocator such as `Allocator[ParticleState, ParticleDelta]` satisfy
+    the same public contract without pretending its return values are only the
+    broad `State` and `Translation` protocols.
+
+    The state type is invariant because `copy_state` both consumes and writes
+    state objects. The translation type is covariant because this protocol only
+    produces translations.
     """
 
-    def allocate_state(self) -> State:
+    def allocate_state(self) -> StateType:
+        """Return a blank mutable state object owned by this allocator."""
         ...
 
-    def copy_state(self, source: State, out: State) -> Any:
+    def copy_state(self, source: StateType, out: StateType) -> Any:
+        """Copy `source` into `out` without allocating a replacement state."""
         ...
 
-    def allocate_translation(self) -> Translation:
+    def allocate_translation(self) -> TranslationTypeCovariant:
+        """Return a blank translation compatible with the allocated state."""
         ...
 
 

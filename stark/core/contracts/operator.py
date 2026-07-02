@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Protocol, TypeVar
 
-from stark.core.contracts.translation import Translation
+from stark.core.contracts.translation import Translation, TranslationTypeContravariant
 
 
-class Operator(Protocol):
+class Operator(Protocol[TranslationTypeContravariant]):
     """
     Fill `out` with the image of a translation under a linear operator.
 
@@ -15,9 +15,19 @@ class Operator(Protocol):
     not need to expose a dense matrix. It only needs to apply the local linear
     map to a translation, which is enough for matrix-free inverters such as
     GMRES, FGMRES, and BiCGStab.
+
+    Operators are generic in the translation type they consume. The type
+    variable is contravariant because an operator is a worker that accepts input
+    and output translations; it does not manufacture a more specific
+    translation family.
     """
 
-    def __call__(self, translation: Translation, out: Translation) -> None:
+    def __call__(
+        self,
+        translation: TranslationTypeContravariant,
+        out: TranslationTypeContravariant,
+    ) -> None:
+        """Write `operator(translation)` into `out`."""
         ...
 
 

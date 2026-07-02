@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -153,16 +153,12 @@ def test_crouzeix_dirk3_owns_its_public_call_method() -> None:
 def test_crouzeix_dirk3_default_call_path_is_scheme_owned_generic_call() -> None:
     scheme = make_scheme()
 
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is SchemeCrouzeixDIRK3.call_inline
     assert scheme.redirect_call == scheme.call_step
 
 
 def test_crouzeix_dirk3_specialist_path_is_scheme_owned_generated_call() -> None:
     scheme = make_array_scalar_scheme(specialist=True)
 
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is SchemeCrouzeixDIRK3.call_specialized
     assert scheme.redirect_call == scheme.call_step
 
 

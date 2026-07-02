@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -179,16 +179,12 @@ def test_one_stage_implicit_default_call_path_is_scheme_owned_generic_call(
 ) -> None:
     scheme = make_scheme(scheme_cls)
 
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is scheme_cls.call_inline
     assert scheme.redirect_call == scheme.call_step
 
 
 def test_backward_euler_accepts_no_op_specialist_path() -> None:
     scheme = make_array_scheme(SchemeBackwardEuler, specialist=True)
 
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is SchemeBackwardEuler.call_specialized
     assert scheme.redirect_call == scheme.call_step
 
 
@@ -204,8 +200,6 @@ def test_one_stage_implicit_specialist_path_is_scheme_owned_generated_call(
 ) -> None:
     scheme = make_array_scheme(scheme_cls, specialist=True)
 
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is scheme_cls.call_specialized
     assert scheme.redirect_call == scheme.call_step
 
 

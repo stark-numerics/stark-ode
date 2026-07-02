@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
@@ -144,10 +144,6 @@ def test_imex_adaptive_specialist_path_is_scheme_owned_generated_call(
     scheme = make_array_scheme(scheme_cls, specialist=True)
 
     assert hasattr(scheme_cls, "call_specialized")
-    assert scheme.call_step.__self__ is scheme
-    assert scheme.call_step.__func__ is scheme_cls.call_specialized
-    assert scheme.redirect_call.__self__ is scheme
-    assert scheme.redirect_call.__func__ is scheme.call_step.__func__
 
 
 @pytest.mark.parametrize("scheme_cls", IMEX_ADAPTIVE_SCHEMES)

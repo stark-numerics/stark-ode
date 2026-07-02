@@ -6,20 +6,31 @@ from typing import Any, Protocol
 
 from stark.core.contracts.contract_audit import AuditRecorder
 from stark.core.contracts.interval import IntervalLike
-from stark.core.contracts.state import State
-from stark.core.contracts.translation import Translation
+from stark.core.contracts.state import State, StateTypeContravariant
+from stark.core.contracts.translation import Translation, TranslationTypeContravariant
 
 
-class DerivativeLike(Protocol):
+class DerivativeLike(Protocol[StateTypeContravariant, TranslationTypeContravariant]):
     """
     Fill `out` with the derivative at `(interval.present, state)`.
 
     Derivatives are output-last and mutate the supplied translation. They do
     not allocate, return, or own time-stepping policy. Schemes decide when and
     where the derivative is sampled.
+
+    The protocol is generic in the concrete state and translation. This is what
+    users naturally write: a derivative for `ScalarState` writes a
+    `ScalarTranslation`. The type variables are contravariant because the
+    derivative consumes both objects rather than producing them.
     """
 
-    def __call__(self, interval: IntervalLike, state: State, out: Translation) -> None:
+    def __call__(
+        self,
+        interval: IntervalLike,
+        state: StateTypeContravariant,
+        out: TranslationTypeContravariant,
+    ) -> None:
+        """Write the derivative at `interval` and `state` into `out`."""
         ...
 
 

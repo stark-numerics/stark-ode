@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from math import isclose, sqrt
 
@@ -15,6 +16,10 @@ class VectorTwo:
 
     def __init__(self, first: float = 0.0, second: float = 0.0) -> None:
         self.values = [float(first), float(second)]
+
+    def __call__(self, origin: VectorTwo, result: VectorTwo) -> None:
+        result.values[0] = origin.values[0] + self.values[0]
+        result.values[1] = origin.values[1] + self.values[1]
 
     def norm(self) -> float:
         return sqrt(sum(value * value for value in self.values))
@@ -36,6 +41,14 @@ class VectorTwoBasis:
 
     def coordinate(self, index: int, value: VectorTwo) -> float:
         return value.values[index]
+
+    def coordinates(self, value: VectorTwo, output: list[float]) -> list[float]:
+        output[:] = value.values
+        return output
+
+    def synthesize(self, coordinates: list[float], output: VectorTwo) -> VectorTwo:
+        output.values[:] = coordinates[:2]
+        return output
 
 
 class VectorTwoReturningBasis(VectorTwoBasis):
@@ -76,7 +89,7 @@ def flatten_matrix(matrix: list[list[float]]) -> list[float]:
     return [value for row in matrix for value in row]
 
 
-def assert_matrix_close(left: list[float], right: list[list[float]]) -> None:
+def assert_matrix_close(left: Sequence[float], right: list[list[float]]) -> None:
     expected = flatten_matrix(right)
     assert len(left) == len(expected)
     for left_value, right_value in zip(left, expected, strict=True):
@@ -91,6 +104,7 @@ def test_operator_materialize_builds_matrix_from_basis_vectors_and_coordinates()
         image=VectorTwo(),
     )
 
+    assert materialized.matrix is not None
     assert_matrix_close(materialized.matrix, [[2.0, 3.0], [5.0, 7.0]])
 
 
@@ -102,6 +116,7 @@ def test_operator_materialize_uses_vector_return_value() -> None:
         image=VectorTwo(),
     )
 
+    assert materialized.matrix is not None
     assert_matrix_close(materialized.matrix, [[11.0, 13.0], [17.0, 19.0]])
 
 
@@ -122,6 +137,7 @@ def test_block_operator_diagonal_materialize_builds_block_diagonal_matrix() -> N
         image=image,
     )
 
+    assert materialized.matrix is not None
     assert_matrix_close(
         materialized.matrix,
         [
@@ -149,6 +165,7 @@ def test_block_operator_diagonal_materialize_accepts_one_basis_for_all_entries()
     )
 
     assert materialized.dimension == 4
+    assert materialized.matrix is not None
     assert_matrix_close(
         materialized.matrix,
         [

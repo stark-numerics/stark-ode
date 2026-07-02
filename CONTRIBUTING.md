@@ -30,18 +30,6 @@ Check pytest discovery after moving tests with:
 python -m pytest --collect-only
 ```
 
-Run slow tests with:
-
-```powershell
-python -m pytest -m slow
-```
-
-Run slow integration tests with:
-
-```powershell
-python -m pytest tests/integration -m slow
-```
-
 Examples and benchmarks are not part of the pytest suite. Run them directly
 when changing example or benchmark code.
 

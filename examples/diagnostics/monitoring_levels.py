@@ -3,7 +3,8 @@
 Monitoring is opt-in at each numerical layer. Schemes receive
 `monitor.scheme` through the method options used to build an IVP. Resolvents
 and inverters receive their own monitor surfaces when they are exercised
-directly.
+directly. The three channels answer different questions: step acceptance,
+nonlinear convergence, and linear correction behaviour.
 """
 
 from __future__ import annotations

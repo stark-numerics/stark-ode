@@ -1,1 +1,2 @@
-"""ASV benchmarks for STARK performance-regression tracking."""
+"""Benchmark catalogue and future ASV benchmark modules."""
+

@@ -30,6 +30,12 @@ Comparison helpers are for comparing method choices on the same problem. They
 are useful user tools, but they should remain transparent about setup, warmup,
 repeated timings, and profiling.
 
+The intended user workflow is a tight selection run: compare a small number of
+candidate schemes, resolvents, inverters, or external solvers on a representative
+short problem, inspect the timing and diagnostic evidence, then use the best
+candidate for the longer scientific run. Comparison is not a replacement for the
+ASV benchmark suite.
+
 Competition reports and benchmarks may build on diagnostics, but they should
 not collapse all timing categories into one headline.
 

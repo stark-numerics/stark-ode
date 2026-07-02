@@ -1,4 +1,10 @@
-"""Compare schemes and show monitor summaries from the observation pass."""
+"""Compare methods and include monitor summaries from an observation pass.
+
+Comparison separates observation from timing. The monitored pass explains what
+the schemes did, while warmup, timed repeats, and profiling are run separately
+so measurement conditions remain visible. This is the example to read when a
+timing table alone is too opaque.
+"""
 
 from __future__ import annotations
 

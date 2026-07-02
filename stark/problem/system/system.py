@@ -23,6 +23,7 @@ from stark.core.contracts import (
 )
 from stark.core.contracts.engine import Engine
 from stark.core.configuration import Configuration
+from stark.core.block import BlockBasis
 from stark.core.integrator.integrator import Checkpoints, Integrator
 from stark.core.integrator.stepper import IntegratorStepper
 from stark.problem.derivative import Derivative, DerivativeSignature
@@ -307,6 +308,7 @@ class System:
                     "allocator": engine.allocator,
                     "configuration": configuration,
                     "accelerator": engine.accelerator,
+                    "basis": BlockBasis([engine.translation_basis()]),
                 },
                 options=method.inverter_options,
             )
