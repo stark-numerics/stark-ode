@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from stark.core.contracts import BlockLike
 from stark.core.contracts import IntervalLike
 from stark.methods.schemes.specialization.stencil import SchemeStencil
 
@@ -54,6 +55,54 @@ class DummyScalarTranslation:
     def __rmul__(self, scalar: float) -> DummyScalarTranslation:
         return DummyScalarTranslation(scalar * self.value)
 
+    @staticmethod
+    def scale(
+        scalar: float,
+        translation: DummyScalarTranslation,
+        out: DummyScalarTranslation,
+    ) -> DummyScalarTranslation:
+        """Write a scaled scalar translation into `out`."""
+
+        out.value = scalar * translation.value
+        return out
+
+    @staticmethod
+    def combine2(
+        scalar_left: float,
+        translation_left: DummyScalarTranslation,
+        scalar_right: float,
+        translation_right: DummyScalarTranslation,
+        out: DummyScalarTranslation,
+    ) -> DummyScalarTranslation:
+        """Write a two-term scalar linear combination into `out`."""
+
+        out.value = (
+            scalar_left * translation_left.value
+            + scalar_right * translation_right.value
+        )
+        return out
+
+    @staticmethod
+    def combine3(
+        scalar_a: float,
+        translation_a: DummyScalarTranslation,
+        scalar_b: float,
+        translation_b: DummyScalarTranslation,
+        scalar_c: float,
+        translation_c: DummyScalarTranslation,
+        out: DummyScalarTranslation,
+    ) -> DummyScalarTranslation:
+        """Write a three-term scalar linear combination into `out`."""
+
+        out.value = (
+            scalar_a * translation_a.value
+            + scalar_b * translation_b.value
+            + scalar_c * translation_c.value
+        )
+        return out
+
+    linear_combine = [scale, combine2, combine3]
+
 
 class DummyScalarAllocator:
     """Allocator pairing `DummyScalarState` with `DummyScalarTranslation`."""
@@ -70,6 +119,27 @@ class DummyScalarAllocator:
 
     def allocate_translation(self) -> DummyScalarTranslation:
         return DummyScalarTranslation()
+
+
+@dataclass(slots=True)
+class DummyBlockScaleOperator:
+    """One-block linear operator that scales a scalar translation.
+
+    It is useful in inverter and resolvent tests that need a concrete
+    block-level linear action without spelling out another local operator
+    class. The operator follows the public block contract: it reads a source
+    block and writes the image into a target block.
+    """
+
+    scale: float
+
+    def __call__(
+        self,
+        source: BlockLike[DummyScalarTranslation],
+        target: BlockLike[DummyScalarTranslation],
+    ) -> BlockLike[DummyScalarTranslation]:
+        target[0].value = self.scale * source[0].value
+        return target
 
 
 def dummy_zero_rhs(
@@ -172,6 +242,7 @@ class DummyTableauSpecialist:
 
 __all__ = [
     "DummyScalarAllocator",
+    "DummyBlockScaleOperator",
     "DummyScalarState",
     "DummyScalarTranslation",
     "DummyTableauSpecialist",

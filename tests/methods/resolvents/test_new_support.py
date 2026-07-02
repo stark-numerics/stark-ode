@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from typing import Any
 
 from stark.core.block import Block, BlockSpecialist
 from stark.methods.resolvents.specialization.stencil import ResolventStencilBlock
+from tests.support import DummyScalarTranslation
 
 
 class ItemSpecialist:
-    def provide_delta(self, stencil):
-        def kernel(step, *items):
+    def provide_delta(self, stencil: ResolventStencilBlock):
+        def kernel(step: float, *items: Any) -> DummyScalarTranslation:
             sources = items[:-1]
             out = items[-1]
             out.value = step * stencil.scale * sum(
@@ -19,22 +20,9 @@ class ItemSpecialist:
 
         return kernel
 
-    def provide_apply(self, stencil):
+    def provide_apply(self, stencil: ResolventStencilBlock):
+        del stencil
         raise NotImplementedError("This fixture only provides delta kernels.")
-
-
-@dataclass
-class Translation:
-    value: float
-
-    def __add__(self, other):
-        return Translation(self.value + other.value)
-
-    def __rmul__(self, scalar: float):
-        return Translation(scalar * self.value)
-
-    def norm(self) -> float:
-        return abs(self.value)
 
 
 def test_resolvent_stencil_block_normalizes_coefficients() -> None:
@@ -49,9 +37,9 @@ def test_block_specialist_uplifts_entry_kernel() -> None:
     specialist = BlockSpecialist(ItemSpecialist())
     kernel = specialist.provide(ResolventStencilBlock((1.0, -1.0)))
 
-    out = Block([Translation(0.0), Translation(0.0)])
-    left = Block([Translation(3.0), Translation(5.0)])
-    right = Block([Translation(1.0), Translation(2.0)])
+    out = Block([DummyScalarTranslation(0.0), DummyScalarTranslation(0.0)])
+    left = Block([DummyScalarTranslation(3.0), DummyScalarTranslation(5.0)])
+    right = Block([DummyScalarTranslation(1.0), DummyScalarTranslation(2.0)])
 
     result = kernel(1.0, left, right, out)
 

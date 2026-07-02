@@ -1,84 +1,27 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
 
 from stark import Configuration, Tolerance
 from stark.core.contracts import InverterRequest
+from stark.core.block import Block
 from stark.methods.inverters.support import (
     InverterDescriptor,
     with_inverter_monitoring,
 )
 from stark.diagnostics.monitor import MonitorInverter
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
+from tests.support import DummyBlockScaleOperator, DummyScalarTranslation
 
 
-@dataclass(slots=True)
-class TranslationScalar:
-    value: float = 0.0
-
-    def __call__(self, origin, result) -> None:
-        result.value = origin.value + self.value
-
-    def norm(self) -> float:
-        return abs(self.value)
-
-    def __add__(self, other: "TranslationScalar") -> "TranslationScalar":
-        return TranslationScalar(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> "TranslationScalar":
-        return TranslationScalar(scalar * self.value)
-
-
-@dataclass(slots=True)
-class BlockScalar:
-    items: list[TranslationScalar]
-
-    @property
-    def size(self) -> int:
-        return len(self.items)
-
-    def __len__(self) -> int:
-        return len(self.items)
-
-    def __getitem__(self, index: int) -> TranslationScalar:
-        return self.items[index]
-
-    def __setitem__(self, index: int, value: TranslationScalar) -> None:
-        self.items[index] = value
-
-    def replace(self, other: "BlockScalar") -> None:
-        for index, item in enumerate(other.items):
-            self.items[index].value = item.value
-
-    def norm(self) -> float:
-        return sum(item.value * item.value for item in self.items) ** 0.5
-
-
-@dataclass(slots=True)
-class OperatorScalar:
-    scale: float
-
-    @property
-    def size(self) -> int:
-        return 1
-
-    def reset(self) -> None:
-        pass
-
-    def __call__(self, source: BlockScalar, target: BlockScalar) -> None:
-        target[0].value = self.scale * source[0].value
-
-
-def accepts_inverter_request(request: InverterRequest[TranslationScalar]) -> float:
+def accepts_inverter_request(request: InverterRequest[DummyScalarTranslation]) -> float:
     return request.residual.norm()
 
 
 def test_resolvent_inverter_request_satisfies_inverter_request_shape() -> None:
     request = ResolventInverterRequest(
-        operator=OperatorScalar(2.0),
-        residual=BlockScalar([TranslationScalar(4.0)]),
+        operator=DummyBlockScaleOperator(2.0),
+        residual=Block([DummyScalarTranslation(4.0)]),
     )
 
     assert accepts_inverter_request(request) == pytest.approx(4.0)
