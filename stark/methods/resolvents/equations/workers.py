@@ -5,8 +5,8 @@ from typing import Any
 
 
 @dataclass(slots=True)
-class ResolventDerivative:
-    """Stable callable wrapper for a derivative used inside a resolvent."""
+class ResolventDynamics:
+    """Stable callable wrapper for a dynamics used inside a resolvent."""
 
     raw: Any
 
@@ -24,4 +24,4 @@ class ResolventLinearizer:
         return self.raw(interval, state, out)
 
 
-__all__ = ["ResolventDerivative", "ResolventLinearizer"]
+__all__ = ["ResolventDynamics", "ResolventLinearizer"]

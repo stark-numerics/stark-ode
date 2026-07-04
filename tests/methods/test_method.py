@@ -4,13 +4,13 @@ from stark import Method, MethodError
 
 
 class ExplicitScheme:
-    def __init__(self, derivative, allocator) -> None:
-        del derivative, allocator
+    def __init__(self, dynamics, allocator) -> None:
+        del dynamics, allocator
 
 
 class ImplicitScheme:
-    def __init__(self, derivative, allocator, resolvent) -> None:
-        del derivative, allocator, resolvent
+    def __init__(self, dynamics, allocator, resolvent) -> None:
+        del dynamics, allocator, resolvent
 
 
 class PicardResolvent:

@@ -8,7 +8,7 @@ Use [foreign models](foreign-models.md) instead when your main problem is custom
 
 | You want to change... | Implement... | Domain |
 |---|---|---|
-| right-hand side adaptation | derivative / `DerivativeStyle` | problem |
+| right-hand side adaptation | dynamics / `DynamicsStyle` | problem |
 | Jacobian action | linearizer / `LinearizerStyle` | problem |
 | time stepping | scheme | methods |
 | nonlinear implicit solve | resolvent | methods |

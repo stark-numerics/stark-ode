@@ -16,7 +16,7 @@ class Resolvent(Protocol):
         delta - rhs - alpha f(state + delta) = 0
 
     The scheme packages the stage interval, origin state, known right-hand
-    side, diagonal shift, and derivative into a small problem object. The
+    side, diagonal shift, and dynamics into a small problem object. The
     resolvent reads that object and returns the solved correction block.
 
     The broad contract intentionally leaves the concrete request and block

@@ -22,7 +22,7 @@ and what is still a performance or optional-dependency frontier.
 | --- | --- | --- | --- |
 | NumPy | Supported | Default CPU backend for most users. | If Numba is available, first use may include generated-kernel compilation. |
 | Native | Supported | Small pure-Python inspection and low-dependency runs. | Currently supports one-dimensional frame fields. |
-| JAX | Beta | JAX array storage and return-style derivative expressions. | Solver control flow is not whole-program JIT; pass an explicit dtype for non-default precision or complex problems. |
+| JAX | Beta | JAX array storage and return-style dynamics expressions. | Solver control flow is not whole-program JIT; pass an explicit dtype for non-default precision or complex problems. |
 | CuPy | Beta | GPU-backed frame fields and generated CuPy algebra. | Synchronize before timing; tiny problems may be slower than CPU backends. |
 
 ## Start with NumPy
@@ -39,12 +39,12 @@ NumPy is usually the best first backend: predictable, debuggable, and fast for s
 
 ## Use JAX
 
-Use JAX when you want JAX arrays and JAX-compatible derivative expressions.
+Use JAX when you want JAX arrays and JAX-compatible dynamics expressions.
 
-Prefer return-style derivatives:
+Prefer return-style dynamics:
 
 ```python
-@DerivativeStyle.accepts_instant_returns
+@DynamicsStyle.accepts_instant_returns
 def rhs(t, state):
     return {"dy": -0.5 * state.y}
 ```

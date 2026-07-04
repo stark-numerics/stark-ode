@@ -16,10 +16,10 @@ class CarrierArithmeticNativeTuple:
         self,
         state: CarrierNativeTupleValue,
         step: float,
-        derivative: CarrierNativeTupleValue,
+        dynamics: CarrierNativeTupleValue,
         result: CarrierNativeTupleValue,
     ) -> CarrierNativeTupleValue:
-        return tuple(item + step * delta for item, delta in zip(state, derivative))
+        return tuple(item + step * delta for item, delta in zip(state, dynamics))
 
     def add(
         self,

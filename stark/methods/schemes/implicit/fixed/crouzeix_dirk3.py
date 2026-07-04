@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.methods.schemes.configuration import SchemeConfiguration
 from typing import Any, cast
 
-from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, Allocator
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
 from stark.methods.schemes.execution.call import SchemeCall
@@ -87,7 +87,7 @@ class SchemeCrouzeixDIRK3:
         "delta2",
         "delta3",
         "delta4",
-        "derivative",
+        "dynamics",
         "final_update",
         "known2",
         "known3",
@@ -125,7 +125,7 @@ class SchemeCrouzeixDIRK3:
 
     def __init__(
         self,
-        derivative: DerivativeLike,
+        dynamics: DynamicsLike,
         allocator: Allocator,
         resolvent: Resolvent,
         *,
@@ -143,8 +143,8 @@ class SchemeCrouzeixDIRK3:
         self.known4_kernel = None
         self.final_update = None
 
-        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
-        self.derivative = self.runtime.derivative
+        self.runtime = SchemeRuntimeImplicit(self, dynamics, allocator)
+        self.dynamics = self.runtime.dynamics
         self.workspace = self.runtime.workspace
         self.block_allocator = self.runtime.block_allocator
         self.delta1 = self.block_allocator.allocate(1)
@@ -189,7 +189,7 @@ class SchemeCrouzeixDIRK3:
         rhs,
     ) -> SchemeResolventRequest:
         return SchemeResolventRequest(
-            derivative=self.derivative,
+            dynamics=self.dynamics,
             interval=self.workspace.interval_at(interval, dt, stage_shift),
             origin=state,
             rhs=rhs,

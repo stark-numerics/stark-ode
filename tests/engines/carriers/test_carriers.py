@@ -77,15 +77,15 @@ def test_numpy_arithmetic_writes_into_result() -> None:
     carrier = CarrierNumpy(np.array([0.0, 0.0, 0.0]))
 
     state = np.array([1.0, 2.0, 3.0])
-    derivative = np.array([4.0, 5.0, 6.0])
+    dynamics = np.array([4.0, 5.0, 6.0])
     result = np.zeros(3)
 
-    returned = carrier.arithmetic.translate(state, 2.0, derivative, result)
+    returned = carrier.arithmetic.translate(state, 2.0, dynamics, result)
 
     assert returned is None
     np.testing.assert_allclose(result, [9.0, 12.0, 15.0])
 
-    carrier.arithmetic.add(state, derivative, result)
+    carrier.arithmetic.add(state, dynamics, result)
     np.testing.assert_allclose(result, [5.0, 7.0, 9.0])
 
     carrier.arithmetic.scale(3.0, state, result)
@@ -93,7 +93,7 @@ def test_numpy_arithmetic_writes_into_result() -> None:
 
     carrier.arithmetic.combine4(
         1.0, state,
-        2.0, derivative,
+        2.0, dynamics,
         3.0, np.array([1.0, 1.0, 1.0]),
         4.0, np.array([2.0, 2.0, 2.0]),
         result,
@@ -105,9 +105,9 @@ def test_numpy_translate_allows_state_result_aliasing() -> None:
     carrier = CarrierNumpy(np.array([0.0, 0.0, 0.0]))
 
     state = np.array([1.0, 2.0, 3.0])
-    derivative = np.array([4.0, 5.0, 6.0])
+    dynamics = np.array([4.0, 5.0, 6.0])
 
-    returned = carrier.arithmetic.translate(state, 2.0, derivative, state)
+    returned = carrier.arithmetic.translate(state, 2.0, dynamics, state)
 
     assert returned is None
     np.testing.assert_allclose(state, [9.0, 12.0, 15.0])
@@ -140,8 +140,8 @@ def test_cupy_translate_allows_state_result_aliasing_optional() -> None:
     carrier = CarrierCupy(cp.asarray([1.0, 2.0, 3.0]))
 
     state = cp.asarray([1.0, 2.0, 3.0])
-    derivative = cp.asarray([4.0, 5.0, 6.0])
-    returned = carrier.arithmetic.translate(state, 2.0, derivative, state)
+    dynamics = cp.asarray([4.0, 5.0, 6.0])
+    returned = carrier.arithmetic.translate(state, 2.0, dynamics, state)
 
     assert returned is None
     np.testing.assert_allclose(cp.asnumpy(state), [9.0, 12.0, 15.0])

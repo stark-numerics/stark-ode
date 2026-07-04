@@ -16,7 +16,7 @@ def exponential_decay(t: float, state, out) -> None:
 
 if __name__ == "__main__":
     system = System(
-        derivative=exponential_decay,
+        dynamics=exponential_decay,
         frame=Frame.scalar("y", translation="dy"),
     )
     ivp = system.ivp(

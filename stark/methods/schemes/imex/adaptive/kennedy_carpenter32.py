@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.core.contracts import Allocator, DerivativeSplitLike, IntervalLike, Resolvent, State
+from stark.core.contracts import Allocator, DynamicsSplitLike, IntervalLike, Resolvent, State
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.execution.step_control import SchemeStepControl
@@ -95,10 +95,10 @@ class SchemeKennedyCarpenter32:
     Algorithm sketch for one trial step of size h:
 
         1. Build each known IMEX stage right-hand side from previous split
-           derivative evaluations.
+           dynamics evaluations.
         2. Solve each diagonal implicit stage problem with the configured
            resolvent.
-        3. Recompute both split derivatives at the solved stage state.
+        3. Recompute both split dynamics at the solved stage state.
         4. Build the high-order accepted increment and embedded error estimate.
         5. Accept or reject through the adaptive step controller.
 
@@ -144,7 +144,7 @@ class SchemeKennedyCarpenter32:
 
     def __init__(
         self,
-        derivative: DerivativeSplitLike,
+        dynamics: DynamicsSplitLike,
         allocator: Allocator,
         resolvent: Resolvent,
         *,
@@ -152,11 +152,11 @@ class SchemeKennedyCarpenter32:
         specialist: SchemeSpecialist | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
-        self.runtime = SchemeRuntimeImex(derivative, allocator)
+        self.runtime = SchemeRuntimeImex(dynamics, allocator)
         self.workspace = self.runtime.workspace
         self.adaptive_step = KennedyCarpenterAdaptiveStep(
             tableau=self.tableau,
-            derivative=derivative,
+            dynamics=dynamics,
             workspace=self.workspace,
             resolvent=resolvent,
             configuration=configuration if configuration is not None else SchemeConfigurationDefault(),

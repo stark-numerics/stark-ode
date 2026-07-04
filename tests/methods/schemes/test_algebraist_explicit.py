@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -59,7 +59,7 @@ class ArrayAllocator:
         return ArrayTranslation(np.zeros(self.size))
 
 
-class ArrayDerivative:
+class ArrayDynamics:
     def __call__(self, interval: IntervalLike, state: ArrayState, out: ArrayTranslation) -> None:
         out.dy[...] = np.array(
             [
@@ -150,7 +150,7 @@ def build_state() -> ArrayState:
 def run_fixed_step(scheme_type, *, specialist=None) -> ArrayState:
     state = build_state()
     interval = Interval(0.0, 0.05, 0.05)
-    scheme = scheme_type(ArrayDerivative(), ArrayAllocator(3), specialist=specialist)
+    scheme = scheme_type(ArrayDynamics(), ArrayAllocator(3), specialist=specialist)
 
     accepted_dt = scheme(interval, state)
 
@@ -161,7 +161,7 @@ def run_fixed_step(scheme_type, *, specialist=None) -> ArrayState:
 def run_adaptive_solve(scheme_type, *, specialist=None) -> tuple[ArrayState, int, float]:
     state = build_state()
     interval = Interval(0.0, 0.05, 0.25)
-    scheme = scheme_type(ArrayDerivative(), ArrayAllocator(3), specialist=specialist)
+    scheme = scheme_type(ArrayDynamics(), ArrayAllocator(3), specialist=specialist)
     stepper = IntegratorStepper(scheme)
     integrator = Integrator(configuration=Configuration())
 

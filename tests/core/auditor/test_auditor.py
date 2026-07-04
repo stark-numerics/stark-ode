@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 
 from stark.engines.shared.accelerators import AcceleratorNone
-from stark import Derivative, DerivativeStyle
+from stark import Dynamics, DynamicsStyle
 from stark.core.auditor import AuditError, Auditor
 from stark import Tolerance
 from stark.core.contracts import IntervalLike
 from stark.core.interval import Interval
-from stark.problem.derivative import DerivativeSplit
+from stark.problem.dynamics import DynamicsSplit
 
 
 @dataclass(slots=True)
@@ -63,7 +63,7 @@ class BadAllocator:
         return DummyTranslation()
 
 
-def derivative(interval: IntervalLike, state: dict[str, float], out: DummyTranslation) -> None:
+def dynamics(interval: IntervalLike, state: dict[str, float], out: DummyTranslation) -> None:
     del interval
     out.value = state["x"]
 
@@ -101,7 +101,7 @@ class UserAccelerator:
 def test_auditor_reports_ready_configuration() -> None:
     auditor = Auditor(
         state={"x": 1.0},
-        derivative=derivative,
+        dynamics=dynamics,
         translation=DummyTranslation(),
         allocator=DummyAllocator(),
         interval=Interval(0.0, 0.1, 1.0),
@@ -117,8 +117,8 @@ def test_auditor_reports_ready_configuration() -> None:
     assert "Required behavior" in report
     assert "Present" in report
     assert "yes" in report
-    assert report.index("Interval") < report.index("Derivative")
-    assert report.index("Derivative") < report.index("Translation")
+    assert report.index("Interval") < report.index("Dynamics")
+    assert report.index("Dynamics") < report.index("Translation")
     assert report.index("Translation") < report.index("Allocator")
     assert report.index("Allocator") < report.index("Accelerator")
     assert report.index("Accelerator") < report.index("Scheme")
@@ -128,7 +128,7 @@ def test_auditor_reports_ready_configuration() -> None:
 def test_auditor_reports_missing_requirements() -> None:
     auditor = Auditor(
         state={"x": 1.0},
-        derivative=derivative,
+        dynamics=dynamics,
         translation=DummyTranslation(),
         allocator=BadAllocator(),
         interval=Interval(0.0, 0.1, 1.0),
@@ -142,7 +142,7 @@ def test_auditor_reports_missing_requirements() -> None:
 
 def test_require_scheme_inputs_raises_helpful_error() -> None:
     try:
-        Auditor.require_scheme_inputs(derivative, BadAllocator(), DummyTranslation())
+        Auditor.require_scheme_inputs(dynamics, BadAllocator(), DummyTranslation())
     except AuditError as exc:
         message = str(exc)
         assert "Allocator provides copy_state" in message
@@ -166,12 +166,12 @@ def test_require_linear_residual_rejects_missing_linearize() -> None:
         raise AssertionError("Expected the audit to reject a residual without linearize().")
 
 
-def test_auditor_reports_ready_imex_derivative() -> None:
-    imex = Derivative.split(implicit=derivative, explicit=derivative)
+def test_auditor_reports_ready_imex_dynamics() -> None:
+    imex = Dynamics.split(implicit=dynamics, explicit=dynamics)
 
     auditor = Auditor(
         state={"x": 1.0},
-        imex_derivative=imex,
+        imex_dynamics=imex,
         translation=DummyTranslation(),
         allocator=DummyAllocator(),
         interval=Interval(0.0, 0.1, 1.0),
@@ -179,30 +179,30 @@ def test_auditor_reports_ready_imex_derivative() -> None:
 
     assert auditor.ok
     report = str(auditor)
-    assert "DerivativeSplit provides implicit(interval, state, translation)" in report
-    assert "DerivativeSplit provides explicit(interval, state, translation)" in report
+    assert "DynamicsSplit provides implicit(interval, state, translation)" in report
+    assert "DynamicsSplit provides explicit(interval, state, translation)" in report
 
 
-def test_derivative_style_declares_imex_split() -> None:
-    styled = DerivativeStyle.split(implicit=derivative, explicit=derivative)
-    direct = Derivative.split(implicit=derivative, explicit=derivative)
+def test_dynamics_style_declares_imex_split() -> None:
+    styled = DynamicsStyle.split(implicit=dynamics, explicit=dynamics)
+    direct = Dynamics.split(implicit=dynamics, explicit=dynamics)
 
-    assert isinstance(styled, DerivativeSplit)
-    assert styled.implicit is derivative
-    assert styled.explicit is derivative
-    assert isinstance(direct, DerivativeSplit)
+    assert isinstance(styled, DynamicsSplit)
+    assert styled.implicit is dynamics
+    assert styled.explicit is dynamics
+    assert isinstance(direct, DynamicsSplit)
 
 
 def test_require_imex_scheme_inputs_rejects_missing_explicit_part() -> None:
     class BadImEx:
-        implicit = staticmethod(derivative)
+        implicit = staticmethod(dynamics)
         explicit = None
 
     try:
         Auditor.require_imex_scheme_inputs(BadImEx(), DummyAllocator(), DummyTranslation())
     except AuditError as exc:
         message = str(exc)
-        assert "DerivativeSplit provides explicit" in message
+        assert "DynamicsSplit provides explicit" in message
         assert "Overall: incomplete." in message
     else:  # pragma: no cover - defensive failure branch
         raise AssertionError("Expected the audit to reject an IMEX split without an explicit part.")

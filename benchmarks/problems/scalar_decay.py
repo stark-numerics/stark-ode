@@ -17,7 +17,7 @@ def scalar_decay_rhs(t: float, state, out) -> None:
 
 def scalar_decay_system() -> System:
     return System(
-        derivative=scalar_decay_rhs,
+        dynamics=scalar_decay_rhs,
         frame=Frame.scalar("y", translation="dy"),
     )
 

@@ -1,15 +1,15 @@
-"""Use an in-place derivative signature with a structured system state."""
+"""Use an in-place dynamics signature with a structured system state."""
 
 from __future__ import annotations
 
 import numpy as np
 
-from stark import DerivativeStyle, Frame, Interval, Method, System
+from stark import DynamicsStyle, Frame, Interval, Method, System
 from stark.engines import EngineNumpy
 from stark.methods import SchemeCashKarp
 
 
-@DerivativeStyle.accepts_instant_writes
+@DynamicsStyle.accepts_instant_writes
 def oscillator_rhs(t: float, state, out) -> None:
     del t
     out.dy[0] = state.y[1]
@@ -18,7 +18,7 @@ def oscillator_rhs(t: float, state, out) -> None:
 
 if __name__ == "__main__":
     system = System(
-        derivative=oscillator_rhs,
+        dynamics=oscillator_rhs,
         frame=Frame.vector("y", translation="dy", length=2),
     )
     ivp = system.ivp(
@@ -28,7 +28,7 @@ if __name__ == "__main__":
         engine=EngineNumpy,
     )
 
-    print("In-place NumPy derivative")
+    print("In-place NumPy dynamics")
     for interval, state in ivp.stable_trajectory():
         position, velocity = state.y
         print(f"t={interval.present:.2f}, x={position:.6f}, v={velocity:.6f}")

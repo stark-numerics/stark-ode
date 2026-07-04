@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.methods.schemes.configuration import SchemeConfiguration
-from stark.core.contracts import DerivativeLike, IntervalLike, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, State, Allocator
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
@@ -33,7 +33,7 @@ MIDPOINT_B = MIDPOINT_TABLEAU.b
 class SchemeMidpoint:
     """The explicit midpoint two-stage second-order Runge-Kutta method.
 
-    This method samples the derivative at the midpoint predicted by an Euler
+    This method samples the dynamics at the midpoint predicted by an Euler
     half-step and then advances using that midpoint slope. It is one of the
     standard second-order explicit schemes.
 
@@ -58,7 +58,7 @@ class SchemeMidpoint:
         "advance_update",
         "call_body",
         "call_step",
-        "derivative",
+        "dynamics",
         "runtime",
         "k1",
         "k2",
@@ -84,7 +84,7 @@ class SchemeMidpoint:
 
     def __init__(
         self,
-        derivative: DerivativeLike,
+        dynamics: DynamicsLike,
         allocator: Allocator,
         configuration: SchemeConfiguration | None = None,
         specialist: SchemeSpecialist | None = None,
@@ -98,8 +98,8 @@ class SchemeMidpoint:
         self.call_step = self.call_monitored if monitor is not None else self.call_body
         self.redirect_call = self.call_step
 
-        self.runtime = SchemeRuntimeExplicit(derivative, allocator)
-        self.derivative = self.runtime.derivative
+        self.runtime = SchemeRuntimeExplicit(dynamics, allocator)
+        self.dynamics = self.runtime.dynamics
         self.workspace = self.runtime.workspace
         self.k1 = self.runtime.k1
 
@@ -145,7 +145,7 @@ class SchemeMidpoint:
             return 0.0
 
         workspace = self.workspace
-        derivative = self.derivative
+        dynamics = self.dynamics
         scale = workspace.scale
         combine2 = workspace.combine2
         apply_delta = workspace.apply_delta
@@ -160,12 +160,12 @@ class SchemeMidpoint:
         half_dt = 0.5 * dt
 
         # 1. k1 = f(t, y)
-        derivative(interval, state, k1)
+        dynamics(interval, state, k1)
 
         # 2. k2 = f(t + h/2, y + h/2*k1)
         stage_delta = scale(half_dt, k1, trial_buffer)
         stage_delta(state, stage)
-        derivative(interval_at(interval, dt, half_dt), stage, k2)
+        dynamics(interval_at(interval, dt, half_dt), stage, k2)
 
         # 3. y <- y + h*k2
         advance_delta = combine2(
@@ -195,17 +195,17 @@ class SchemeMidpoint:
         k1 = self.k1
         k2 = self.k2
 
-        derivative = self.derivative
+        dynamics = self.dynamics
         interval_at = self.workspace.interval_at
         stage2_update = self.stage2_update
         advance_update = self.advance_update
 
         # 1. k1 = f(t, y)
-        derivative(interval, state, k1)
+        dynamics(interval, state, k1)
 
         # 2. k2 = f(t + h/2, y + h/2*k1)
         stage2_update(dt, state, k1, stage)
-        derivative(interval_at(interval, dt, half_dt), stage, k2)
+        dynamics(interval_at(interval, dt, half_dt), stage, k2)
 
         # 3. y <- y + h*k2
         advance_update(dt, state, k1, k2, state)

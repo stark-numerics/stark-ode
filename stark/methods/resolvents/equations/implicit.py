@@ -12,7 +12,7 @@ from stark.core.contracts import (
     Accelerator,
     BlockOperatorLike,
     BlockLike,
-    DerivativeLike,
+    DynamicsLike,
     IntervalLike,
     LinearizerLike,
     StateType,
@@ -25,7 +25,7 @@ from stark.methods.resolvents.requests.resolvent import (
     ResolventRequestCoupled,
     ResolventRequest,
 )
-from stark.methods.resolvents.equations.workers import ResolventDerivative, ResolventLinearizer
+from stark.methods.resolvents.equations.workers import ResolventDynamics, ResolventLinearizer
 
 ResolventDenseFill = Callable[
     [TranslationBasis[Translation], MutableSequence[float], int, int, int],
@@ -200,8 +200,8 @@ class ResolventImplicitEquation(Generic[StateType, TranslationType]):
         "trial_state",
         "linearization_state",
         "rhs",
-        "derivative",
-        "derivative_buffer",
+        "dynamics",
+        "dynamics_buffer",
         "alpha",
         "linearizer",
         "jacobian_operator",
@@ -234,8 +234,8 @@ class ResolventImplicitEquation(Generic[StateType, TranslationType]):
         self.trial_state = allocator.allocate_state()
         self.linearization_state = allocator.allocate_state()
         self.rhs = allocator.allocate_translation()
-        self.derivative: DerivativeLike[StateType, TranslationType] | None = None
-        self.derivative_buffer = allocator.allocate_translation()
+        self.dynamics: DynamicsLike[StateType, TranslationType] | None = None
+        self.dynamics_buffer = allocator.allocate_translation()
         self.alpha = 0.0
 
         self.linearizer = (
@@ -260,7 +260,7 @@ class ResolventImplicitEquation(Generic[StateType, TranslationType]):
         self.interval = problem.interval
         self.base_state = problem.origin
         self.alpha = problem.alpha
-        self.derivative = ResolventDerivative(problem.derivative)
+        self.dynamics = ResolventDynamics(problem.dynamics)
 
         if problem.rhs is None:
             self.rhs = self.scale(0.0, self.rhs, self.rhs)
@@ -275,20 +275,20 @@ class ResolventImplicitEquation(Generic[StateType, TranslationType]):
         out: Block[TranslationType],
     ) -> None:
         interval = self.interval
-        derivative = self.derivative
+        dynamics = self.dynamics
         assert interval is not None
-        assert derivative is not None
+        assert dynamics is not None
 
         delta = block[0]
         delta(self.base_state, self.trial_state)
-        derivative(interval, self.trial_state, self.derivative_buffer)
+        dynamics(interval, self.trial_state, self.dynamics_buffer)
         out[0] = self.combine3(
             1.0,
             delta,
             -1.0,
             self.rhs,
             -self.alpha,
-            self.derivative_buffer,
+            self.dynamics_buffer,
             out[0],
         )
 
@@ -335,8 +335,8 @@ class ResolventImplicitEquationCoupled(Generic[StateType, TranslationType]):
         "stage_states",
         "stage_intervals",
         "rhs_block",
-        "derivative",
-        "derivative_buffers",
+        "dynamics",
+        "dynamics_buffers",
         "linearizer",
         "jacobian_operators",
         "residual_operator",
@@ -371,8 +371,8 @@ class ResolventImplicitEquationCoupled(Generic[StateType, TranslationType]):
         self.stage_states: list[StateType] = []
         self.stage_intervals: list[IntervalLike | None] = []
         self.rhs_block = Block[TranslationType]([])
-        self.derivative: DerivativeLike[StateType, TranslationType] | None = None
-        self.derivative_buffers: list[TranslationType] = []
+        self.dynamics: DynamicsLike[StateType, TranslationType] | None = None
+        self.dynamics_buffers: list[TranslationType] = []
         self.linearizer = (
             ResolventLinearizer(linearizer) if linearizer is not None else None
         )
@@ -395,7 +395,7 @@ class ResolventImplicitEquationCoupled(Generic[StateType, TranslationType]):
         self.stage_shifts = problem.stage_shifts
         self.matrix = problem.matrix
         self.step = problem.step
-        self.derivative = ResolventDerivative(problem.derivative)
+        self.dynamics = ResolventDynamics(problem.dynamics)
 
         residual_operator = self.residual_operator
         assert residual_operator is not None
@@ -442,14 +442,14 @@ class ResolventImplicitEquationCoupled(Generic[StateType, TranslationType]):
                 f"{self.method_name} expects {self.stage_count}-item stage blocks."
             )
 
-        derivative = self.derivative
-        assert derivative is not None
+        dynamics = self.dynamics
+        assert dynamics is not None
 
         for index, delta in enumerate(block):
             delta(self.base_state, self.stage_states[index])
             interval = self.stage_intervals[index]
             assert interval is not None
-            derivative(interval, self.stage_states[index], self.derivative_buffers[index])
+            dynamics(interval, self.stage_states[index], self.dynamics_buffers[index])
 
         for row_index, row in enumerate(self.matrix):
             out_item = self.combine2(
@@ -468,7 +468,7 @@ class ResolventImplicitEquationCoupled(Generic[StateType, TranslationType]):
                     1.0,
                     out_item,
                     -self.step * coefficient,
-                    self.derivative_buffers[column_index],
+                    self.dynamics_buffers[column_index],
                     out_item,
                 )
 
@@ -529,7 +529,7 @@ class ResolventImplicitEquationCoupled(Generic[StateType, TranslationType]):
         self.rhs_block = Block[TranslationType](
             [allocator.allocate_translation() for _ in range(stage_count)]
         )
-        self.derivative_buffers = [
+        self.dynamics_buffers = [
             allocator.allocate_translation() for _ in range(stage_count)
         ]
         self.jacobian_operators = [

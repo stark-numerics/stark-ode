@@ -1,7 +1,7 @@
 """Fixed-step IMEX Runge-Kutta schemes.
 
 This package currently contains the compact IMEX Euler baseline. It is useful
-for smoke tests, teaching the split-derivative contract, and simple operator
+for smoke tests, teaching the split-dynamics contract, and simple operator
 splitting experiments; richer fixed-step IMEX methods are future work.
 """
 

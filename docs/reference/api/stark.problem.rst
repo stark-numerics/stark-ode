@@ -7,7 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   stark.problem.derivative
+   stark.problem.dynamics
    stark.problem.frame
    stark.problem.linearizer
    stark.problem.system

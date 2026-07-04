@@ -1,11 +1,11 @@
 """Use a linearizer for a real implicit Newton solve.
 
 Implicit schemes solve nonlinear stage equations.  Newton-backed resolvents
-need the Jacobian of the derivative,
+need the Jacobian of the dynamics,
 
     J(y) v = d f(y)[v],
 
-so STARK separates the derivative from the linearizer.
+so STARK separates the dynamics from the linearizer.
 
 This example solves a moderately stiff Van der Pol oscillator using:
 
@@ -20,7 +20,7 @@ import numpy as np
 
 from stark import (
     Configuration,
-    DerivativeStyle,
+    DynamicsStyle,
     Frame,
     Interval,
     LinearizerStyle,
@@ -36,7 +36,7 @@ from stark.methods import InverterDense, ResolventNewton, SchemeKvaerno3
 MU = 12.0
 
 
-@DerivativeStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",), parameters=(MU,))
+@DynamicsStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",), parameters=(MU,))
 def van_der_pol_rhs(t, y, dy, mu: float) -> None:
     """Van der Pol oscillator.
 
@@ -115,7 +115,7 @@ linearizer = LinearizerStyle.operator(
 if __name__ == "__main__":
     frame = Frame.vector("y", translation="dy", length=2)
     system = System(
-        derivative=van_der_pol_rhs,
+        dynamics=van_der_pol_rhs,
         linearizer=linearizer,
         frame=frame,
     )

@@ -1,11 +1,11 @@
 # `stark.problem`
 
-Problem objects describe the IVP in user language: frames, derivatives,
+Problem objects describe the IVP in user language: frames, dynamics,
 linearizers, and systems.
 
-## Derivatives
+## Dynamics
 
-- [`stark.problem.derivative`](api/stark.problem.derivative.rst)
+- [`stark.problem.dynamics`](api/stark.problem.dynamics.rst)
 
 ## Frames
 

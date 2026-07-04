@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from stark.core.block import BlockAllocator
-from stark.core.contracts import DerivativeLike, State, Allocator, Resolvent
+from stark.core.contracts import DynamicsLike, State, Allocator, Resolvent
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 
@@ -16,23 +16,23 @@ class SchemeRuntimeImplicitOwner(Protocol):
 class SchemeRuntimeImplicit:
     """Runtime machinery shared by built-in implicit schemes.
 
-    Implicit schemes share derivative binding, a translation workspace, a block
+    Implicit schemes share dynamics binding, a translation workspace, a block
     allocator for one-stage resolvent requests, and a tableau/resolvent
     compatibility check. The scheme owns this object and may copy selected
     attributes onto itself to keep stage algorithms direct.
     """
 
-    __slots__ = ("block_allocator", "derivative", "workspace")
+    __slots__ = ("block_allocator", "dynamics", "workspace")
 
     def __init__(
         self,
         scheme: SchemeRuntimeImplicitOwner,
-        derivative: DerivativeLike,
+        dynamics: DynamicsLike,
         allocator: Allocator,
     ) -> None:
         self.validate_resolvent_tableau(scheme)
         translation_probe = allocator.allocate_translation()
-        self.derivative = derivative
+        self.dynamics = dynamics
         self.workspace = SchemeStepSupport(allocator, translation_probe)
         self.block_allocator = BlockAllocator(allocator)
 

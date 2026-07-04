@@ -7,13 +7,13 @@ from collections.abc import Mapping
 import numpy as np
 
 from benchmarks.problems.problem import BenchmarkProblemDefinition
-from stark import DerivativeStyle, Frame, Interval, LinearizerStyle, System
+from stark import DynamicsStyle, Frame, Interval, LinearizerStyle, System
 
 
 VAN_DER_POL_MU = 25.0
 
 
-@DerivativeStyle.accepts_instant_writes
+@DynamicsStyle.accepts_instant_writes
 def van_der_pol_rhs(t: float, state, out) -> None:
     out.dx[:] = state.v
     out.dv[:] = VAN_DER_POL_MU * (1.0 - state.x * state.x) * state.v - state.x
@@ -42,7 +42,7 @@ def van_der_pol_jacobian(
 
 def van_der_pol_system() -> System:
     return System(
-        derivative=van_der_pol_rhs,
+        dynamics=van_der_pol_rhs,
         frame=Frame.from_fields(
             ("x", "dx", (1,)),
             ("v", "dv", (1,)),

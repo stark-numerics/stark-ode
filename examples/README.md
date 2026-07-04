@@ -15,20 +15,20 @@ python -m examples.getting_started.numpy_oscillator
 
 ## Problem
 
-Examples about describing a problem: derivatives, frames, linearizers,
+Examples about describing a problem: dynamics, frames, linearizers,
 structured state, foreign object models, and norms.
 
 ```powershell
 python -m examples.problem
-python -m examples.problem.returning_derivative
-python -m examples.problem.in_place_derivative
+python -m examples.problem.returning_dynamics
+python -m examples.problem.in_place_dynamics
 python -m examples.problem.multiple_fields
 python -m examples.problem.structured_state_minimal
 python -m examples.problem.foreign_model_allocator
 python -m examples.problem.foreign_model_plug_in_solver
 python -m examples.problem.foreign_model_audit
 python -m examples.problem.reaction_diffusion_array
-python -m examples.problem.derivative_styles
+python -m examples.problem.dynamics_styles
 python -m examples.problem.linearizer_styles
 python -m examples.problem.norm_policy
 ```

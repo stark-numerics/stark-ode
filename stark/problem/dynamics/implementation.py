@@ -1,6 +1,6 @@
-"""Scheme-facing derivative implementations.
+"""Scheme-facing dynamics implementations.
 
-Objects in this module are produced by recognised derivative signatures and
+Objects in this module are produced by recognised dynamics signatures and
 called by schemes through the common `implementation(interval, state, out)`
 contract. They adapt user-friendly call shapes to the mutable translation
 objects used internally by STARK.
@@ -13,78 +13,78 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from stark.core.contracts.accelerator import Accelerator
-from stark.problem.derivative.returns import (
+from stark.problem.dynamics.returns import (
     assign_returned_fields,
     assign_returned_translation,
 )
 
 
-class DerivativeImplementation(Protocol):
-    """Scheme-facing derivative callable prepared from a user declaration."""
+class DynamicsImplementation(Protocol):
+    """Scheme-facing dynamics callable prepared from a user declaration."""
 
     def __call__(self, interval: Any, state: Any, out: Any) -> None: ...
 
-    def accelerate(self, accelerator: Accelerator) -> DerivativeImplementation: ...
+    def accelerate(self, accelerator: Accelerator) -> DynamicsImplementation: ...
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeAdapterAcceptsInstantWrites:
-    """Scheme derivative adapter for `function(t, state, out)`."""
+class DynamicsAdapterAcceptsInstantWrites:
+    """Scheme dynamics adapter for `function(t, state, out)`."""
 
     function: Callable[..., Any]
 
     def __call__(self, interval: Any, state: Any, out: Any) -> None:
         self.function(interval.present, state, out)
 
-    def accelerate(self, accelerator: Accelerator) -> DerivativeAdapterAcceptsInstantWrites:
+    def accelerate(self, accelerator: Accelerator) -> DynamicsAdapterAcceptsInstantWrites:
         del accelerator
         return self
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeAdapterAcceptsIntervalWrites:
-    """Scheme derivative adapter for `function(interval, state, out)`."""
+class DynamicsAdapterAcceptsIntervalWrites:
+    """Scheme dynamics adapter for `function(interval, state, out)`."""
 
     function: Callable[..., Any]
 
     def __call__(self, interval: Any, state: Any, out: Any) -> None:
         self.function(interval, state, out)
 
-    def accelerate(self, accelerator: Accelerator) -> DerivativeAdapterAcceptsIntervalWrites:
+    def accelerate(self, accelerator: Accelerator) -> DynamicsAdapterAcceptsIntervalWrites:
         del accelerator
         return self
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeAdapterAcceptsInstantReturns:
-    """Scheme derivative adapter for `function(t, state) -> translation`."""
+class DynamicsAdapterAcceptsInstantReturns:
+    """Scheme dynamics adapter for `function(t, state) -> translation`."""
 
     function: Callable[..., Any]
 
     def __call__(self, interval: Any, state: Any, out: Any) -> None:
         assign_returned_translation(self.function(interval.present, state), out)
 
-    def accelerate(self, accelerator: Accelerator) -> DerivativeAdapterAcceptsInstantReturns:
+    def accelerate(self, accelerator: Accelerator) -> DynamicsAdapterAcceptsInstantReturns:
         del accelerator
         return self
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeAdapterAcceptsIntervalReturns:
-    """Scheme derivative adapter for `function(interval, state) -> translation`."""
+class DynamicsAdapterAcceptsIntervalReturns:
+    """Scheme dynamics adapter for `function(interval, state) -> translation`."""
 
     function: Callable[..., Any]
 
     def __call__(self, interval: Any, state: Any, out: Any) -> None:
         assign_returned_translation(self.function(interval, state), out)
 
-    def accelerate(self, accelerator: Accelerator) -> DerivativeAdapterAcceptsIntervalReturns:
+    def accelerate(self, accelerator: Accelerator) -> DynamicsAdapterAcceptsIntervalReturns:
         del accelerator
         return self
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeKernelAcceptsInstantWrites:
+class DynamicsKernelAcceptsInstantWrites:
     """Scheme adapter for `kernel(t, *state_fields, *out_fields, *parameters)`."""
 
     function: Callable[..., Any]
@@ -100,8 +100,8 @@ class DerivativeKernelAcceptsInstantWrites:
             *self.parameters,
         )
 
-    def accelerate(self, accelerator: Accelerator) -> DerivativeKernelAcceptsInstantWrites:
-        return DerivativeKernelAcceptsInstantWrites(
+    def accelerate(self, accelerator: Accelerator) -> DynamicsKernelAcceptsInstantWrites:
+        return DynamicsKernelAcceptsInstantWrites(
             function=accelerator.compile(self.function),
             state=self.state,
             translation=self.translation,
@@ -110,7 +110,7 @@ class DerivativeKernelAcceptsInstantWrites:
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeKernelAcceptsIntervalWrites:
+class DynamicsKernelAcceptsIntervalWrites:
     """Scheme adapter for `kernel(interval, *state_fields, *out_fields, *parameters)`."""
 
     function: Callable[..., Any]
@@ -126,8 +126,8 @@ class DerivativeKernelAcceptsIntervalWrites:
             *self.parameters,
         )
 
-    def accelerate(self, accelerator: Accelerator) -> DerivativeKernelAcceptsIntervalWrites:
-        return DerivativeKernelAcceptsIntervalWrites(
+    def accelerate(self, accelerator: Accelerator) -> DynamicsKernelAcceptsIntervalWrites:
+        return DynamicsKernelAcceptsIntervalWrites(
             function=accelerator.compile(self.function),
             state=self.state,
             translation=self.translation,
@@ -136,7 +136,7 @@ class DerivativeKernelAcceptsIntervalWrites:
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeKernelAcceptsInstantReturns:
+class DynamicsKernelAcceptsInstantReturns:
     """Scheme adapter for `kernel(t, *state_fields, *parameters) -> fields`."""
 
     function: Callable[..., Any]
@@ -152,8 +152,8 @@ class DerivativeKernelAcceptsInstantReturns:
         )
         assign_returned_fields(result, out, self.translation)
 
-    def accelerate(self, accelerator: Accelerator) -> DerivativeKernelAcceptsInstantReturns:
-        return DerivativeKernelAcceptsInstantReturns(
+    def accelerate(self, accelerator: Accelerator) -> DynamicsKernelAcceptsInstantReturns:
+        return DynamicsKernelAcceptsInstantReturns(
             function=accelerator.compile(self.function),
             state=self.state,
             translation=self.translation,
@@ -162,7 +162,7 @@ class DerivativeKernelAcceptsInstantReturns:
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeKernelAcceptsIntervalReturns:
+class DynamicsKernelAcceptsIntervalReturns:
     """Scheme adapter for `kernel(interval, *state_fields, *parameters) -> fields`."""
 
     function: Callable[..., Any]
@@ -178,8 +178,8 @@ class DerivativeKernelAcceptsIntervalReturns:
         )
         assign_returned_fields(result, out, self.translation)
 
-    def accelerate(self, accelerator: Accelerator) -> DerivativeKernelAcceptsIntervalReturns:
-        return DerivativeKernelAcceptsIntervalReturns(
+    def accelerate(self, accelerator: Accelerator) -> DynamicsKernelAcceptsIntervalReturns:
+        return DynamicsKernelAcceptsIntervalReturns(
             function=accelerator.compile(self.function),
             state=self.state,
             translation=self.translation,
@@ -188,13 +188,13 @@ class DerivativeKernelAcceptsIntervalReturns:
 
 
 __all__ = [
-    "DerivativeAdapterAcceptsInstantWrites",
-    "DerivativeAdapterAcceptsIntervalWrites",
-    "DerivativeAdapterAcceptsInstantReturns",
-    "DerivativeAdapterAcceptsIntervalReturns",
-    "DerivativeImplementation",
-    "DerivativeKernelAcceptsInstantWrites",
-    "DerivativeKernelAcceptsIntervalWrites",
-    "DerivativeKernelAcceptsInstantReturns",
-    "DerivativeKernelAcceptsIntervalReturns",
+    "DynamicsAdapterAcceptsInstantWrites",
+    "DynamicsAdapterAcceptsIntervalWrites",
+    "DynamicsAdapterAcceptsInstantReturns",
+    "DynamicsAdapterAcceptsIntervalReturns",
+    "DynamicsImplementation",
+    "DynamicsKernelAcceptsInstantWrites",
+    "DynamicsKernelAcceptsIntervalWrites",
+    "DynamicsKernelAcceptsInstantReturns",
+    "DynamicsKernelAcceptsIntervalReturns",
 ]

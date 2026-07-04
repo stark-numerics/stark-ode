@@ -135,9 +135,9 @@ function Show-ForbiddenImportAudit {
 
 $recommendedTopLevel = @(
     "Configuration",
-    "Derivative",
-    "DerivativeSignature",
-    "DerivativeStyle",
+    "Dynamics",
+    "DynamicsSignature",
+    "DynamicsStyle",
     "Frame",
     "FrameField",
     "Interval",

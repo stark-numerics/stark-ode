@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.methods.schemes.configuration import SchemeConfiguration
 from typing import Any, cast
 
-from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, Allocator
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
 from stark.methods.schemes.execution.call import SchemeCall
@@ -57,7 +57,7 @@ class SchemeImplicitMidpoint:
         "block_allocator",
         "call_body",
         "call_step",
-        "derivative",
+        "dynamics",
         "midpoint",
         "redirect_call",
         "resolvent",
@@ -89,7 +89,7 @@ class SchemeImplicitMidpoint:
 
     def __init__(
         self,
-        derivative: DerivativeLike,
+        dynamics: DynamicsLike,
         allocator: Allocator,
         resolvent: Resolvent,
         *,
@@ -104,8 +104,8 @@ class SchemeImplicitMidpoint:
         self.resolvent = resolvent
         self.advance_update = None
 
-        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
-        self.derivative = self.runtime.derivative
+        self.runtime = SchemeRuntimeImplicit(self, dynamics, allocator)
+        self.dynamics = self.runtime.dynamics
         self.workspace = self.runtime.workspace
         self.block_allocator = self.runtime.block_allocator
         self.midpoint = self.block_allocator.allocate(1)
@@ -137,7 +137,7 @@ class SchemeImplicitMidpoint:
         # 1. Solve the midpoint increment:
         #        z = h/2 * f(t + h/2, y + z)
         problem = SchemeResolventRequest(
-            derivative=self.derivative,
+            dynamics=self.dynamics,
             interval=workspace.interval_at(interval, dt, 0.5 * dt),
             origin=state,
             rhs=None,
@@ -166,7 +166,7 @@ class SchemeImplicitMidpoint:
         # 1. Solve the midpoint increment:
         #        z = h/2 * f(t + h/2, y + z)
         problem = SchemeResolventRequest(
-            derivative=self.derivative,
+            dynamics=self.dynamics,
             interval=workspace.interval_at(interval, dt, 0.5 * dt),
             origin=state,
             rhs=None,

@@ -1,8 +1,8 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import pytest
 
-from stark import Configuration, Derivative, Interval, Tolerance
+from stark import Configuration, Dynamics, Interval, Tolerance
 from stark.core.contracts import IntervalLike
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventPicard
@@ -13,12 +13,12 @@ from tests.support import (
     DummyScalarState,
     DummyScalarTranslation,
     DummyTableauSpecialist,
-    dummy_constant_derivative,
+    dummy_constant_dynamics,
 )
 
 
-class DummyLinearDerivative:
-    """Scalar derivative fixture for the implicit linear solve check."""
+class DummyLinearDynamics:
+    """Scalar dynamics fixture for the implicit linear solve check."""
 
     def __init__(self, rate: float) -> None:
         self.rate = rate
@@ -51,12 +51,12 @@ def make_constant_scheme(
     specialist: SchemeSpecialist[DummyScalarState, DummyScalarTranslation] | None = None,
 ) -> SchemeIMEXEuler:
     allocator = DummyScalarAllocator()
-    derivative = Derivative.split(
-        explicit=dummy_constant_derivative(explicit_value),
-        implicit=dummy_constant_derivative(implicit_value),
+    dynamics = Dynamics.split(
+        explicit=dummy_constant_dynamics(explicit_value),
+        implicit=dummy_constant_dynamics(implicit_value),
     )
     return SchemeIMEXEuler(
-        derivative,
+        dynamics,
         allocator,
         resolvent=make_resolvent(allocator),
         specialist=specialist,
@@ -152,13 +152,13 @@ def test_imex_euler_returns_zero_when_interval_is_complete() -> None:
 
 def test_imex_euler_solves_linear_implicit_split() -> None:
     allocator = DummyScalarAllocator()
-    implicit = DummyLinearDerivative(rate=-1.0)
-    derivative = Derivative.split(
-        explicit=dummy_constant_derivative(0.0),
+    implicit = DummyLinearDynamics(rate=-1.0)
+    dynamics = Dynamics.split(
+        explicit=dummy_constant_dynamics(0.0),
         implicit=implicit,
     )
     scheme = SchemeIMEXEuler(
-        derivative,
+        dynamics,
         allocator,
         resolvent=make_resolvent(allocator),
     )

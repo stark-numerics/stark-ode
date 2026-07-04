@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.methods.schemes.predictor import SchemePredictorKnown
 from stark.core.block import Block
-from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, Allocator
 from stark.core.contracts.errors import StarkErrorRecoverable
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
@@ -105,7 +105,7 @@ class SchemeSDIRK21:
         "predictor",
         "call_body",
         "step_control", "block_allocator", "call_step", "delta1", "delta2",
-        "delta2_block", "delta3", "delta3_block", "derivative", "error",
+        "delta2_block", "delta3", "delta3_block", "dynamics", "error",
         "error_delta_call", "high_delta_call", "runtime", "known2_call",
         "known2_block", "known3_call", "known3", "known3_block",
         "redirect_call", "resolvent", "stage1_rate", "trial", "workspace",
@@ -133,7 +133,7 @@ class SchemeSDIRK21:
 
     def __init__(
         self,
-        derivative: DerivativeLike,
+        dynamics: DynamicsLike,
         allocator: Allocator,
         resolvent: Resolvent,
         *,
@@ -147,12 +147,12 @@ class SchemeSDIRK21:
         self.known3_call = unbound_scheme_call
         self.resolvent = resolvent
 
-        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
-        self.derivative = self.runtime.derivative
+        self.runtime = SchemeRuntimeImplicit(self, dynamics, allocator)
+        self.dynamics = self.runtime.dynamics
         self.workspace = self.runtime.workspace
         self.block_allocator = self.runtime.block_allocator
         self.predictor = configuration.scheme_predictor if configuration is not None and configuration.scheme_predictor is not None else SchemePredictorKnown()
-        self.derivative = derivative
+        self.dynamics = dynamics
 
         workspace = self.workspace
         self.stage1_rate = workspace.allocate_translation()
@@ -209,7 +209,7 @@ class SchemeSDIRK21:
             scale=self.workspace.scale,
         )
         problem = SchemeResolventRequest(
-            derivative=self.derivative,
+            dynamics=self.dynamics,
             interval=self.workspace.interval_at(interval, dt, stage_shift),
             origin=state,
             rhs=known_block,
@@ -226,7 +226,7 @@ class SchemeSDIRK21:
             return 0.0
 
         workspace = self.workspace
-        derivative = self.derivative
+        dynamics = self.dynamics
         scale = workspace.scale
         combine2 = workspace.combine2
         combine3 = workspace.combine3
@@ -242,7 +242,7 @@ class SchemeSDIRK21:
 
         while True:
             # 1. k1 = f(t, y).
-            derivative(interval, state, self.stage1_rate)
+            dynamics(interval, state, self.stage1_rate)
 
             # 2. delta1 = gamma h k1.
             delta1 = scale(dt * SDIRK21_GAMMA, self.stage1_rate, self.delta1)
@@ -313,7 +313,7 @@ class SchemeSDIRK21:
             return 0.0
 
         workspace = self.workspace
-        derivative = self.derivative
+        dynamics = self.dynamics
         apply_delta = workspace.apply_delta
         ratio = step_control.ratio
         known2_call = self.known2_call
@@ -330,7 +330,7 @@ class SchemeSDIRK21:
 
         while True:
             # 1. k1 = f(t, y).
-            derivative(interval, state, self.stage1_rate)
+            dynamics(interval, state, self.stage1_rate)
             # 2. delta1 = gamma h k1.
             delta1 = known2_call(dt, self.stage1_rate, self.delta1)
             try:

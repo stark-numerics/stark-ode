@@ -12,10 +12,10 @@ stark.methods.schemes.execution.call module
    :show-inheritance:
    :undoc-members:
 
-stark.methods.schemes.execution.derivative module
+stark.methods.schemes.execution.dynamics module
 -------------------------------------------------
 
-.. automodule:: stark.methods.schemes.execution.derivative
+.. automodule:: stark.methods.schemes.execution.dynamics
    :members:
    :show-inheritance:
    :undoc-members:

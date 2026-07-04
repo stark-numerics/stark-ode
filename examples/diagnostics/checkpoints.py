@@ -23,7 +23,7 @@ def oscillator_rhs(t: float, state, out) -> None:
 
 if __name__ == "__main__":
     system = System(
-        derivative=oscillator_rhs,
+        dynamics=oscillator_rhs,
         frame=Frame.vector("y", translation="dy", length=2),
     )
     ivp = system.ivp(

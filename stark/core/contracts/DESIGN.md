@@ -12,7 +12,7 @@ Use contracts when a boundary should accept user-defined or domain-defined
 objects:
 
 ```text
-custom derivative       -> DerivativeLike
+custom dynamics       -> DynamicsLike
 custom linearizer       -> LinearizerLike
 custom scheme           -> SchemeLike
 custom inverter         -> Inverter
@@ -55,8 +55,8 @@ Prefer focused imports when writing docs or implementation code:
 - `stark.core.contracts.accelerator`: accelerator backends
 - `stark.core.contracts.block`: grouped translation containers
 - `stark.core.contracts.carrier`: carrier bundles
-- `stark.core.contracts.derivative`: right-hand-side workers
-- `stark.core.contracts.derivative_split`: IMEX derivative split protocol
+- `stark.core.contracts.dynamics`: right-hand-side workers
+- `stark.core.contracts.dynamics_split`: IMEX dynamics split protocol
 - `stark.core.contracts.inner_product`: translation-space inner products
 - `stark.core.contracts.integrator`: trajectory-building workers
 - `stark.core.contracts.interval`: timeline cursors

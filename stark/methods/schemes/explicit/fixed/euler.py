@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.methods.schemes.configuration import SchemeConfiguration
-from stark.core.contracts import DerivativeLike, IntervalLike, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, State, Allocator
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
@@ -34,7 +34,7 @@ class SchemeEuler:
     """Forward Euler, the basic first-order explicit Runge-Kutta method.
 
     This is the simplest one-step method in the library: evaluate the
-    derivative once at the start of the step and advance with that slope. It is
+    dynamics once at the start of the step and advance with that slope. It is
     useful as a baseline and for very cheap exploratory integrations, but it is
     only first-order accurate and has a small stability region.
 
@@ -59,7 +59,7 @@ class SchemeEuler:
         "advance_update",
         "call_body",
         "call_step",
-        "derivative",
+        "dynamics",
         "runtime",
         "k1",
         "redirect_call",
@@ -81,7 +81,7 @@ class SchemeEuler:
 
     def __init__(
         self,
-        derivative: DerivativeLike,
+        dynamics: DynamicsLike,
         allocator: Allocator,
         configuration: SchemeConfiguration | None = None,
         specialist: SchemeSpecialist | None = None,
@@ -94,8 +94,8 @@ class SchemeEuler:
         self.call_step = self.call_monitored if monitor is not None else self.call_body
         self.redirect_call = self.call_step
 
-        self.runtime = SchemeRuntimeExplicit(derivative, allocator)
-        self.derivative = self.runtime.derivative
+        self.runtime = SchemeRuntimeExplicit(dynamics, allocator)
+        self.dynamics = self.runtime.dynamics
         self.workspace = self.runtime.workspace
         self.k1 = self.runtime.k1
         self.advance_delta_buffer = self.workspace.allocate_translation()
@@ -135,7 +135,7 @@ class SchemeEuler:
             return 0.0
 
         workspace = self.workspace
-        derivative = self.derivative
+        dynamics = self.dynamics
         scale = workspace.scale
         apply_delta = workspace.apply_delta
 
@@ -145,7 +145,7 @@ class SchemeEuler:
         dt = interval.step if interval.step <= remaining else remaining
 
         # 1. k1 = f(t, y)
-        derivative(interval, state, k1)
+        dynamics(interval, state, k1)
 
         # 2. y <- y + h*k1
         advance_delta = scale(dt * EULER_B[0], k1, advance_delta_buffer)
@@ -165,11 +165,11 @@ class SchemeEuler:
         dt = interval.step if interval.step <= remaining else remaining
 
         k1 = self.k1
-        derivative = self.derivative
+        dynamics = self.dynamics
         advance_update = self.advance_update
 
         # 1. k1 = f(t, y)
-        derivative(interval, state, k1)
+        dynamics(interval, state, k1)
 
         # 2. y <- y + h*k1
         advance_update(dt, state, k1, state)

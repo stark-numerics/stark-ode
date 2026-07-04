@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.methods.schemes.predictor import SchemePredictorKnown
 from stark.core.block import Block
-from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, Allocator
 from stark.core.contracts.errors import StarkErrorRecoverable
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
@@ -105,7 +105,7 @@ class SchemeKvaerno5:
         "call_body",
         "step_control", "block_allocator", "call_step", "delta1", "delta2", "delta2_block",
         "delta3", "delta3_block", "delta4", "delta4_block", "delta5", "delta5_block",
-        "delta6", "delta6_block", "delta7", "delta7_block", "derivative", "error",
+        "delta6", "delta6_block", "delta7", "delta7_block", "dynamics", "error",
         "error_delta_call", "high_delta_call", "runtime", "known2_call", "known2_block",
         "known3_call", "known3", "known3_block", "known4_call", "known4", "known4_block",
         "known5_call", "known5", "known5_block", "known6_call", "known6", "known6_block",
@@ -133,7 +133,7 @@ class SchemeKvaerno5:
 
     tableau = KVAERNO5_TABLEAU
 
-    def __init__(self, derivative: DerivativeLike, allocator: Allocator, resolvent: Resolvent, *, configuration: SchemeConfiguration | None = None, specialist: SchemeSpecialist | None = None, monitor: SchemeMonitor | None = None) -> None:
+    def __init__(self, dynamics: DynamicsLike, allocator: Allocator, resolvent: Resolvent, *, configuration: SchemeConfiguration | None = None, specialist: SchemeSpecialist | None = None, monitor: SchemeMonitor | None = None) -> None:
         self.error_delta_call = unbound_scheme_call
         self.high_delta_call = unbound_scheme_call
         self.known2_call = unbound_scheme_call
@@ -143,12 +143,12 @@ class SchemeKvaerno5:
         self.known6_call = unbound_scheme_call
         self.known7_call = unbound_scheme_call
         self.resolvent = resolvent
-        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
-        self.derivative = self.runtime.derivative
+        self.runtime = SchemeRuntimeImplicit(self, dynamics, allocator)
+        self.dynamics = self.runtime.dynamics
         self.workspace = self.runtime.workspace
         self.block_allocator = self.runtime.block_allocator
         self.predictor = configuration.scheme_predictor if configuration is not None and configuration.scheme_predictor is not None else SchemePredictorKnown()
-        self.derivative = derivative
+        self.dynamics = dynamics
         workspace = self.workspace
         (
             self.delta1, self.delta2, self.delta3, self.delta4, self.delta5, self.delta6,
@@ -202,7 +202,7 @@ class SchemeKvaerno5:
             delta=delta_block[0],
             scale=self.workspace.scale,
         )
-        problem = SchemeResolventRequest(derivative=self.derivative, interval=self.workspace.interval_at(interval, dt, stage_shift), origin=state, rhs=known_block, alpha=alpha)
+        problem = SchemeResolventRequest(dynamics=self.dynamics, interval=self.workspace.interval_at(interval, dt, stage_shift), origin=state, rhs=known_block, alpha=alpha)
         self.resolvent(problem, delta_block)
         return delta_block[0]
 
@@ -213,7 +213,7 @@ class SchemeKvaerno5:
             step_control.record_stopped(interval)
             return 0.0
         workspace = self.workspace
-        derivative = self.derivative
+        dynamics = self.dynamics
         scale = workspace.scale
         combine2 = workspace.combine2
         combine3 = workspace.combine3
@@ -229,7 +229,7 @@ class SchemeKvaerno5:
         t_start = proposal.t_start
         rejection_count = 0
         scheme_name = self.tableau.short_name
-        derivative(interval, state, self.stage1_rate)
+        dynamics(interval, state, self.stage1_rate)
         while True:
             delta1 = scale(dt * KVAERNO5_GAMMA, self.stage1_rate, self.delta1)
             try:
@@ -270,7 +270,7 @@ class SchemeKvaerno5:
             step_control.record_stopped(interval)
             return 0.0
         workspace = self.workspace
-        derivative = self.derivative
+        dynamics = self.dynamics
         apply_delta = workspace.apply_delta
         ratio = step_control.ratio
         remaining = proposal.remaining
@@ -279,7 +279,7 @@ class SchemeKvaerno5:
         t_start = proposal.t_start
         rejection_count = 0
         scheme_name = self.tableau.short_name
-        derivative(interval, state, self.stage1_rate)
+        dynamics(interval, state, self.stage1_rate)
         while True:
             delta1 = self.known2_call(dt, self.stage1_rate, self.delta1)
             try:

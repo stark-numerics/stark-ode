@@ -4,7 +4,7 @@ from stark.methods.schemes.configuration import SchemeConfiguration
 from math import sqrt
 from typing import Any, cast
 
-from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, Allocator
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
 from stark.methods.schemes.execution.call import SchemeCall
@@ -69,7 +69,7 @@ class SchemeGaussLegendre4:
         "block_allocator",
         "call_body",
         "call_step",
-        "derivative",
+        "dynamics",
         "redirect_call",
         "resolvent",
         "stage_delta",
@@ -101,7 +101,7 @@ class SchemeGaussLegendre4:
 
     def __init__(
         self,
-        derivative: DerivativeLike,
+        dynamics: DynamicsLike,
         allocator: Allocator,
         resolvent: Resolvent,
         *,
@@ -116,8 +116,8 @@ class SchemeGaussLegendre4:
         self.resolvent = resolvent
         self.advance_update = None
 
-        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
-        self.derivative = self.runtime.derivative
+        self.runtime = SchemeRuntimeImplicit(self, dynamics, allocator)
+        self.dynamics = self.runtime.dynamics
         self.workspace = self.runtime.workspace
         self.block_allocator = self.runtime.block_allocator
         self.stage_delta = self.block_allocator.allocate(2)
@@ -142,7 +142,7 @@ class SchemeGaussLegendre4:
     def _problem(self, interval: IntervalLike, state: State, dt: float) -> SchemeResolventRequestCoupled:
         tableau = self.tableau
         return SchemeResolventRequestCoupled(
-            derivative=self.derivative,
+            dynamics=self.dynamics,
             interval=interval,
             origin=state,
             rhs=None,

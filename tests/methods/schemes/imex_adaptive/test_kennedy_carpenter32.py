@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from stark import Interval, Tolerance
-from stark.core.contracts import DerivativeLike, IntervalLike
+from stark.core.contracts import DynamicsLike, IntervalLike
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines.shared.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.diagnostics.monitor import Monitor
@@ -90,9 +90,9 @@ class ArrayScalarAllocator:
 
 
 @dataclass(slots=True)
-class SplitDerivative:
-    explicit: DerivativeLike
-    implicit: DerivativeLike
+class SplitDynamics:
+    explicit: DynamicsLike
+    implicit: DynamicsLike
 
 
 def zero_rhs(
@@ -124,7 +124,7 @@ def array_implicit_rhs(
 
 def make_scheme(*, monitor=None) -> SchemeKennedyCarpenter32:
     allocator = ScalarAllocator()
-    derivative = SplitDerivative(
+    dynamics = SplitDynamics(
         explicit=zero_rhs,
         implicit=zero_rhs,
     )
@@ -135,7 +135,7 @@ def make_scheme(*, monitor=None) -> SchemeKennedyCarpenter32:
         tableau=SchemeKennedyCarpenter32.tableau,
     )
     return SchemeKennedyCarpenter32(
-        derivative,
+        dynamics,
         allocator,
         resolvent=resolvent,
         monitor=monitor,
@@ -147,7 +147,7 @@ def make_array_scheme(
     specialist: bool = False,
 ) -> SchemeKennedyCarpenter32:
     allocator = ArrayScalarAllocator()
-    derivative = SplitDerivative(
+    dynamics = SplitDynamics(
         explicit=array_explicit_rhs,
         implicit=array_implicit_rhs,
     )
@@ -158,7 +158,7 @@ def make_array_scheme(
         tableau=SchemeKennedyCarpenter32.tableau,
     )
     return SchemeKennedyCarpenter32(
-        derivative,
+        dynamics,
         allocator,
         resolvent=resolvent,
         specialist=(

@@ -74,7 +74,7 @@ TranslationTypeContravariant = TypeVar(
 )
 """Contravariant type variable for consumers of translation objects.
 
-Use this when a contract only accepts translations, such as derivative workers,
+Use this when a contract only accepts translations, such as dynamics workers,
 operators, inner products, and norms. Consumer protocols are contravariant so a
 worker that can handle a broad translation type can also stand in for a worker
 that is only required to handle a narrower one.

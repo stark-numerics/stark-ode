@@ -20,8 +20,8 @@ from stark.core.contracts.carrier import (
     CarrierStorage,
     CarrierValidation,
 )
-from stark.core.contracts.derivative import DerivativeAudit, DerivativeLike
-from stark.core.contracts.derivative_split import DerivativeSplitAudit, DerivativeSplitLike
+from stark.core.contracts.dynamics import DynamicsAudit, DynamicsLike
+from stark.core.contracts.dynamics_split import DynamicsSplitAudit, DynamicsSplitLike
 from stark.core.contracts.errors import StarkError, StarkErrorRecoverable
 from stark.core.contracts.engine import Engine
 from stark.core.contracts.inner_product import InnerProduct
@@ -96,10 +96,10 @@ __all__ = [
     "Combine10",
     "Combine11",
     "Combine12",
-    "DerivativeAudit",
-    "DerivativeLike",
-    "DerivativeSplitAudit",
-    "DerivativeSplitLike",
+    "DynamicsAudit",
+    "DynamicsLike",
+    "DynamicsSplitAudit",
+    "DynamicsSplitLike",
     "Engine",
     "StarkError",
     "StarkErrorRecoverable",

@@ -81,13 +81,13 @@ module. These modules contain owned runtime objects such as
 `SchemeRuntimeExplicit`, not base classes. They collect setup work that every
 scheme in a family needs:
 
-- auditing derivative and allocator compatibility;
+- auditing dynamics and allocator compatibility;
 - allocating translation probes and `SchemeStepSupport`;
 - preparing family-specific helpers such as implicit block allocators;
 - checking family-specific construction rules, such as tableau compatibility.
 
 Schemes should instantiate their runtime object in `__init__`, then copy hot
-attributes such as `workspace`, `derivative`, `block_allocator`, or `k1` onto
+attributes such as `workspace`, `dynamics`, `block_allocator`, or `k1` onto
 the scheme instance when direct access keeps the step body clearer. That copying
 is deliberate; it keeps the runtime object as construction machinery without
 forcing every stage operation through an extra indirection.

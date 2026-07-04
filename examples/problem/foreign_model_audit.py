@@ -13,7 +13,7 @@ from typing import cast
 
 from stark import Interval, Tolerance
 from stark.core import Auditor
-from stark.core.contracts import DerivativeLike
+from stark.core.contracts import DynamicsLike
 from stark.methods import SchemeRK4
 
 
@@ -74,12 +74,12 @@ if __name__ == "__main__":
     state = PendulumState(angle=1.0, angular_velocity=0.0, label="foreign-pendulum")
     translation = allocator.allocate_translation()
     interval = Interval(present=0.0, step=0.1, stop=0.5)
-    derivative = cast(DerivativeLike, pendulum)
-    scheme = SchemeRK4(derivative, allocator)
+    dynamics = cast(DynamicsLike, pendulum)
+    scheme = SchemeRK4(dynamics, allocator)
 
     audit = Auditor(
         state=state,
-        derivative=derivative,
+        dynamics=dynamics,
         translation=translation,
         allocator=allocator,
         interval=interval,

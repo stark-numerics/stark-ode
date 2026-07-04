@@ -19,7 +19,7 @@ from tests.support import (
 )
 
 
-class VectorDerivative:
+class VectorDynamics:
     matrix = (
         (-10.0, 1.0, 0.0),
         (0.0, -8.0, 2.0),
@@ -40,7 +40,7 @@ class VectorDerivative:
 
 
 class VectorLinearizer:
-    matrix = VectorDerivative.matrix
+    matrix = VectorDynamics.matrix
 
     def __call__(self, interval: IntervalLike, state: DummyVectorState, out) -> None:
         del interval, state
@@ -132,7 +132,7 @@ def make_richardson_inverter() -> InverterRelaxationRichardson[DummyVectorTransl
 
 def run_backward_euler_newton(inverter) -> DummyVectorState:
     allocator = DummyVectorAllocator(3)
-    derivative = VectorDerivative()
+    dynamics = VectorDynamics()
     resolvent = ResolventNewton(
         allocator,
         linearizer=VectorLinearizer(),
@@ -140,7 +140,7 @@ def run_backward_euler_newton(inverter) -> DummyVectorState:
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-10), resolvent_maximum_steps=8),
     )
     scheme = SchemeBackwardEuler(
-        derivative,
+        dynamics,
         allocator,
         resolvent=resolvent,
     )

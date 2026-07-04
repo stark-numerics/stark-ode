@@ -12,7 +12,7 @@ basic problem:
 
 ```text
 Frame
-Derivative / DerivativeStyle
+Dynamics / DynamicsStyle
 Linearizer / LinearizerStyle
 System
 Method

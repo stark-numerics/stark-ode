@@ -72,21 +72,21 @@ For a foreign object model it may mean copying labels, preserving invariants,
 or updating several nested fields. This is why STARK keeps the operation as a
 contract rather than assuming raw vector addition.
 
-## Derivative
+## Dynamics
 
-An ODE derivative maps time and state to a translation:
+ODE dynamics maps time and state to a translation:
 
 ```text
 f : R x S -> T
 ```
 
-The solver-facing derivative contract writes into an existing translation:
+The solver-facing dynamics contract writes into an existing translation:
 
 ```text
-derivative(interval, state, out) -> None
+dynamics(interval, state, out) -> None
 ```
 
-That in-place shape lets schemes reuse scratch objects. User-facing derivative
+That in-place shape lets schemes reuse scratch objects. User-facing dynamics
 styles adapt friendlier signatures into this contract.
 
 ## Frame-backed models
@@ -240,7 +240,7 @@ unknown foreign model structures, runtime algebra is the flexible fallback.
 | state space `S` | state object / `Frame` state fields |
 | translation space `T` | translation object / `Frame` translation fields |
 | action `S x T -> S` | translation application |
-| right-hand side `f(t, x)` | derivative |
+| right-hand side `f(t, x)` | dynamics |
 | Jacobian action `Df(t, x)[v]` | linearizer / operator |
 | product space `T^n` | block |
 | nonlinear stage solve | resolvent |

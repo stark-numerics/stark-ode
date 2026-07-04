@@ -33,15 +33,15 @@ python -m examples.core
 
 | Example | Teaches |
 |---|---|
-| `examples.problem.returning_derivative` | return-style derivative |
-| `examples.problem.in_place_derivative` | in-place derivative |
+| `examples.problem.returning_dynamics` | return-style dynamics |
+| `examples.problem.in_place_dynamics` | in-place dynamics |
 | `examples.problem.multiple_fields` | structured state with more than one field |
 | `examples.problem.structured_state_minimal` | nested structured state through named Frame paths |
 | `examples.problem.foreign_model_allocator` | custom allocator for an existing object model |
 | `examples.problem.foreign_model_plug_in_solver` | replace an existing time stepper without flattening the object model |
 | `examples.problem.foreign_model_audit` | audit a custom adapter for an existing object model |
 | `examples.problem.reaction_diffusion_array` | PDE-like array state through System |
-| `examples.problem.derivative_styles` | derivative adapters |
+| `examples.problem.dynamics_styles` | dynamics adapters |
 | `examples.problem.linearizer_styles` | real linearizer in implicit Newton context |
 | `examples.problem.norm_policy` | frame norm subtleties |
 

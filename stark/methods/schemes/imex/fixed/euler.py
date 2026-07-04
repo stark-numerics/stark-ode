@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from stark.methods.schemes.configuration import SchemeConfiguration
 from stark.core.block import Block
-from stark.core.contracts import DerivativeSplitLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DynamicsSplitLike, IntervalLike, Resolvent, State, Allocator
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
@@ -44,7 +44,7 @@ IMEX_EULER_TABLEAU = TableauImex(
 # Provides: call_monitored.
 @with_fixed_step_monitoring
 class SchemeIMEXEuler:
-    """First-order IMEX Euler with explicit and implicit derivative splits.
+    """First-order IMEX Euler with explicit and implicit dynamics splits.
 
     Algorithm sketch for one accepted step of size h:
 
@@ -71,9 +71,9 @@ class SchemeIMEXEuler:
         "call_step",
         "delta",
         "delta_block",
-        "explicit_derivative",
+        "explicit_dynamics",
         "explicit_rate",
-        "implicit_derivative",
+        "implicit_dynamics",
         "redirect_call",
         "resolvent",
         "rhs",
@@ -105,7 +105,7 @@ class SchemeIMEXEuler:
 
     def __init__(
         self,
-        derivative: DerivativeSplitLike,
+        dynamics: DynamicsSplitLike,
         allocator: Allocator,
         resolvent: Resolvent,
         *,
@@ -121,10 +121,10 @@ class SchemeIMEXEuler:
         self.redirect_call = self.call_step
         self.resolvent = resolvent
 
-        self.runtime = SchemeRuntimeImex(derivative, allocator)
+        self.runtime = SchemeRuntimeImex(dynamics, allocator)
         self.workspace = self.runtime.workspace
-        self.explicit_derivative = derivative.explicit
-        self.implicit_derivative = derivative.implicit
+        self.explicit_dynamics = dynamics.explicit
+        self.implicit_dynamics = dynamics.implicit
 
         workspace = self.workspace
         self.explicit_rate, self.rhs, self.delta = workspace.allocate_translation_buffers(3)
@@ -179,7 +179,7 @@ class SchemeIMEXEuler:
         workspace = self.workspace
 
         # 1. Compute the explicit contribution rhs = h * fE(t, y).
-        self.explicit_derivative(interval, state, self.explicit_rate)
+        self.explicit_dynamics(interval, state, self.explicit_rate)
         if specialized:
             self.rhs = self.advance_call(dt, self.explicit_rate, self.delta, self.rhs)
         else:
@@ -189,7 +189,7 @@ class SchemeIMEXEuler:
         self.rhs_block[0] = self.rhs
         self.delta_block[0] = self.delta
         problem = SchemeResolventRequest(
-            derivative=self.implicit_derivative,
+            dynamics=self.implicit_dynamics,
             interval=workspace.interval_at(interval, dt, dt),
             origin=state,
             rhs=self.rhs_block,

@@ -9,7 +9,7 @@ from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
 from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
 from tests.support import (
     DummyArrayAllocator,
-    DummyArrayDerivative,
+    DummyArrayDynamics,
     DummyArraySpecialist,
     DummyArrayState,
     dummy_array_state,
@@ -24,9 +24,9 @@ def test_fixed_explicit_specialist_path_matches_inline_semantics() -> None:
     inline_state = build_state()
     specialist_state = build_state()
 
-    inline = SchemeRK4(DummyArrayDerivative(), DummyArrayAllocator(3))
+    inline = SchemeRK4(DummyArrayDynamics(), DummyArrayAllocator(3))
     specialized = SchemeRK4(
-        DummyArrayDerivative(),
+        DummyArrayDynamics(),
         DummyArrayAllocator(3),
         specialist=DummyArraySpecialist(),
     )
@@ -50,9 +50,9 @@ def test_fixed_explicit_specialist_path_matches_inline_semantics() -> None:
 
 
 def test_adaptive_explicit_specialist_path_matches_inline_semantics() -> None:
-    inline_scheme = SchemeCashKarp(DummyArrayDerivative(), DummyArrayAllocator(3))
+    inline_scheme = SchemeCashKarp(DummyArrayDynamics(), DummyArrayAllocator(3))
     specialized_scheme = SchemeCashKarp(
-        DummyArrayDerivative(),
+        DummyArrayDynamics(),
         DummyArrayAllocator(3),
         specialist=DummyArraySpecialist(),
     )
@@ -118,7 +118,7 @@ def run_adaptive_solve(
 
 
 def test_non_algebraist_scheme_does_not_carry_generated_source_state() -> None:
-    scheme = SchemeRK4(DummyArrayDerivative(), DummyArrayAllocator(3))
+    scheme = SchemeRK4(DummyArrayDynamics(), DummyArrayAllocator(3))
 
     assert not hasattr(scheme, "sources")
     assert not hasattr(scheme, "kernel_sources")

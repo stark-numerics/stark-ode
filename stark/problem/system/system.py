@@ -1,6 +1,6 @@
 """Problem-layer assembly for reusable initial-value problems.
 
-`System` is the user-facing point where a derivative, frame, optional
+`System` is the user-facing point where a dynamics, frame, optional
 linearizer, method, engine, interval, and initial state become a prepared
 `SystemIVP`. The resulting IVP keeps the expensive preparation work together
 so scripts can run final-state solves, trajectories, benchmarks, and
@@ -15,8 +15,8 @@ from inspect import Parameter, signature
 from typing import Any, cast
 
 from stark.core.contracts import (
-    DerivativeLike,
-    DerivativeSplitLike,
+    DynamicsLike,
+    DynamicsSplitLike,
     IntervalLike,
     SchemeLike,
     State,
@@ -26,8 +26,8 @@ from stark.core.configuration import Configuration
 from stark.core.block import BlockBasis
 from stark.core.integrator.integrator import Checkpoints, Integrator
 from stark.core.integrator.stepper import IntegratorStepper
-from stark.problem.derivative import Derivative, DerivativeSignature
-from stark.problem.derivative.split import DerivativeSplit
+from stark.problem.dynamics import Dynamics, DynamicsSignature
+from stark.problem.dynamics.split import DynamicsSplit
 from stark.problem.frame.frame import Frame
 from stark.problem.linearizer.linearizer import Linearizer
 from stark.problem.linearizer.implementation import LinearizerImplementation
@@ -191,19 +191,19 @@ class System:
     """
     User-facing declaration of an ODE system over a `Frame`.
 
-    A system combines the derivative with the frame that names the state
+    A system combines the dynamics with the frame that names the state
     fields, translation fields, shapes, and norm policy. Calling `ivp(...)`
     supplies the remaining runtime choices: initial values, an interval, a
     `Method`, an engine class or factory, and optional configuration. The
     system then asks the engine for backend storage/algebra support, prepares
-    the derivative for that accelerator, constructs the method stack, and
+    the dynamics for that accelerator, constructs the method stack, and
     returns a reusable `SystemIVP`.
 
     `linearizer` and `inner_product` are optional problem-level ingredients used
     by implicit method stacks when the selected resolvent asks for them.
     """
 
-    derivative: object
+    dynamics: object
     frame: Frame
     linearizer: object | None = None
     inner_product: object | None = None
@@ -234,8 +234,8 @@ class System:
         configuration = configuration if configuration is not None else Configuration()
         prepared_engine = engine(self.frame)
         prepared_initial = self.prepare_initial(initial, prepared_engine)
-        prepared_derivative = self.prepare_derivative(prepared_engine)
-        scheme = self.prepare_scheme(method, prepared_engine, prepared_derivative, configuration)
+        prepared_dynamics = self.prepare_dynamics(prepared_engine)
+        scheme = self.prepare_scheme(method, prepared_engine, prepared_dynamics, configuration)
         stepper = IntegratorStepper(scheme)
         integrator = Integrator(configuration=configuration)
 
@@ -281,7 +281,7 @@ class System:
         self,
         method: Method,
         engine: Engine,
-        derivative: object,
+        dynamics: object,
         configuration: Configuration,
     ) -> SchemeLike:
         prepared_linearizer = self.prepare_linearizer(engine)
@@ -324,7 +324,7 @@ class System:
                 "scheme",
                 method.scheme,
                 available={
-                    "derivative": derivative,
+                    "dynamics": dynamics,
                     "allocator": engine.allocator,
                     "configuration": configuration,
                     "specialist": engine.algebraist_specialist,
@@ -346,23 +346,23 @@ class System:
             return Linearizer(linearizer).accelerate(engine.accelerator)
         raise TypeError("System linearizer must be callable or a linearizer signature.")
 
-    def prepare_derivative(self, engine: Engine) -> DerivativeLike | DerivativeSplitLike:
-        derivative = self.derivative
-        if isinstance(derivative, DerivativeSplitLike):
-            return DerivativeSplit(
-                implicit=self.prepare_derivative_part(derivative.implicit, engine),
-                explicit=self.prepare_derivative_part(derivative.explicit, engine),
+    def prepare_dynamics(self, engine: Engine) -> DynamicsLike | DynamicsSplitLike:
+        dynamics = self.dynamics
+        if isinstance(dynamics, DynamicsSplitLike):
+            return DynamicsSplit(
+                implicit=self.prepare_dynamics_part(dynamics.implicit, engine),
+                explicit=self.prepare_dynamics_part(dynamics.explicit, engine),
             )
-        return self.prepare_derivative_part(derivative, engine)
+        return self.prepare_dynamics_part(dynamics, engine)
 
-    def prepare_derivative_part(self, derivative: object, engine: Engine) -> DerivativeLike:
-        if isinstance(derivative, Derivative):
-            return cast(DerivativeLike, derivative.accelerate(engine.accelerator))
-        if isinstance(derivative, DerivativeSignature):
-            return cast(DerivativeLike, Derivative(derivative).accelerate(engine.accelerator))
-        if callable(derivative):
-            return cast(DerivativeLike, Derivative(derivative).accelerate(engine.accelerator))
-        raise TypeError("System derivative must be callable or a derivative signature.")
+    def prepare_dynamics_part(self, dynamics: object, engine: Engine) -> DynamicsLike:
+        if isinstance(dynamics, Dynamics):
+            return cast(DynamicsLike, dynamics.accelerate(engine.accelerator))
+        if isinstance(dynamics, DynamicsSignature):
+            return cast(DynamicsLike, Dynamics(dynamics).accelerate(engine.accelerator))
+        if callable(dynamics):
+            return cast(DynamicsLike, Dynamics(dynamics).accelerate(engine.accelerator))
+        raise TypeError("System dynamics must be callable or a dynamics signature.")
 
     def construct_component(
         self,

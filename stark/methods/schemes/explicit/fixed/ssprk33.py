@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.methods.schemes.configuration import SchemeConfiguration
-from stark.core.contracts import DerivativeLike, IntervalLike, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, State, Allocator
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
@@ -60,7 +60,7 @@ class SchemeSSPRK33:
         "advance_update",
         "call_body",
         "call_step",
-        "derivative",
+        "dynamics",
         "runtime",
         "k1",
         "k2",
@@ -88,7 +88,7 @@ class SchemeSSPRK33:
 
     def __init__(
         self,
-        derivative: DerivativeLike,
+        dynamics: DynamicsLike,
         allocator: Allocator,
         configuration: SchemeConfiguration | None = None,
         specialist: SchemeSpecialist | None = None,
@@ -103,8 +103,8 @@ class SchemeSSPRK33:
         self.call_step = self.call_monitored if monitor is not None else self.call_body
         self.redirect_call = self.call_step
 
-        self.runtime = SchemeRuntimeExplicit(derivative, allocator)
-        self.derivative = self.runtime.derivative
+        self.runtime = SchemeRuntimeExplicit(dynamics, allocator)
+        self.dynamics = self.runtime.dynamics
         self.workspace = self.runtime.workspace
         self.k1 = self.runtime.k1
 
@@ -151,7 +151,7 @@ class SchemeSSPRK33:
             return 0.0
 
         workspace = self.workspace
-        derivative = self.derivative
+        dynamics = self.dynamics
         scale = workspace.scale
         combine2 = workspace.combine2
         combine3 = workspace.combine3
@@ -168,12 +168,12 @@ class SchemeSSPRK33:
         half_dt = 0.5 * dt
 
         # 1. k1 = f(t, y)
-        derivative(interval, state, k1)
+        dynamics(interval, state, k1)
 
         # 2. k2 = f(t + h, y + h*k1)
         stage_delta = scale(dt, k1, trial_buffer)
         stage_delta(state, stage)
-        derivative(interval_at(interval, dt, dt), stage, k2)
+        dynamics(interval_at(interval, dt, dt), stage, k2)
 
         # 3. k3 = f(t + h/2, y + h*(k1 + k2)/4)
         stage_delta = combine2(
@@ -184,7 +184,7 @@ class SchemeSSPRK33:
             trial_buffer,
         )
         stage_delta(state, stage)
-        derivative(interval_at(interval, dt, half_dt), stage, k3)
+        dynamics(interval_at(interval, dt, half_dt), stage, k3)
 
         # 4. y <- y + h*(k1 + k2 + 4k3)/6
         advance_delta = combine3(
@@ -217,22 +217,22 @@ class SchemeSSPRK33:
         k2 = self.k2
         k3 = self.k3
 
-        derivative = self.derivative
+        dynamics = self.dynamics
         interval_at = self.workspace.interval_at
         stage2_update = self.stage2_update
         stage3_update = self.stage3_update
         advance_update = self.advance_update
 
         # 1. k1 = f(t, y)
-        derivative(interval, state, k1)
+        dynamics(interval, state, k1)
 
         # 2. k2 = f(t + h, y + h*k1)
         stage2_update(dt, state, k1, stage)
-        derivative(interval_at(interval, dt, dt), stage, k2)
+        dynamics(interval_at(interval, dt, dt), stage, k2)
 
         # 3. k3 = f(t + h/2, y + h*(k1 + k2)/4)
         stage3_update(dt, state, k1, k2, stage)
-        derivative(interval_at(interval, dt, half_dt), stage, k3)
+        dynamics(interval_at(interval, dt, half_dt), stage, k3)
 
         # 4. y <- y + h*(k1 + k2 + 4k3)/6
         advance_update(dt, state, k1, k2, k3, state)

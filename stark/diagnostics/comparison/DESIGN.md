@@ -24,7 +24,7 @@ the report easier to implement but less honest.
 ## Entry Boundary
 
 Entries provide method choices. The runner prepares each method through the
-same system, engine, derivative, and configuration that an ordinary solve uses.
+same system, engine, dynamics, and configuration that an ordinary solve uses.
 This keeps comparison useful for both built-in methods and contributor-written
 schemes:
 

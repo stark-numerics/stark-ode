@@ -7,7 +7,7 @@ The package exists so the mathematical model stays visible:
 
 ```text
 state shape   -> Frame
-right side    -> Derivative
+right side    -> Dynamics
 Jacobian data -> Linearizer
 assembly      -> System
 ```
@@ -35,8 +35,8 @@ The public problem API should accept natural mathematical callables and state
 descriptions. Internally, those inputs are adapted into stable contracts:
 
 ```text
-DerivativeLike
-DerivativeSplitLike
+DynamicsLike
+DynamicsSplitLike
 LinearizerLike
 Frame fields
 System IVP assembly

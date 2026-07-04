@@ -8,10 +8,10 @@ from math import cos, sin
 import numpy as np
 
 from benchmarks.problems.problem import BenchmarkProblemDefinition
-from stark import DerivativeStyle, Frame, Interval, System
+from stark import DynamicsStyle, Frame, Interval, System
 
 
-@DerivativeStyle.accepts_instant_writes
+@DynamicsStyle.accepts_instant_writes
 def harmonic_oscillator_rhs(t: float, state, out) -> None:
     out.dx[:] = state.v
     out.dv[:] = -state.x
@@ -19,7 +19,7 @@ def harmonic_oscillator_rhs(t: float, state, out) -> None:
 
 def harmonic_oscillator_system() -> System:
     return System(
-        derivative=harmonic_oscillator_rhs,
+        dynamics=harmonic_oscillator_rhs,
         frame=Frame.from_fields(
             ("x", "dx", (1,)),
             ("v", "dv", (1,)),

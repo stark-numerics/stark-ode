@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark import Derivative
+from stark import Dynamics
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventPicard
 from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
@@ -44,14 +44,14 @@ class DummyAllocator:
         return DummyTranslation()
 
 
-def dummy_derivative(interval, state, out: DummyTranslation) -> None:
+def dummy_dynamics(interval, state, out: DummyTranslation) -> None:
     del interval, state, out
 
 
 def make_imex_euler() -> SchemeIMEXEuler:
-    split = Derivative.split(
-        implicit=dummy_derivative,
-        explicit=dummy_derivative,
+    split = Dynamics.split(
+        implicit=dummy_dynamics,
+        explicit=dummy_dynamics,
     )
     allocator = DummyAllocator()
     resolvent = ResolventPicard(
@@ -66,19 +66,19 @@ def make_imex_euler() -> SchemeIMEXEuler:
     ("scheme", "short_name", "full_name", "tableau_text"),
     [
         (
-            SchemeEuler(dummy_derivative, DummyAllocator()),
+            SchemeEuler(dummy_dynamics, DummyAllocator()),
             "Euler",
             "Forward Euler",
             "Butcher tableau",
         ),
         (
-            SchemeRK4(dummy_derivative, DummyAllocator()),
+            SchemeRK4(dummy_dynamics, DummyAllocator()),
             "RK4",
             "Classical Runge-Kutta",
             "Butcher tableau",
         ),
         (
-            SchemeBogackiShampine(dummy_derivative, DummyAllocator()),
+            SchemeBogackiShampine(dummy_dynamics, DummyAllocator()),
             "BS23",
             "Bogacki-Shampine",
             "Butcher tableau",
@@ -131,7 +131,7 @@ def test_with_scheme_display_object_matches_descriptor_behaviour() -> None:
 
 
 def test_with_scheme_display_keeps_repr_exactly_equivalent_to_descriptor() -> None:
-    scheme = SchemeRK4(dummy_derivative, DummyAllocator())
+    scheme = SchemeRK4(dummy_dynamics, DummyAllocator())
 
     assert repr(scheme) == SchemeRK4.descriptor.repr_for(
         "SchemeRK4",

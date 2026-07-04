@@ -8,7 +8,7 @@ from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
 from stark.engines import EngineNumpy
-from stark.problem import DerivativeStyle
+from stark.problem import DynamicsStyle
 from stark.problem.frame.frame import Frame
 from stark.methods.method import Method
 from stark.problem.system.system import System
@@ -18,7 +18,7 @@ from stark.methods.schemes.explicit.adaptive import SchemeCashKarp, SchemeDorman
 Array = Any
 
 
-@DerivativeStyle.kernel_accepts_instant_writes(state=("q", "p"), translation=("dq", "dp"))
+@DynamicsStyle.kernel_accepts_instant_writes(state=("q", "p"), translation=("dq", "dp"))
 def fput_rhs(
     t: float,
     q: Array,
@@ -50,7 +50,7 @@ class FPUTStarkProblem:
         chain_size = int(problem_parameters["chain_size"])
         self.problem_parameters = problem_parameters
         self.system = System(
-            derivative=fput_rhs.with_parameters(float(problem_parameters["beta"])),
+            dynamics=fput_rhs.with_parameters(float(problem_parameters["beta"])),
             frame=Frame(
                 {
                     "q": {"translation": "dq", "shape": (chain_size,)},

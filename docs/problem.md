@@ -6,7 +6,7 @@ For the high-level path, define:
 
 ```text
 Frame       the state fields and translation fields
-Derivative  the right-hand side f(t, y)
+Dynamics  the right-hand side f(t, y)
 System      the object tying the problem pieces together
 Interval    start time, step guess, and stop time
 Tolerance   adaptive error scale, when needed
@@ -59,7 +59,7 @@ frame = Frame({
 })
 ```
 
-A derivative for that frame writes:
+Dynamics for that frame writes:
 
 ```python
 def rhs(t, state, out) -> None:
@@ -70,27 +70,27 @@ def rhs(t, state, out) -> None:
 
 Use this when your model can be represented as named scalar or array fields.
 
-## Use `DerivativeStyle` to adapt the derivative
+## Use `DynamicsStyle` to adapt the dynamics
 
-### In-place derivative
+### In-place dynamics
 
 Use in-place style when mutation is natural.
 
 ```python
 system = System(
     frame=frame,
-    derivative=DerivativeStyle.accepts_instant_writes(rhs),
+    dynamics=DynamicsStyle.accepts_instant_writes(rhs),
 )
 ```
 
 This is a good fit for NumPy and native mutable arrays.
 
-### Return-style derivative
+### Return-style dynamics
 
 Use return style when the backend prefers immutable arrays or expression-oriented code.
 
 ```python
-@DerivativeStyle.accepts_instant_returns
+@DynamicsStyle.accepts_instant_returns
 def rhs(t, state):
     return {"dy": -0.5 * state.y}
 ```
@@ -99,21 +99,21 @@ This is the recommended shape for JAX examples.
 
 ### Kernel styles
 
-Kernel styles bind named fields and parameters once, so the prepared derivative can run with less field discovery.
+Kernel styles bind named fields and parameters once, so the prepared dynamics can run with less field discovery.
 
 ```python
-@DerivativeStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",), parameters=(0.5,))
+@DynamicsStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",), parameters=(0.5,))
 def decay_kernel(y, dy, rate: float) -> None:
     dy[:] = -rate * y
 ```
 
-Use kernel styles when you want a compact derivative focused on array fields.
+Use kernel styles when you want compact dynamics focused on array fields.
 
 ## Build a `System`
 
 ```python
 system = System(
-    derivative=DerivativeStyle.accepts_instant_writes(rhs),
+    dynamics=DynamicsStyle.accepts_instant_writes(rhs),
     frame=frame,
 )
 ```
@@ -122,7 +122,7 @@ For implicit methods, add a linearizer:
 
 ```python
 system = System(
-    derivative=derivative,
+    dynamics=dynamics,
     linearizer=linearizer,
     frame=frame,
 )
@@ -145,9 +145,9 @@ Use absolute tolerance for small values and relative tolerance for scaled values
 
 ## Define a linearizer for implicit solves
 
-A linearizer describes the Jacobian action of the derivative. Newton-style resolvents use it to solve implicit stage equations.
+A linearizer describes the Jacobian action of the dynamics. Newton-style resolvents use it to solve implicit stage equations.
 
-For a two-component Van der Pol oscillator, the derivative is:
+For a two-component Van der Pol oscillator, the dynamics is:
 
 ```text
 y0' = y1

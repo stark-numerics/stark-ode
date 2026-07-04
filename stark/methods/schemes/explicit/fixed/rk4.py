@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.methods.schemes.configuration import SchemeConfiguration
-from stark.core.contracts import DerivativeLike, IntervalLike, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, State, Allocator
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
@@ -65,7 +65,7 @@ class SchemeRK4:
         "advance_update",
         "call_body",
         "call_step",
-        "derivative",
+        "dynamics",
         "runtime",
         "k1",
         "k2",
@@ -95,7 +95,7 @@ class SchemeRK4:
 
     def __init__(
         self,
-        derivative: DerivativeLike,
+        dynamics: DynamicsLike,
         allocator: Allocator,
         configuration: SchemeConfiguration | None = None,
         specialist: SchemeSpecialist | None = None,
@@ -111,8 +111,8 @@ class SchemeRK4:
         self.call_step = self.call_monitored if monitor is not None else self.call_body
         self.redirect_call = self.call_step
 
-        self.runtime = SchemeRuntimeExplicit(derivative, allocator)
-        self.derivative = self.runtime.derivative
+        self.runtime = SchemeRuntimeExplicit(dynamics, allocator)
+        self.dynamics = self.runtime.dynamics
         self.workspace = self.runtime.workspace
         self.k1 = self.runtime.k1
 
@@ -162,7 +162,7 @@ class SchemeRK4:
             return 0.0
 
         workspace = self.workspace
-        derivative = self.derivative
+        dynamics = self.dynamics
         scale = workspace.scale
         combine4 = workspace.combine4
         apply_delta = workspace.apply_delta
@@ -179,22 +179,22 @@ class SchemeRK4:
         half_dt = 0.5 * dt
 
         # 1. k1 = f(t, y)
-        derivative(interval, state, k1)
+        dynamics(interval, state, k1)
 
         # 2. k2 = f(t + h/2, y + h/2*k1)
         stage_delta = scale(half_dt, k1, trial_buffer)
         stage_delta(state, stage)
-        derivative(interval_at(interval, dt, half_dt), stage, k2)
+        dynamics(interval_at(interval, dt, half_dt), stage, k2)
 
         # 3. k3 = f(t + h/2, y + h/2*k2)
         stage_delta = scale(half_dt, k2, trial_buffer)
         stage_delta(state, stage)
-        derivative(interval_at(interval, dt, half_dt), stage, k3)
+        dynamics(interval_at(interval, dt, half_dt), stage, k3)
 
         # 4. k4 = f(t + h, y + h*k3)
         stage_delta = scale(dt, k3, trial_buffer)
         stage_delta(state, stage)
-        derivative(interval_at(interval, dt, dt), stage, k4)
+        dynamics(interval_at(interval, dt, dt), stage, k4)
 
         # 5. y <- y + h*(k1 + 2k2 + 2k3 + k4)/6
         advance_delta = combine4(
@@ -230,7 +230,7 @@ class SchemeRK4:
         k3 = self.k3
         k4 = self.k4
 
-        derivative = self.derivative
+        dynamics = self.dynamics
         interval_at = self.workspace.interval_at
         stage2_update = self.stage2_update
         stage3_update = self.stage3_update
@@ -238,19 +238,19 @@ class SchemeRK4:
         advance_update = self.advance_update
 
         # 1. k1 = f(t, y)
-        derivative(interval, state, k1)
+        dynamics(interval, state, k1)
 
         # 2. k2 = f(t + h/2, y + h/2*k1)
         stage2_update(dt, state, k1, stage)
-        derivative(interval_at(interval, dt, half_dt), stage, k2)
+        dynamics(interval_at(interval, dt, half_dt), stage, k2)
 
         # 3. k3 = f(t + h/2, y + h/2*k2)
         stage3_update(dt, state, k1, k2, stage)
-        derivative(interval_at(interval, dt, half_dt), stage, k3)
+        dynamics(interval_at(interval, dt, half_dt), stage, k3)
 
         # 4. k4 = f(t + h, y + h*k3)
         stage4_update(dt, state, k1, k2, k3, stage)
-        derivative(interval_at(interval, dt, dt), stage, k4)
+        dynamics(interval_at(interval, dt, dt), stage, k4)
 
         # 5. y <- y + h*(k1 + 2k2 + 2k3 + k4)/6
         advance_update(dt, state, k1, k2, k3, k4, state)

@@ -17,7 +17,7 @@ def harmonic_oscillator(t: float, state, out) -> None:
 
 if __name__ == "__main__":
     system = System(
-        derivative=harmonic_oscillator,
+        dynamics=harmonic_oscillator,
         frame=Frame.vector("y", translation="dy", length=2),
     )
     ivp = system.ivp(

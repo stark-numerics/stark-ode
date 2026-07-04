@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from stark import Configuration, Interval, Frame, FrameField, Method, System
-from stark.problem.derivative import DerivativeAdapterAcceptsInstantWrites
+from stark.problem.dynamics import DynamicsAdapterAcceptsInstantWrites
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines import EngineNumpy
 
@@ -11,13 +11,13 @@ from stark.engines import EngineNumpy
 class DummyExplicitScheme:
     def __init__(
         self,
-        derivative,
+        dynamics,
         allocator,
         *,
         configuration=None,
         specialist=None,
     ) -> None:
-        self.derivative = derivative
+        self.dynamics = dynamics
         self.allocator = allocator
         self.configuration = configuration
         self.specialist = specialist
@@ -35,7 +35,7 @@ class DummyExplicitScheme:
 class DummyImplicitScheme(DummyExplicitScheme):
     def __init__(
         self,
-        derivative,
+        dynamics,
         allocator,
         resolvent,
         *,
@@ -43,7 +43,7 @@ class DummyImplicitScheme(DummyExplicitScheme):
         specialist=None,
     ) -> None:
         super().__init__(
-            derivative,
+            dynamics,
             allocator,
             configuration=configuration,
             specialist=specialist,
@@ -51,7 +51,7 @@ class DummyImplicitScheme(DummyExplicitScheme):
         self.resolvent = resolvent
 
 
-def derivative(interval, state, out) -> None:
+def dynamics(interval, state, out) -> None:
     del interval, state, out
 
 
@@ -62,7 +62,7 @@ def test_system_ivp_builds_engine_state_and_declared_scheme() -> None:
             FrameField("v", translation="dv", shape=(2,)),
         )
     )
-    system = System(derivative=derivative, frame=frame)
+    system = System(dynamics=dynamics, frame=frame)
     configuration = Configuration(check_progress=False)
     factory_layouts = []
 
@@ -83,8 +83,8 @@ def test_system_ivp_builds_engine_state_and_declared_scheme() -> None:
 
     assert factory_layouts == [frame]
     assert isinstance(ivp.scheme, DummyExplicitScheme)
-    assert isinstance(ivp.scheme.derivative, DerivativeAdapterAcceptsInstantWrites)
-    assert ivp.scheme.derivative.function is derivative
+    assert isinstance(ivp.scheme.dynamics, DynamicsAdapterAcceptsInstantWrites)
+    assert ivp.scheme.dynamics.function is dynamics
     assert ivp.scheme.allocator is ivp.engine.allocator
     assert ivp.scheme.configuration is configuration
     assert ivp.scheme.specialist is ivp.engine.algebraist_specialist
@@ -94,7 +94,7 @@ def test_system_ivp_builds_engine_state_and_declared_scheme() -> None:
 
 def test_system_ivp_trajectory_helpers_start_from_fresh_working_objects() -> None:
     frame = Frame({"u": {"translation": "du", "shape": (1,)}})
-    system = System(derivative=derivative, frame=frame)
+    system = System(dynamics=dynamics, frame=frame)
 
     ivp = system.ivp(
         initial={"u": np.array([1.0])},
@@ -121,7 +121,7 @@ def test_system_ivp_trajectory_helpers_start_from_fresh_working_objects() -> Non
 
 def test_system_ivp_final_result_returns_final_working_state_and_step_count() -> None:
     frame = Frame({"u": {"translation": "du", "shape": (1,)}})
-    system = System(derivative=derivative, frame=frame)
+    system = System(dynamics=dynamics, frame=frame)
 
     ivp = system.ivp(
         initial={"u": np.array([1.0])},
@@ -141,7 +141,7 @@ def test_system_ivp_final_result_returns_final_working_state_and_step_count() ->
 
 def test_system_ivp_uses_ready_resolvent_instance() -> None:
     frame = Frame({"u": {"translation": "du", "shape": (1,)}})
-    system = System(derivative=derivative, frame=frame)
+    system = System(dynamics=dynamics, frame=frame)
     resolvent = object()
 
     ivp = system.ivp(

@@ -1,18 +1,18 @@
-"""Concrete derivative split declarations for problem definitions."""
+"""Concrete dynamics split declarations for problem definitions."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark.core.contracts.derivative import DerivativeLike
+from stark.core.contracts.dynamics import DynamicsLike
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeSplit:
+class DynamicsSplit:
     """
-    Concrete implicit-explicit derivative split.
+    Concrete implicit-explicit dynamics split.
 
-    Use `Derivative.split(implicit=..., explicit=...)` to create this object in
+    Use `Dynamics.split(implicit=..., explicit=...)` to create this object in
     user code. IMEX schemes consume the protocol shape rather than this
     concrete class, but the problem layer owns this declaration helper because
     it is part of describing the differential problem.
@@ -24,7 +24,7 @@ class DerivativeSplit:
     where both parts write into translation objects in place.
     """
 
-    implicit: DerivativeLike
-    explicit: DerivativeLike
+    implicit: DynamicsLike
+    explicit: DynamicsLike
 
-__all__ = ["DerivativeSplit"]
+__all__ = ["DynamicsSplit"]

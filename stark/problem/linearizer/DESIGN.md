@@ -31,9 +31,9 @@ A linearizer may support:
 Dense fill is optional. A large problem should not be forced into dense
 materialisation just because it provides a Jacobian action.
 
-## Relationship to Derivative
+## Relationship to Dynamics
 
-Linearizer mirrors derivative in style and structure. Both packages adapt
+Linearizer mirrors dynamics in style and structure. Both packages adapt
 user-written mathematical callables into the worker shapes consumed by methods.
 
 Decorator names should stay explicit about accepted inputs and whether the
@@ -41,5 +41,5 @@ callable writes into an output object.
 
 ## Design Rule
 
-Keep linearizer declarations near derivatives and systems. Methods should ask
+Keep linearizer declarations near dynamics and systems. Methods should ask
 for linearizer capability; they should not own the user's Jacobian language.

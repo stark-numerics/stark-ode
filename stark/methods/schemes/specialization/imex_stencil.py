@@ -11,7 +11,7 @@ from stark.methods.schemes.method.tableau import TableauImex
 class SchemeStencilImexTableau:
     """Stencil view of paired explicit/implicit IMEX tableaux.
 
-    Source ordering is explicit derivatives first, then implicit derivatives.
+    Source ordering is explicit dynamics first, then implicit dynamics.
     For a stage row ``i`` this means::
 
         kE_0, ..., kE_{i-1}, kI_0, ..., kI_{i-1}

@@ -24,10 +24,10 @@ class CarrierArithmeticNumpy:
         self,
         state: Array,
         step: float,
-        derivative: Array,
+        dynamics: Array,
         result: Array,
     ) -> None:
-        np.multiply(derivative, step, out=self.scratch)
+        np.multiply(dynamics, step, out=self.scratch)
         np.add(state, self.scratch, out=result)
 
     def add(self, left: Array, right: Array, result: Array) -> None:

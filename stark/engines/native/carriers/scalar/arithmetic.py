@@ -16,10 +16,10 @@ class CarrierArithmeticNativeScalar:
         self,
         state: CarrierNativeScalarValue,
         step: float,
-        derivative: CarrierNativeScalarValue,
+        dynamics: CarrierNativeScalarValue,
         result: CarrierNativeScalarValue,
     ) -> CarrierNativeScalarValue:
-        return state + step * derivative
+        return state + step * dynamics
 
     def add(
         self,

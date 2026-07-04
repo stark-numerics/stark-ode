@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from stark.core.contracts.accelerator import AcceleratorAudit
-from stark.core.contracts.derivative import DerivativeAudit
-from stark.core.contracts.derivative_split import DerivativeSplitAudit
+from stark.core.contracts.dynamics import DynamicsAudit
+from stark.core.contracts.dynamics_split import DynamicsSplitAudit
 from stark.core.contracts.interval import IntervalAudit
 from stark.core.contracts.linearizer import LinearizerAudit
 from stark.core.contracts.stepper import IntegratorStepperAudit
@@ -34,8 +34,8 @@ class Auditor:
     __slots__ = ("checks",)
 
     translation_audit = TranslationAudit()
-    derivative_audit = DerivativeAudit()
-    derivative_split_audit = DerivativeSplitAudit()
+    dynamics_audit = DynamicsAudit()
+    dynamics_split_audit = DynamicsSplitAudit()
     allocator_audit = AllocatorAudit()
     linearizer_audit = LinearizerAudit()
     interval_audit = IntervalAudit()
@@ -49,8 +49,8 @@ class Auditor:
         self,
         *,
         state: Any | None = None,
-        derivative: Any | None = None,
-        imex_derivative: Any | None = None,
+        dynamics: Any | None = None,
+        imex_dynamics: Any | None = None,
         translation: Any | None = None,
         allocator: Any | None = None,
         interval: Any | None = None,
@@ -69,11 +69,11 @@ class Auditor:
         second_state = None
         sample_translation = None
 
-        if derivative is not None:
-            self.derivative_audit(self, derivative)
+        if dynamics is not None:
+            self.dynamics_audit(self, dynamics)
 
-        if imex_derivative is not None:
-            self.derivative_split_audit(self, imex_derivative)
+        if imex_dynamics is not None:
+            self.dynamics_split_audit(self, imex_dynamics)
 
         if allocator is not None:
             sample_state, second_state, sample_translation = self.allocator_audit(self, allocator, exercise=exercise)
@@ -106,15 +106,15 @@ class Auditor:
         if interval is not None:
             self.interval_audit(self, interval, exercise=exercise)
 
-        if exercise and allocator is not None and derivative is not None and state is not None and interval is not None:
+        if exercise and allocator is not None and dynamics is not None and state is not None and interval is not None:
             candidate_translation = sample_translation if sample_translation is not None else translation
             if candidate_translation is not None:
-                self.derivative_audit.exercise(self, derivative, interval, state, candidate_translation)
+                self.dynamics_audit.exercise(self, dynamics, interval, state, candidate_translation)
 
-        if exercise and allocator is not None and imex_derivative is not None and state is not None and interval is not None:
+        if exercise and allocator is not None and imex_dynamics is not None and state is not None and interval is not None:
             candidate_translation = sample_translation if sample_translation is not None else translation
             if candidate_translation is not None:
-                self.derivative_split_audit.exercise(self, imex_derivative, interval, state, candidate_translation)
+                self.dynamics_split_audit.exercise(self, imex_dynamics, interval, state, candidate_translation)
 
         if exercise and allocator is not None and state is not None and sample_state is not None:
             self.allocator_audit.exercise_copy_state(self, allocator, state, sample_state)
@@ -144,12 +144,12 @@ class Auditor:
         self.check(False, summary, message)
 
     @classmethod
-    def require_scheme_inputs(cls, derivative: Any, allocator: Any, translation: Any) -> None:
-        cls(derivative=derivative, allocator=allocator, translation=translation, exercise=False).raise_if_invalid()
+    def require_scheme_inputs(cls, dynamics: Any, allocator: Any, translation: Any) -> None:
+        cls(dynamics=dynamics, allocator=allocator, translation=translation, exercise=False).raise_if_invalid()
 
     @classmethod
-    def require_imex_scheme_inputs(cls, imex_derivative: Any, allocator: Any, translation: Any) -> None:
-        cls(imex_derivative=imex_derivative, allocator=allocator, translation=translation, exercise=False).raise_if_invalid()
+    def require_imex_scheme_inputs(cls, imex_dynamics: Any, allocator: Any, translation: Any) -> None:
+        cls(imex_dynamics=imex_dynamics, allocator=allocator, translation=translation, exercise=False).raise_if_invalid()
 
     @classmethod
     def require_stepper_inputs(cls, scheme: Any) -> None:
@@ -229,10 +229,10 @@ class Auditor:
 
     @staticmethod
     def _object_name(summary: str) -> str:
-        if summary.startswith("Derivative"):
-            return "Derivative"
-        if summary.startswith("DerivativeSplit"):
-            return "Derivative"
+        if summary.startswith("Dynamics"):
+            return "Dynamics"
+        if summary.startswith("DynamicsSplit"):
+            return "Dynamics"
         if summary.startswith("Translation"):
             return "Translation"
         if summary.startswith("Allocator"):
@@ -255,7 +255,7 @@ class Auditor:
     def _object_order(object_name: str) -> int:
         order = {
             "Interval": 0,
-            "Derivative": 1,
+            "Dynamics": 1,
             "Translation": 2,
             "Allocator": 3,
             "Accelerator": 4,

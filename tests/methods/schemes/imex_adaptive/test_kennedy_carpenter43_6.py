@@ -1,11 +1,11 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 
 import pytest
 
 from stark import Interval, Tolerance
-from stark.core.contracts import DerivativeLike, IntervalLike
+from stark.core.contracts import DynamicsLike, IntervalLike
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.diagnostics.monitor import Monitor
 from stark.methods.resolvents import ResolventPicard
@@ -49,9 +49,9 @@ class ScalarAllocator:
 
 
 @dataclass(slots=True)
-class SplitDerivative:
-    explicit: DerivativeLike
-    implicit: DerivativeLike
+class SplitDynamics:
+    explicit: DynamicsLike
+    implicit: DynamicsLike
 
 
 def zero_rhs(
@@ -65,7 +65,7 @@ def zero_rhs(
 
 def make_scheme(*, monitor=None) -> SchemeKennedyCarpenter43_6:
     allocator = ScalarAllocator()
-    derivative = SplitDerivative(
+    dynamics = SplitDynamics(
         explicit=zero_rhs,
         implicit=zero_rhs,
     )
@@ -76,7 +76,7 @@ def make_scheme(*, monitor=None) -> SchemeKennedyCarpenter43_6:
         tableau=SchemeKennedyCarpenter43_6.tableau,
     )
     return SchemeKennedyCarpenter43_6(
-        derivative,
+        dynamics,
         allocator,
         resolvent=resolvent,
         monitor=monitor,

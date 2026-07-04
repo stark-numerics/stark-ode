@@ -16,11 +16,11 @@ class CarrierArithmeticNativeArray:
         self,
         state: CarrierNativeArrayValue,
         step: float,
-        derivative: CarrierNativeArrayValue,
+        dynamics: CarrierNativeArrayValue,
         result: CarrierNativeArrayValue,
     ) -> None:
         for index in range(len(state)):
-            result[index] = state[index] + step * derivative[index]
+            result[index] = state[index] + step * dynamics[index]
 
     def add(
         self,

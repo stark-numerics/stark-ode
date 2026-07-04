@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Configuration, Derivative, Frame, Interval, Method, System, Tolerance
+from stark import Configuration, Dynamics, Frame, Interval, Method, System, Tolerance
 from stark.engines import EngineNumpy
 from stark.methods import SchemeKennedyCarpenter43_7
 
@@ -63,12 +63,12 @@ class SpectralDiffusionResolvent:
 
 
 if __name__ == "__main__":
-    derivative = Derivative.split(
-        implicit=Derivative(implicit_diffusion),
-        explicit=Derivative(explicit_reaction),
+    dynamics = Dynamics.split(
+        implicit=Dynamics(implicit_diffusion),
+        explicit=Dynamics(explicit_reaction),
     )
     system = System(
-        derivative=derivative,
+        dynamics=dynamics,
         frame=Frame.array("u", translation="du", shape=(GRID_SIZE,)),
     )
     ivp = system.ivp(

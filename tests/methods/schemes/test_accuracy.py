@@ -237,7 +237,7 @@ def constant_coefficient(t: float) -> float:
     return exact_derivative(t) - linear_coefficient(t) * x - quadratic_coefficient(t) * x * x
 
 
-class RiccatiDerivative:
+class RiccatiDynamics:
     def __call__(self, interval: Interval, state: RiccatiState, out: RiccatiTranslation) -> None:
         t = interval.present
         x = state.x
@@ -250,7 +250,7 @@ def test_scheme_matches_time_dependent_riccati_solution(case: SchemeCase) -> Non
     state = RiccatiState(0.0, exact_solution(0.0))
     interval = Interval(present=0.0, step=case.step, stop=STOP)
     scheme = case.scheme_type(
-        RiccatiDerivative(),
+        RiccatiDynamics(),
         RiccatiAllocator(),
         configuration=Configuration(
             scheme_tolerance=case.tolerance if case.tolerance is not None else Tolerance()

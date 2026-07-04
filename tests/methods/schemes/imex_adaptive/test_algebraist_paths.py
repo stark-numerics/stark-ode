@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
@@ -79,7 +79,7 @@ class ArrayScalarAllocator:
 
 
 @dataclass(slots=True)
-class SplitDerivative:
+class SplitDynamics:
     explicit: object
     implicit: object
 
@@ -108,7 +108,7 @@ def make_array_scheme(
     specialist: bool = False,
 ) -> Any:
     allocator = ArrayScalarAllocator()
-    derivative = SplitDerivative(
+    dynamics = SplitDynamics(
         explicit=array_explicit_rhs,
         implicit=array_implicit_rhs,
     )
@@ -119,7 +119,7 @@ def make_array_scheme(
         tableau=scheme_cls.tableau,
     )
     return scheme_cls(
-        derivative,
+        dynamics,
         allocator,
         resolvent=resolvent,
         specialist=(

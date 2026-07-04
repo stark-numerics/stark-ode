@@ -5,7 +5,7 @@ This page is for users whose explicit solves are too slow, unstable, or require 
 Implicit solving adds three pieces:
 
 ```text
-linearizer   Jacobian action of the derivative
+linearizer   Jacobian action of the dynamics
 resolvent    nonlinear stage solver
 inverter     linear correction solver
 ```
@@ -96,7 +96,7 @@ Interpret both warm and total timing tables. JIT or compilation work can move in
 
 ### Using an implicit scheme without a useful linearizer
 
-Newton can only be effective if the linearizer represents the derivative's Jacobian accurately enough.
+Newton can only be effective if the linearizer represents the dynamics' Jacobian accurately enough.
 
 ### Using Krylov for tiny systems
 

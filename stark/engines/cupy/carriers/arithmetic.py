@@ -36,10 +36,10 @@ class CarrierArithmeticCupy:
         self,
         state: CarrierCupyValue,
         step: float,
-        derivative: CarrierCupyValue,
+        dynamics: CarrierCupyValue,
         result: CarrierCupyValue,
     ) -> None:
-        cupy.multiply(derivative, step, out=self.scratch)
+        cupy.multiply(dynamics, step, out=self.scratch)
         cupy.add(state, self.scratch, out=result)
 
     def add(

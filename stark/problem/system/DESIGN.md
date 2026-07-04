@@ -5,7 +5,7 @@
 It ties together the problem pieces a user would recognise before selecting a
 backend or numerical method:
 
-- derivative,
+- dynamics,
 - frame,
 - optional linearizer.
 

@@ -5,7 +5,7 @@ from typing import Generic
 
 from stark.core.contracts import (
     BlockLike,
-    DerivativeLike,
+    DynamicsLike,
     IntervalLike,
     StateType,
     TranslationType,
@@ -22,7 +22,7 @@ class SchemeResolventRequest(Generic[StateType, TranslationType]):
     than anonymous package-wide `Translation` values.
     """
 
-    derivative: DerivativeLike[StateType, TranslationType]
+    dynamics: DynamicsLike[StateType, TranslationType]
     interval: IntervalLike
     origin: StateType
     rhs: BlockLike[TranslationType] | None
@@ -39,7 +39,7 @@ class SchemeResolventRequestCoupled(Generic[StateType, TranslationType]):
     needed to build the coupled residual.
     """
 
-    derivative: DerivativeLike[StateType, TranslationType]
+    dynamics: DynamicsLike[StateType, TranslationType]
     interval: IntervalLike
     origin: StateType
     rhs: BlockLike[TranslationType] | None

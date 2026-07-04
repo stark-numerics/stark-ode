@@ -44,18 +44,18 @@ stark.core.contracts.contract\_audit module
    :show-inheritance:
    :undoc-members:
 
-stark.core.contracts.derivative module
+stark.core.contracts.dynamics module
 --------------------------------------
 
-.. automodule:: stark.core.contracts.derivative
+.. automodule:: stark.core.contracts.dynamics
    :members:
    :show-inheritance:
    :undoc-members:
 
-stark.core.contracts.derivative\_split module
+stark.core.contracts.dynamics\_split module
 ---------------------------------------------
 
-.. automodule:: stark.core.contracts.derivative_split
+.. automodule:: stark.core.contracts.dynamics_split
    :members:
    :show-inheritance:
    :undoc-members:

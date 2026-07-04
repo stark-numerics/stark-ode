@@ -6,9 +6,9 @@ from typing import ClassVar
 from stark import (
     Configuration,
     Interval,
-    Derivative,
-    DerivativeSignature,
-    DerivativeStyle,
+    Dynamics,
+    DynamicsSignature,
+    DynamicsStyle,
     Frame,
     FrameField,
     Method,
@@ -94,14 +94,14 @@ def test_package_imports() -> None:
     assert AcceleratorJax is not None
     assert AcceleratorNumba is not None
     assert Resolvent is not None
-    assert Derivative is not None
-    assert DerivativeSignature is not None
-    assert DerivativeStyle is not None
+    assert Dynamics is not None
+    assert DynamicsSignature is not None
+    assert DynamicsStyle is not None
     assert Frame is not None
     assert FrameField is not None
     assert Method is not None
     assert System is not None
-    assert not hasattr(stark, "DerivativeIMEX")
+    assert not hasattr(stark, "DynamicsIMEX")
     assert not hasattr(stark, "EngineNumpy")
     assert not hasattr(stark, "Algebraist")
     assert not hasattr(stark, "ResolventNewton")

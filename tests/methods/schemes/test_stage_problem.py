@@ -30,7 +30,7 @@ class DummyState:
     value: float = 0.0
 
 
-def derivative(interval: IntervalLike, state: DummyState, out: DummyTranslation) -> None:
+def dynamics(interval: IntervalLike, state: DummyState, out: DummyTranslation) -> None:
     del interval, state, out
 
 
@@ -40,14 +40,14 @@ def test_scheme_stage_problem_preserves_scheme_constructed_data() -> None:
     rhs = Block([DummyTranslation()])
 
     problem = SchemeResolventRequest(
-        derivative=derivative,
+        dynamics=dynamics,
         interval=interval,
         origin=origin,
         rhs=rhs,
         alpha=0.5,
     )
 
-    assert problem.derivative is derivative
+    assert problem.dynamics is dynamics
     assert problem.interval is interval
     assert problem.origin is origin
     assert problem.rhs is rhs

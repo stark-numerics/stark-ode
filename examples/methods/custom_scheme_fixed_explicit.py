@@ -18,7 +18,7 @@ from stark import Frame, Interval, Method, System
 from stark.engines import EngineNumpy
 
 
-def derivative(t: float, state, out) -> None:
+def dynamics(t: float, state, out) -> None:
     del t
     out.dy[:] = state.y
 
@@ -30,8 +30,8 @@ class ForwardEuler:
     show how a user scheme can be constructed by the high-level method stack.
     """
 
-    def __init__(self, derivative, allocator) -> None:
-        self.derivative = derivative
+    def __init__(self, dynamics, allocator) -> None:
+        self.dynamics = dynamics
         self.allocator = allocator
         self.delta = allocator.allocate_translation()
 
@@ -41,7 +41,7 @@ class ForwardEuler:
             return 0.0
 
         dt = interval.step if interval.step <= remaining else remaining
-        self.derivative(interval, state, self.delta)
+        self.dynamics(interval, state, self.delta)
         (dt * self.delta)(state, state)
         return dt
 
@@ -53,7 +53,7 @@ class ForwardEuler:
 
 def build_ivp():
     system = System(
-        derivative=derivative,
+        dynamics=dynamics,
         frame=Frame.scalar("y", translation="dy"),
     )
     return system.ivp(

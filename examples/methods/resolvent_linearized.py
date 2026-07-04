@@ -53,7 +53,7 @@ linearizer = LinearizerStyle.operator(
 if __name__ == "__main__":
     frame = Frame.scalar("y", translation="dy")
     system = System(
-        derivative=decay_rhs,
+        dynamics=decay_rhs,
         linearizer=linearizer,
         frame=frame,
     )

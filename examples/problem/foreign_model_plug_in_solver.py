@@ -14,7 +14,7 @@ from typing import cast
 
 from stark import Configuration, Interval, Tolerance
 from stark.core import Integrator, IntegratorStepper
-from stark.core.contracts import DerivativeLike
+from stark.core.contracts import DynamicsLike
 from stark.methods import SchemeDormandPrince
 
 
@@ -51,13 +51,13 @@ class OscillatorDelta:
 class OscillatorModel:
     """User-side model with its own state shape and existing Euler stepper."""
 
-    def derivative(self, _time: float, state: OscillatorState, out: OscillatorDelta) -> None:
+    def dynamics(self, _time: float, state: OscillatorState, out: OscillatorDelta) -> None:
         out.position = state.velocity
         out.velocity = -state.position
 
     def euler_step(self, state: OscillatorState, dt: float) -> None:
         delta = OscillatorDelta()
-        self.derivative(0.0, state, delta)
+        self.dynamics(0.0, state, delta)
         state.position += dt * delta.position
         state.velocity += dt * delta.velocity
 
@@ -78,7 +78,7 @@ class OscillatorAllocator:
 
 
 def oscillator_rhs(interval: Interval, state: OscillatorState, out: OscillatorDelta) -> None:
-    model.derivative(interval.present, state, out)
+    model.dynamics(interval.present, state, out)
 
 
 model = OscillatorModel()
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     configuration = Configuration(
         scheme_tolerance=Tolerance(atol=1.0e-10, rtol=1.0e-8),
     )
-    scheme = SchemeDormandPrince(cast(DerivativeLike, oscillator_rhs), allocator)
+    scheme = SchemeDormandPrince(cast(DynamicsLike, oscillator_rhs), allocator)
     stepper = IntegratorStepper(scheme)
     integrator = Integrator(configuration=configuration)
 

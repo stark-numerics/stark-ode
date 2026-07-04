@@ -10,7 +10,7 @@ Scheme families answer different modelling questions:
   caller controls the step size;
 - implicit adaptive schemes target stiff problems where automatic step-size
   control matters;
-- IMEX schemes target split derivatives where one part is best treated
+- IMEX schemes target split dynamics where one part is best treated
   explicitly and another part benefits from implicit treatment.
 """
 

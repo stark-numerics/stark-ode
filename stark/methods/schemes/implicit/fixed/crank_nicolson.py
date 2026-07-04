@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.methods.schemes.configuration import SchemeConfiguration
 from typing import Any, cast
 
-from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, Allocator
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
 from stark.methods.schemes.execution.call import SchemeCall
@@ -36,8 +36,8 @@ CRANK_NICOLSON_TABLEAU = Tableau(
 class SchemeCrankNicolson:
     """The fixed-step Crank-Nicolson / trapezoidal Runge-Kutta method.
 
-    Crank-Nicolson combines one explicit derivative at the start of the step
-    with one implicit derivative at the end of the step.
+    Crank-Nicolson combines one explicit dynamics at the start of the step
+    with one implicit dynamics at the end of the step.
 
     Algorithm sketch for one accepted step of size h:
 
@@ -57,7 +57,7 @@ class SchemeCrankNicolson:
         "block_allocator",
         "call_body",
         "call_step",
-        "derivative",
+        "dynamics",
         "known_rhs",
         "known_rhs_kernel",
         "k1",
@@ -91,7 +91,7 @@ class SchemeCrankNicolson:
 
     def __init__(
         self,
-        derivative: DerivativeLike,
+        dynamics: DynamicsLike,
         allocator: Allocator,
         resolvent: Resolvent,
         *,
@@ -106,8 +106,8 @@ class SchemeCrankNicolson:
         self.resolvent = resolvent
         self.known_rhs_kernel = None
 
-        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
-        self.derivative = self.runtime.derivative
+        self.runtime = SchemeRuntimeImplicit(self, dynamics, allocator)
+        self.dynamics = self.runtime.dynamics
         self.workspace = self.runtime.workspace
         self.block_allocator = self.runtime.block_allocator
         self.k1 = self.workspace.allocate_translation()
@@ -137,14 +137,14 @@ class SchemeCrankNicolson:
         workspace = self.workspace
 
         # 1. Compute k1 = f(t, y).
-        self.derivative(interval, state, self.k1)
+        self.dynamics(interval, state, self.k1)
 
         # 2. Build the known explicit contribution h/2 * k1.
         self.known_rhs[0] = workspace.scale(0.5 * dt, self.k1, self.known_rhs[0])
 
         # 3. Solve delta = h/2 * k1 + h/2 * f(t + h, y + delta).
         problem = SchemeResolventRequest(
-            derivative=self.derivative,
+            dynamics=self.dynamics,
             interval=workspace.interval_at(interval, dt, dt),
             origin=state,
             rhs=self.known_rhs,
@@ -169,14 +169,14 @@ class SchemeCrankNicolson:
         known_rhs_kernel = cast(Any, self.known_rhs_kernel)
 
         # 1. Compute k1 = f(t, y).
-        self.derivative(interval, state, self.k1)
+        self.dynamics(interval, state, self.k1)
 
         # 2. Build the known explicit contribution h/2 * k1.
         self.known_rhs[0] = known_rhs_kernel(dt, self.k1, self.known_rhs[0])
 
         # 3. Solve delta = h/2 * k1 + h/2 * f(t + h, y + delta).
         problem = SchemeResolventRequest(
-            derivative=self.derivative,
+            dynamics=self.dynamics,
             interval=workspace.interval_at(interval, dt, dt),
             origin=state,
             rhs=self.known_rhs,

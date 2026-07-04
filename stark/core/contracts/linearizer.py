@@ -28,10 +28,10 @@ class _LinearizerOperatorProbe:
 
 class LinearizerLike(Protocol[StateTypeContravariant, TranslationTypeCovariant]):
     """
-    Fill `out` with the local Jacobian action of the derivative at `state`.
+    Fill `out` with the local Jacobian action of the dynamics at `state`.
 
     This is the contract that asks the user to do some problem-specific maths.
-    Given a nonlinear derivative
+    Given a nonlinear dynamics
 
         x' = f(t, x),
 

@@ -34,8 +34,8 @@ from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
 from stark.methods.schemes.explicit.fixed.rk38 import SchemeRK38
 from stark.methods.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
-from stark import Derivative
-from stark.core.contracts import DerivativeSplitLike, IntervalLike
+from stark import Dynamics
+from stark.core.contracts import DynamicsSplitLike, IntervalLike
 
 
 @dataclass(slots=True)
@@ -114,9 +114,9 @@ class PairwiseOnlyTranslation:
 
 
 class DummyScheme:
-    def __init__(self, derivative, allocator, translation) -> None:
-        Auditor.require_scheme_inputs(derivative, allocator, translation)
-        self.derivative = derivative
+    def __init__(self, dynamics, allocator, translation) -> None:
+        Auditor.require_scheme_inputs(dynamics, allocator, translation)
+        self.dynamics = dynamics
         self.workspace = SchemeStepSupport(allocator, translation)
 
     def scale(self, a, x, y):
@@ -155,18 +155,18 @@ class PairwiseOnlyAllocator:
         return PairwiseOnlyTranslation()
 
 
-def _dummy_derivative(interval, state, out) -> None:
+def _dummy_dynamics(interval, state, out) -> None:
     del interval, state, out
 
 
-def _imex_picard(split: DerivativeSplitLike, allocator, tableau):
+def _imex_picard(split: DynamicsSplitLike, allocator, tableau):
     return ResolventPicard(allocator, accelerator=AcceleratorNone(), tableau=tableau)
 
 
 def test_scheme_falls_back_to_arithmetic_linear_combination() -> None:
     x0 = DummyTranslation(2.0)
     x1 = DummyTranslation(3.0)
-    scheme = DummyScheme(_dummy_derivative, DummyAllocator(), x0)
+    scheme = DummyScheme(_dummy_dynamics, DummyAllocator(), x0)
     out = DummyTranslation()
 
     scaled = scheme.scale(4.0, x0, out)
@@ -179,7 +179,7 @@ def test_scheme_falls_back_to_arithmetic_linear_combination() -> None:
 def test_scheme_uses_translation_linear_combine_when_available() -> None:
     x0 = FastTranslation(2.0)
     x1 = FastTranslation(3.0)
-    scheme = DummyScheme(_dummy_derivative, DummyAllocator(), x0)
+    scheme = DummyScheme(_dummy_dynamics, DummyAllocator(), x0)
     out_scaled = FastTranslation()
     out_combined = FastTranslation()
 
@@ -194,7 +194,7 @@ def test_scheme_uses_translation_linear_combine_when_available() -> None:
 
 def test_scheme_synthesizes_missing_fast_combines_from_combine2() -> None:
     translations = [PairwiseOnlyTranslation(float(value)) for value in range(1, 13)]
-    scheme = DummyScheme(_dummy_derivative, PairwiseOnlyAllocator(), translations[0])
+    scheme = DummyScheme(_dummy_dynamics, PairwiseOnlyAllocator(), translations[0])
     out = PairwiseOnlyTranslation()
 
     terms = []
@@ -268,21 +268,21 @@ def test_scheme_step_support_consumes_algebraist_linear_combine_contract() -> No
 
 
 def test_scheme_repr_includes_names_and_tableau() -> None:
-    split = Derivative.split(implicit=_dummy_derivative, explicit=_dummy_derivative)
+    split = Dynamics.split(implicit=_dummy_dynamics, explicit=_dummy_dynamics)
     imex_allocator = DummyAllocator()
-    euler = SchemeEuler(_dummy_derivative, DummyAllocator())
-    heun = SchemeHeun(_dummy_derivative, DummyAllocator())
-    midpoint = SchemeMidpoint(_dummy_derivative, DummyAllocator())
-    ralston = SchemeRalston(_dummy_derivative, DummyAllocator())
-    kutta3 = SchemeKutta3(_dummy_derivative, DummyAllocator())
-    ssprk33 = SchemeSSPRK33(_dummy_derivative, DummyAllocator())
-    rk4 = SchemeRK4(_dummy_derivative, DummyAllocator())
-    rk38 = SchemeRK38(_dummy_derivative, DummyAllocator())
-    rkck = SchemeCashKarp(_dummy_derivative, DummyAllocator())
-    rkf45 = SchemeFehlberg45(_dummy_derivative, DummyAllocator())
-    bs23 = SchemeBogackiShampine(_dummy_derivative, DummyAllocator())
-    rkdp = SchemeDormandPrince(_dummy_derivative, DummyAllocator())
-    tsit5 = SchemeTsitouras5(_dummy_derivative, DummyAllocator())
+    euler = SchemeEuler(_dummy_dynamics, DummyAllocator())
+    heun = SchemeHeun(_dummy_dynamics, DummyAllocator())
+    midpoint = SchemeMidpoint(_dummy_dynamics, DummyAllocator())
+    ralston = SchemeRalston(_dummy_dynamics, DummyAllocator())
+    kutta3 = SchemeKutta3(_dummy_dynamics, DummyAllocator())
+    ssprk33 = SchemeSSPRK33(_dummy_dynamics, DummyAllocator())
+    rk4 = SchemeRK4(_dummy_dynamics, DummyAllocator())
+    rk38 = SchemeRK38(_dummy_dynamics, DummyAllocator())
+    rkck = SchemeCashKarp(_dummy_dynamics, DummyAllocator())
+    rkf45 = SchemeFehlberg45(_dummy_dynamics, DummyAllocator())
+    bs23 = SchemeBogackiShampine(_dummy_dynamics, DummyAllocator())
+    rkdp = SchemeDormandPrince(_dummy_dynamics, DummyAllocator())
+    tsit5 = SchemeTsitouras5(_dummy_dynamics, DummyAllocator())
     imex_euler = SchemeIMEXEuler(split, imex_allocator, resolvent=_imex_picard(split, imex_allocator, SchemeIMEXEuler.tableau))
     ark324 = SchemeKennedyCarpenter32(split, imex_allocator, resolvent=_imex_picard(split, imex_allocator, SchemeKennedyCarpenter32.tableau))
     ark436 = SchemeKennedyCarpenter43_6(split, imex_allocator, resolvent=_imex_picard(split, imex_allocator, SchemeKennedyCarpenter43_6.tableau))
@@ -368,7 +368,7 @@ def test_scheme_repr_includes_names_and_tableau() -> None:
 
 
 def test_adaptive_scheme_updates_next_interval_step() -> None:
-    scheme = SchemeCashKarp(_dummy_derivative, DummyAllocator())
+    scheme = SchemeCashKarp(_dummy_dynamics, DummyAllocator())
     interval = Interval(present=0.0, step=0.1, stop=1.0)
 
     accepted_dt = scheme(interval, object())
@@ -410,13 +410,13 @@ class TimeAllocator:
         return TimeTranslation()
 
 
-def test_midpoint_uses_stage_time_for_non_autonomous_derivative() -> None:
-    class TimeDerivative:
+def test_midpoint_uses_stage_time_for_non_autonomous_dynamics() -> None:
+    class TimeDynamics:
         def __call__(self, interval: IntervalLike, state: TimeState, out: TimeTranslation) -> None:
             del state
             out.value = interval.present
 
-    scheme = SchemeMidpoint(TimeDerivative(), TimeAllocator())
+    scheme = SchemeMidpoint(TimeDynamics(), TimeAllocator())
     interval = Interval(present=0.0, step=1.0, stop=1.0)
     state = TimeState(0.0)
 
@@ -426,13 +426,13 @@ def test_midpoint_uses_stage_time_for_non_autonomous_derivative() -> None:
     assert abs(state.value - 0.5) < 1.0e-12
 
 
-def test_stepper_keeps_explicitly_supplied_scheme_derivative() -> None:
-    class ConstantDerivative:
+def test_stepper_keeps_explicitly_supplied_scheme_dynamics() -> None:
+    class ConstantDynamics:
         def __call__(self, interval: IntervalLike, state: TimeState, out: TimeTranslation) -> None:
             del interval, state
             out.value = 1.0
 
-    scheme = SchemeEuler(ConstantDerivative(), TimeAllocator())
+    scheme = SchemeEuler(ConstantDynamics(), TimeAllocator())
     stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.5, stop=0.5)
     state = TimeState(0.0)
@@ -451,7 +451,7 @@ def test_imex_euler_handles_purely_explicit_split() -> None:
         del interval, state
         out.value = 1.0
 
-    split = Derivative.split(implicit=implicit, explicit=explicit)
+    split = Dynamics.split(implicit=implicit, explicit=explicit)
     allocator = TimeAllocator()
     scheme = SchemeIMEXEuler(split, allocator, resolvent=_imex_picard(split, allocator, SchemeIMEXEuler.tableau))
     interval = Interval(present=0.0, step=0.5, stop=0.5)
@@ -472,7 +472,7 @@ def test_imex_ark324_accepts_constant_split_rhs() -> None:
         del interval, state
         out.value = 1.0
 
-    split = Derivative.split(implicit=implicit, explicit=explicit)
+    split = Dynamics.split(implicit=implicit, explicit=explicit)
     allocator = TimeAllocator()
     scheme = SchemeKennedyCarpenter32(
         split,
@@ -491,7 +491,7 @@ def test_imex_ark324_accepts_constant_split_rhs() -> None:
 
 def test_scheme_monitor_collects_adaptive_step_payloads_during_integration() -> None:
     monitor = Monitor()
-    scheme = SchemeCashKarp(_dummy_derivative, DummyAllocator(), monitor=monitor.scheme)
+    scheme = SchemeCashKarp(_dummy_dynamics, DummyAllocator(), monitor=monitor.scheme)
     stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
 

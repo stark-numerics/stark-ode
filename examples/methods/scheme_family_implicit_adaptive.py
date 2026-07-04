@@ -21,7 +21,7 @@ def decay_rhs(t, state, out) -> None:
 
 if __name__ == "__main__":
     system = System(
-        derivative=decay_rhs,
+        dynamics=decay_rhs,
         frame=Frame.scalar("y", translation="dy"),
     )
     configuration = Configuration(

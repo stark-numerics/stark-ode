@@ -7,7 +7,7 @@ from collections.abc import Mapping
 import numpy as np
 
 from benchmarks.problems.problem import BenchmarkProblemDefinition
-from stark import Derivative, DerivativeStyle, Frame, Interval, LinearizerStyle, System
+from stark import Dynamics, DynamicsStyle, Frame, Interval, LinearizerStyle, System
 
 
 REACTION_DIFFUSION_GRID_SIZE = 64
@@ -26,7 +26,7 @@ def reaction_diffusion_laplacian(u: np.ndarray) -> np.ndarray:
     return (np.roll(u, 1) - 2.0 * u + np.roll(u, -1)) / (dx * dx)
 
 
-@DerivativeStyle.accepts_instant_writes
+@DynamicsStyle.accepts_instant_writes
 def reaction_diffusion_implicit_rhs(t: float, state, out) -> None:
     dx = REACTION_DIFFUSION_LENGTH / REACTION_DIFFUSION_GRID_SIZE
     out.du[:] = REACTION_DIFFUSION_DIFFUSIVITY * (
@@ -34,7 +34,7 @@ def reaction_diffusion_implicit_rhs(t: float, state, out) -> None:
     ) / (dx * dx)
 
 
-@DerivativeStyle.accepts_instant_writes
+@DynamicsStyle.accepts_instant_writes
 def reaction_diffusion_explicit_rhs(t: float, state, out) -> None:
     out.du[:] = state.u - state.u * state.u * state.u
 
@@ -53,9 +53,9 @@ def reaction_diffusion_implicit_jacobian(t: float, u, source, target) -> None:
 
 def reaction_diffusion_system() -> System:
     return System(
-        derivative=Derivative.split(
-            implicit=Derivative(reaction_diffusion_implicit_rhs),
-            explicit=Derivative(reaction_diffusion_explicit_rhs),
+        dynamics=Dynamics.split(
+            implicit=Dynamics(reaction_diffusion_implicit_rhs),
+            explicit=Dynamics(reaction_diffusion_explicit_rhs),
         ),
         frame=Frame.array("u", translation="du", shape=(REACTION_DIFFUSION_GRID_SIZE,)),
         linearizer=reaction_diffusion_implicit_jacobian,

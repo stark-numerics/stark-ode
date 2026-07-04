@@ -21,7 +21,7 @@ Read this as:
 current time + current state -> rate of change
 ```
 
-In STARK, the rate-of-change function is a `Derivative`.
+In STARK, the rate-of-change function is a `Dynamics`.
 
 ## IVP
 
@@ -81,30 +81,30 @@ fields.
 
 ```text
 state.y        current value
-translation.dy derivative or increment for y
+translation.dy dynamics increment for y
 ```
 
 Use `Frame` when your model can be described as named scalar or array fields.
 Use the foreign-model path only when your existing objects really need their
 own allocation, copy, and increment behavior.
 
-## Derivative
+## Dynamics
 
-A derivative is the right-hand side of the ODE.
+Dynamics is the right-hand side of the ODE.
 
-STARK's solver-facing derivative writes into an output translation:
+STARK's solver-facing dynamics writes into an output translation:
 
 ```text
-derivative(interval, state, out) -> None
+dynamics(interval, state, out) -> None
 ```
 
 User-facing adapters let you write more natural forms:
 
 ```text
-DerivativeStyle.accepts_instant_writes
-DerivativeStyle.accepts_instant_returns
-DerivativeStyle.kernel_accepts_instant_writes
-DerivativeStyle.kernel_accepts_instant_returns
+DynamicsStyle.accepts_instant_writes
+DynamicsStyle.accepts_instant_returns
+DynamicsStyle.kernel_accepts_instant_writes
+DynamicsStyle.kernel_accepts_instant_returns
 ```
 
 Use the style that makes the mathematical right-hand side easiest to read.
@@ -148,20 +148,20 @@ explicit solves that are stable only at impractical step sizes
 
 Implicit or IMEX methods are the usual response.
 
-## IMEX and split derivatives
+## IMEX and split dynamics
 
-IMEX means implicit-explicit. It is useful when one part of the derivative is
+IMEX means implicit-explicit. It is useful when one part of the dynamics is
 stiff but structured, while another part is cheap and non-stiff.
 
 ```text
 y' = implicit_part(t, y) + explicit_part(t, y)
 ```
 
-In STARK, use `Derivative.split(...)` to declare the two parts.
+In STARK, use `Dynamics.split(...)` to declare the two parts.
 
 ## Linearizer
 
-A linearizer represents the Jacobian action of a derivative.
+A linearizer represents the Jacobian action of the dynamics.
 
 If:
 
@@ -180,7 +180,7 @@ linearizer may also know how to fill a small dense matrix for dense inversion.
 
 ## Jacobian
 
-The Jacobian is the derivative of your derivative with respect to the state.
+The Jacobian is the derivative of your dynamics with respect to the state.
 
 For a vector-valued ODE, it is the matrix of sensitivities:
 
@@ -244,7 +244,7 @@ states, it can generate kernels for common solver operations such as linear
 combinations and norms.
 
 This matters because solver performance is often decided by repeated algebra
-on translations, not by the one line that defines the derivative.
+on translations, not by the one line that defines the dynamics.
 
 ## Monitor
 
@@ -257,6 +257,6 @@ speed.
 ## Where to go next
 
 - [Getting started](getting-started.md): solve the first problem.
-- [Define a problem](problem.md): learn `System`, `Frame`, and derivative styles.
+- [Define a problem](problem.md): learn `System`, `Frame`, and dynamics styles.
 - [Choose a method](methods.md): choose schemes and method components.
 - [Solve stiff problems](implicit.md): use linearizers, resolvents, and inverters.

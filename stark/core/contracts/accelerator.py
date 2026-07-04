@@ -1,7 +1,7 @@
 """Protocols for acceleration backends.
 
 Accelerators compile plain callable kernels. They do not inspect whether a
-callable is a derivative, linearizer, resolvent helper, or algebraist kernel;
+callable is a dynamics, linearizer, resolvent helper, or algebraist kernel;
 that role information belongs to the object constructing the callable. This
 keeps the accelerator contract small enough for users and backend authors to
 reason about.

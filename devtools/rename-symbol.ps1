@@ -5,7 +5,7 @@
 # README.md, and pyproject.toml.
 #
 # Examples:
-#   .\devtools\rename-symbol.ps1 -Before BoundDerivative -After DerivativeBinding
+#   .\devtools\rename-symbol.ps1 -Before BoundDynamics -After DynamicsBinding
 #   .\devtools\rename-symbol.ps1 -Before StarkIVP -After SystemIVP -Yes
 #   .\devtools\rename-symbol.ps1 -Before "stark.schemes" -After "stark.methods.schemes" -DottedToken
 #   .\devtools\rename-symbol.ps1 -Before "old text" -After "new text" -AllowPartialMatches

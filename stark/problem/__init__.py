@@ -1,10 +1,10 @@
 """Problem declaration objects."""
 
-from stark.problem.derivative import (
-    Derivative,
-    DerivativeImplementation,
-    DerivativeSignature,
-    DerivativeStyle,
+from stark.problem.dynamics import (
+    Dynamics,
+    DynamicsImplementation,
+    DynamicsSignature,
+    DynamicsStyle,
 )
 from stark.problem.linearizer import (
     Linearizer,
@@ -23,10 +23,10 @@ from stark.problem.frame import (
 from stark.problem.system import System, SystemFinalResult, SystemIVP
 
 __all__ = [
-    "Derivative",
-    "DerivativeImplementation",
-    "DerivativeSignature",
-    "DerivativeStyle",
+    "Dynamics",
+    "DynamicsImplementation",
+    "DynamicsSignature",
+    "DynamicsStyle",
     "Frame",
     "FrameField",
     "FrameNormExcluded",

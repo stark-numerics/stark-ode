@@ -197,7 +197,7 @@ def test_core_objects_have_readable_representations() -> None:
         out.dy[0] = state.y[0]
 
     system = System(
-        derivative=rhs,
+        dynamics=rhs,
         frame=Frame.scalar("y", translation="dy"),
     )
     bakeoff_problem = ComparisonProblem(

@@ -12,7 +12,7 @@ from stark.core.contracts import SchemeLike
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
 from stark.engines import EngineNumpy
-from stark.problem import DerivativeStyle
+from stark.problem import DynamicsStyle
 from stark.problem.frame.frame import Frame
 from stark.problem.linearizer import LinearizerStyle
 from stark.methods.method import Method
@@ -31,7 +31,7 @@ ROBERTSON_LAYOUT = Frame({"y": {"translation": "dy", "shape": (3,)}})
 Array = Any
 
 
-@DerivativeStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",))
+@DynamicsStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",))
 def robertson_rhs(t: float, y: Array, dy: Array) -> None:
     y1 = y[0]
     y2 = y[1]
@@ -200,7 +200,7 @@ def stark_runtime(stark_parameters, accelerator=None):
     )
     linearizer = robertson_linearizer
     system = System(
-        derivative=robertson_rhs,
+        dynamics=robertson_rhs,
         frame=ROBERTSON_LAYOUT,
         linearizer=linearizer,
     )

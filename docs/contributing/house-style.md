@@ -19,7 +19,7 @@ diagnostics  how behaviour is observed
 
 Code should normally belong clearly to one of those domains.
 
-A derivative belongs to the problem. A scheme belongs to methods. A carrier belongs to engines. A monitor belongs to diagnostics. Shared low-level protocols belong in core contracts only when they genuinely decouple domains.
+Dynamics belongs to the problem. A scheme belongs to methods. A carrier belongs to engines. A monitor belongs to diagnostics. Shared low-level protocols belong in core contracts only when they genuinely decouple domains.
 
 Do not move concrete workers into `core` just because more than one place can see them. `core` should describe stable contracts and shared primitives, not become a drawer for implementation.
 
@@ -127,7 +127,7 @@ be visible and easy to delete, but they should not tax the monitor-free path.
 A STARK worker should usually feel like a function from outside:
 
 ```python
-derivative(interval, state, out)
+dynamics(interval, state, out)
 linearizer(interval, state, operator)
 resolvent(request, output)
 inverter(request, output)
@@ -136,7 +136,7 @@ scheme(interval, state, output)
 
 But inside, it may carry prepared state. This is not a contradiction. It is the house style.
 
-The user should not have to care that a derivative adapter has resolved field access, or that an inverter has selected a fast single-block path, or that a scheme has selected a predictor. The call site should stay readable.
+The user should not have to care that a dynamics adapter has resolved field access, or that an inverter has selected a fast single-block path, or that a scheme has selected a predictor. The call site should stay readable.
 
 ## Owner-first naming
 
@@ -206,7 +206,7 @@ Protocols describe what one domain needs from another. Concrete classes do the w
 Use protocol names when the object crosses a boundary:
 
 ```text
-DerivativeLike
+DynamicsLike
 LinearizerLike
 SchemeLike
 InverterLike

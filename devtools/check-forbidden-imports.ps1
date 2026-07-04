@@ -7,7 +7,7 @@
 # Examples:
 #   .\devtools\check-forbidden-imports.ps1
 #   .\devtools\check-forbidden-imports.ps1 -Rule "stark.schemes"
-#   .\devtools\check-forbidden-imports.ps1 -Rule "BoundDerivative","BoundLinearizer"
+#   .\devtools\check-forbidden-imports.ps1 -Rule "BoundDynamics","BoundLinearizer"
 #   .\devtools\check-forbidden-imports.ps1 -RulesFile .\devtools\forbidden-imports.txt
 #   .\devtools\check-forbidden-imports.ps1 -AllMatches
 

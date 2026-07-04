@@ -24,7 +24,7 @@ def oscillator_rhs(t: float, state, out) -> None:
 
 def build_problem() -> ComparisonProblem:
     system = System(
-        derivative=oscillator_rhs,
+        dynamics=oscillator_rhs,
         frame=Frame.vector("y", translation="dy", length=2),
     )
     template = system.ivp(

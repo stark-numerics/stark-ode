@@ -38,7 +38,7 @@ def scale_by_two(source, target) -> None:
 
 
 def record_scheme_level(monitor: Monitor) -> None:
-    system = System(derivative=constant_rhs, frame=FRAME)
+    system = System(dynamics=constant_rhs, frame=FRAME)
     ivp = system.ivp(
         initial={"x": np.array([0.0])},
         interval=Interval(present=0.0, step=0.1, stop=0.3),
@@ -55,7 +55,7 @@ def record_resolvent_level(monitor: Monitor) -> None:
     resolvent.assign_monitor(monitor.resolvent)
 
     request = SchemeResolventRequest(
-        derivative=zero_rhs,
+        dynamics=zero_rhs,
         interval=Interval(present=0.0, step=0.1, stop=1.0),
         origin=engine.allocator.allocate_state(),
         rhs=None,

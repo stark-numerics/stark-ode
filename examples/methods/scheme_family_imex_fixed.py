@@ -1,6 +1,6 @@
 """Use a fixed-step IMEX scheme.
 
-IMEX schemes split the derivative into explicit and implicit parts. The
+IMEX schemes split the dynamics into explicit and implicit parts. The
 explicit part is advanced directly; the implicit part is handed to the chosen
 resolvent.
 """
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Configuration, Derivative, Frame, Interval, Method, System, Tolerance
+from stark import Configuration, Dynamics, Frame, Interval, Method, System, Tolerance
 from stark.engines import EngineNumpy
 from stark.methods import ResolventPicard, SchemeIMEXEuler
 
@@ -26,9 +26,9 @@ def explicit_rhs(t, state, out) -> None:
 
 if __name__ == "__main__":
     system = System(
-        derivative=Derivative.split(
-            implicit=Derivative(implicit_rhs),
-            explicit=Derivative(explicit_rhs),
+        dynamics=Dynamics.split(
+            implicit=Dynamics(implicit_rhs),
+            explicit=Dynamics(explicit_rhs),
         ),
         frame=Frame.scalar("y", translation="dy"),
     )

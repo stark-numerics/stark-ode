@@ -50,16 +50,16 @@ EXAMPLES: tuple[ExampleSpec, ...] = (
         "One vector-valued NumPy state field.",
     ),
     ExampleSpec(
-        "examples.problem.returning_derivative",
-        "Returning derivative",
+        "examples.problem.returning_dynamics",
+        "Returning dynamics",
         "problem",
-        "Return-style derivative adapter.",
+        "Return-style dynamics adapter.",
     ),
     ExampleSpec(
-        "examples.problem.in_place_derivative",
-        "In-place derivative",
+        "examples.problem.in_place_dynamics",
+        "In-place dynamics",
         "problem",
-        "In-place derivative adapter.",
+        "In-place dynamics adapter.",
     ),
     ExampleSpec(
         "examples.problem.multiple_fields",
@@ -98,10 +98,10 @@ EXAMPLES: tuple[ExampleSpec, ...] = (
         "PDE-like array state through the high-level System path.",
     ),
     ExampleSpec(
-        "examples.problem.derivative_styles",
-        "Derivative styles",
+        "examples.problem.dynamics_styles",
+        "Dynamics styles",
         "problem",
-        "In-place, return-style, and field-kernel derivatives.",
+        "In-place, return-style, and field-kernel dynamics.",
     ),
     ExampleSpec(
         "examples.problem.linearizer_styles",

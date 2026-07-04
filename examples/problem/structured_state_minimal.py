@@ -11,12 +11,12 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import DerivativeStyle, Frame, Interval, Method, System
+from stark import DynamicsStyle, Frame, Interval, Method, System
 from stark.engines import EngineNumpy
 from stark.methods import SchemeRK4
 
 
-@DerivativeStyle.accepts_instant_writes
+@DynamicsStyle.accepts_instant_writes
 def harmonic_motion(_time: float, state, out) -> None:
     out.delta.particle.position[:] = state.model.particle.velocity
     out.delta.particle.velocity[:] = -state.model.particle.position
@@ -27,7 +27,7 @@ def build_system() -> System:
         ("model.particle.position", "delta.particle.position", (1,)),
         ("model.particle.velocity", "delta.particle.velocity", (1,)),
     )
-    return System(derivative=harmonic_motion, frame=frame)
+    return System(dynamics=harmonic_motion, frame=frame)
 
 
 if __name__ == "__main__":

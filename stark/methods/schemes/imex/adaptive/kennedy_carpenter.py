@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from stark.core.block import Block
-from stark.core.contracts import DerivativeSplitLike, IntervalLike, Resolvent, State, Translation
+from stark.core.contracts import DynamicsSplitLike, IntervalLike, Resolvent, State, Translation
 from stark.core.contracts.errors import StarkErrorRecoverable
 from stark.methods.schemes.configuration import SchemeConfiguration
 from stark.methods.schemes.execution.step_control import SchemeStepControl
@@ -25,8 +25,8 @@ class KennedyCarpenterAdaptiveStep:
         "delta_high",
         "error_delta",
         "error_delta_kernel",
-        "explicit_derivative",
-        "implicit_derivative",
+        "explicit_dynamics",
+        "implicit_dynamics",
         "k_explicit",
         "k_implicit",
         "resolvent",
@@ -49,7 +49,7 @@ class KennedyCarpenterAdaptiveStep:
         self,
         *,
         tableau: TableauImex,
-        derivative: DerivativeSplitLike,
+        dynamics: DynamicsSplitLike,
         workspace: SchemeStepSupport,
         resolvent: Resolvent,
         configuration: SchemeConfiguration,
@@ -59,8 +59,8 @@ class KennedyCarpenterAdaptiveStep:
         self.workspace = workspace
         self.step_control = SchemeStepControl(configuration)
 
-        self.explicit_derivative = derivative.explicit
-        self.implicit_derivative = derivative.implicit
+        self.explicit_dynamics = dynamics.explicit
+        self.implicit_dynamics = dynamics.implicit
         self.resolvent = resolvent
 
         stage_count = len(tableau.implicit.a)
@@ -98,7 +98,7 @@ class KennedyCarpenterAdaptiveStep:
         stage_count = len(self.tableau.implicit.a)
 
         # Step 1 builds each known stage RHS from previous explicit and
-        # implicit derivative buffers. The diagonal implicit coefficient is
+        # implicit dynamics buffers. The diagonal implicit coefficient is
         # deliberately excluded from these stencils.
         self.stage_rhs_kernels = tuple(
             specialist.provide_delta(stencils.stage_rhs(index))
@@ -106,7 +106,7 @@ class KennedyCarpenterAdaptiveStep:
         )
 
         # Steps 4 and 5 build the accepted increment and embedded error
-        # estimate from the split derivative families.
+        # estimate from the split dynamics families.
         self.advance_delta_kernel = specialist.provide_delta(stencils.advance_delta())
         self.error_delta_kernel = specialist.provide_delta(stencils.error_delta())
 
@@ -197,8 +197,8 @@ class KennedyCarpenterAdaptiveStep:
     ) -> None:
         workspace = self.workspace
         tableau = self.tableau
-        explicit_derivative = self.explicit_derivative
-        implicit_derivative = self.implicit_derivative
+        explicit_dynamics = self.explicit_dynamics
+        implicit_dynamics = self.implicit_dynamics
         k_explicit = self.k_explicit
         k_implicit = self.k_implicit
         delta = self.delta
@@ -238,7 +238,7 @@ class KennedyCarpenterAdaptiveStep:
                 rhs_block = Block([rhs[stage_index]])
                 delta_block = Block([delta[stage_index]])
                 problem = SchemeResolventRequest(
-                    derivative=implicit_derivative,
+                    dynamics=implicit_dynamics,
                     interval=interval_ats[stage_index],
                     origin=state,
                     rhs=rhs_block,
@@ -247,14 +247,14 @@ class KennedyCarpenterAdaptiveStep:
                 self.resolvent(problem, delta_block)
                 delta[stage_index] = delta_block[0]
 
-            # 3. Recompute both split derivatives at the solved stage.
+            # 3. Recompute both split dynamics at the solved stage.
             delta[stage_index](state, self.stage_states[stage_index])
-            explicit_derivative(
+            explicit_dynamics(
                 interval_ats[stage_index],
                 self.stage_states[stage_index],
                 k_explicit[stage_index],
             )
-            implicit_derivative(
+            implicit_dynamics(
                 interval_ats[stage_index],
                 self.stage_states[stage_index],
                 k_implicit[stage_index],

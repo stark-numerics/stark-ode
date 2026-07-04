@@ -1,4 +1,4 @@
-"""Assignment helpers for return-style derivatives.
+"""Assignment helpers for return-style dynamics.
 
 Return-style user callables produce values rather than writing into the scheme
 translation object directly. This module owns the policy for copying those
@@ -16,10 +16,10 @@ from stark.engines.shared.algebraist.frame.path import AlgebraistFramePath
 
 
 def assign_returned_translation(result: Any, out: Any) -> None:
-    """Copy a return-style derivative result into the scheme translation object."""
+    """Copy a return-style dynamics result into the scheme translation object."""
 
     if result is None:
-        raise TypeError("Return-style derivatives must return translation values.")
+        raise TypeError("Return-style dynamics must return translation values.")
 
     frame = getattr(out, "algebraist_frame", None)
     fields_ = getattr(frame, "fields", None)
@@ -80,13 +80,13 @@ def _mapping_value(
     translation_path: AlgebraistFramePath,
     state_path: AlgebraistFramePath,
 ) -> Any:
-    """Read one frame field from a mapping-style derivative return value."""
+    """Read one frame field from a mapping-style dynamics return value."""
 
     for key in _path_keys(translation_path, state_path):
         if key in result:
             return result[key]
     raise KeyError(
-        "Return-style derivative did not provide translation field "
+        "Return-style dynamics did not provide translation field "
         f"{translation_path!s}."
     )
 
@@ -96,12 +96,12 @@ def _object_value(
     translation_path: AlgebraistFramePath,
     state_path: AlgebraistFramePath,
 ) -> Any:
-    """Read one frame field from an object-style derivative return value."""
+    """Read one frame field from an object-style dynamics return value."""
 
     value = _object_value_or_missing(result, translation_path, state_path)
     if value is _MISSING:
         raise AttributeError(
-            "Return-style derivative did not provide translation field "
+            "Return-style dynamics did not provide translation field "
             f"{translation_path!s}."
         )
     return value
@@ -143,7 +143,7 @@ def _assign_returned_without_frame(result: Any, out: Any) -> None:
                 setattr(out, key, value)
             else:
                 raise TypeError(
-                    "Mapping-style derivative returns require string identifier keys."
+                    "Mapping-style dynamics returns require string identifier keys."
                 )
         return
 
@@ -153,7 +153,7 @@ def _assign_returned_without_frame(result: Any, out: Any) -> None:
         return
 
     raise TypeError(
-        "Return-style derivative assignment requires a frame-backed translation "
+        "Return-style dynamics assignment requires a frame-backed translation "
         "object, a mapping return value, or an output object with one writable field."
     )
 

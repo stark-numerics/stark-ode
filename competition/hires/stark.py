@@ -14,7 +14,7 @@ from stark.methods.inverters.dense import InverterDense
 from stark.methods.method import Method
 from stark.methods.resolvents import ResolventChord, ResolventNewton, ResolventVeryChord
 from stark.methods.schemes import SchemeKvaerno5
-from stark.problem import DerivativeStyle
+from stark.problem import DynamicsStyle
 from stark.problem.frame.frame import Frame
 from stark.problem.linearizer import LinearizerStyle
 from stark.problem.system.system import System
@@ -24,7 +24,7 @@ HIRES_FRAME = Frame({"y": {"translation": "dy", "shape": (8,)}})
 Array = Any
 
 
-@DerivativeStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",))
+@DynamicsStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",))
 def hires_rhs(t: float, y: Array, dy: Array) -> None:
     reaction = 280.0 * y[5] * y[7]
     dy[0] = -1.71 * y[0] + 0.43 * y[1] + 8.32 * y[2] + 0.0007
@@ -116,7 +116,7 @@ def stark_runtime(stark_parameters, accelerator=None):
     )
     linearizer = hires_linearizer
     system = System(
-        derivative=hires_rhs,
+        dynamics=hires_rhs,
         frame=HIRES_FRAME,
         linearizer=linearizer,
     )

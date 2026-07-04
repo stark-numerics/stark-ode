@@ -24,8 +24,8 @@ def decay_rhs(t: float, state, out) -> None:
 class ForwardEuler:
     """Small fixed-step scheme written in the public scheme shape."""
 
-    def __init__(self, derivative, allocator) -> None:
-        self.derivative = derivative
+    def __init__(self, dynamics, allocator) -> None:
+        self.dynamics = dynamics
         self.allocator = allocator
         self.delta = allocator.allocate_translation()
 
@@ -35,7 +35,7 @@ class ForwardEuler:
             return 0.0
 
         dt = interval.step if interval.step <= remaining else remaining
-        self.derivative(interval, state, self.delta)
+        self.dynamics(interval, state, self.delta)
         (dt * self.delta)(state, state)
         return dt
 
@@ -50,7 +50,7 @@ def diagnostics(state) -> dict[str, float]:
 
 
 system = System(
-    derivative=decay_rhs,
+    dynamics=decay_rhs,
     frame=Frame.scalar("y", translation="dy"),
 )
 

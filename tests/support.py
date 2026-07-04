@@ -1,7 +1,7 @@
 """Shared typed test fixtures for STARK's public contracts.
 
 These helpers are intentionally tiny but complete. They satisfy the same
-state, translation, allocator, derivative, and specialist contracts that user
+state, translation, allocator, dynamics, and specialist contracts that user
 code is expected to satisfy, which keeps tests focused on the behaviour under
 test instead of on half-real local fakes.
 
@@ -28,7 +28,7 @@ from stark.methods.schemes.specialization.specialist import (
     SchemeSpecialistKernelDelta,
 )
 from stark.methods.schemes.specialization.stencil import SchemeStencil
-from stark.problem import Derivative, DerivativeStyle
+from stark.problem import Dynamics, DynamicsStyle
 
 
 @dataclass(slots=True)
@@ -39,22 +39,22 @@ class DummyScalarState:
 
 
 @dataclass(slots=True)
-class DummyDerivativeInterval:
-    """Minimal interval object for derivative and signature adapter tests."""
+class DummyDynamicsInterval:
+    """Minimal interval object for dynamics and signature adapter tests."""
 
     present: float
 
 
 @dataclass(slots=True)
-class DummyDerivativeState:
-    """State exposing a `y` field for derivative adapter tests."""
+class DummyDynamicsState:
+    """State exposing a `y` field for dynamics adapter tests."""
 
     y: Any
 
 
 @dataclass(slots=True)
-class DummyDerivativeTranslation:
-    """Translation exposing a `dy` field for derivative adapter tests."""
+class DummyDynamicsTranslation:
+    """Translation exposing a `dy` field for dynamics adapter tests."""
 
     dy: Any = 0.0
 
@@ -152,10 +152,10 @@ class DummyScalarAllocator:
         return DummyScalarTranslation()
 
 
-def dummy_scalar_derivative(rate: float) -> Derivative:
-    """Return `dy = rate * y` through STARK's public derivative wrapper.
+def dummy_scalar_dynamics(rate: float) -> Dynamics:
+    """Return `dy = rate * y` through STARK's public dynamics wrapper.
 
-    Scheme and resolvent tests should use this helper when the derivative
+    Scheme and resolvent tests should use this helper when the dynamics
     itself is not under test. It keeps the fixture on the same decorated path a
     user would write while avoiding a fresh local callable class in every test
     file.
@@ -169,11 +169,11 @@ def dummy_scalar_derivative(rate: float) -> Derivative:
         del interval
         out.value = rate * state.value
 
-    return Derivative(DerivativeStyle.accepts_interval_writes(write))
+    return Dynamics(DynamicsStyle.accepts_interval_writes(write))
 
 
-def dummy_quadratic_derivative() -> Derivative:
-    """Return `dy = -y**2` through STARK's public derivative wrapper."""
+def dummy_quadratic_dynamics() -> Dynamics:
+    """Return `dy = -y**2` through STARK's public dynamics wrapper."""
 
     def write(
         interval: IntervalLike,
@@ -183,11 +183,11 @@ def dummy_quadratic_derivative() -> Derivative:
         del interval
         out.value = -(state.value ** 2)
 
-    return Derivative(DerivativeStyle.accepts_interval_writes(write))
+    return Dynamics(DynamicsStyle.accepts_interval_writes(write))
 
 
-def dummy_constant_derivative(value: float = 1.0) -> Derivative:
-    """Return a constant scalar derivative through the public wrapper."""
+def dummy_constant_dynamics(value: float = 1.0) -> Dynamics:
+    """Return a constant scalar dynamics through the public wrapper."""
 
     def write(
         interval: IntervalLike,
@@ -197,7 +197,7 @@ def dummy_constant_derivative(value: float = 1.0) -> Derivative:
         del interval, state
         out.value = value
 
-    return Derivative(DerivativeStyle.accepts_interval_writes(write))
+    return Dynamics(DynamicsStyle.accepts_interval_writes(write))
 
 
 class DummyScalarLinearizer:
@@ -376,10 +376,10 @@ class DummyArrayAllocator:
         return DummyArrayTranslation(np.zeros(self.size))
 
 
-class DummyArrayDerivative:
-    """Small coupled derivative over a three-entry array state.
+class DummyArrayDynamics:
+    """Small coupled dynamics over a three-entry array state.
 
-    The derivative is deliberately non-diagonal and time-dependent, so tests
+    The dynamics is deliberately non-diagonal and time-dependent, so tests
     using it catch mistakes in stage state wiring rather than only scalar
     arithmetic mistakes.
     """
@@ -804,7 +804,7 @@ def dummy_zero_rhs(
     state: DummyScalarState,
     out: DummyScalarTranslation,
 ) -> None:
-    """Write the zero derivative into `out`."""
+    """Write the zero dynamics into `out`."""
 
     del interval, state
     out.value = 0.0
@@ -906,7 +906,7 @@ class DummyTableauSpecialist:
 
 __all__ = [
     "DummyArrayAllocator",
-    "DummyArrayDerivative",
+    "DummyArrayDynamics",
     "DummyArraySpecialist",
     "DummyArrayState",
     "DummyArrayTranslation",
@@ -917,9 +917,9 @@ __all__ = [
     "DummyRuntimeState",
     "DummyRuntimeTranslation",
     "DummyRuntimeTranslationWithLinearCombine",
-    "DummyDerivativeInterval",
-    "DummyDerivativeState",
-    "DummyDerivativeTranslation",
+    "DummyDynamicsInterval",
+    "DummyDynamicsState",
+    "DummyDynamicsTranslation",
     "DummyScalarEntryOperator",
     "DummyScalarState",
     "DummyScalarTranslation",
@@ -937,9 +937,9 @@ __all__ = [
     "dummy_runtime_combine2",
     "dummy_runtime_combine3",
     "dummy_runtime_scale",
-    "dummy_constant_derivative",
-    "dummy_quadratic_derivative",
-    "dummy_scalar_derivative",
+    "dummy_constant_dynamics",
+    "dummy_quadratic_dynamics",
+    "dummy_scalar_dynamics",
     "dummy_scalar_inner_product",
     "dummy_exponential_growth_rhs",
     "dummy_zero_rhs",

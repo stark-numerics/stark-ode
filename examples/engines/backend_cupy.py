@@ -8,17 +8,17 @@ try:
 except ImportError as exc:  # pragma: no cover - optional dependency example
     print(f"CuPy backend example skipped: {exc}")
 else:
-    from stark import DerivativeStyle, Frame, Interval, Method, System
+    from stark import DynamicsStyle, Frame, Interval, Method, System
     from stark.methods import SchemeCashKarp
 
-    @DerivativeStyle.accepts_instant_writes
+    @DynamicsStyle.accepts_instant_writes
     def decay(t: float, state, out) -> None:
         del t
         out.dy[:] = -0.5 * state.y
 
     if __name__ == "__main__":
         frame = Frame.scalar("y", translation="dy")
-        system = System(derivative=decay, frame=frame)
+        system = System(dynamics=decay, frame=frame)
         ivp = system.ivp(
             initial={"y": cp.array([2.0])},
             interval=Interval(present=0.0, step=0.1, stop=0.3),
@@ -26,6 +26,6 @@ else:
             engine=EngineCupy,
         )
 
-        print("CuPy in-place derivative")
+        print("CuPy in-place dynamics")
         for interval, state in ivp.stable_trajectory():
             print(f"t={interval.present:.1f}, y={float(cp.asnumpy(state.y)[0]):.6f}")

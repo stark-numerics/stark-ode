@@ -1,6 +1,6 @@
 """Use a matrix-free Jacobian with Newton and a Krylov inverter.
 
-Newton needs the action of the derivative Jacobian, but a dense matrix is not
+Newton needs the action of the dynamics Jacobian, but a dense matrix is not
 always the right representation. This example supplies only ``J(y) v`` and
 lets a Krylov inverter solve the linear correction problem matrix-free.
 """
@@ -11,7 +11,7 @@ import numpy as np
 
 from stark import (
     Configuration,
-    DerivativeStyle,
+    DynamicsStyle,
     Frame,
     Interval,
     LinearizerStyle,
@@ -26,7 +26,7 @@ from stark.methods import InverterKrylovArnoldi, ResolventNewton, SchemeKvaerno3
 MU = 12.0
 
 
-@DerivativeStyle.kernel_accepts_instant_writes(
+@DynamicsStyle.kernel_accepts_instant_writes(
     state=("y",),
     translation=("dy",),
     parameters=(MU,),
@@ -60,7 +60,7 @@ linearizer = LinearizerStyle.operator(apply=van_der_pol_jacobian_apply)
 if __name__ == "__main__":
     frame = Frame.vector("y", translation="dy", length=2)
     system = System(
-        derivative=van_der_pol_rhs,
+        dynamics=van_der_pol_rhs,
         linearizer=linearizer,
         frame=frame,
     )

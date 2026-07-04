@@ -37,7 +37,7 @@ StateTypeContravariant = TypeVar(
 )
 """Contravariant type variable for protocols that only consume state objects.
 
-Use this for worker contracts such as derivatives and linearizers. A function
+Use this for worker contracts such as dynamics and linearizers. A function
 that can accept a broader state shape can stand in wherever a narrower state
 consumer is required.
 """

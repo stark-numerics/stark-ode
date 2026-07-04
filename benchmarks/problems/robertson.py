@@ -8,13 +8,13 @@ from typing import TypeAlias
 import numpy as np
 
 from benchmarks.problems.problem import BenchmarkProblemDefinition
-from stark import DerivativeStyle, Frame, Interval, LinearizerStyle, System
+from stark import DynamicsStyle, Frame, Interval, LinearizerStyle, System
 
 
 Array: TypeAlias = np.ndarray
 
 
-@DerivativeStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",))
+@DynamicsStyle.kernel_accepts_instant_writes(state=("y",), translation=("dy",))
 def robertson_rhs(t: float, y: Array, dy: Array) -> None:
     y1 = y[0]
     y2 = y[1]
@@ -43,7 +43,7 @@ def robertson_jacobian(t: float, y: Array, source: Array, target: Array) -> None
 
 def robertson_system() -> System:
     return System(
-        derivative=robertson_rhs,
+        dynamics=robertson_rhs,
         frame=Frame.array("y", translation="dy", shape=(3,)),
         linearizer=robertson_jacobian,
     )

@@ -1,45 +1,45 @@
-stark.problem.derivative package
+stark.problem.dynamics package
 ================================
 
 Submodules
 ----------
 
-stark.problem.derivative.derivative module
+stark.problem.dynamics.dynamics module
 ------------------------------------------
 
-.. automodule:: stark.problem.derivative.derivative
+.. automodule:: stark.problem.dynamics.dynamics
    :members:
    :show-inheritance:
    :undoc-members:
 
-stark.problem.derivative.implementation module
+stark.problem.dynamics.implementation module
 ----------------------------------------------
 
-.. automodule:: stark.problem.derivative.implementation
+.. automodule:: stark.problem.dynamics.implementation
    :members:
    :show-inheritance:
    :undoc-members:
 
-stark.problem.derivative.returns module
+stark.problem.dynamics.returns module
 ---------------------------------------
 
-.. automodule:: stark.problem.derivative.returns
+.. automodule:: stark.problem.dynamics.returns
    :members:
    :show-inheritance:
    :undoc-members:
 
-stark.problem.derivative.signature module
+stark.problem.dynamics.signature module
 -----------------------------------------
 
-.. automodule:: stark.problem.derivative.signature
+.. automodule:: stark.problem.dynamics.signature
    :members:
    :show-inheritance:
    :undoc-members:
 
-stark.problem.derivative.split module
+stark.problem.dynamics.split module
 -------------------------------------
 
-.. automodule:: stark.problem.derivative.split
+.. automodule:: stark.problem.dynamics.split
    :members:
    :show-inheritance:
    :undoc-members:

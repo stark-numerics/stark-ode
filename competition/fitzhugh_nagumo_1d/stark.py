@@ -9,7 +9,7 @@ from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
 from stark.engines.numpy.engine import EngineNumpy
-from stark.problem import Derivative, DerivativeStyle
+from stark.problem import Dynamics, DynamicsStyle
 from stark.problem.frame.frame import Frame
 from stark.methods.method import Method
 from stark.problem.system.system import System
@@ -21,7 +21,7 @@ from stark.methods.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
 Array = Any
 
 
-@DerivativeStyle.kernel_accepts_instant_writes(state=("u", "v"), translation=("du", "dv"))
+@DynamicsStyle.kernel_accepts_instant_writes(state=("u", "v"), translation=("du", "dv"))
 def fitzhugh_nagumo_rhs(
     t: float,
     u: Array,
@@ -49,7 +49,7 @@ def fitzhugh_nagumo_rhs(
         dv[index] = epsilon * (centre + a - b * v[index])
 
 
-@DerivativeStyle.kernel_accepts_instant_writes(state=("u", "v"), translation=("du", "dv"))
+@DynamicsStyle.kernel_accepts_instant_writes(state=("u", "v"), translation=("du", "dv"))
 def fitzhugh_nagumo_explicit_rhs(
     t: float,
     u: Array,
@@ -67,7 +67,7 @@ def fitzhugh_nagumo_explicit_rhs(
         dv[index] = epsilon * (centre + a - b * v[index])
 
 
-@DerivativeStyle.kernel_accepts_instant_writes(state=("u", "v"), translation=("du", "dv"))
+@DynamicsStyle.kernel_accepts_instant_writes(state=("u", "v"), translation=("du", "dv"))
 def fitzhugh_nagumo_implicit_rhs(
     t: float,
     u: Array,
@@ -129,7 +129,7 @@ class FitzHughNagumoParameters:
         return 1.0 / (self.dx * self.dx)
 
 
-def full_derivative(parameters: FitzHughNagumoParameters):
+def full_dynamics(parameters: FitzHughNagumoParameters):
     return fitzhugh_nagumo_rhs.with_parameters(
         parameters.diffusivity_u,
         parameters.epsilon,
@@ -139,15 +139,15 @@ def full_derivative(parameters: FitzHughNagumoParameters):
     )
 
 
-def imex_derivative(parameters: FitzHughNagumoParameters):
-    return DerivativeStyle.split(
-        implicit=Derivative(
+def imex_dynamics(parameters: FitzHughNagumoParameters):
+    return DynamicsStyle.split(
+        implicit=Dynamics(
             fitzhugh_nagumo_implicit_rhs.with_parameters(
                 parameters.diffusivity_u,
                 parameters.inv_dx2,
             )
         ),
-        explicit=Derivative(
+        explicit=Dynamics(
             fitzhugh_nagumo_explicit_rhs.with_parameters(
                 parameters.epsilon,
                 parameters.a,
@@ -240,10 +240,10 @@ def stark_ivp(
     *,
     method: Method,
     initial_values: dict[str, np.ndarray],
-    derivative: object | None = None,
+    dynamics: object | None = None,
 ):
     system = System(
-        derivative=full_derivative(parameters) if derivative is None else derivative,
+        dynamics=full_dynamics(parameters) if dynamics is None else dynamics,
         frame=stark_frame(parameters),
     )
     return system.ivp(
@@ -262,12 +262,12 @@ def stark_solver(
     initial_conditions,
     reference,
     *,
-    derivative: object | None = None,
+    dynamics: object | None = None,
 ):
     ivp = stark_ivp(
         parameters,
         method=method,
-        derivative=derivative,
+        dynamics=dynamics,
         initial_values=initial_conditions,
     )
 
@@ -325,5 +325,5 @@ def prepare_kc43_imex_spectral(
         parameters,
         initial_conditions,
         reference,
-        derivative=imex_derivative(parameters),
+        dynamics=imex_dynamics(parameters),
     )

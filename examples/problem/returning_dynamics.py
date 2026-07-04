@@ -1,15 +1,15 @@
-"""Use a pure derivative that returns the translation instead of mutating it."""
+"""Use a pure dynamics that returns the translation instead of mutating it."""
 
 from __future__ import annotations
 
 import numpy as np
 
-from stark import DerivativeStyle, Frame, Interval, Method, System
+from stark import DynamicsStyle, Frame, Interval, Method, System
 from stark.engines import EngineNumpy
 from stark.methods import SchemeCashKarp
 
 
-@DerivativeStyle.accepts_instant_returns
+@DynamicsStyle.accepts_instant_returns
 def exponential_decay(t: float, state):
     del t
     # Returning a mapping lets STARK copy the value into the translation field.
@@ -20,7 +20,7 @@ def exponential_decay(t: float, state):
 
 if __name__ == "__main__":
     system = System(
-        derivative=exponential_decay,
+        dynamics=exponential_decay,
         frame=Frame.scalar("y", translation="dy"),
     )
     ivp = system.ivp(
@@ -30,6 +30,6 @@ if __name__ == "__main__":
         engine=EngineNumpy,
     )
 
-    print("Return-style derivative")
+    print("Return-style dynamics")
     for interval, state in ivp.stable_trajectory():
         print(f"t={interval.present:.1f}, y={state.y[0]:.6f}")

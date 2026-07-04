@@ -6,9 +6,9 @@ from stark.core.tolerance import Tolerance
 from stark.diagnostics.monitor import Monitor
 from stark.methods.method import Method, MethodError
 from stark.problem import (
-    Derivative,
-    DerivativeSignature,
-    DerivativeStyle,
+    Dynamics,
+    DynamicsSignature,
+    DynamicsStyle,
     Frame,
     FrameField,
     Linearizer,
@@ -19,9 +19,9 @@ from stark.problem import (
 
 __all__ = [
     "Configuration",
-    "Derivative",
-    "DerivativeSignature",
-    "DerivativeStyle",
+    "Dynamics",
+    "DynamicsSignature",
+    "DynamicsStyle",
     "Frame",
     "FrameField",
     "Linearizer",

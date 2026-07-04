@@ -54,7 +54,7 @@ Each competition case directory follows the same structure:
 - `common.py` contains plain dictionaries and NumPy arrays for problem
   parameters, tolerances, timing settings, and initial conditions.
 - `stark.py` contains a STARK-native implementation using structured mutable
-  states, translations, a allocator, callable derivative objects, and optional
+  states, translations, a allocator, callable dynamics objects, and optional
   Numba-backed fast paths.
 - `scipy.py` contains a SciPy-native implementation using `solve_ivp`, flat
   NumPy arrays, and plain RHS callbacks.
@@ -101,7 +101,7 @@ represent three different ways to build ODE solves in Python:
 - User-defined allocation and execution allocator
 - Performance-critical behavior attached to protocol objects
 - Repeated setup moved to construction time
-- Domain-specific fast paths for translation algebra and derivatives
+- Domain-specific fast paths for translation algebra and dynamics
 - Solver core decoupled from domain mechanics through user-defined protocols
 
 There is no single best coding style. These reports are intended to show how

@@ -1,7 +1,7 @@
 """Solve a spatial field as one array-valued state.
 
 Use this pattern when a model is naturally stored as a single NumPy array:
-declare one vector field in the `Frame`, write the array derivative in-place,
+declare one vector field in the `Frame`, write the array dynamics in-place,
 and let the ordinary high-level `System` path handle the integration.
 """
 
@@ -34,7 +34,7 @@ def reaction_diffusion_rhs(t: float, state, out) -> None:
 
 if __name__ == "__main__":
     system = System(
-        derivative=reaction_diffusion_rhs,
+        dynamics=reaction_diffusion_rhs,
         frame=Frame.array("u", translation="du", shape=(GRID_SIZE,)),
     )
     ivp = system.ivp(

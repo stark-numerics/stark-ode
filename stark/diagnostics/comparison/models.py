@@ -447,7 +447,7 @@ def _ivp_method_stepper(
     scheme = ivp.system.prepare_scheme(
         method,
         ivp.engine,
-        ivp.scheme.derivative,
+        ivp.scheme.dynamics,
         ivp.configuration if configuration is None else configuration,
     )
     return IntegratorStepper(scheme)

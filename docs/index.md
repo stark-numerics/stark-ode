@@ -24,9 +24,9 @@ contributing/house-style
 
 ## Solve a problem
 
-1. [Concepts and terminology](concepts.md): learn STARK's names for ODE, IVP, state, derivative, linearizer, resolvent, inverter, and engine.
+1. [Concepts and terminology](concepts.md): learn STARK's names for ODE, IVP, state, dynamics, linearizer, resolvent, inverter, and engine.
 2. [Getting started](getting-started.md): solve a small ODE with the high-level API.
-3. [Define a problem](problem.md): use `System`, `Frame`, `Derivative`, and `Linearizer`.
+3. [Define a problem](problem.md): use `System`, `Frame`, `Dynamics`, and `Linearizer`.
 4. [Choose a method](methods.md): choose schemes and customise numerical method components.
 5. [Solve stiff problems](implicit.md): add linearizers, resolvents, inverters, and preconditioners.
 6. [Use engines](engines.md): choose NumPy, Numba, JAX, or CuPy-backed storage/arithmetic.

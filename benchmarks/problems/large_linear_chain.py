@@ -7,13 +7,13 @@ from collections.abc import Mapping
 import numpy as np
 
 from benchmarks.problems.problem import BenchmarkProblemDefinition
-from stark import DerivativeStyle, Frame, Interval, System
+from stark import DynamicsStyle, Frame, Interval, System
 
 
 LARGE_LINEAR_CHAIN_SIZE = 65536
 
 
-@DerivativeStyle.accepts_instant_writes
+@DynamicsStyle.accepts_instant_writes
 def large_linear_chain_rhs(t: float, state, out) -> None:
     out.du[:] = (
         -0.15 * state.u
@@ -24,7 +24,7 @@ def large_linear_chain_rhs(t: float, state, out) -> None:
 
 def large_linear_chain_system() -> System:
     return System(
-        derivative=large_linear_chain_rhs,
+        dynamics=large_linear_chain_rhs,
         frame=Frame.array("u", translation="du", shape=(LARGE_LINEAR_CHAIN_SIZE,)),
     )
 

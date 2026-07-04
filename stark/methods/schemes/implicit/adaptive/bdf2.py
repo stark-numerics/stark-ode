@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.core.block import Block
-from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, Allocator
 from stark.core.contracts.errors import StarkErrorRecoverable
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
@@ -39,7 +39,7 @@ class SchemeBDF2:
     __slots__ = (
         "monitor",
         "call_body",
-        "step_control", "block_allocator", "call_step", "derivative", "error",
+        "step_control", "block_allocator", "call_step", "dynamics", "error",
         "has_history", "runtime", "known_shift", "known_shift_block", "low",
         "previous_delta", "previous_step", "redirect_call", "resolvent",
         "startup_rate", "trial_block", "workspace",
@@ -52,7 +52,7 @@ class SchemeBDF2:
 
     def __init__(
         self,
-        derivative: DerivativeLike,
+        dynamics: DynamicsLike,
         allocator: Allocator,
         resolvent: Resolvent,
         *,
@@ -62,11 +62,11 @@ class SchemeBDF2:
     ) -> None:
         del specialist
         self.resolvent = resolvent
-        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
-        self.derivative = self.runtime.derivative
+        self.runtime = SchemeRuntimeImplicit(self, dynamics, allocator)
+        self.dynamics = self.runtime.dynamics
         self.workspace = self.runtime.workspace
         self.block_allocator = self.runtime.block_allocator
-        self.derivative = derivative
+        self.dynamics = dynamics
 
         workspace = self.workspace
         self.startup_rate = workspace.allocate_translation()
@@ -194,19 +194,19 @@ class SchemeBDF2:
 
     def solve_startup_step(self, interval: IntervalLike, state: State, dt: float, ratio_fn):
         workspace = self.workspace
-        derivative = self.derivative
+        dynamics = self.dynamics
         scale = workspace.scale
         combine2 = workspace.combine2
         trial_block = self.trial_block
 
-        derivative(interval, state, self.startup_rate)
+        dynamics(interval, state, self.startup_rate)
 
         # Startup problem: Delta - h f(t+h, y + Delta) = 0.
         self.known_shift = scale(0.0, self.known_shift, self.known_shift)
         self.known_shift_block[0] = self.known_shift
         trial_block[0] = scale(0.0, trial_block[0], trial_block[0])
         problem = SchemeResolventRequest(
-            derivative=derivative,
+            dynamics=dynamics,
             interval=workspace.interval_at(interval, dt, dt),
             origin=state,
             rhs=self.known_shift_block,
@@ -236,7 +236,7 @@ class SchemeBDF2:
         self.known_shift_block[0] = self.known_shift
         trial_block[0] = scale(0.0, trial_block[0], trial_block[0])
         problem = SchemeResolventRequest(
-            derivative=self.derivative,
+            dynamics=self.dynamics,
             interval=workspace.interval_at(interval, dt, dt),
             origin=state,
             rhs=self.known_shift_block,

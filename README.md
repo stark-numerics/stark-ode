@@ -42,7 +42,7 @@ interface layer uses in-place array routing where possible.
 - Extension points for custom schemes and problem-specific fast translation
   kernels, including Algebraist providers for inspectable generated stage
   algebra.
-- A `Derivative.split(...)` helper for splitting a right-hand side into implicit
+- A `Dynamics.split(...)` helper for splitting a right-hand side into implicit
   and explicit parts ahead of IMEX schemes.
 
 Performance-sensitive custom objects can expose Algebraist-backed
@@ -103,7 +103,7 @@ def exponential_decay(t, y):
 
 
 ivp = StarkIVP(
-    derivative=exponential_decay,
+    dynamics=exponential_decay,
     initial=np.array([2.0, 4.0, 8.0]),
     interval=Interval(present=0.0, step=0.1, stop=2.0),
 )
@@ -112,9 +112,9 @@ for interval, state in ivp.integrate():
     print(interval.present, state.value)
 ```
 
-Plain derivative callables use the familiar return style `f(t, y) -> dy`.
+Plain dynamics callables use the familiar return style `f(t, y) -> dy`.
 For performance-sensitive array code, STARK also supports explicit in-place
-derivatives with `@StarkDerivative.in_place`.
+dynamics with `@StarkDynamics.in_place`.
 
 The interface layer chooses a carrier for the initial value, wraps the state,
 selects routing appropriate to the value semantics, builds a default scheme,
@@ -126,7 +126,7 @@ and runs the core STARK integration objects. It supports:
 - JAX arrays in a Python-level solve. This does not yet mean whole-solver
   `jax.jit`, `jax.grad`, or `jax.vmap`.
 
-See the interface guide for return-style and in-place derivatives, explicit
+See the interface guide for return-style and in-place dynamics, explicit
 carrier selection, routing, backend support levels, and examples:
 [`docs/interface.md`](docs/interface.md).
 
@@ -150,8 +150,8 @@ from stark.engines.shared.accelerators import AcceleratorNone
 from stark.methods.schemes import SchemeDormandPrince
 
 allocator = MyAllocator()
-derivative = MyDerivative()
-scheme = SchemeDormandPrince(derivative, allocator)
+dynamics = MyDynamics()
+scheme = SchemeDormandPrince(dynamics, allocator)
 Configuration = Configuration(
     tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6),
 )
@@ -170,7 +170,7 @@ The user provides:
 - a state object;
 - a translation object that can be applied, scaled, added, and measured;
 - an allocator that allocates and copies states/translations;
-- a derivative callable `derivative(interval, state, out)` that writes the
+- a dynamics callable `dynamics(interval, state, out)` that writes the
   time derivative into a translation.
 - an `Configuration` that carries runtime Tolerance, and ConfigurationAdaptivity
   policy.
@@ -185,14 +185,14 @@ Algebraist providers, resolvents, or inverters. `Configuration` deliberately car
 only runtime execution policy.
 
 For split problems, declare the implicit and explicit parts through
-`Derivative.split(...)`:
+`Dynamics.split(...)`:
 
 ```python
-from stark import Derivative
+from stark import Dynamics
 
-imex = Derivative.split(
-    implicit=implicit_derivative,
-    explicit=explicit_derivative,
+imex = Dynamics.split(
+    implicit=implicit_dynamics,
+    explicit=explicit_dynamics,
 )
 ```
 
@@ -202,11 +202,11 @@ inventory.
 ## Implicit shape
 
 Implicit and IMEX schemes add a few more moving parts. Alongside the
-allocator and derivative, users may provide:
+allocator and dynamics, users may provide:
 
 - a stage `Resolvent`, such as `ResolventNewton` or `ResolventAnderson`;
 - for Newton-backed resolvents, a `LinearizerLike` that supplies the Jacobian
-  action of the derivative;
+  action of the dynamics;
 - for Newton-backed resolvents, an `Inverter`, such as `InverterBiCGStab`.
 
 For example:
@@ -222,7 +222,7 @@ from stark.methods.resolvents.Tolerance import Tolerance
 from stark.methods.schemes import SchemeKvaerno3
 
 allocator = MyAllocator()
-derivative = MyDerivative()
+dynamics = MyDynamics()
 linearizer = MyLinearizer()
 accelerator = AcceleratorNone()
 inverter = InverterBiCGStab(
@@ -233,7 +233,7 @@ inverter = InverterBiCGStab(
     accelerator=accelerator,
 )
 resolvent = ResolventNewton(
-    derivative,
+    dynamics,
     allocator,
     linearizer=linearizer,
     inverter=inverter,
@@ -242,7 +242,7 @@ resolvent = ResolventNewton(
     accelerator=accelerator,
 )
 scheme = SchemeKvaerno3(
-    derivative,
+    dynamics,
     allocator,
     resolvent=resolvent,
 )

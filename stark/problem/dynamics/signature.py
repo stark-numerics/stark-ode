@@ -1,12 +1,12 @@
-"""User-facing derivative declarations.
+"""User-facing dynamics declarations.
 
-Signature objects record the shape of a user derivative and any metadata needed
+Signature objects record the shape of a user dynamics and any metadata needed
 to turn it into scheme-facing code. In this module, "signature" means the
 recognised STARK declaration shape, not Python's raw `inspect.signature(...)`.
 
 Kernel declarations always receive either the current time value or the full
 interval object. There is intentionally no autonomous kernel shape: even when a
-kernel does not use time, accepting and discarding it keeps the derivative
+kernel does not use time, accepting and discarding it keeps the dynamics
 contract explicit.
 """
 
@@ -16,30 +16,30 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol, overload, runtime_checkable
 
-from stark.core.contracts.derivative import DerivativeLike
-from stark.problem.derivative.implementation import (
-    DerivativeAdapterAcceptsInstantWrites,
-    DerivativeAdapterAcceptsIntervalWrites,
-    DerivativeAdapterAcceptsInstantReturns,
-    DerivativeAdapterAcceptsIntervalReturns,
-    DerivativeImplementation,
-    DerivativeKernelAcceptsInstantWrites,
-    DerivativeKernelAcceptsIntervalWrites,
-    DerivativeKernelAcceptsInstantReturns,
-    DerivativeKernelAcceptsIntervalReturns,
+from stark.core.contracts.dynamics import DynamicsLike
+from stark.problem.dynamics.implementation import (
+    DynamicsAdapterAcceptsInstantWrites,
+    DynamicsAdapterAcceptsIntervalWrites,
+    DynamicsAdapterAcceptsInstantReturns,
+    DynamicsAdapterAcceptsIntervalReturns,
+    DynamicsImplementation,
+    DynamicsKernelAcceptsInstantWrites,
+    DynamicsKernelAcceptsIntervalWrites,
+    DynamicsKernelAcceptsInstantReturns,
+    DynamicsKernelAcceptsIntervalReturns,
 )
-from stark.problem.derivative.split import DerivativeSplit
+from stark.problem.dynamics.split import DynamicsSplit
 
 
 @runtime_checkable
-class DerivativeSignature(Protocol):
-    """Recognised user derivative declaration that can produce scheme code."""
+class DynamicsSignature(Protocol):
+    """Recognised user dynamics declaration that can produce scheme code."""
 
-    def implementation(self) -> DerivativeImplementation: ...
+    def implementation(self) -> DynamicsImplementation: ...
 
 
-class DerivativeStyle:
-    """Construct recognised derivative signatures from user callables.
+class DynamicsStyle:
+    """Construct recognised dynamics signatures from user callables.
 
     These names are intentionally user-facing. `accepts_instant_*` variants
     receive the current time value, `accepts_interval_*` variants receive the
@@ -48,34 +48,34 @@ class DerivativeStyle:
     """
 
     @staticmethod
-    def accepts_instant_returns(function: Callable[..., Any]) -> DerivativeSignature:
-        """Recognise `function(t, state) -> translation` as a pure derivative."""
+    def accepts_instant_returns(function: Callable[..., Any]) -> DynamicsSignature:
+        """Recognise `function(t, state) -> translation` as a pure dynamics."""
 
-        return DerivativeSignatureAcceptsInstantReturns(function)
-
-    @staticmethod
-    def accepts_interval_returns(function: Callable[..., Any]) -> DerivativeSignature:
-        """Recognise `function(interval, state) -> translation` as a pure derivative."""
-
-        return DerivativeSignatureAcceptsIntervalReturns(function)
+        return DynamicsSignatureAcceptsInstantReturns(function)
 
     @staticmethod
-    def accepts_instant_writes(function: Callable[..., Any]) -> DerivativeSignature:
-        """Recognise `function(t, state, out)` as an in-place derivative."""
+    def accepts_interval_returns(function: Callable[..., Any]) -> DynamicsSignature:
+        """Recognise `function(interval, state) -> translation` as a pure dynamics."""
 
-        return DerivativeSignatureAcceptsInstantWrites(function)
-
-    @staticmethod
-    def accepts_interval_writes(function: Callable[..., Any]) -> DerivativeSignature:
-        """Recognise `function(interval, state, out)` as an in-place derivative."""
-
-        return DerivativeSignatureAcceptsIntervalWrites(function)
+        return DynamicsSignatureAcceptsIntervalReturns(function)
 
     @staticmethod
-    def split(*, implicit: DerivativeLike, explicit: DerivativeLike) -> DerivativeSplit:
-        """Recognise an implicit-explicit derivative split."""
+    def accepts_instant_writes(function: Callable[..., Any]) -> DynamicsSignature:
+        """Recognise `function(t, state, out)` as an in-place dynamics."""
 
-        return DerivativeSplit(
+        return DynamicsSignatureAcceptsInstantWrites(function)
+
+    @staticmethod
+    def accepts_interval_writes(function: Callable[..., Any]) -> DynamicsSignature:
+        """Recognise `function(interval, state, out)` as an in-place dynamics."""
+
+        return DynamicsSignatureAcceptsIntervalWrites(function)
+
+    @staticmethod
+    def split(*, implicit: DynamicsLike, explicit: DynamicsLike) -> DynamicsSplit:
+        """Recognise an implicit-explicit dynamics split."""
+
+        return DynamicsSplit(
             implicit=implicit,
             explicit=explicit,
         )
@@ -88,7 +88,7 @@ class DerivativeStyle:
         state: tuple[str, ...],
         translation: tuple[str, ...],
         parameters: tuple[Any, ...] = (),
-    ) -> Callable[[Callable[..., Any]], DerivativeSignatureKernelAcceptsInstantWrites]:
+    ) -> Callable[[Callable[..., Any]], DynamicsSignatureKernelAcceptsInstantWrites]:
         ...
 
     @staticmethod
@@ -99,7 +99,7 @@ class DerivativeStyle:
         state: tuple[str, ...],
         translation: tuple[str, ...],
         parameters: tuple[Any, ...] = (),
-    ) -> DerivativeSignatureKernelAcceptsInstantWrites:
+    ) -> DynamicsSignatureKernelAcceptsInstantWrites:
         ...
 
     @staticmethod
@@ -110,8 +110,8 @@ class DerivativeStyle:
         translation: tuple[str, ...],
         parameters: tuple[Any, ...] = (),
     ) -> (
-        DerivativeSignatureKernelAcceptsInstantWrites
-        | Callable[[Callable[..., Any]], DerivativeSignatureKernelAcceptsInstantWrites]
+        DynamicsSignatureKernelAcceptsInstantWrites
+        | Callable[[Callable[..., Any]], DynamicsSignatureKernelAcceptsInstantWrites]
     ):
         """Recognise `kernel(t, *state_fields, *out_fields, *parameters)`.
 
@@ -121,8 +121,8 @@ class DerivativeStyle:
         place, which is the natural shape for NumPy, CuPy, and Numba kernels.
         """
 
-        def recognise(target: Callable[..., Any]) -> DerivativeSignatureKernelAcceptsInstantWrites:
-            return DerivativeSignatureKernelAcceptsInstantWrites(
+        def recognise(target: Callable[..., Any]) -> DynamicsSignatureKernelAcceptsInstantWrites:
+            return DynamicsSignatureKernelAcceptsInstantWrites(
                 function=target,
                 state=state,
                 translation=translation,
@@ -141,7 +141,7 @@ class DerivativeStyle:
         state: tuple[str, ...],
         translation: tuple[str, ...],
         parameters: tuple[Any, ...] = (),
-    ) -> Callable[[Callable[..., Any]], DerivativeSignatureKernelAcceptsIntervalWrites]:
+    ) -> Callable[[Callable[..., Any]], DynamicsSignatureKernelAcceptsIntervalWrites]:
         ...
 
     @staticmethod
@@ -152,7 +152,7 @@ class DerivativeStyle:
         state: tuple[str, ...],
         translation: tuple[str, ...],
         parameters: tuple[Any, ...] = (),
-    ) -> DerivativeSignatureKernelAcceptsIntervalWrites:
+    ) -> DynamicsSignatureKernelAcceptsIntervalWrites:
         ...
 
     @staticmethod
@@ -163,18 +163,18 @@ class DerivativeStyle:
         translation: tuple[str, ...],
         parameters: tuple[Any, ...] = (),
     ) -> (
-        DerivativeSignatureKernelAcceptsIntervalWrites
-        | Callable[[Callable[..., Any]], DerivativeSignatureKernelAcceptsIntervalWrites]
+        DynamicsSignatureKernelAcceptsIntervalWrites
+        | Callable[[Callable[..., Any]], DynamicsSignatureKernelAcceptsIntervalWrites]
     ):
         """Recognise `kernel(interval, *state_fields, *out_fields, *parameters)`.
 
         This is the interval-aware writing kernel form. Use it when the
-        derivative needs more than the current time value, such as the active
+        dynamics needs more than the current time value, such as the active
         step size or interval endpoint metadata.
         """
 
-        def recognise(target: Callable[..., Any]) -> DerivativeSignatureKernelAcceptsIntervalWrites:
-            return DerivativeSignatureKernelAcceptsIntervalWrites(
+        def recognise(target: Callable[..., Any]) -> DynamicsSignatureKernelAcceptsIntervalWrites:
+            return DynamicsSignatureKernelAcceptsIntervalWrites(
                 function=target,
                 state=state,
                 translation=translation,
@@ -193,7 +193,7 @@ class DerivativeStyle:
         state: tuple[str, ...],
         translation: tuple[str, ...],
         parameters: tuple[Any, ...] = (),
-    ) -> Callable[[Callable[..., Any]], DerivativeSignatureKernelAcceptsInstantReturns]:
+    ) -> Callable[[Callable[..., Any]], DynamicsSignatureKernelAcceptsInstantReturns]:
         ...
 
     @staticmethod
@@ -204,7 +204,7 @@ class DerivativeStyle:
         state: tuple[str, ...],
         translation: tuple[str, ...],
         parameters: tuple[Any, ...] = (),
-    ) -> DerivativeSignatureKernelAcceptsInstantReturns:
+    ) -> DynamicsSignatureKernelAcceptsInstantReturns:
         ...
 
     @staticmethod
@@ -215,8 +215,8 @@ class DerivativeStyle:
         translation: tuple[str, ...],
         parameters: tuple[Any, ...] = (),
     ) -> (
-        DerivativeSignatureKernelAcceptsInstantReturns
-        | Callable[[Callable[..., Any]], DerivativeSignatureKernelAcceptsInstantReturns]
+        DynamicsSignatureKernelAcceptsInstantReturns
+        | Callable[[Callable[..., Any]], DynamicsSignatureKernelAcceptsInstantReturns]
     ):
         """Recognise `kernel(t, *state_fields, *parameters) -> fields`.
 
@@ -225,8 +225,8 @@ class DerivativeStyle:
         the scheme translation object.
         """
 
-        def recognise(target: Callable[..., Any]) -> DerivativeSignatureKernelAcceptsInstantReturns:
-            return DerivativeSignatureKernelAcceptsInstantReturns(
+        def recognise(target: Callable[..., Any]) -> DynamicsSignatureKernelAcceptsInstantReturns:
+            return DynamicsSignatureKernelAcceptsInstantReturns(
                 function=target,
                 state=state,
                 translation=translation,
@@ -245,7 +245,7 @@ class DerivativeStyle:
         state: tuple[str, ...],
         translation: tuple[str, ...],
         parameters: tuple[Any, ...] = (),
-    ) -> Callable[[Callable[..., Any]], DerivativeSignatureKernelAcceptsIntervalReturns]:
+    ) -> Callable[[Callable[..., Any]], DynamicsSignatureKernelAcceptsIntervalReturns]:
         ...
 
     @staticmethod
@@ -256,7 +256,7 @@ class DerivativeStyle:
         state: tuple[str, ...],
         translation: tuple[str, ...],
         parameters: tuple[Any, ...] = (),
-    ) -> DerivativeSignatureKernelAcceptsIntervalReturns:
+    ) -> DynamicsSignatureKernelAcceptsIntervalReturns:
         ...
 
     @staticmethod
@@ -267,8 +267,8 @@ class DerivativeStyle:
         translation: tuple[str, ...],
         parameters: tuple[Any, ...] = (),
     ) -> (
-        DerivativeSignatureKernelAcceptsIntervalReturns
-        | Callable[[Callable[..., Any]], DerivativeSignatureKernelAcceptsIntervalReturns]
+        DynamicsSignatureKernelAcceptsIntervalReturns
+        | Callable[[Callable[..., Any]], DynamicsSignatureKernelAcceptsIntervalReturns]
     ):
         """Recognise `kernel(interval, *state_fields, *parameters) -> fields`.
 
@@ -276,8 +276,8 @@ class DerivativeStyle:
         backends or pure expression code that also needs interval metadata.
         """
 
-        def recognise(target: Callable[..., Any]) -> DerivativeSignatureKernelAcceptsIntervalReturns:
-            return DerivativeSignatureKernelAcceptsIntervalReturns(
+        def recognise(target: Callable[..., Any]) -> DynamicsSignatureKernelAcceptsIntervalReturns:
+            return DynamicsSignatureKernelAcceptsIntervalReturns(
                 function=target,
                 state=state,
                 translation=translation,
@@ -290,47 +290,47 @@ class DerivativeStyle:
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeSignatureAcceptsInstantReturns:
-    """User derivative with call shape `function(t, state) -> translation`."""
+class DynamicsSignatureAcceptsInstantReturns:
+    """User dynamics with call shape `function(t, state) -> translation`."""
 
     function: Callable[..., Any]
 
-    def implementation(self) -> DerivativeImplementation:
-        return DerivativeAdapterAcceptsInstantReturns(self.function)
+    def implementation(self) -> DynamicsImplementation:
+        return DynamicsAdapterAcceptsInstantReturns(self.function)
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeSignatureAcceptsIntervalReturns:
-    """User derivative with call shape `function(interval, state) -> translation`."""
+class DynamicsSignatureAcceptsIntervalReturns:
+    """User dynamics with call shape `function(interval, state) -> translation`."""
 
     function: Callable[..., Any]
 
-    def implementation(self) -> DerivativeImplementation:
-        return DerivativeAdapterAcceptsIntervalReturns(self.function)
+    def implementation(self) -> DynamicsImplementation:
+        return DynamicsAdapterAcceptsIntervalReturns(self.function)
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeSignatureAcceptsInstantWrites:
-    """User derivative with call shape `function(t, state, out)`."""
+class DynamicsSignatureAcceptsInstantWrites:
+    """User dynamics with call shape `function(t, state, out)`."""
 
     function: Callable[..., Any]
 
-    def implementation(self) -> DerivativeImplementation:
-        return DerivativeAdapterAcceptsInstantWrites(self.function)
+    def implementation(self) -> DynamicsImplementation:
+        return DynamicsAdapterAcceptsInstantWrites(self.function)
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeSignatureAcceptsIntervalWrites:
-    """User derivative with call shape `function(interval, state, out)`."""
+class DynamicsSignatureAcceptsIntervalWrites:
+    """User dynamics with call shape `function(interval, state, out)`."""
 
     function: Callable[..., Any]
 
-    def implementation(self) -> DerivativeImplementation:
-        return DerivativeAdapterAcceptsIntervalWrites(self.function)
+    def implementation(self) -> DynamicsImplementation:
+        return DynamicsAdapterAcceptsIntervalWrites(self.function)
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeSignatureKernelAcceptsInstantWrites:
+class DynamicsSignatureKernelAcceptsInstantWrites:
     """Field-level kernel with call shape `kernel(t, *state, *out, *parameters)`."""
 
     function: Callable[..., Any]
@@ -338,18 +338,18 @@ class DerivativeSignatureKernelAcceptsInstantWrites:
     translation: tuple[str, ...]
     parameters: tuple[Any, ...] = ()
 
-    def with_parameters(self, *parameters: Any) -> DerivativeSignatureKernelAcceptsInstantWrites:
+    def with_parameters(self, *parameters: Any) -> DynamicsSignatureKernelAcceptsInstantWrites:
         """Return this recognised kernel with problem-specific parameters."""
 
-        return DerivativeSignatureKernelAcceptsInstantWrites(
+        return DynamicsSignatureKernelAcceptsInstantWrites(
             function=self.function,
             state=self.state,
             translation=self.translation,
             parameters=tuple(parameters),
         )
 
-    def implementation(self) -> DerivativeImplementation:
-        return DerivativeKernelAcceptsInstantWrites(
+    def implementation(self) -> DynamicsImplementation:
+        return DynamicsKernelAcceptsInstantWrites(
             function=self.function,
             state=self.state,
             translation=self.translation,
@@ -358,7 +358,7 @@ class DerivativeSignatureKernelAcceptsInstantWrites:
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeSignatureKernelAcceptsIntervalWrites:
+class DynamicsSignatureKernelAcceptsIntervalWrites:
     """Field-level kernel with call shape `kernel(interval, *state, *out, *parameters)`."""
 
     function: Callable[..., Any]
@@ -366,18 +366,18 @@ class DerivativeSignatureKernelAcceptsIntervalWrites:
     translation: tuple[str, ...]
     parameters: tuple[Any, ...] = ()
 
-    def with_parameters(self, *parameters: Any) -> DerivativeSignatureKernelAcceptsIntervalWrites:
+    def with_parameters(self, *parameters: Any) -> DynamicsSignatureKernelAcceptsIntervalWrites:
         """Return this recognised kernel with problem-specific parameters."""
 
-        return DerivativeSignatureKernelAcceptsIntervalWrites(
+        return DynamicsSignatureKernelAcceptsIntervalWrites(
             function=self.function,
             state=self.state,
             translation=self.translation,
             parameters=tuple(parameters),
         )
 
-    def implementation(self) -> DerivativeImplementation:
-        return DerivativeKernelAcceptsIntervalWrites(
+    def implementation(self) -> DynamicsImplementation:
+        return DynamicsKernelAcceptsIntervalWrites(
             function=self.function,
             state=self.state,
             translation=self.translation,
@@ -386,7 +386,7 @@ class DerivativeSignatureKernelAcceptsIntervalWrites:
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeSignatureKernelAcceptsInstantReturns:
+class DynamicsSignatureKernelAcceptsInstantReturns:
     """Field-level kernel with call shape `kernel(t, *state, *parameters) -> fields`."""
 
     function: Callable[..., Any]
@@ -394,18 +394,18 @@ class DerivativeSignatureKernelAcceptsInstantReturns:
     translation: tuple[str, ...]
     parameters: tuple[Any, ...] = ()
 
-    def with_parameters(self, *parameters: Any) -> DerivativeSignatureKernelAcceptsInstantReturns:
+    def with_parameters(self, *parameters: Any) -> DynamicsSignatureKernelAcceptsInstantReturns:
         """Return this recognised kernel with problem-specific parameters."""
 
-        return DerivativeSignatureKernelAcceptsInstantReturns(
+        return DynamicsSignatureKernelAcceptsInstantReturns(
             function=self.function,
             state=self.state,
             translation=self.translation,
             parameters=tuple(parameters),
         )
 
-    def implementation(self) -> DerivativeImplementation:
-        return DerivativeKernelAcceptsInstantReturns(
+    def implementation(self) -> DynamicsImplementation:
+        return DynamicsKernelAcceptsInstantReturns(
             function=self.function,
             state=self.state,
             translation=self.translation,
@@ -414,7 +414,7 @@ class DerivativeSignatureKernelAcceptsInstantReturns:
 
 
 @dataclass(frozen=True, slots=True)
-class DerivativeSignatureKernelAcceptsIntervalReturns:
+class DynamicsSignatureKernelAcceptsIntervalReturns:
     """Field-level kernel with call shape `kernel(interval, *state, *parameters) -> fields`."""
 
     function: Callable[..., Any]
@@ -422,18 +422,18 @@ class DerivativeSignatureKernelAcceptsIntervalReturns:
     translation: tuple[str, ...]
     parameters: tuple[Any, ...] = ()
 
-    def with_parameters(self, *parameters: Any) -> DerivativeSignatureKernelAcceptsIntervalReturns:
+    def with_parameters(self, *parameters: Any) -> DynamicsSignatureKernelAcceptsIntervalReturns:
         """Return this recognised kernel with problem-specific parameters."""
 
-        return DerivativeSignatureKernelAcceptsIntervalReturns(
+        return DynamicsSignatureKernelAcceptsIntervalReturns(
             function=self.function,
             state=self.state,
             translation=self.translation,
             parameters=tuple(parameters),
         )
 
-    def implementation(self) -> DerivativeImplementation:
-        return DerivativeKernelAcceptsIntervalReturns(
+    def implementation(self) -> DynamicsImplementation:
+        return DynamicsKernelAcceptsIntervalReturns(
             function=self.function,
             state=self.state,
             translation=self.translation,
@@ -442,14 +442,14 @@ class DerivativeSignatureKernelAcceptsIntervalReturns:
 
 
 __all__ = [
-    "DerivativeSignature",
-    "DerivativeSignatureAcceptsInstantWrites",
-    "DerivativeSignatureAcceptsIntervalWrites",
-    "DerivativeSignatureAcceptsInstantReturns",
-    "DerivativeSignatureAcceptsIntervalReturns",
-    "DerivativeSignatureKernelAcceptsInstantWrites",
-    "DerivativeSignatureKernelAcceptsIntervalWrites",
-    "DerivativeSignatureKernelAcceptsInstantReturns",
-    "DerivativeSignatureKernelAcceptsIntervalReturns",
-    "DerivativeStyle",
+    "DynamicsSignature",
+    "DynamicsSignatureAcceptsInstantWrites",
+    "DynamicsSignatureAcceptsIntervalWrites",
+    "DynamicsSignatureAcceptsInstantReturns",
+    "DynamicsSignatureAcceptsIntervalReturns",
+    "DynamicsSignatureKernelAcceptsInstantWrites",
+    "DynamicsSignatureKernelAcceptsIntervalWrites",
+    "DynamicsSignatureKernelAcceptsInstantReturns",
+    "DynamicsSignatureKernelAcceptsIntervalReturns",
+    "DynamicsStyle",
 ]

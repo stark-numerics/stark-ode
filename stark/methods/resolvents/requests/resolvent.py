@@ -4,7 +4,7 @@ from typing import Protocol
 
 from stark.core.contracts import (
     BlockLike,
-    DerivativeLike,
+    DynamicsLike,
     IntervalLike,
     StateType,
     TranslationType,
@@ -25,7 +25,7 @@ class ResolventRequest(Protocol[StateType, TranslationType]):
     """
 
     @property
-    def derivative(self) -> DerivativeLike[StateType, TranslationType]:
+    def dynamics(self) -> DynamicsLike[StateType, TranslationType]:
         ...
 
     @property
@@ -50,11 +50,11 @@ class ResolventRequestCoupled(Protocol[StateType, TranslationType]):
 
     Coupled requests add the stage coupling data needed by multi-stage
     implicit and IMEX schemes while retaining the same state and translation
-    parameters as the underlying derivative.
+    parameters as the underlying dynamics.
     """
 
     @property
-    def derivative(self) -> DerivativeLike[StateType, TranslationType]:
+    def dynamics(self) -> DynamicsLike[StateType, TranslationType]:
         ...
 
     @property

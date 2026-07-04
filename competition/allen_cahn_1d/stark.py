@@ -13,7 +13,7 @@ from stark.methods.inverters.krylov import InverterKrylovArnoldi
 from stark.methods.method import Method
 from stark.methods.resolvents import ResolventNewton
 from stark.methods.schemes import SchemeSDIRK21
-from stark.problem import DerivativeStyle
+from stark.problem import DynamicsStyle
 from stark.problem.frame.frame import Frame
 from stark.problem.linearizer import LinearizerStyle
 from competition.allen_cahn_1d.operator import (
@@ -34,15 +34,15 @@ def frame(problem_parameters) -> Frame:
     return Frame({"u": {"translation": "du", "shape": (problem_parameters["grid_size"],)}})
 
 
-def make_derivative(problem_parameters):
+def make_dynamics(problem_parameters):
     diffusivity = problem_parameters["diffusivity"]
     inv_dx2 = 1.0 / (_dx(problem_parameters) ** 2)
 
-    @DerivativeStyle.kernel_accepts_instant_writes(state=("u",), translation=("du",))
-    def derivative(t: float, u: Array, du: Array) -> None:
+    @DynamicsStyle.kernel_accepts_instant_writes(state=("u",), translation=("du",))
+    def dynamics(t: float, u: Array, du: Array) -> None:
         du[:] = diffusivity * (np.roll(u, 1) - 2.0 * u + np.roll(u, -1)) * inv_dx2 + u - u * u * u
 
-    return derivative
+    return dynamics
 
 
 def make_linearizer(problem_parameters):
@@ -87,7 +87,7 @@ def prepare_sdirk21_newton_krylov(problem_parameters, stark_parameters, initial_
     problem_frame = frame(problem_parameters)
     engine = EngineNumpy(problem_frame)
     system = System(
-        derivative=make_derivative(problem_parameters),
+        dynamics=make_dynamics(problem_parameters),
         frame=problem_frame,
         linearizer=make_linearizer(problem_parameters),
     )

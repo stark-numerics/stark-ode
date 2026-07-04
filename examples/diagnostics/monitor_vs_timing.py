@@ -12,18 +12,18 @@ from time import perf_counter
 
 import numpy as np
 
-from stark import DerivativeStyle, Frame, Interval, Method, Monitor, System
+from stark import DynamicsStyle, Frame, Interval, Method, Monitor, System
 from stark.engines import EngineNumpy
 from stark.methods import SchemeEuler
 
 
-@DerivativeStyle.accepts_instant_writes
+@DynamicsStyle.accepts_instant_writes
 def constant(t: float, state, out) -> None:
     del t, state
     out.dx[:] = 1.0
 
 
-SYSTEM = System(derivative=constant, frame=Frame.scalar("x", translation="dx"))
+SYSTEM = System(dynamics=constant, frame=Frame.scalar("x", translation="dx"))
 
 
 def run_once(*, monitor: Monitor | None = None) -> int:

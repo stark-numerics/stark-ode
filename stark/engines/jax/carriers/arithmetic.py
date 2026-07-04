@@ -12,10 +12,10 @@ class CarrierArithmeticJax:
         self,
         state: CarrierJaxValue,
         step: float,
-        derivative: CarrierJaxValue,
+        dynamics: CarrierJaxValue,
         result: CarrierJaxValue,
     ) -> CarrierJaxValue:
-        return state + step * derivative
+        return state + step * dynamics
 
     def add(
         self,

@@ -65,7 +65,7 @@ class SchemeStencilTableau:
         """Return the applied stencil for a tableau stage row.
 
         A stage row constructs a stage state from the origin state plus a
-        weighted sum of already-computed derivative translations.
+        weighted sum of already-computed dynamics translations.
         """
 
         if not isinstance(index, int):
@@ -153,7 +153,7 @@ def esdirk_stage_increment_stencils(
     """Derive ESDIRK known-shift and error stencils from a tableau.
 
     The returned coefficients are suitable for the solved stage increments used
-    by the built-in sequential ESDIRK schemes, not for raw derivative rates.
+    by the built-in sequential ESDIRK schemes, not for raw dynamics rates.
     """
 
     stage_count = len(tableau.b)

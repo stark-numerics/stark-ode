@@ -4,7 +4,7 @@ import pytest
 
 from stark import Interval
 from stark.core.contracts import IntervalLike
-from stark.methods.schemes.execution.derivative import SchemeDerivative
+from stark.methods.schemes.execution.dynamics import SchemeDynamics
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
 from stark.methods.schemes.explicit.runtime import SchemeRuntimeExplicit
@@ -32,20 +32,20 @@ def increment_by_one(
     result.value = origin.value + 1.0
 
 
-def test_explicit_runtime_constructs_prepared_derivative_and_step_support() -> None:
+def test_explicit_runtime_constructs_prepared_dynamics_and_step_support() -> None:
     runtime = SchemeRuntimeExplicit(
         exponential_growth,
         ScalarAllocator(),
     )
 
-    assert isinstance(runtime.derivative, SchemeDerivative)
-    assert runtime.derivative is exponential_growth
+    assert isinstance(runtime.dynamics, SchemeDynamics)
+    assert runtime.dynamics is exponential_growth
     assert isinstance(runtime.workspace, SchemeStepSupport)
     assert isinstance(runtime.first_translation, ScalarTranslation)
     assert runtime.k1 is runtime.first_translation
 
 
-def test_explicit_runtime_prepared_derivative_calls_original_worker() -> None:
+def test_explicit_runtime_prepared_dynamics_calls_original_worker() -> None:
     runtime = SchemeRuntimeExplicit(
         exponential_growth,
         ScalarAllocator(),
@@ -54,7 +54,7 @@ def test_explicit_runtime_prepared_derivative_calls_original_worker() -> None:
     state = ScalarState(3.0)
     out = ScalarTranslation()
 
-    runtime.derivative(interval, state, out)
+    runtime.dynamics(interval, state, out)
 
     assert out.value == pytest.approx(3.0)
 
@@ -97,7 +97,7 @@ def test_explicit_scheme_owns_explicit_runtime() -> None:
     scheme = SchemeRK4(exponential_growth, ScalarAllocator())
 
     assert isinstance(scheme.runtime, SchemeRuntimeExplicit)
-    assert scheme.derivative is scheme.runtime.derivative
+    assert scheme.dynamics is scheme.runtime.dynamics
     assert scheme.workspace is scheme.runtime.workspace
     assert scheme.k1 is scheme.runtime.k1
 

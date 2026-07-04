@@ -5,7 +5,7 @@ This page is for ordinary use: you have a state made of named fields and want ST
 You need four things:
 
 ```text
-System   what derivative to solve
+System   what dynamics to solve
 Frame    what fields the state and translation have
 Method   which numerical scheme to use
 Engine   where arrays and arithmetic live
@@ -36,7 +36,7 @@ def decay(t: float, state, out) -> None:
 
 frame = Frame.scalar("y", translation="dy")
 system = System(
-    derivative=decay,
+    dynamics=decay,
     frame=frame,
 )
 
@@ -67,7 +67,7 @@ For a two-component oscillator:
 frame = Frame.vector("y", translation="dy", length=2)
 ```
 
-The derivative writes into `out.dy` because `dy` is the translation field for `y`.
+The dynamics writes into `out.dy` because `dy` is the translation field for `y`.
 
 ```python
 def oscillator(t: float, state, out) -> None:
@@ -82,19 +82,19 @@ Run:
 python -m examples.getting_started.numpy_oscillator
 ```
 
-## Use a return-style derivative
+## Use return-style dynamics
 
-Some backends, especially JAX, work better when derivatives return a translation instead of mutating an output object. Use this route when the natural derivative is an expression.
+Some backends, especially JAX, work better when dynamics returns a translation instead of mutating an output object. Use this route when the natural dynamics is an expression.
 
 ```powershell
-python -m examples.problem.returning_derivative
+python -m examples.problem.returning_dynamics
 ```
 
 The important difference is:
 
 ```text
-in-place derivative:   f(t, state, out) -> None
-return derivative:     f(t, state) -> translation-like result
+in-place dynamics:   f(t, state, out) -> None
+return dynamics:     f(t, state) -> translation-like result
 ```
 
 The scheme-facing contract is still prepared as an in-place kernel internally.
@@ -141,7 +141,7 @@ JAX and CuPy support may be optional in your environment. The examples should re
 
 ### Confusing state fields and translation fields
 
-`state.y` is the current state. `out.dy` is the derivative/increment field. The `Frame` declares the relationship.
+`state.y` is the current state. `out.dy` is the dynamics increment field. The `Frame` declares the relationship.
 
 ### Timing a monitored solve
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.core.contracts import DerivativeLike, IntervalLike, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, State, Allocator
 from stark.methods.schemes.configuration import SchemeConfiguration,SchemeConfigurationDefault
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
@@ -115,7 +115,7 @@ class SchemeCashKarp:
         "bound_interval_at",
         "call_body",
         "call_step",
-        "derivative",
+        "dynamics",
         "error",
         "error_delta",
         "runtime",
@@ -151,14 +151,14 @@ class SchemeCashKarp:
 
     def __init__(
         self,
-        derivative: DerivativeLike,
+        dynamics: DynamicsLike,
         allocator: Allocator,
         configuration: SchemeConfiguration | None = None,
         specialist: SchemeSpecialist | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
-        self.runtime = SchemeRuntimeExplicit(derivative, allocator)
-        self.derivative = self.runtime.derivative
+        self.runtime = SchemeRuntimeExplicit(dynamics, allocator)
+        self.dynamics = self.runtime.dynamics
         self.workspace = self.runtime.workspace
         self.k1 = self.runtime.k1
         self.step_control = SchemeStepControl(configuration if configuration is not None else SchemeConfigurationDefault())
@@ -233,7 +233,7 @@ class SchemeCashKarp:
             return 0.0
 
         workspace = self.workspace
-        derivative = self.derivative
+        dynamics = self.dynamics
         scale = workspace.scale
         combine2 = workspace.combine2
         combine3 = workspace.combine3
@@ -268,13 +268,13 @@ class SchemeCashKarp:
         #
         # k1 depends only on the current accepted state, so rejected attempts
         # can reuse it while trying smaller step sizes.
-        derivative(interval, state, k1)
+        dynamics(interval, state, k1)
 
         while True:
             # 2. k2 = f(t + RKCK_C[1] h, y + h * A[1] dot k)
             stage_delta = scale(dt * RKCK_A[1][0], k1, trial_buffer)
             stage_delta(state, stage)
-            derivative(interval_at(interval, dt, dt * RKCK_C[1]), stage, k2)
+            dynamics(interval_at(interval, dt, dt * RKCK_C[1]), stage, k2)
             # 3. k3 = f(t + RKCK_C[2] h, y + h * A[2] dot k)
             stage_delta = combine2(
                 dt * RKCK_A[2][0],
@@ -284,7 +284,7 @@ class SchemeCashKarp:
                 trial_buffer,
             )
             stage_delta(state, stage)
-            derivative(interval_at(interval, dt, dt * RKCK_C[2]), stage, k3)
+            dynamics(interval_at(interval, dt, dt * RKCK_C[2]), stage, k3)
             # 4. k4 = f(t + RKCK_C[3] h, y + h * A[3] dot k)
             stage_delta = combine3(
                 dt * RKCK_A[3][0],
@@ -296,7 +296,7 @@ class SchemeCashKarp:
                 trial_buffer,
             )
             stage_delta(state, stage)
-            derivative(interval_at(interval, dt, dt * RKCK_C[3]), stage, k4)
+            dynamics(interval_at(interval, dt, dt * RKCK_C[3]), stage, k4)
             # 5. k5 = f(t + RKCK_C[4] h, y + h * A[4] dot k)
             stage_delta = combine4(
                 dt * RKCK_A[4][0],
@@ -310,7 +310,7 @@ class SchemeCashKarp:
                 trial_buffer,
             )
             stage_delta(state, stage)
-            derivative(interval_at(interval, dt, dt * RKCK_C[4]), stage, k5)
+            dynamics(interval_at(interval, dt, dt * RKCK_C[4]), stage, k5)
             # 6. k6 = f(t + RKCK_C[5] h, y + h * A[5] dot k)
             stage_delta = combine5(
                 dt * RKCK_A[5][0],
@@ -326,7 +326,7 @@ class SchemeCashKarp:
                 trial_buffer,
             )
             stage_delta(state, stage)
-            derivative(interval_at(interval, dt, dt * RKCK_C[5]), stage, k6)
+            dynamics(interval_at(interval, dt, dt * RKCK_C[5]), stage, k6)
             # 7. high_delta = h * b_high dot k
             high_delta = combine4(
                 dt * RKCK_B_HIGH_NZ[0],
@@ -403,7 +403,7 @@ class SchemeCashKarp:
             record_stopped(interval)
             return 0.0
 
-        derivative = self.derivative
+        dynamics = self.dynamics
         apply_delta = self.bound_apply_delta
         interval_at = self.bound_interval_at
 
@@ -440,24 +440,24 @@ class SchemeCashKarp:
         #
         # k1 depends only on the current accepted state, so rejected attempts
         # can reuse it while trying smaller step sizes.
-        derivative(interval, state, k1)
+        dynamics(interval, state, k1)
 
         while True:
             # 2. k2 = f(t + RKCK_C[1] h, y + h * A[1] dot k)
             stage2_update(dt, state, k1, stage)
-            derivative(interval_at(interval, dt, dt * RKCK_C[1]), stage, k2)
+            dynamics(interval_at(interval, dt, dt * RKCK_C[1]), stage, k2)
             # 3. k3 = f(t + RKCK_C[2] h, y + h * A[2] dot k)
             stage3_update(dt, state, k1, k2, stage)
-            derivative(interval_at(interval, dt, dt * RKCK_C[2]), stage, k3)
+            dynamics(interval_at(interval, dt, dt * RKCK_C[2]), stage, k3)
             # 4. k4 = f(t + RKCK_C[3] h, y + h * A[3] dot k)
             stage4_update(dt, state, k1, k2, k3, stage)
-            derivative(interval_at(interval, dt, dt * RKCK_C[3]), stage, k4)
+            dynamics(interval_at(interval, dt, dt * RKCK_C[3]), stage, k4)
             # 5. k5 = f(t + RKCK_C[4] h, y + h * A[4] dot k)
             stage5_update(dt, state, k1, k2, k3, k4, stage)
-            derivative(interval_at(interval, dt, dt * RKCK_C[4]), stage, k5)
+            dynamics(interval_at(interval, dt, dt * RKCK_C[4]), stage, k5)
             # 6. k6 = f(t + RKCK_C[5] h, y + h * A[5] dot k)
             stage6_update(dt, state, k1, k2, k3, k4, k5, stage)
-            derivative(interval_at(interval, dt, dt * RKCK_C[5]), stage, k6)
+            dynamics(interval_at(interval, dt, dt * RKCK_C[5]), stage, k6)
             # 7. high_delta = h * b_high dot k
             high_delta = advance_delta(dt, k1, k2, k3, k4, k5, k6, trial_buffer)
 

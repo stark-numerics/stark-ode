@@ -24,7 +24,7 @@ import numpy as np
 
 from stark import Frame, Interval
 from stark.core import Integrator, IntegratorStepper
-from stark.core.contracts import DerivativeLike
+from stark.core.contracts import DynamicsLike
 from stark.engines import EngineNumpy
 from stark.methods import SchemeRK4
 
@@ -34,7 +34,7 @@ def growth(
     state: Any,
     out: Any,
 ) -> None:
-    """Derivative for y' = y."""
+    """Dynamics for y' = y."""
 
     del interval
     out.dy[0] = state.y[0]
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     print()
 
     # Manual solver assembly. System would normally hide this wiring.
-    scheme = SchemeRK4(cast(DerivativeLike, growth), allocator)
+    scheme = SchemeRK4(cast(DynamicsLike, growth), allocator)
     stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.3)
 

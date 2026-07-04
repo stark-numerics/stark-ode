@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from stark.core.contracts.accelerator import Accelerator
-from stark.problem.derivative.returns import assign_returned_fields
+from stark.problem.dynamics.returns import assign_returned_fields
 
 
 class LinearizerImplementation(Protocol):

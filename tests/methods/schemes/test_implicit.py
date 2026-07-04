@@ -35,9 +35,9 @@ from tests.support import DummyScalarAllocator as ScalarAllocator
 from tests.support import DummyScalarLinearizer
 from tests.support import DummyScalarState as ScalarState
 from tests.support import DummyScalarTranslation as ScalarTranslation
-from tests.support import dummy_constant_derivative
-from tests.support import dummy_quadratic_derivative
-from tests.support import dummy_scalar_derivative
+from tests.support import dummy_constant_dynamics
+from tests.support import dummy_quadratic_dynamics
+from tests.support import dummy_scalar_dynamics
 
 
 class DummyDenseScalarInverter:
@@ -104,12 +104,12 @@ def test_resolvent_tolerance_matches_general_tolerance_contract() -> None:
 
 def test_resolvent_picard_solves_scalar_backward_euler_step() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-1.0)
+    dynamics = dummy_scalar_dynamics(rate=-1.0)
     resolvent = ResolventPicard(
         allocator,
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=32),
     )
-    scheme = SchemeBackwardEuler(derivative, allocator, resolvent=resolvent)
+    scheme = SchemeBackwardEuler(dynamics, allocator, resolvent=resolvent)
     stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.1)
     state = ScalarState(1.0)
@@ -124,7 +124,7 @@ def test_resolvent_picard_solves_scalar_backward_euler_step() -> None:
 def test_backward_euler_matches_closed_form_for_quadratic_decay() -> None:
     allocator = ScalarAllocator()
     scheme = SchemeBackwardEuler(
-        dummy_quadratic_derivative(),
+        dummy_quadratic_dynamics(),
         allocator,
         resolvent=ResolventPicard(
             allocator,
@@ -146,7 +146,7 @@ def test_backward_euler_matches_closed_form_for_quadratic_decay() -> None:
 
 def test_resolvent_newton_solves_scalar_backward_euler_step() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-10.0)
+    dynamics = dummy_scalar_dynamics(rate=-10.0)
     inverter = DummyDenseScalarInverter()
     resolvent = ResolventNewton(
         allocator,
@@ -155,7 +155,7 @@ def test_resolvent_newton_solves_scalar_backward_euler_step() -> None:
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
     )
     scheme = SchemeBackwardEuler(
-        derivative,
+        dynamics,
         allocator,
         resolvent=resolvent,
     )
@@ -170,7 +170,7 @@ def test_resolvent_newton_solves_scalar_backward_euler_step() -> None:
 
 def test_newton_resolvent_uses_explicitly_supplied_linearizer() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-10.0)
+    dynamics = dummy_scalar_dynamics(rate=-10.0)
     inverter = DummyDenseScalarInverter()
     resolvent = ResolventNewton(
         allocator,
@@ -178,7 +178,7 @@ def test_newton_resolvent_uses_explicitly_supplied_linearizer() -> None:
         inverter=inverter,
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
     )
-    scheme = SchemeBackwardEuler(derivative, allocator, resolvent=resolvent)
+    scheme = SchemeBackwardEuler(dynamics, allocator, resolvent=resolvent)
     stepper = IntegratorStepper(scheme)
     interval = Interval(present=0.0, step=0.1, stop=0.1)
     state = ScalarState(1.0)
@@ -190,14 +190,14 @@ def test_newton_resolvent_uses_explicitly_supplied_linearizer() -> None:
 
 def test_resolvent_newton_requires_linearized_residual() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-1.0)
+    dynamics = dummy_scalar_dynamics(rate=-1.0)
     inverter = DummyDenseScalarInverter()
     with pytest.raises(TypeError):
         ResolventNewton(allocator, inverter=inverter)  # type: ignore[call-arg]
 
     resolvent = ResolventPicard(allocator)
     scheme = SchemeBackwardEuler(
-        derivative,
+        dynamics,
         allocator,
         resolvent=resolvent,
     )
@@ -211,9 +211,9 @@ def test_resolvent_newton_requires_linearized_residual() -> None:
 
 def test_implicit_midpoint_solves_scalar_linear_decay_step() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-10.0)
+    dynamics = dummy_scalar_dynamics(rate=-10.0)
     scheme = SchemeImplicitMidpoint(
-        derivative,
+        dynamics,
         allocator,
         resolvent=ResolventPicard(
             allocator,
@@ -232,9 +232,9 @@ def test_implicit_midpoint_solves_scalar_linear_decay_step() -> None:
 
 def test_crank_nicolson_solves_scalar_linear_decay_step() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-10.0)
+    dynamics = dummy_scalar_dynamics(rate=-10.0)
     scheme = SchemeCrankNicolson(
-        derivative,
+        dynamics,
         allocator,
         resolvent=ResolventPicard(
             allocator,
@@ -251,11 +251,11 @@ def test_crank_nicolson_solves_scalar_linear_decay_step() -> None:
     assert abs(state.value - (1.0 / 3.0)) < 1.0e-10
 
 
-def test_crouzeix_dirk3_solves_constant_derivative_step() -> None:
+def test_crouzeix_dirk3_solves_constant_dynamics_step() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_constant_derivative()
+    dynamics = dummy_constant_dynamics()
     scheme = SchemeCrouzeixDIRK3(
-        derivative,
+        dynamics,
         allocator,
         resolvent=ResolventPicard(
             allocator,
@@ -272,11 +272,11 @@ def test_crouzeix_dirk3_solves_constant_derivative_step() -> None:
     assert abs(state.value - 1.1) < 1.0e-10
 
 
-def test_gauss_legendre4_solves_constant_derivative_step() -> None:
+def test_gauss_legendre4_solves_constant_dynamics_step() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_constant_derivative()
+    dynamics = dummy_constant_dynamics()
     scheme = SchemeGaussLegendre4(
-        derivative,
+        dynamics,
         allocator,
         resolvent=ResolventCoupledPicard(
             allocator,
@@ -295,10 +295,10 @@ def test_gauss_legendre4_solves_constant_derivative_step() -> None:
 
 def test_coupled_newton_gauss_legendre4_solves_scalar_linear_decay_step() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-10.0)
+    dynamics = dummy_scalar_dynamics(rate=-10.0)
     inverter = DummyDenseScalarInverter()
     scheme = SchemeGaussLegendre4(
-        derivative,
+        dynamics,
         allocator,
         resolvent=ResolventCoupledNewton(
             allocator,
@@ -317,11 +317,11 @@ def test_coupled_newton_gauss_legendre4_solves_scalar_linear_decay_step() -> Non
     assert abs(state.value - (7.0 / 19.0)) < 1.0e-10
 
 
-def test_radau_iia5_solves_constant_derivative_step() -> None:
+def test_radau_iia5_solves_constant_dynamics_step() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_constant_derivative()
+    dynamics = dummy_constant_dynamics()
     scheme = SchemeRadauIIA5(
-        derivative,
+        dynamics,
         allocator,
         resolvent=ResolventCoupledPicard(
             allocator,
@@ -338,11 +338,11 @@ def test_radau_iia5_solves_constant_derivative_step() -> None:
     assert abs(state.value - 1.1) < 1.0e-10
 
 
-def test_lobatto_iiic4_solves_constant_derivative_step() -> None:
+def test_lobatto_iiic4_solves_constant_dynamics_step() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_constant_derivative()
+    dynamics = dummy_constant_dynamics()
     scheme = SchemeLobattoIIIC4(
-        derivative,
+        dynamics,
         allocator,
         resolvent=ResolventCoupledPicard(
             allocator,
@@ -361,10 +361,10 @@ def test_lobatto_iiic4_solves_constant_derivative_step() -> None:
 
 def test_coupled_newton_radau_iia5_tracks_scalar_linear_decay() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-10.0)
+    dynamics = dummy_scalar_dynamics(rate=-10.0)
     inverter = DummyDenseScalarInverter()
     scheme = SchemeRadauIIA5(
-        derivative,
+        dynamics,
         allocator,
         resolvent=ResolventCoupledNewton(
             allocator,
@@ -385,10 +385,10 @@ def test_coupled_newton_radau_iia5_tracks_scalar_linear_decay() -> None:
 
 def test_coupled_newton_lobatto_iiic4_tracks_scalar_linear_decay() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-10.0)
+    dynamics = dummy_scalar_dynamics(rate=-10.0)
     inverter = DummyDenseScalarInverter()
     scheme = SchemeLobattoIIIC4(
-        derivative,
+        dynamics,
         allocator,
         resolvent=ResolventCoupledNewton(
             allocator,
@@ -409,11 +409,11 @@ def test_coupled_newton_lobatto_iiic4_tracks_scalar_linear_decay() -> None:
 
 def test_backward_euler_rejects_mismatched_resolvent_tableau() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-1.0)
+    dynamics = dummy_scalar_dynamics(rate=-1.0)
 
     with pytest.raises(ValueError):
         SchemeBackwardEuler(
-            derivative,
+            dynamics,
             allocator,
             resolvent=ResolventPicard(
                 allocator,
@@ -424,7 +424,7 @@ def test_backward_euler_rejects_mismatched_resolvent_tableau() -> None:
 
 def test_sdirk21_advances_linear_decay_with_adaptive_control() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-10.0)
+    dynamics = dummy_scalar_dynamics(rate=-10.0)
     inverter = DummyDenseScalarInverter()
     resolvent = ResolventNewton(
         allocator,
@@ -433,7 +433,7 @@ def test_sdirk21_advances_linear_decay_with_adaptive_control() -> None:
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
     )
     scheme = SchemeSDIRK21(
-        derivative,
+        dynamics,
         allocator,
         resolvent=resolvent,
     )
@@ -450,7 +450,7 @@ def test_sdirk21_advances_linear_decay_with_adaptive_control() -> None:
 
 def test_kvaerno3_advances_linear_decay_with_adaptive_control() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-10.0)
+    dynamics = dummy_scalar_dynamics(rate=-10.0)
     inverter = DummyDenseScalarInverter()
     resolvent = ResolventNewton(
         allocator,
@@ -459,7 +459,7 @@ def test_kvaerno3_advances_linear_decay_with_adaptive_control() -> None:
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
     )
     scheme = SchemeKvaerno3(
-        derivative,
+        dynamics,
         allocator,
         resolvent=resolvent,
     )
@@ -476,7 +476,7 @@ def test_kvaerno3_advances_linear_decay_with_adaptive_control() -> None:
 
 def test_kvaerno4_advances_linear_decay_with_adaptive_control() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-10.0)
+    dynamics = dummy_scalar_dynamics(rate=-10.0)
     inverter = DummyDenseScalarInverter()
     resolvent = ResolventNewton(
         allocator,
@@ -485,7 +485,7 @@ def test_kvaerno4_advances_linear_decay_with_adaptive_control() -> None:
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
     )
     scheme = SchemeKvaerno4(
-        derivative,
+        dynamics,
         allocator,
         resolvent=resolvent,
     )
@@ -502,7 +502,7 @@ def test_kvaerno4_advances_linear_decay_with_adaptive_control() -> None:
 
 def test_bdf2_advances_linear_decay_with_adaptive_control() -> None:
     allocator = ScalarAllocator()
-    derivative = dummy_scalar_derivative(rate=-10.0)
+    dynamics = dummy_scalar_dynamics(rate=-10.0)
     inverter = DummyDenseScalarInverter()
     resolvent = ResolventNewton(
         allocator,
@@ -511,7 +511,7 @@ def test_bdf2_advances_linear_decay_with_adaptive_control() -> None:
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
     )
     scheme = SchemeBDF2(
-        derivative,
+        dynamics,
         allocator,
         resolvent=resolvent,
     )

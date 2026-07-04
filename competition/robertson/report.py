@@ -48,7 +48,7 @@ def describe_problem(problem, tolerances, stark_parameters, reference_tolerances
         "  STARK acceleration: "
         "StarkEngineNumpy selects Numba when it is installed and otherwise uses unaccelerated callables"
     )
-    print("  STARK Robertson prepares the carrier, allocator, derivative, and integrator explicitly")
+    print("  STARK Robertson prepares the carrier, allocator, dynamics, and integrator explicitly")
     print("  Kvaerno5 Exact Cubic uses a custom analytic resolvent for this problem")
     print("  STARK Robertson also includes Kvaerno5 Newton, Chord, and VeryChord rows using the new inverter request path")
     print("  dense rows use the provider-free dense inverter and one-block nucleus path")

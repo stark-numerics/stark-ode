@@ -7,7 +7,7 @@ from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
 from stark.engines.numpy.engine import EngineNumpy
-from stark.problem import DerivativeStyle
+from stark.problem import DynamicsStyle
 from stark.problem.frame.frame import Frame
 from stark.methods.method import Method
 from stark.problem.system.system import System
@@ -18,7 +18,7 @@ from stark.methods.schemes.explicit.adaptive.dormand_prince import SchemeDormand
 Array = Any
 
 
-@DerivativeStyle.kernel_accepts_instant_writes(state=("u", "v"), translation=("du", "dv"))
+@DynamicsStyle.kernel_accepts_instant_writes(state=("u", "v"), translation=("du", "dv"))
 def brusselator_rhs(
     t: float,
     u: Array,
@@ -70,7 +70,7 @@ def stark_solver(
         ),
     )
     system = System(
-        derivative=brusselator_rhs.with_parameters(
+        dynamics=brusselator_rhs.with_parameters(
             float(problem_parameters["alpha"]),
             float(problem_parameters["a"]),
             float(problem_parameters["b"]),

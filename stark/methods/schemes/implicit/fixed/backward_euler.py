@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.methods.schemes.configuration import SchemeConfiguration
-from stark.core.contracts import DerivativeLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, Allocator
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
 from stark.methods.schemes.execution.call import SchemeCall
@@ -63,7 +63,7 @@ class SchemeBackwardEuler:
         "call_body",
         "call_step",
         "delta",
-        "derivative",
+        "dynamics",
         "redirect_call",
         "resolvent",
         "runtime",
@@ -93,7 +93,7 @@ class SchemeBackwardEuler:
 
     def __init__(
         self,
-        derivative: DerivativeLike,
+        dynamics: DynamicsLike,
         allocator: Allocator,
         resolvent: Resolvent,
         *,
@@ -107,8 +107,8 @@ class SchemeBackwardEuler:
         self.redirect_call = self.call_step
         self.resolvent = resolvent
 
-        self.runtime = SchemeRuntimeImplicit(self, derivative, allocator)
-        self.derivative = self.runtime.derivative
+        self.runtime = SchemeRuntimeImplicit(self, dynamics, allocator)
+        self.dynamics = self.runtime.dynamics
         self.workspace = self.runtime.workspace
         self.block_allocator = self.runtime.block_allocator
         self.delta = self.block_allocator.allocate(1)
@@ -150,7 +150,7 @@ class SchemeBackwardEuler:
         # 1. Build the implicit stage problem:
         #        F(delta) = delta - h * f(t + h, y + delta)
         problem = SchemeResolventRequest(
-            derivative=self.derivative,
+            dynamics=self.dynamics,
             interval=workspace.interval_at(interval, dt, dt),
             origin=state,
             rhs=None,

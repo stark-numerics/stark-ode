@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.core.contracts import Allocator, DerivativeSplitLike, IntervalLike, Resolvent, State
+from stark.core.contracts import Allocator, DynamicsSplitLike, IntervalLike, Resolvent, State
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.execution.step_control import SchemeStepControl
@@ -103,7 +103,7 @@ class SchemeKennedyCarpenter43_7:
 
     def __init__(
         self,
-        derivative: DerivativeSplitLike,
+        dynamics: DynamicsSplitLike,
         allocator: Allocator,
         resolvent: Resolvent,
         *,
@@ -111,11 +111,11 @@ class SchemeKennedyCarpenter43_7:
         specialist: SchemeSpecialist | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
-        self.runtime = SchemeRuntimeImex(derivative, allocator)
+        self.runtime = SchemeRuntimeImex(dynamics, allocator)
         self.workspace = self.runtime.workspace
         self.adaptive_step = KennedyCarpenterAdaptiveStep(
             tableau=self.tableau,
-            derivative=derivative,
+            dynamics=dynamics,
             workspace=self.workspace,
             resolvent=resolvent,
             configuration=configuration if configuration is not None else SchemeConfigurationDefault(),

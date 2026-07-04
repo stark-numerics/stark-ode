@@ -168,7 +168,7 @@ def test_system_prepare_linearizer_uses_accelerator() -> None:
         target=("dy",),
     )
     frame = Frame.vector("y", translation="dy", length=1)
-    system = System(derivative=lambda t, state: state, frame=frame, linearizer=signature)
+    system = System(dynamics=lambda t, state: state, frame=frame, linearizer=signature)
     accelerator = DummyRecordingAccelerator()
     engine = EngineNumpy(frame, accelerator=accelerator)
 

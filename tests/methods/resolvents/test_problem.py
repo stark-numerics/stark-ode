@@ -35,7 +35,7 @@ class RequestTranslation:
         return RequestTranslation(scalar * self.value)
 
 
-def derivative(interval: IntervalLike, state: RequestState, out: RequestTranslation) -> None:
+def dynamics(interval: IntervalLike, state: RequestState, out: RequestTranslation) -> None:
     del interval, state, out
 
 
@@ -51,7 +51,7 @@ def test_scheme_stage_problem_satisfies_resolvent_stage_problem() -> None:
     rhs = Block[RequestTranslation]([RequestTranslation()])
 
     problem = SchemeResolventRequest(
-        derivative=derivative,
+        dynamics=dynamics,
         interval=interval,
         origin=origin,
         rhs=rhs,
@@ -59,7 +59,7 @@ def test_scheme_stage_problem_satisfies_resolvent_stage_problem() -> None:
     )
 
     assert accepts_stage_problem(problem) is problem
-    assert problem.derivative is derivative
+    assert problem.dynamics is dynamics
     assert problem.interval is interval
     assert problem.origin is origin
     assert problem.rhs is rhs
