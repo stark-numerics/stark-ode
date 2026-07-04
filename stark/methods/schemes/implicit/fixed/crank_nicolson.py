@@ -69,6 +69,13 @@ class SchemeCrankNicolson:
     )
 
     descriptor = SchemeDescriptor("CN", "Crank-Nicolson")
+
+    @classmethod
+    def display_tableau(cls) -> str:
+        """Installed by `with_scheme_display` from `stark.methods.schemes.display`."""
+
+        raise NotImplementedError("with_scheme_display installs display_tableau.")
+
     @classmethod
     def display_resolvent_problem(cls) -> str:
         return display_implicit_resolvent_problem(

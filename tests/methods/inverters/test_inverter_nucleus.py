@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, overload
 
 import pytest
 
+from stark.core.contracts.accelerator import AcceleratorTarget
 from stark.methods.inverters.nucleus import InverterNucleus
 
 
@@ -18,19 +20,56 @@ class RecordingAccelerator:
 
     name: ClassVar[str] = "numba"
 
-    def compile(self, function=None, /, *, label=None, cache=None, **options: Any):
+    @overload
+    def compile(
+        self,
+        function: None = None,
+        /,
+        *,
+        label: str | None = None,
+        cache: bool | None = None,
+        **options: Any,
+    ) -> Callable[[AcceleratorTarget], AcceleratorTarget]:
+        ...
+
+    @overload
+    def compile(
+        self,
+        function: AcceleratorTarget,
+        /,
+        *,
+        label: str | None = None,
+        cache: bool | None = None,
+        **options: Any,
+    ) -> AcceleratorTarget:
+        ...
+
+    def compile(
+        self,
+        function: AcceleratorTarget | None = None,
+        /,
+        *,
+        label: str | None = None,
+        cache: bool | None = None,
+        **options: Any,
+    ) -> AcceleratorTarget | Callable[[AcceleratorTarget], AcceleratorTarget]:
         del cache, options
         self.labels.append(label)
+
+        if function is None:
+            return lambda target: target
 
         def wrapped(*args, **kwargs):
             self.call_count += 1
             return function(*args, **kwargs)
 
-        if function is None:
-            return lambda target: target
         return wrapped
 
-    def compile_examples(self, function, *examples):
+    def compile_examples(
+        self,
+        function: AcceleratorTarget,
+        *examples: Any,
+    ) -> AcceleratorTarget:
         del examples
         return function
 
@@ -40,10 +79,47 @@ class UnsupportedAccelerator:
     strict: bool = False
     name: ClassVar[str] = "jax"
 
-    def compile(self, function=None, /, *, label=None, cache=None, **options: Any):
+    @overload
+    def compile(
+        self,
+        function: None = None,
+        /,
+        *,
+        label: str | None = None,
+        cache: bool | None = None,
+        **options: Any,
+    ) -> Callable[[AcceleratorTarget], AcceleratorTarget]:
+        ...
+
+    @overload
+    def compile(
+        self,
+        function: AcceleratorTarget,
+        /,
+        *,
+        label: str | None = None,
+        cache: bool | None = None,
+        **options: Any,
+    ) -> AcceleratorTarget:
+        ...
+
+    def compile(
+        self,
+        function: AcceleratorTarget | None = None,
+        /,
+        *,
+        label: str | None = None,
+        cache: bool | None = None,
+        **options: Any,
+    ) -> AcceleratorTarget | Callable[[AcceleratorTarget], AcceleratorTarget]:
+        del function, label, cache, options
         raise AssertionError("unsupported best-effort accelerators should not be compiled")
 
-    def compile_examples(self, function, *examples):
+    def compile_examples(
+        self,
+        function: AcceleratorTarget,
+        *examples: Any,
+    ) -> AcceleratorTarget:
         del examples
         return function
 

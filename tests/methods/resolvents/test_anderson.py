@@ -8,18 +8,15 @@ from tests.support import (
     DummyScalarAllocator,
     DummyScalarState,
     DummyScalarTranslation,
+    dummy_scalar_inner_product,
     dummy_zero_rhs,
 )
-
-
-def inner_product(left: DummyScalarTranslation, right: DummyScalarTranslation) -> float:
-    return left.value * right.value
 
 
 def test_anderson_resolvent_solves_rhs_shift_without_reversing_residual_arguments() -> None:
     resolvent = ResolventAnderson(
         DummyScalarAllocator(),
-        inner_product,
+        dummy_scalar_inner_product,
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=4),
     )
     interval = Interval(present=0.0, step=0.1, stop=1.0)

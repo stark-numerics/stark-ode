@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Interval, Tolerance
+from stark.core.contracts import DerivativeLike, IntervalLike
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.diagnostics.monitor import Monitor
 from stark.methods.resolvents import ResolventPicard
@@ -49,12 +50,12 @@ class ScalarAllocator:
 
 @dataclass(slots=True)
 class SplitDerivative:
-    explicit: object
-    implicit: object
+    explicit: DerivativeLike
+    implicit: DerivativeLike
 
 
 def zero_rhs(
-    interval: Interval,
+    interval: IntervalLike,
     state: ScalarState,
     out: ScalarTranslation,
 ) -> None:

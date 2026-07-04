@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any, ClassVar
 
 import numpy as np
 
@@ -56,10 +57,12 @@ class DummyTranslation:
 
 @dataclass(slots=True)
 class FastTranslation(DummyTranslation):
+    @staticmethod
     def scale(a: float, x: "FastTranslation", out: "FastTranslation") -> "FastTranslation":
         out.value = a * x.value
         return out
 
+    @staticmethod
     def combine2(
         a0: float,
         x0: "FastTranslation",
@@ -91,10 +94,12 @@ class PairwiseOnlyTranslation:
         del scalar
         raise AssertionError("Synthesized fast combines should not call __rmul__.")
 
+    @staticmethod
     def scale(a: float, x: "PairwiseOnlyTranslation", out: "PairwiseOnlyTranslation") -> "PairwiseOnlyTranslation":
         out.value = a * x.value
         return out
 
+    @staticmethod
     def combine2(
         a0: float,
         x0: "PairwiseOnlyTranslation",
@@ -139,7 +144,13 @@ class DummyAllocator:
         return DummyTranslation()
 
 
-class PairwiseOnlyAllocator(DummyAllocator):
+class PairwiseOnlyAllocator:
+    def allocate_state(self) -> object:
+        return object()
+
+    def copy_state(self, source: object, out: object) -> None:
+        del out, source
+
     def allocate_translation(self) -> PairwiseOnlyTranslation:
         return PairwiseOnlyTranslation()
 
@@ -197,7 +208,9 @@ def test_scheme_synthesizes_missing_fast_combines_from_combine2() -> None:
 
 
 def test_scheme_step_support_consumes_algebraist_linear_combine_contract() -> None:
-    class AlgebraistTranslation:
+    class DummyAlgebraistTranslation:
+        linear_combine: ClassVar[tuple[Any, ...]] = ()
+
         def __init__(self, value=None) -> None:
             self.value = np.zeros(2) if value is None else np.array(value, dtype=float)
 
@@ -207,34 +220,46 @@ def test_scheme_step_support_consumes_algebraist_linear_combine_contract() -> No
         def norm(self) -> float:
             return float(np.sqrt(np.sum(self.value**2)))
 
-    class AlgebraistAllocator:
+        def __add__(self, other):
+            del other
+            raise AssertionError("Generated linear-combine path should not use __add__.")
+
+        def __mul__(self, scalar):
+            del scalar
+            raise AssertionError("Generated linear-combine path should not use __mul__.")
+
+        def __rmul__(self, scalar):
+            del scalar
+            raise AssertionError("Generated linear-combine path should not use __rmul__.")
+
+    class DummyAlgebraistAllocator:
         def allocate_state(self) -> dict[str, np.ndarray]:
             return {"value": np.zeros(2)}
 
         def copy_state(self, source: dict[str, np.ndarray], out: dict[str, np.ndarray]) -> None:
             out["value"][...] = source["value"]
 
-        def allocate_translation(self) -> AlgebraistTranslation:
-            return AlgebraistTranslation()
+        def allocate_translation(self) -> DummyAlgebraistTranslation:
+            return DummyAlgebraistTranslation()
 
-    allocator = AlgebraistAllocator()
+    allocator = DummyAlgebraistAllocator()
     provider = AlgebraistGeneratorLinearCombine(
-        translation=AlgebraistTranslation([1.0, 2.0]),
+        translation=DummyAlgebraistTranslation([1.0, 2.0]),
         allocator=allocator,
         frame=AlgebraistFrame(
             fields=(AlgebraistFrameField("value", "value"),),
         ),
     )
-    AlgebraistTranslation.linear_combine = (
+    DummyAlgebraistTranslation.linear_combine = (
         provider.provide(AlgebraistArity(1)),
         provider.provide(AlgebraistArity(2)),
         provider.provide(AlgebraistArity(3)),
     )
 
-    workspace = SchemeStepSupport(allocator, AlgebraistTranslation([1.0, 2.0]))
-    out = AlgebraistTranslation()
-    left = AlgebraistTranslation([1.0, 2.0])
-    right = AlgebraistTranslation([3.0, 4.0])
+    workspace = SchemeStepSupport(allocator, DummyAlgebraistTranslation([1.0, 2.0]))
+    out = DummyAlgebraistTranslation()
+    left = DummyAlgebraistTranslation([1.0, 2.0])
+    right = DummyAlgebraistTranslation([3.0, 4.0])
 
     combined = workspace.combine2(2.0, left, 3.0, right, out)
 

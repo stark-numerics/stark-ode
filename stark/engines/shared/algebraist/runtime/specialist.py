@@ -41,11 +41,11 @@ class AlgebraistRuntimeSpecialist(Generic[StateType, TranslationType]):
             accelerator=self.accelerator,
         )
 
-    def provide_delta(self, request: AlgebraistStencil) -> Callable[..., TranslationType]:
-        return self._support.provide_delta(request=request)
+    def provide_delta(self, stencil: AlgebraistStencil) -> Callable[..., TranslationType]:
+        return self._support.provide_delta(request=stencil)
 
-    def provide_apply(self, request: AlgebraistStencil) -> Callable[..., StateType]:
-        return self._support.provide_apply(request=request)
+    def provide_apply(self, stencil: AlgebraistStencil) -> Callable[..., StateType]:
+        return self._support.provide_apply(request=stencil)
 
 
 __all__ = ["AlgebraistRuntimeSpecialist"]

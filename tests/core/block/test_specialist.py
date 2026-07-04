@@ -1,66 +1,61 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Callable
-
 from stark.core.block import Block, BlockSpecialist
 from stark.methods.schemes.specialization.stencil import SchemeStencil
+from tests.support import DummyScalarTranslation
 
 
-@dataclass
-class TranslationFixture:
-    value: float
+def block(*values: float) -> Block[DummyScalarTranslation]:
+    return Block([DummyScalarTranslation(value) for value in values])
 
 
-def block(*values: float) -> Block[TranslationFixture]:
-    return Block([TranslationFixture(value) for value in values])
-
-
-def values(block: Block[TranslationFixture]) -> tuple[float, ...]:
+def values(block: Block[DummyScalarTranslation]) -> tuple[float, ...]:
     return tuple(item.value for item in block)
 
 
-class SpecialistFixture:
-    def provide_delta(self, stencil: SchemeStencil) -> Callable[..., TranslationFixture]:
-        coefficients = stencil.coefficients
-        fixed_scale = stencil.scale
+class DummyBlockItemSpecialist:
+    """Entry-kernel provider used to test block lifting.
+
+    Block lifting works at translation-entry level, not scheme-state level, so
+    the fixture intentionally accepts a translation as its apply origin.
+    """
+
+    def provide_delta(self, stencil: SchemeStencil):
+        coefficients = tuple(stencil.coefficients)
 
         def delta_kernel(
             step: float,
-            *terms: TranslationFixture,
-        ) -> TranslationFixture:
-            sources = terms[:-1]
-            out = terms[-1]
-            out.value = step * fixed_scale * sum(
-                coefficient * source.value
-                for coefficient, source in zip(coefficients, sources, strict=True)
-            )
+            *terms: DummyScalarTranslation,
+        ) -> DummyScalarTranslation:
+            *translations, out = terms
+            total = 0.0
+            for coefficient, translation in zip(coefficients, translations, strict=True):
+                total += step * coefficient * translation.value
+            out.value = total
             return out
 
         return delta_kernel
 
-    def provide_apply(self, stencil: SchemeStencil) -> Callable[..., TranslationFixture]:
-        coefficients = stencil.coefficients
-        fixed_scale = stencil.scale
+    def provide_apply(self, stencil: SchemeStencil):
+        coefficients = tuple(stencil.coefficients)
 
         def apply_kernel(
             step: float,
-            origin: TranslationFixture,
-            *terms: TranslationFixture,
-        ) -> TranslationFixture:
-            sources = terms[:-1]
-            result = terms[-1]
-            result.value = origin.value + step * fixed_scale * sum(
-                coefficient * source.value
-                for coefficient, source in zip(coefficients, sources, strict=True)
-            )
+            origin: DummyScalarTranslation,
+            *terms: DummyScalarTranslation,
+        ) -> DummyScalarTranslation:
+            *translations, result = terms
+            total = origin.value
+            for coefficient, translation in zip(coefficients, translations, strict=True):
+                total += step * coefficient * translation.value
+            result.value = total
             return result
 
         return apply_kernel
 
 
 def test_block_specialist_lifts_delta_kernel_entrywise() -> None:
-    specialist = BlockSpecialist(SpecialistFixture())
+    specialist = BlockSpecialist(DummyBlockItemSpecialist())
     kernel = specialist.provide(SchemeStencil((2.0, -1.0)))
     out = block(0.0, 0.0)
 
@@ -71,7 +66,7 @@ def test_block_specialist_lifts_delta_kernel_entrywise() -> None:
 
 
 def test_block_specialist_lifts_apply_kernel_entrywise() -> None:
-    specialist = BlockSpecialist(SpecialistFixture())
+    specialist = BlockSpecialist(DummyBlockItemSpecialist())
     kernel = specialist.provide(SchemeStencil((2.0, -1.0), apply=True))
     result = block(0.0, 0.0)
 

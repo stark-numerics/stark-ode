@@ -1,46 +1,21 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
 
 from stark.core.block import Block
 from stark.core.block.operator import BlockOperatorDiagonal
 from stark.methods.inverters.support import InverterDefect
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
-
-
-@dataclass(slots=True)
-class TranslationScalar:
-    value: float = 0.0
-
-    def __call__(self, origin, result) -> None:
-        result.value = origin.value + self.value
-
-    def norm(self) -> float:
-        return abs(self.value)
-
-    def __add__(self, other: "TranslationScalar") -> "TranslationScalar":
-        return TranslationScalar(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> "TranslationScalar":
-        return TranslationScalar(scalar * self.value)
-
-
-def scale_translation(factor: float):
-    def apply(source: TranslationScalar, target: TranslationScalar) -> None:
-        target.value = factor * source.value
-
-    return apply
+from tests.support import DummyScalarEntryOperator, DummyScalarTranslation
 
 
 def test_inverter_defect_returns_norm_and_stores_defect_block() -> None:
     request = ResolventInverterRequest(
-        operator=BlockOperatorDiagonal.repeated(scale_translation(2.0), size=1),
-        residual=Block([TranslationScalar(5.0)]),
+        operator=BlockOperatorDiagonal.repeated(DummyScalarEntryOperator(2.0), size=1),
+        residual=Block([DummyScalarTranslation(5.0)]),
     )
-    output = Block([TranslationScalar(1.0)])
-    defect = InverterDefect[TranslationScalar]()
+    output = Block([DummyScalarTranslation(1.0)])
+    defect = InverterDefect[DummyScalarTranslation]()
 
     defect_norm = defect(request, output)
 
@@ -51,11 +26,11 @@ def test_inverter_defect_returns_norm_and_stores_defect_block() -> None:
 
 def test_inverter_defect_reuses_scratch_for_same_output_size() -> None:
     request = ResolventInverterRequest(
-        operator=BlockOperatorDiagonal.repeated(scale_translation(2.0), size=1),
-        residual=Block([TranslationScalar(5.0)]),
+        operator=BlockOperatorDiagonal.repeated(DummyScalarEntryOperator(2.0), size=1),
+        residual=Block([DummyScalarTranslation(5.0)]),
     )
-    output = Block([TranslationScalar(1.0)])
-    defect = InverterDefect[TranslationScalar]()
+    output = Block([DummyScalarTranslation(1.0)])
+    defect = InverterDefect[DummyScalarTranslation]()
 
     defect(request, output)
     image = defect.image
@@ -73,21 +48,21 @@ def test_inverter_defect_reuses_scratch_for_same_output_size() -> None:
 
 def test_inverter_defect_reallocates_scratch_when_output_size_changes() -> None:
     request_one = ResolventInverterRequest(
-        operator=BlockOperatorDiagonal.repeated(scale_translation(1.0), size=1),
-        residual=Block([TranslationScalar(1.0)]),
+        operator=BlockOperatorDiagonal.repeated(DummyScalarEntryOperator(1.0), size=1),
+        residual=Block([DummyScalarTranslation(1.0)]),
     )
-    output_one = Block([TranslationScalar(0.0)])
-    defect = InverterDefect[TranslationScalar]()
+    output_one = Block([DummyScalarTranslation(0.0)])
+    defect = InverterDefect[DummyScalarTranslation]()
 
     defect(request_one, output_one)
     image_one = defect.image
     block_one = defect.block
 
     request_two = ResolventInverterRequest(
-        operator=BlockOperatorDiagonal.repeated(scale_translation(1.0), size=2),
-        residual=Block([TranslationScalar(1.0), TranslationScalar(2.0)]),
+        operator=BlockOperatorDiagonal.repeated(DummyScalarEntryOperator(1.0), size=2),
+        residual=Block([DummyScalarTranslation(1.0), DummyScalarTranslation(2.0)]),
     )
-    output_two = Block([TranslationScalar(0.0), TranslationScalar(0.0)])
+    output_two = Block([DummyScalarTranslation(0.0), DummyScalarTranslation(0.0)])
 
     defect_norm = defect(request_two, output_two)
 

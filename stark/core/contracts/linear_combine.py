@@ -11,13 +11,19 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from stark.core.contracts.translation import Translation
+from stark.core.contracts.translation import Translation, TranslationType
 
 
-class Scale(Protocol):
-    """Set `out = a * x` and return `out`."""
+class Scale(Protocol[TranslationType]):
+    """Set `out = a * x` and return `out`.
 
-    def __call__(self, a: float, x: Translation, out: Translation) -> Translation:
+    The protocol is generic because scale kernels are commonly attached to a
+    concrete translation implementation. Preserving that translation type keeps
+    predictor and scheme hot-path helpers type-checkable without forcing tests
+    or user extensions to erase their richer state shape.
+    """
+
+    def __call__(self, a: float, x: TranslationType, out: TranslationType) -> TranslationType:
         ...
 
 

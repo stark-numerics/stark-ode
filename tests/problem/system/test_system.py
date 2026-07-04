@@ -8,7 +8,7 @@ from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines import EngineNumpy
 
 
-class ExplicitScheme:
+class DummyExplicitScheme:
     def __init__(
         self,
         derivative,
@@ -32,7 +32,7 @@ class ExplicitScheme:
         return min(interval.step, interval.stop - interval.present)
 
 
-class ImplicitScheme(ExplicitScheme):
+class DummyImplicitScheme(DummyExplicitScheme):
     def __init__(
         self,
         derivative,
@@ -75,14 +75,14 @@ def test_system_ivp_builds_engine_state_and_declared_scheme() -> None:
             "u": np.array([1.0, 2.0]),
             "v": np.array([3.0, 4.0]),
         },
-        interval=object(),
-        method=Method(scheme=ExplicitScheme),
+        interval=Interval(0.0, 0.1, 1.0),
+        method=Method(scheme=DummyExplicitScheme),
         engine=engine_factory,
         configuration=configuration,
     )
 
     assert factory_layouts == [frame]
-    assert isinstance(ivp.scheme, ExplicitScheme)
+    assert isinstance(ivp.scheme, DummyExplicitScheme)
     assert isinstance(ivp.scheme.derivative, DerivativeAdapterAcceptsInstantWrites)
     assert ivp.scheme.derivative.function is derivative
     assert ivp.scheme.allocator is ivp.engine.allocator
@@ -99,7 +99,7 @@ def test_system_ivp_trajectory_helpers_start_from_fresh_working_objects() -> Non
     ivp = system.ivp(
         initial={"u": np.array([1.0])},
         interval=Interval(0.0, 0.1, 0.0),
-        method=Method(scheme=ExplicitScheme),
+        method=Method(scheme=DummyExplicitScheme),
         engine=lambda frame: EngineNumpy(frame, accelerator=AcceleratorNone()),
         configuration=Configuration(check_progress=False),
     )
@@ -126,7 +126,7 @@ def test_system_ivp_final_result_returns_final_working_state_and_step_count() ->
     ivp = system.ivp(
         initial={"u": np.array([1.0])},
         interval=Interval(0.0, 0.1, 0.3),
-        method=Method(scheme=ExplicitScheme),
+        method=Method(scheme=DummyExplicitScheme),
         engine=lambda frame: EngineNumpy(frame, accelerator=AcceleratorNone()),
         configuration=Configuration(check_progress=False),
     )
@@ -147,9 +147,10 @@ def test_system_ivp_uses_ready_resolvent_instance() -> None:
     ivp = system.ivp(
         initial={"u": np.array([1.0])},
         interval=Interval(0.0, 0.1, 0.0),
-        method=Method(scheme=ImplicitScheme, resolvent=resolvent),
+        method=Method(scheme=DummyImplicitScheme, resolvent=resolvent),
         engine=lambda frame: EngineNumpy(frame, accelerator=AcceleratorNone()),
         configuration=Configuration(check_progress=False),
     )
 
+    assert isinstance(ivp.scheme, DummyImplicitScheme)
     assert ivp.scheme.resolvent is resolvent

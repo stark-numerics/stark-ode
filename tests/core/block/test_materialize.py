@@ -1,83 +1,66 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
-from dataclasses import dataclass
-from math import isclose, sqrt
+from collections.abc import Callable, Sequence
+from math import isclose
 
 import pytest
 
 from stark.core.block import Block
 from stark.core.block.materialize import BlockOperatorDiagonalMaterialize, OperatorMaterialize
+from stark.core.contracts import BlockLike
+from tests.support import DummyVectorBasis, DummyVectorTranslation
 
 
-@dataclass
-class VectorTwo:
-    values: list[float]
-
-    def __init__(self, first: float = 0.0, second: float = 0.0) -> None:
-        self.values = [float(first), float(second)]
-
-    def __call__(self, origin: VectorTwo, result: VectorTwo) -> None:
-        result.values[0] = origin.values[0] + self.values[0]
-        result.values[1] = origin.values[1] + self.values[1]
-
-    def norm(self) -> float:
-        return sqrt(sum(value * value for value in self.values))
-
-    def __add__(self, other: VectorTwo) -> VectorTwo:
-        return VectorTwo(self.values[0] + other.values[0], self.values[1] + other.values[1])
-
-    def __rmul__(self, scalar: float) -> VectorTwo:
-        return VectorTwo(scalar * self.values[0], scalar * self.values[1])
+DummyVectorOperator = Callable[[DummyVectorTranslation, DummyVectorTranslation], None]
 
 
-class VectorTwoBasis:
-    dimension = 2
+class DummyVectorReturningBasis(DummyVectorBasis):
+    """Basis variant that returns a fresh vector instead of mutating `output`."""
 
-    def vector(self, index: int, output: VectorTwo) -> VectorTwo:
-        output.values[:] = [0.0, 0.0]
-        output.values[index] = 1.0
-        return output
+    def __init__(self) -> None:
+        super().__init__(2)
 
-    def coordinate(self, index: int, value: VectorTwo) -> float:
-        return value.values[index]
-
-    def coordinates(self, value: VectorTwo, output: list[float]) -> list[float]:
-        output[:] = value.values
-        return output
-
-    def synthesize(self, coordinates: list[float], output: VectorTwo) -> VectorTwo:
-        output.values[:] = coordinates[:2]
-        return output
-
-
-class VectorTwoReturningBasis(VectorTwoBasis):
-    def vector(self, index: int, output: VectorTwo) -> VectorTwo:
+    def vector(
+        self,
+        index: int,
+        output: DummyVectorTranslation,
+    ) -> DummyVectorTranslation:
         del output
         values = [0.0, 0.0]
         values[index] = 1.0
-        return VectorTwo(values[0], values[1])
+        return DummyVectorTranslation(values[0], values[1])
 
 
-def apply_matrix(matrix: list[list[float]]):
-    def operator(source: VectorTwo, target: VectorTwo) -> None:
+def apply_matrix(matrix: list[list[float]]) -> DummyVectorOperator:
+    """Return a two-by-two matrix action over `DummyVectorTranslation`."""
+
+    def operator(
+        source: DummyVectorTranslation,
+        target: DummyVectorTranslation,
+    ) -> None:
         target.values[0] = matrix[0][0] * source.values[0] + matrix[0][1] * source.values[1]
         target.values[1] = matrix[1][0] * source.values[0] + matrix[1][1] * source.values[1]
 
     return operator
 
 
-class FakeBlockOperatorDiagonal:
-    def __init__(self, entries):
+class DummyBlockOperatorDiagonal:
+    """Block-diagonal operator assembled from entry callables."""
+
+    def __init__(self, entries: Sequence[DummyVectorOperator | None]) -> None:
         self.entries = list(entries)
 
     def __len__(self) -> int:
         return len(self.entries)
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> DummyVectorOperator | None:
         return self.entries[index]
 
-    def __call__(self, source: Block[VectorTwo], target: Block[VectorTwo]) -> Block[VectorTwo]:
+    def __call__(
+        self,
+        source: BlockLike[DummyVectorTranslation],
+        target: BlockLike[DummyVectorTranslation],
+    ) -> BlockLike[DummyVectorTranslation]:
         for index, entry in enumerate(self.entries):
             if entry is None:
                 raise RuntimeError("missing entry")
@@ -99,9 +82,9 @@ def assert_matrix_close(left: Sequence[float], right: list[list[float]]) -> None
 def test_operator_materialize_builds_matrix_from_basis_vectors_and_coordinates() -> None:
     materialized = OperatorMaterialize(
         operator=apply_matrix([[2.0, 3.0], [5.0, 7.0]]),
-        basis=VectorTwoBasis(),
-        source=VectorTwo(),
-        image=VectorTwo(),
+        basis=DummyVectorBasis(2),
+        source=DummyVectorTranslation(0.0, 0.0),
+        image=DummyVectorTranslation(0.0, 0.0),
     )
 
     assert materialized.matrix is not None
@@ -111,9 +94,9 @@ def test_operator_materialize_builds_matrix_from_basis_vectors_and_coordinates()
 def test_operator_materialize_uses_vector_return_value() -> None:
     materialized = OperatorMaterialize(
         operator=apply_matrix([[11.0, 13.0], [17.0, 19.0]]),
-        basis=VectorTwoReturningBasis(),
-        source=VectorTwo(99.0, 99.0),
-        image=VectorTwo(),
+        basis=DummyVectorReturningBasis(),
+        source=DummyVectorTranslation(99.0, 99.0),
+        image=DummyVectorTranslation(0.0, 0.0),
     )
 
     assert materialized.matrix is not None
@@ -121,18 +104,18 @@ def test_operator_materialize_uses_vector_return_value() -> None:
 
 
 def test_block_operator_diagonal_materialize_builds_block_diagonal_matrix() -> None:
-    operator = FakeBlockOperatorDiagonal(
+    operator = DummyBlockOperatorDiagonal(
         [
             apply_matrix([[2.0, 3.0], [5.0, 7.0]]),
             apply_matrix([[11.0, 13.0], [17.0, 19.0]]),
         ]
     )
-    source = Block([VectorTwo(), VectorTwo()])
-    image = Block([VectorTwo(), VectorTwo()])
+    source = Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)])
+    image = Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)])
 
     materialized = BlockOperatorDiagonalMaterialize(
         operator=operator,
-        bases=[VectorTwoBasis(), VectorTwoBasis()],
+        bases=[DummyVectorBasis(2), DummyVectorBasis(2)],
         source=source,
         image=image,
     )
@@ -150,7 +133,7 @@ def test_block_operator_diagonal_materialize_builds_block_diagonal_matrix() -> N
 
 
 def test_block_operator_diagonal_materialize_accepts_one_basis_for_all_entries() -> None:
-    operator = FakeBlockOperatorDiagonal(
+    operator = DummyBlockOperatorDiagonal(
         [
             apply_matrix([[1.0, 0.0], [0.0, 2.0]]),
             apply_matrix([[3.0, 0.0], [0.0, 4.0]]),
@@ -159,9 +142,9 @@ def test_block_operator_diagonal_materialize_accepts_one_basis_for_all_entries()
 
     materialized = BlockOperatorDiagonalMaterialize(
         operator=operator,
-        bases=VectorTwoBasis(),
-        source=Block([VectorTwo(), VectorTwo()]),
-        image=Block([VectorTwo(), VectorTwo()]),
+        bases=DummyVectorBasis(2),
+        source=Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)]),
+        image=Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)]),
     )
 
     assert materialized.dimension == 4
@@ -178,31 +161,31 @@ def test_block_operator_diagonal_materialize_accepts_one_basis_for_all_entries()
 
 
 def test_block_operator_diagonal_materialize_rejects_size_mismatch() -> None:
-    operator = FakeBlockOperatorDiagonal([apply_matrix([[1.0, 0.0], [0.0, 1.0]])])
+    operator = DummyBlockOperatorDiagonal([apply_matrix([[1.0, 0.0], [0.0, 1.0]])])
 
     with pytest.raises(ValueError, match="Operator size"):
         BlockOperatorDiagonalMaterialize(
             operator=operator,
-            bases=[VectorTwoBasis(), VectorTwoBasis()],
-            source=Block([VectorTwo(), VectorTwo()]),
-            image=Block([VectorTwo(), VectorTwo()]),
+            bases=[DummyVectorBasis(2), DummyVectorBasis(2)],
+            source=Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)]),
+            image=Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)]),
         )
 
 
 def test_block_operator_diagonal_materialize_rejects_unconfigured_entry() -> None:
-    operator = FakeBlockOperatorDiagonal([None])
+    operator = DummyBlockOperatorDiagonal([None])
 
     with pytest.raises(RuntimeError, match="entry 0"):
         BlockOperatorDiagonalMaterialize(
             operator=operator,
-            bases=VectorTwoBasis(),
-            source=Block([VectorTwo()]),
-            image=Block([VectorTwo()]),
+            bases=DummyVectorBasis(2),
+            source=Block([DummyVectorTranslation(0.0, 0.0)]),
+            image=Block([DummyVectorTranslation(0.0, 0.0)]),
         )
 
 
 def test_block_operator_diagonal_materialize_refreshes_compact_block_matrix() -> None:
-    operator = FakeBlockOperatorDiagonal(
+    operator = DummyBlockOperatorDiagonal(
         [
             apply_matrix([[2.0, 3.0], [5.0, 7.0]]),
             apply_matrix([[11.0, 13.0], [17.0, 19.0]]),
@@ -210,9 +193,9 @@ def test_block_operator_diagonal_materialize_refreshes_compact_block_matrix() ->
     )
     materialized = BlockOperatorDiagonalMaterialize(
         operator=operator,
-        bases=[VectorTwoBasis(), VectorTwoBasis()],
-        source=Block([VectorTwo(), VectorTwo()]),
-        image=Block([VectorTwo(), VectorTwo()]),
+        bases=[DummyVectorBasis(2), DummyVectorBasis(2)],
+        source=Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)]),
+        image=Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)]),
         refresh_initial=False,
     )
     compact = [99.0, 99.0, 99.0, 99.0]

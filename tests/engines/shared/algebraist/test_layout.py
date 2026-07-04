@@ -86,17 +86,17 @@ def test_layout_field_defaults_to_broadcast_policy() -> None:
 
 def test_looped_policy_requires_rank_or_shape() -> None:
     with pytest.raises(ValueError):
-        AlgebraistFrameLooped().normalized()
+        AlgebraistFrameLooped()
 
 
 def test_looped_policy_rejects_rank_shape_mismatch() -> None:
     with pytest.raises(ValueError):
-        AlgebraistFrameLooped(rank=2, shape=(3,)).normalized()
+        AlgebraistFrameLooped(rank=2, shape=(3,))
 
 
 def test_small_fixed_policy_rejects_large_shape() -> None:
     with pytest.raises(ValueError):
-        AlgebraistFrameUnravel(shape=(17,)).normalized()
+        AlgebraistFrameUnravel(shape=(17,))
 
 
 def test_layout_rejects_empty_field_list() -> None:

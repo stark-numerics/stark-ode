@@ -1,40 +1,24 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
 
 from stark.core.block import BlockAllocator
+from tests.support import DummyScalarTranslation
 
 
-@dataclass
-class TranslationFixture:
-    value: float = 0.0
+class DummyCountingAllocator:
+    """Allocator that makes allocation order visible to block tests."""
 
-    def __call__(self, origin: object, result: object) -> None:
-        del origin, result
-
-    def norm(self) -> float:
-        return abs(self.value)
-
-    def __add__(self, other: "TranslationFixture") -> "TranslationFixture":
-        return TranslationFixture(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> "TranslationFixture":
-        return TranslationFixture(scalar * self.value)
-
-
-class AllocatorFixture:
     def __init__(self) -> None:
         self.count = 0
 
-    def allocate_translation(self) -> TranslationFixture:
+    def allocate_translation(self) -> DummyScalarTranslation:
         self.count += 1
-        return TranslationFixture(float(self.count))
+        return DummyScalarTranslation(float(self.count))
 
 
 def test_block_allocator_allocates_translation_entries() -> None:
-    fixture = AllocatorFixture()
+    fixture = DummyCountingAllocator()
     allocator = BlockAllocator(fixture)
 
     block = allocator.allocate(3)
@@ -44,7 +28,7 @@ def test_block_allocator_allocates_translation_entries() -> None:
 
 
 def test_block_allocator_allocates_like_existing_block() -> None:
-    allocator = AllocatorFixture()
+    allocator = DummyCountingAllocator()
     allocator = BlockAllocator(allocator)
     existing = allocator.allocate(2)
 
@@ -56,7 +40,7 @@ def test_block_allocator_allocates_like_existing_block() -> None:
 
 @pytest.mark.parametrize("size", [-1])
 def test_block_allocator_rejects_negative_sizes(size: int) -> None:
-    allocator = BlockAllocator(AllocatorFixture())
+    allocator = BlockAllocator(DummyCountingAllocator())
 
     with pytest.raises(ValueError, match="non-negative"):
         allocator.allocate(size)
@@ -64,7 +48,7 @@ def test_block_allocator_rejects_negative_sizes(size: int) -> None:
 
 @pytest.mark.parametrize("size", [1.5, True, "2"])
 def test_block_allocator_rejects_non_int_sizes(size: object) -> None:
-    allocator = BlockAllocator(AllocatorFixture())
+    allocator = BlockAllocator(DummyCountingAllocator())
 
     with pytest.raises(TypeError, match="int"):
         allocator.allocate(size)  # type: ignore[arg-type]

@@ -1,5 +1,7 @@
 from stark.core.integrator.integrator import Integrator
 from stark.core import Configuration
+from stark.core.contracts import IntervalLike
+
 
 class DummyInterval:
     def __init__(self, present: float, step: float, stop: float) -> None:
@@ -15,7 +17,7 @@ class DummyInterval:
 
 
 class StepperByStep:
-    def __call__(self, interval: DummyInterval, state: object) -> None:
+    def __call__(self, interval: IntervalLike, state: object) -> None:
         if isinstance(state, dict):
             state["value"] += interval.step
         interval.increment(interval.step)
@@ -27,7 +29,7 @@ class StepperByStep:
 
 
 class StalledStepper:
-    def __call__(self, interval: DummyInterval, state: object) -> None:
+    def __call__(self, interval: IntervalLike, state: object) -> None:
         del interval, state
 
     def snapshot_state(self, state: object) -> object:
@@ -35,7 +37,7 @@ class StalledStepper:
 
 
 class StepperByClampedStep:
-    def __call__(self, interval: DummyInterval, state: object) -> None:
+    def __call__(self, interval: IntervalLike, state: object) -> None:
         dt = min(interval.step, interval.stop - interval.present)
         if isinstance(state, dict):
             state["value"] += dt
@@ -48,7 +50,7 @@ class StepperByClampedStep:
 
 
 class StepperAndZeroNextStep(StepperByClampedStep):
-    def __call__(self, interval: DummyInterval, state: object) -> None:
+    def __call__(self, interval: IntervalLike, state: object) -> None:
         super().__call__(interval, state)
         if interval.present == interval.stop:
             interval.step = 0.0

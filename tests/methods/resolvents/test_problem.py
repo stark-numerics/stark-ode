@@ -1,55 +1,54 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+from stark.core import Interval
+from stark.core.block import Block
 from stark.core.contracts import IntervalLike
 from stark.methods.resolvents.requests.resolvent import ResolventRequest
 from stark.methods.schemes.request import SchemeResolventRequest
 
 
-class DummyTranslation:
-    def __call__(self, origin: object, result: object) -> None:
-        del origin, result
+@dataclass(slots=True)
+class RequestState:
+    """State fixture for resolvent request contract tests."""
+
+    value: float = 0.0
+
+
+@dataclass(slots=True)
+class RequestTranslation:
+    """Translation fixture used inside block-valued resolvent requests."""
+
+    value: float = 0.0
+
+    def __call__(self, origin: RequestState, result: RequestState) -> None:
+        result.value = origin.value + self.value
 
     def norm(self) -> float:
-        return 0.0
+        return abs(self.value)
 
-    def __add__(self, other: "DummyTranslation") -> "DummyTranslation":
-        del other
-        return DummyTranslation()
+    def __add__(self, other: RequestTranslation) -> RequestTranslation:
+        return RequestTranslation(self.value + other.value)
 
-    def __rmul__(self, scalar: float) -> "DummyTranslation":
-        del scalar
-        return DummyTranslation()
+    def __rmul__(self, scalar: float) -> RequestTranslation:
+        return RequestTranslation(scalar * self.value)
 
 
-@dataclass(frozen=True, slots=True)
-class DummyInterval:
-    present: float
-    step: float
-    stop: float
-
-    def copy(self) -> "DummyInterval":
-        return DummyInterval(self.present, self.step, self.stop)
-
-    def increment(self, dt: float) -> None:
-        del dt
-        raise TypeError("Frozen interval fixture cannot be advanced.")
-
-
-def derivative(interval: IntervalLike, state: object, out: DummyTranslation) -> None:
+def derivative(interval: IntervalLike, state: RequestState, out: RequestTranslation) -> None:
     del interval, state, out
 
 
 def accepts_stage_problem(
-    problem: ResolventRequest,
-) -> ResolventRequest:
+    problem: ResolventRequest[RequestState, RequestTranslation],
+) -> ResolventRequest[RequestState, RequestTranslation]:
     return problem
 
 
 def test_scheme_stage_problem_satisfies_resolvent_stage_problem() -> None:
-    interval = DummyInterval(0.0, 0.1, 1.0)
-    origin = object()
-    rhs = DummyTranslation()
+    interval = Interval(present=0.0, step=0.1, stop=1.0)
+    origin = RequestState()
+    rhs = Block[RequestTranslation]([RequestTranslation()])
 
     problem = SchemeResolventRequest(
         derivative=derivative,

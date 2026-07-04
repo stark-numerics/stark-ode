@@ -2,35 +2,84 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from stark.core.block import Block
-from stark.core.contracts import DerivativeLike, IntervalLike, State, Translation
+from stark.core.contracts import (
+    BlockLike,
+    DerivativeLike,
+    IntervalLike,
+    StateType,
+    TranslationType,
+)
 
 
-class ResolventRequest(Protocol):
+class ResolventRequest(Protocol[StateType, TranslationType]):
     """One-item implicit equation request.
 
     The residual is understood as:
 
         F(delta) = delta - rhs - alpha * f(interval, origin + delta)
+
+    The request is generic in the state and translation selected by the scheme
+    that created it. Resolvents should preserve those types rather than falling
+    back to broad package contracts, otherwise IDEs cannot distinguish a valid
+    scalar/vector request from an accidental mix of incompatible state shapes.
     """
 
-    derivative: DerivativeLike
-    interval: IntervalLike
-    origin: State
-    rhs: Block[Translation] | None
-    alpha: float
+    @property
+    def derivative(self) -> DerivativeLike[StateType, TranslationType]:
+        ...
+
+    @property
+    def interval(self) -> IntervalLike:
+        ...
+
+    @property
+    def origin(self) -> StateType:
+        ...
+
+    @property
+    def rhs(self) -> BlockLike[TranslationType] | None:
+        ...
+
+    @property
+    def alpha(self) -> float:
+        ...
 
 
-class ResolventRequestCoupled(Protocol):
-    """Coupled implicit equation request."""
+class ResolventRequestCoupled(Protocol[StateType, TranslationType]):
+    """Coupled implicit equation request.
 
-    derivative: DerivativeLike
-    interval: IntervalLike
-    origin: State
-    rhs: Block[Translation] | None
-    step: float
-    stage_shifts: tuple[float, ...]
-    matrix: tuple[tuple[float, ...], ...]
+    Coupled requests add the stage coupling data needed by multi-stage
+    implicit and IMEX schemes while retaining the same state and translation
+    parameters as the underlying derivative.
+    """
+
+    @property
+    def derivative(self) -> DerivativeLike[StateType, TranslationType]:
+        ...
+
+    @property
+    def interval(self) -> IntervalLike:
+        ...
+
+    @property
+    def origin(self) -> StateType:
+        ...
+
+    @property
+    def rhs(self) -> BlockLike[TranslationType] | None:
+        ...
+
+    @property
+    def step(self) -> float:
+        ...
+
+    @property
+    def stage_shifts(self) -> tuple[float, ...]:
+        ...
+
+    @property
+    def matrix(self) -> tuple[tuple[float, ...], ...]:
+        ...
 
 
 __all__ = ["ResolventRequestCoupled", "ResolventRequest"]

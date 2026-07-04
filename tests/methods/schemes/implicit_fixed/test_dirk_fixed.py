@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from stark import Interval, Tolerance
+from stark.core.contracts import IntervalLike
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines.shared.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.methods.resolvents import ResolventPicard
@@ -88,7 +89,7 @@ class ArrayScalarAllocator:
 
 
 def constant_rhs(
-    interval: Interval,
+    interval: IntervalLike,
     state: ScalarState,
     out: ScalarTranslation,
 ) -> None:
@@ -97,7 +98,7 @@ def constant_rhs(
 
 
 def array_constant_rhs(
-    interval: Interval,
+    interval: IntervalLike,
     state: ArrayScalarState,
     out: ArrayScalarTranslation,
 ) -> None:
@@ -168,11 +169,11 @@ def test_crouzeix_dirk3_public_call_uses_redirect_call() -> None:
     state = ScalarState(0.0)
 
     def replacement_call(
-        replacement_interval: Interval,
-        replacement_state: ScalarState,
+        interval: IntervalLike,
+        state,
     ) -> float:
-        del replacement_interval
-        replacement_state.value = 42.0
+        del interval
+        state.value = 42.0
         return 0.03125
 
     scheme.redirect_call = replacement_call

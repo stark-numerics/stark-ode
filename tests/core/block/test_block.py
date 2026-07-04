@@ -1,32 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from stark.core.block import Block
+from tests.support import DummyScalarTranslation
 
 
-@dataclass
-class TranslationFixture:
-    value: float
-
-    def __call__(self, origin: float, result: list[float]) -> None:
-        result[0] = origin + self.value
-
-    def __add__(self, other: "TranslationFixture") -> "TranslationFixture":
-        return TranslationFixture(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> "TranslationFixture":
-        return TranslationFixture(scalar * self.value)
-
-    def norm(self) -> float:
-        return abs(self.value)
+def block(*values: float) -> Block[DummyScalarTranslation]:
+    return Block([DummyScalarTranslation(value) for value in values])
 
 
-def block(*values: float) -> Block[TranslationFixture]:
-    return Block([TranslationFixture(value) for value in values])
-
-
-def values(block: Block[TranslationFixture]) -> tuple[float, ...]:
+def values(block: Block[DummyScalarTranslation]) -> tuple[float, ...]:
     return tuple(item.value for item in block)
 
 
@@ -43,7 +25,7 @@ def test_block_exposes_collection_protocol() -> None:
 def test_block_allows_entry_replacement() -> None:
     subject = block(1.0, 2.0)
 
-    subject[1] = TranslationFixture(5.0)
+    subject[1] = DummyScalarTranslation(5.0)
 
     assert values(subject) == (1.0, 5.0)
 

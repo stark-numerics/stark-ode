@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Protocol
+
 import pytest
 
 from stark import Configuration, Tolerance
@@ -12,6 +14,21 @@ from stark.methods.inverters.support import (
 from stark.diagnostics.monitor import MonitorInverter
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 from tests.support import DummyBlockScaleOperator, DummyScalarTranslation
+
+
+class InverterRecordSolve(Protocol):
+    """Monitoring hook installed by `with_inverter_monitoring`."""
+
+    def __call__(
+        self,
+        *,
+        converged: bool,
+        iteration_count: int | None,
+        initial_residual: float | None,
+        final_residual: float | None,
+        failure_reason: str | None = None,
+    ) -> None:
+        ...
 
 
 def accepts_inverter_request(request: InverterRequest[DummyScalarTranslation]) -> float:
@@ -30,6 +47,9 @@ def test_resolvent_inverter_request_satisfies_inverter_request_shape() -> None:
 @with_inverter_monitoring
 class InverterMonitoredDummy:
     descriptor = InverterDescriptor("Dummy", "Dummy inverter")
+
+    # Installed by with_inverter_monitoring from stark.methods.inverters.support.
+    record_solve: InverterRecordSolve
 
     def __init__(self, monitor=None) -> None:
         self.monitor = monitor

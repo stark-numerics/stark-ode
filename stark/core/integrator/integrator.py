@@ -6,8 +6,7 @@ from collections.abc import Iterable, Iterator
 
 from stark.core.integrator.configuration import IntegratorConfiguration, IntegratorConfigurationDefault
 from stark.core.auditor import Auditor
-from stark.core.integrator.stepper import IntegratorStepper
-from stark.core.contracts import IntervalLike, State
+from stark.core.contracts import IntervalLike, IntegratorStepperLike, State
 
 
 Checkpoints = int | Iterable[float]
@@ -68,7 +67,7 @@ class Integrator:
 
     def __call__(
         self,
-        stepper: IntegratorStepper,
+        stepper: IntegratorStepperLike,
         interval: IntervalLike,
         state: State,
         checkpoints: Checkpoints | None = None,
@@ -77,7 +76,7 @@ class Integrator:
 
     def stable_trajectory(
         self,
-        stepper: IntegratorStepper,
+        stepper: IntegratorStepperLike,
         interval: IntervalLike,
         state: State,
         checkpoints: Checkpoints | None = None,
@@ -92,7 +91,7 @@ class Integrator:
 
     def mutating_trajectory(
         self,
-        stepper: IntegratorStepper,
+        stepper: IntegratorStepperLike,
         interval: IntervalLike,
         state: State,
         checkpoints: Checkpoints | None = None,
@@ -107,7 +106,7 @@ class Integrator:
 
     def snapshot(
         self,
-        stepper: IntegratorStepper,
+        stepper: IntegratorStepperLike,
         interval: IntervalLike,
         state: State,
     ) -> tuple[IntervalLike, State]:
@@ -115,7 +114,7 @@ class Integrator:
 
     def stable_trajectory_checkpoints(
         self,
-        stepper: IntegratorStepper,
+        stepper: IntegratorStepperLike,
         interval: IntervalLike,
         state: State,
         checkpoints: Checkpoints,
@@ -128,7 +127,7 @@ class Integrator:
 
     def mutating_trajectory_checkpoints(
         self,
-        stepper: IntegratorStepper,
+        stepper: IntegratorStepperLike,
         interval: IntervalLike,
         state: State,
         checkpoints: Checkpoints,
@@ -200,7 +199,7 @@ class Integrator:
 
     def mutating_trajectory_fast(
         self,
-        stepper: IntegratorStepper,
+        stepper: IntegratorStepperLike,
         interval: IntervalLike,
         state: State,
     ) -> Iterator[tuple[IntervalLike, State]]:
@@ -214,7 +213,7 @@ class Integrator:
 
     def mutating_trajectory_safe(
         self,
-        stepper: IntegratorStepper,
+        stepper: IntegratorStepperLike,
         interval: IntervalLike,
         state: State,
     ) -> Iterator[tuple[IntervalLike, State]]:
@@ -241,7 +240,7 @@ class Integrator:
 
     def stable_trajectory_fast(
         self,
-        stepper: IntegratorStepper,
+        stepper: IntegratorStepperLike,
         interval: IntervalLike,
         state: State,
     ) -> Iterator[tuple[IntervalLike, State]]:
@@ -257,7 +256,7 @@ class Integrator:
 
     def stable_trajectory_safe(
         self,
-        stepper: IntegratorStepper,
+        stepper: IntegratorStepperLike,
         interval: IntervalLike,
         state: State,
     ) -> Iterator[tuple[IntervalLike, State]]:
@@ -285,7 +284,6 @@ class Integrator:
             yield copy_interval(), snapshot_state(state)
 
 __all__ = ["Checkpoints", "Integrator"]
-
 
 
 

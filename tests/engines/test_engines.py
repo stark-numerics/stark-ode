@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, Protocol
+
 import numpy as np
 import pytest
 
@@ -13,6 +15,38 @@ from stark.engines.shared.algebraist.generator import (
 )
 from stark.engines.numpy.carriers import CarrierNumpy
 from stark.engines import EngineNative, EngineNumpy
+
+
+class EnginePairState(Protocol):
+    """Runtime state shape produced by the two-field engine tests."""
+
+    u: Any
+    v: Any
+
+
+class EnginePairTranslation(Protocol):
+    """Runtime translation shape produced by the two-field engine tests."""
+
+    du: Any
+    dv: Any
+
+    def __call__(self, origin: EnginePairState, result: EnginePairState) -> None:
+        ...
+
+    def norm(self) -> float:
+        ...
+
+
+def allocate_pair_state(engine: Any) -> EnginePairState:
+    """Allocate a two-field test state with protocol-visible attributes."""
+
+    return engine.allocator.allocate_state()
+
+
+def allocate_pair_translation(engine: Any) -> EnginePairTranslation:
+    """Allocate a two-field test translation with protocol-visible attributes."""
+
+    return engine.allocator.allocate_translation()
 
 
 def test_stark_engine_numpy_exposes_backend_bundle() -> None:
@@ -44,8 +78,8 @@ def test_stark_engine_numpy_allocator_builds_owned_structures() -> None:
         dtype=np.float32,
     )
 
-    state = engine.allocator.allocate_state()
-    translation = engine.allocator.allocate_translation()
+    state = allocate_pair_state(engine)
+    translation = allocate_pair_translation(engine)
 
     assert state.u.shape == (2, 2)
     assert state.v.dtype == np.float32
@@ -62,9 +96,9 @@ def test_stark_engine_numpy_translation_applies_fieldwise_delta() -> None:
             )
         )
     )
-    origin = engine.allocator.allocate_state()
-    result = engine.allocator.allocate_state()
-    delta = engine.allocator.allocate_translation()
+    origin = allocate_pair_state(engine)
+    result = allocate_pair_state(engine)
+    delta = allocate_pair_translation(engine)
 
     origin.u[...] = (1.0, 2.0)
     origin.v[...] = (3.0, 4.0)
@@ -103,8 +137,8 @@ def test_stark_engine_numpy_exposes_layout_inner_product() -> None:
             )
         )
     )
-    left = engine.allocator.allocate_translation()
-    right = engine.allocator.allocate_translation()
+    left = allocate_pair_translation(engine)
+    right = allocate_pair_translation(engine)
 
     left.du[...] = (1.0, 2.0)
     left.dv[...] = (3.0, 4.0)
@@ -124,8 +158,8 @@ def test_stark_engine_numpy_translation_basis_inspects_full_translation() -> Non
         )
     )
     basis = engine.translation_basis()
-    vector = engine.allocator.allocate_translation()
-    translation = engine.allocator.allocate_translation()
+    vector = allocate_pair_translation(engine)
+    translation = allocate_pair_translation(engine)
     coordinates = [0.0, 0.0, 0.0]
 
     vector = basis.vector(1, vector)
@@ -154,9 +188,9 @@ def test_stark_engine_native_uses_array_backed_fields() -> None:
             )
         )
     )
-    origin = engine.allocator.allocate_state()
-    result = engine.allocator.allocate_state()
-    delta = engine.allocator.allocate_translation()
+    origin = allocate_pair_state(engine)
+    result = allocate_pair_state(engine)
+    delta = allocate_pair_translation(engine)
 
     origin.u[0], origin.u[1] = 1.0, 2.0
     origin.v[0], origin.v[1] = 3.0, 4.0
@@ -195,9 +229,9 @@ def test_stark_engine_cupy_optional() -> None:
         ),
         dtype=cp.float32,
     )
-    origin = engine.allocator.allocate_state()
-    result = engine.allocator.allocate_state()
-    delta = engine.allocator.allocate_translation()
+    origin = allocate_pair_state(engine)
+    result = allocate_pair_state(engine)
+    delta = allocate_pair_translation(engine)
 
     origin.u[...] = cp.asarray((1.0, 2.0))
     origin.v[...] = cp.asarray((3.0, 4.0))
@@ -231,9 +265,9 @@ def test_stark_engine_jax_optional() -> None:
         ),
         dtype=jnp.float32,
     )
-    origin = engine.allocator.allocate_state()
-    result = engine.allocator.allocate_state()
-    delta = engine.allocator.allocate_translation()
+    origin = allocate_pair_state(engine)
+    result = allocate_pair_state(engine)
+    delta = allocate_pair_translation(engine)
 
     origin.u = jnp.asarray((1.0, 2.0))
     origin.v = jnp.asarray((3.0, 4.0))

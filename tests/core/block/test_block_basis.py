@@ -4,13 +4,24 @@ import numpy as np
 import pytest
 
 from stark.core.block import Block, BlockBasis
-from stark.engines.native.carriers import CarrierNative
 from stark.engines.numpy.carriers import CarrierNumpy
+from tests.support import DummyVectorBasis, DummyVectorTranslation
+
+
+def vector_block(*entries: DummyVectorTranslation) -> Block[DummyVectorTranslation]:
+    """Build a block of dummy vectors for block-basis tests."""
+
+    return Block(list(entries))
+
+
 def test_block_basis_lifts_translation_bases() -> None:
-    basis_a = CarrierNative([0.0, 0.0]).basis
-    basis_b = CarrierNative([0.0]).basis
+    basis_a = DummyVectorBasis(2)
+    basis_b = DummyVectorBasis(1)
     block_basis = BlockBasis([basis_a, basis_b])
-    output = Block([[0.0, 0.0], [0.0]])
+    output = vector_block(
+        DummyVectorTranslation(0.0, 0.0),
+        DummyVectorTranslation(0.0),
+    )
 
     assert block_basis.dimension == 3
     assert block_basis.offsets == (0, 2, 3)
@@ -19,28 +30,37 @@ def test_block_basis_lifts_translation_bases() -> None:
     vector = block_basis.vector(1, output)
 
     assert vector is output
-    assert vector[0] == [0.0, 1.0]
-    assert vector[1] == [0.0]
+    assert vector[0].values == [0.0, 1.0]
+    assert vector[1].values == [0.0]
     assert block_basis.coordinate(1, vector) == pytest.approx(1.0)
     assert block_basis.coordinate(2, vector) == pytest.approx(0.0)
 
 
 def test_block_basis_analyses_and_synthesizes_blocks() -> None:
-    basis_a = CarrierNative([0.0, 0.0]).basis
-    basis_b = CarrierNative((0.0, 0.0, 0.0)).basis
+    basis_a = DummyVectorBasis(2)
+    basis_b = DummyVectorBasis(3)
     block_basis = BlockBasis([basis_a, basis_b])
     coordinates = [0.0] * block_basis.dimension
 
-    block_basis.coordinates(Block([[1.0, 2.0], (3.0, 4.0, 5.0)]), coordinates)
+    block_basis.coordinates(
+        vector_block(
+            DummyVectorTranslation(1.0, 2.0),
+            DummyVectorTranslation(3.0, 4.0, 5.0),
+        ),
+        coordinates,
+    )
 
     assert coordinates == pytest.approx([1.0, 2.0, 3.0, 4.0, 5.0])
 
-    output = Block([[0.0, 0.0], (0.0, 0.0, 0.0)])
+    output = vector_block(
+        DummyVectorTranslation(0.0, 0.0),
+        DummyVectorTranslation(0.0, 0.0, 0.0),
+    )
     block = block_basis.synthesize([5.0, 4.0, 3.0, 2.0, 1.0], output)
 
     assert block is output
-    assert block[0] == [5.0, 4.0]
-    assert block[1] == (3.0, 2.0, 1.0)
+    assert block[0].values == [5.0, 4.0]
+    assert block[1].values == [3.0, 2.0, 1.0]
 
 
 def test_block_basis_preserves_return_style_entries() -> None:
@@ -55,10 +75,13 @@ def test_block_basis_preserves_return_style_entries() -> None:
 
 
 def test_block_basis_keeps_index_check_but_trusts_prepared_block_size() -> None:
-    block_basis = BlockBasis([CarrierNative([0.0]).basis])
+    block_basis = BlockBasis([DummyVectorBasis(1)])
     coordinates = [0.0]
 
-    block_basis.coordinates(Block([[2.0], [99.0]]), coordinates)
+    block_basis.coordinates(
+        vector_block(DummyVectorTranslation(2.0), DummyVectorTranslation(99.0)),
+        coordinates,
+    )
 
     assert coordinates == pytest.approx([2.0])
 

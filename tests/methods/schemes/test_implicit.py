@@ -1,12 +1,19 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from math import sqrt
+from typing import ClassVar
 
 import pytest
 
+from stark import Configuration
 from stark import Tolerance
 from stark.core import Integrator, IntegratorStepper
+from stark.core.block import Block
+from stark.core.contracts import (
+    BlockLike,
+    InverterOutputMode,
+    InverterRequest,
+)
 from stark.core.interval import Interval
 from stark.methods.resolvents import (
     ResolventCoupledNewton,
@@ -14,9 +21,6 @@ from stark.methods.resolvents import (
     ResolventNewton,
     ResolventPicard,
 )
-from stark import Configuration
-from stark import Tolerance
-from stark.core.block import Block
 from stark.methods.schemes import SchemeBDF2, SchemeKvaerno3, SchemeKvaerno4, SchemeSDIRK21
 from stark.methods.schemes.implicit.fixed import (
     SchemeBackwardEuler,
@@ -27,93 +31,28 @@ from stark.methods.schemes.implicit.fixed import (
     SchemeLobattoIIIC4,
     SchemeRadauIIA5,
 )
+from tests.support import DummyScalarAllocator as ScalarAllocator
+from tests.support import DummyScalarLinearizer
+from tests.support import DummyScalarState as ScalarState
+from tests.support import DummyScalarTranslation as ScalarTranslation
+from tests.support import dummy_constant_derivative
+from tests.support import dummy_quadratic_derivative
+from tests.support import dummy_scalar_derivative
 
 
-@dataclass(slots=True)
-class ScalarTranslation:
-    value: float = 0.0
-
-    def __call__(self, origin: "ScalarState", result: "ScalarState") -> None:
-        result.value = origin.value + self.value
-
-    def norm(self) -> float:
-        return abs(self.value)
-
-    def __add__(self, other: "ScalarTranslation") -> "ScalarTranslation":
-        return ScalarTranslation(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> "ScalarTranslation":
-        return ScalarTranslation(scalar * self.value)
-
-    @staticmethod
-    def scale(a: float, x: "ScalarTranslation", out: "ScalarTranslation") -> "ScalarTranslation":
-        out.value = a * x.value
-        return out
-
-    @staticmethod
-    def combine2(
-        a0: float,
-        x0: "ScalarTranslation",
-        a1: float,
-        x1: "ScalarTranslation",
-        out: "ScalarTranslation",
-    ) -> "ScalarTranslation":
-        out.value = a0 * x0.value + a1 * x1.value
-        return out
-
-    linear_combine = [scale, combine2]
-
-
-@dataclass(slots=True)
-class ScalarState:
-    value: float = 0.0
-
-
-class ScalarAllocator:
-    def allocate_state(self) -> ScalarState:
-        return ScalarState()
-
-    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
-        out.value = source.value
-
-    def allocate_translation(self) -> ScalarTranslation:
-        return ScalarTranslation()
-
-
-class ScalarDerivative:
-    def __init__(self, rate: float) -> None:
-        self.rate = rate
-
-    def __call__(self, interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
-        del interval
-        out.value = self.rate * state.value
-
-
-class ScalarLinearizer:
-    def __init__(self, rate: float) -> None:
-        self.rate = rate
-
-    def __call__(self, interval: Interval, state: ScalarState, out) -> None:
-        del interval
-        del state
-
-        def apply(translation: ScalarTranslation, result: ScalarTranslation) -> None:
-            result.value = self.rate * translation.value
-
-        out.apply = apply
-
-
-def scalar_inner_product(left: ScalarTranslation, right: ScalarTranslation) -> float:
-    return left.value * right.value
-
-
-class DenseScalarTestInverter:
+class DummyDenseScalarInverter:
     """Tiny exact scalar block inverter used to exercise the new request API."""
 
-    def __call__(self, request, output: Block[ScalarTranslation]) -> None:
+    output_mode: ClassVar[InverterOutputMode] = InverterOutputMode.overwrite
+
+    def __call__(
+        self,
+        request: InverterRequest[ScalarTranslation],
+        output: BlockLike[ScalarTranslation],
+    ) -> None:
         size = len(request.residual)
         if len(output) != size:
-            raise ValueError("DenseScalarTestInverter output size mismatch.")
+            raise ValueError("DummyDenseScalarInverter output size mismatch.")
 
         matrix = [[0.0 for _ in range(size)] for _ in range(size)]
         for column in range(size):
@@ -137,7 +76,7 @@ class DenseScalarTestInverter:
         for pivot in range(size):
             pivot_row = max(range(pivot, size), key=lambda row: abs(augmented[row][pivot]))
             if abs(augmented[pivot_row][pivot]) == 0.0:
-                raise RuntimeError("DenseScalarTestInverter encountered a singular matrix.")
+                raise RuntimeError("DummyDenseScalarInverter encountered a singular matrix.")
             if pivot_row != pivot:
                 augmented[pivot], augmented[pivot_row] = augmented[pivot_row], augmented[pivot]
 
@@ -165,7 +104,7 @@ def test_resolvent_tolerance_matches_general_tolerance_contract() -> None:
 
 def test_resolvent_picard_solves_scalar_backward_euler_step() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-1.0)
+    derivative = dummy_scalar_derivative(rate=-1.0)
     resolvent = ResolventPicard(
         allocator,
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=32),
@@ -183,14 +122,9 @@ def test_resolvent_picard_solves_scalar_backward_euler_step() -> None:
 
 
 def test_backward_euler_matches_closed_form_for_quadratic_decay() -> None:
-    class QuadraticDerivative:
-        def __call__(self, interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
-            del interval
-            out.value = -(state.value ** 2)
-
     allocator = ScalarAllocator()
     scheme = SchemeBackwardEuler(
-        QuadraticDerivative(),
+        dummy_quadratic_derivative(),
         allocator,
         resolvent=ResolventPicard(
             allocator,
@@ -212,11 +146,11 @@ def test_backward_euler_matches_closed_form_for_quadratic_decay() -> None:
 
 def test_resolvent_newton_solves_scalar_backward_euler_step() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-10.0)
-    inverter = DenseScalarTestInverter()
+    derivative = dummy_scalar_derivative(rate=-10.0)
+    inverter = DummyDenseScalarInverter()
     resolvent = ResolventNewton(
         allocator,
-        linearizer=ScalarLinearizer(rate=-10.0),
+        linearizer=DummyScalarLinearizer(rate=-10.0),
         inverter=inverter,
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
     )
@@ -236,11 +170,11 @@ def test_resolvent_newton_solves_scalar_backward_euler_step() -> None:
 
 def test_newton_resolvent_uses_explicitly_supplied_linearizer() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-10.0)
-    inverter = DenseScalarTestInverter()
+    derivative = dummy_scalar_derivative(rate=-10.0)
+    inverter = DummyDenseScalarInverter()
     resolvent = ResolventNewton(
         allocator,
-        linearizer=ScalarLinearizer(rate=-10.0),
+        linearizer=DummyScalarLinearizer(rate=-10.0),
         inverter=inverter,
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
     )
@@ -256,8 +190,8 @@ def test_newton_resolvent_uses_explicitly_supplied_linearizer() -> None:
 
 def test_resolvent_newton_requires_linearized_residual() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-1.0)
-    inverter = DenseScalarTestInverter()
+    derivative = dummy_scalar_derivative(rate=-1.0)
+    inverter = DummyDenseScalarInverter()
     with pytest.raises(TypeError):
         ResolventNewton(allocator, inverter=inverter)  # type: ignore[call-arg]
 
@@ -277,7 +211,7 @@ def test_resolvent_newton_requires_linearized_residual() -> None:
 
 def test_implicit_midpoint_solves_scalar_linear_decay_step() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-10.0)
+    derivative = dummy_scalar_derivative(rate=-10.0)
     scheme = SchemeImplicitMidpoint(
         derivative,
         allocator,
@@ -298,7 +232,7 @@ def test_implicit_midpoint_solves_scalar_linear_decay_step() -> None:
 
 def test_crank_nicolson_solves_scalar_linear_decay_step() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-10.0)
+    derivative = dummy_scalar_derivative(rate=-10.0)
     scheme = SchemeCrankNicolson(
         derivative,
         allocator,
@@ -318,13 +252,8 @@ def test_crank_nicolson_solves_scalar_linear_decay_step() -> None:
 
 
 def test_crouzeix_dirk3_solves_constant_derivative_step() -> None:
-    class ConstantDerivative:
-        def __call__(self, interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
-            del interval, state
-            out.value = 1.0
-
     allocator = ScalarAllocator()
-    derivative = ConstantDerivative()
+    derivative = dummy_constant_derivative()
     scheme = SchemeCrouzeixDIRK3(
         derivative,
         allocator,
@@ -344,13 +273,8 @@ def test_crouzeix_dirk3_solves_constant_derivative_step() -> None:
 
 
 def test_gauss_legendre4_solves_constant_derivative_step() -> None:
-    class ConstantDerivative:
-        def __call__(self, interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
-            del interval, state
-            out.value = 1.0
-
     allocator = ScalarAllocator()
-    derivative = ConstantDerivative()
+    derivative = dummy_constant_derivative()
     scheme = SchemeGaussLegendre4(
         derivative,
         allocator,
@@ -371,15 +295,15 @@ def test_gauss_legendre4_solves_constant_derivative_step() -> None:
 
 def test_coupled_newton_gauss_legendre4_solves_scalar_linear_decay_step() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-10.0)
-    inverter = DenseScalarTestInverter()
+    derivative = dummy_scalar_derivative(rate=-10.0)
+    inverter = DummyDenseScalarInverter()
     scheme = SchemeGaussLegendre4(
         derivative,
         allocator,
         resolvent=ResolventCoupledNewton(
             allocator,
             tableau=SchemeGaussLegendre4.tableau,
-            linearizer=ScalarLinearizer(rate=-10.0),
+            linearizer=DummyScalarLinearizer(rate=-10.0),
             inverter=inverter,
             configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
         ),
@@ -394,13 +318,8 @@ def test_coupled_newton_gauss_legendre4_solves_scalar_linear_decay_step() -> Non
 
 
 def test_radau_iia5_solves_constant_derivative_step() -> None:
-    class ConstantDerivative:
-        def __call__(self, interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
-            del interval, state
-            out.value = 1.0
-
     allocator = ScalarAllocator()
-    derivative = ConstantDerivative()
+    derivative = dummy_constant_derivative()
     scheme = SchemeRadauIIA5(
         derivative,
         allocator,
@@ -420,13 +339,8 @@ def test_radau_iia5_solves_constant_derivative_step() -> None:
 
 
 def test_lobatto_iiic4_solves_constant_derivative_step() -> None:
-    class ConstantDerivative:
-        def __call__(self, interval: Interval, state: ScalarState, out: ScalarTranslation) -> None:
-            del interval, state
-            out.value = 1.0
-
     allocator = ScalarAllocator()
-    derivative = ConstantDerivative()
+    derivative = dummy_constant_derivative()
     scheme = SchemeLobattoIIIC4(
         derivative,
         allocator,
@@ -447,15 +361,15 @@ def test_lobatto_iiic4_solves_constant_derivative_step() -> None:
 
 def test_coupled_newton_radau_iia5_tracks_scalar_linear_decay() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-10.0)
-    inverter = DenseScalarTestInverter()
+    derivative = dummy_scalar_derivative(rate=-10.0)
+    inverter = DummyDenseScalarInverter()
     scheme = SchemeRadauIIA5(
         derivative,
         allocator,
         resolvent=ResolventCoupledNewton(
             allocator,
             tableau=SchemeRadauIIA5.tableau,
-            linearizer=ScalarLinearizer(rate=-10.0),
+            linearizer=DummyScalarLinearizer(rate=-10.0),
             inverter=inverter,
             configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
         ),
@@ -471,15 +385,15 @@ def test_coupled_newton_radau_iia5_tracks_scalar_linear_decay() -> None:
 
 def test_coupled_newton_lobatto_iiic4_tracks_scalar_linear_decay() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-10.0)
-    inverter = DenseScalarTestInverter()
+    derivative = dummy_scalar_derivative(rate=-10.0)
+    inverter = DummyDenseScalarInverter()
     scheme = SchemeLobattoIIIC4(
         derivative,
         allocator,
         resolvent=ResolventCoupledNewton(
             allocator,
             tableau=SchemeLobattoIIIC4.tableau,
-            linearizer=ScalarLinearizer(rate=-10.0),
+            linearizer=DummyScalarLinearizer(rate=-10.0),
             inverter=inverter,
             configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
         ),
@@ -495,7 +409,7 @@ def test_coupled_newton_lobatto_iiic4_tracks_scalar_linear_decay() -> None:
 
 def test_backward_euler_rejects_mismatched_resolvent_tableau() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-1.0)
+    derivative = dummy_scalar_derivative(rate=-1.0)
 
     with pytest.raises(ValueError):
         SchemeBackwardEuler(
@@ -510,11 +424,11 @@ def test_backward_euler_rejects_mismatched_resolvent_tableau() -> None:
 
 def test_sdirk21_advances_linear_decay_with_adaptive_control() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-10.0)
-    inverter = DenseScalarTestInverter()
+    derivative = dummy_scalar_derivative(rate=-10.0)
+    inverter = DummyDenseScalarInverter()
     resolvent = ResolventNewton(
         allocator,
-        linearizer=ScalarLinearizer(rate=-10.0),
+        linearizer=DummyScalarLinearizer(rate=-10.0),
         inverter=inverter,
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
     )
@@ -536,11 +450,11 @@ def test_sdirk21_advances_linear_decay_with_adaptive_control() -> None:
 
 def test_kvaerno3_advances_linear_decay_with_adaptive_control() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-10.0)
-    inverter = DenseScalarTestInverter()
+    derivative = dummy_scalar_derivative(rate=-10.0)
+    inverter = DummyDenseScalarInverter()
     resolvent = ResolventNewton(
         allocator,
-        linearizer=ScalarLinearizer(rate=-10.0),
+        linearizer=DummyScalarLinearizer(rate=-10.0),
         inverter=inverter,
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
     )
@@ -562,11 +476,11 @@ def test_kvaerno3_advances_linear_decay_with_adaptive_control() -> None:
 
 def test_kvaerno4_advances_linear_decay_with_adaptive_control() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-10.0)
-    inverter = DenseScalarTestInverter()
+    derivative = dummy_scalar_derivative(rate=-10.0)
+    inverter = DummyDenseScalarInverter()
     resolvent = ResolventNewton(
         allocator,
-        linearizer=ScalarLinearizer(rate=-10.0),
+        linearizer=DummyScalarLinearizer(rate=-10.0),
         inverter=inverter,
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
     )
@@ -588,11 +502,11 @@ def test_kvaerno4_advances_linear_decay_with_adaptive_control() -> None:
 
 def test_bdf2_advances_linear_decay_with_adaptive_control() -> None:
     allocator = ScalarAllocator()
-    derivative = ScalarDerivative(rate=-10.0)
-    inverter = DenseScalarTestInverter()
+    derivative = dummy_scalar_derivative(rate=-10.0)
+    inverter = DummyDenseScalarInverter()
     resolvent = ResolventNewton(
         allocator,
-        linearizer=ScalarLinearizer(rate=-10.0),
+        linearizer=DummyScalarLinearizer(rate=-10.0),
         inverter=inverter,
         configuration=Configuration(resolvent_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12), resolvent_maximum_steps=8),
     )

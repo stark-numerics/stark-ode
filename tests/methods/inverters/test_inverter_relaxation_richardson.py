@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
 
 from stark.core.block import Block
@@ -10,40 +8,16 @@ from stark.methods.inverters.relaxation import InverterRelaxationRichardson
 from stark import Configuration, Tolerance
 from stark.diagnostics.monitor import MonitorInverter
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
-
-
-@dataclass(slots=True)
-class TranslationScalar:
-    value: float = 0.0
-
-    def __call__(self, origin, result) -> None:
-        result.value = origin.value + self.value
-
-    def norm(self) -> float:
-        return abs(self.value)
-
-    def __add__(self, other: "TranslationScalar") -> "TranslationScalar":
-        return TranslationScalar(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> "TranslationScalar":
-        return TranslationScalar(scalar * self.value)
-
-
-def scale_by_two(source: TranslationScalar, target: TranslationScalar) -> None:
-    target.value = 2.0 * source.value
-
-
-def identity(source: TranslationScalar, target: TranslationScalar) -> None:
-    target.value = source.value
+from tests.support import DummyScalarEntryOperator, DummyScalarTranslation
 
 
 def test_richardson_solves_one_dimensional_scaled_request() -> None:
     request = ResolventInverterRequest(
-        operator=BlockOperatorDiagonal.repeated(scale_by_two, size=1),
-        residual=Block([TranslationScalar(6.0)]),
+        operator=BlockOperatorDiagonal.repeated(DummyScalarEntryOperator(2.0), size=1),
+        residual=Block([DummyScalarTranslation(6.0)]),
     )
-    output = Block([TranslationScalar(0.0)])
-    inverter = InverterRelaxationRichardson[TranslationScalar](
+    output = Block([DummyScalarTranslation(0.0)])
+    inverter = InverterRelaxationRichardson[DummyScalarTranslation](
         damping=0.5,
         configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=4),
     )
@@ -58,11 +32,11 @@ def test_richardson_solves_one_dimensional_scaled_request() -> None:
 def test_richardson_records_success_through_init_time_monitor() -> None:
     monitor = MonitorInverter()
     request = ResolventInverterRequest(
-        operator=BlockOperatorDiagonal.repeated(scale_by_two, size=1),
-        residual=Block([TranslationScalar(6.0)]),
+        operator=BlockOperatorDiagonal.repeated(DummyScalarEntryOperator(2.0), size=1),
+        residual=Block([DummyScalarTranslation(6.0)]),
     )
-    output = Block([TranslationScalar(0.0)])
-    inverter = InverterRelaxationRichardson[TranslationScalar](
+    output = Block([DummyScalarTranslation(0.0)])
+    inverter = InverterRelaxationRichardson[DummyScalarTranslation](
         damping=0.5,
         configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=4),
         monitor=monitor,
@@ -83,11 +57,11 @@ def test_richardson_records_success_through_init_time_monitor() -> None:
 def test_richardson_records_initial_acceptance() -> None:
     monitor = MonitorInverter()
     request = ResolventInverterRequest(
-        operator=BlockOperatorDiagonal.repeated(identity, size=1),
-        residual=Block([TranslationScalar(2.0)]),
+        operator=BlockOperatorDiagonal.repeated(DummyScalarEntryOperator(1.0), size=1),
+        residual=Block([DummyScalarTranslation(2.0)]),
     )
-    output = Block([TranslationScalar(2.0)])
-    inverter = InverterRelaxationRichardson[TranslationScalar](
+    output = Block([DummyScalarTranslation(2.0)])
+    inverter = InverterRelaxationRichardson[DummyScalarTranslation](
         configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0)),
         monitor=monitor,
     )
@@ -104,11 +78,11 @@ def test_richardson_records_initial_acceptance() -> None:
 def test_richardson_records_failure_when_budget_is_exhausted() -> None:
     monitor = MonitorInverter()
     request = ResolventInverterRequest(
-        operator=BlockOperatorDiagonal.repeated(scale_by_two, size=1),
-        residual=Block([TranslationScalar(6.0)]),
+        operator=BlockOperatorDiagonal.repeated(DummyScalarEntryOperator(2.0), size=1),
+        residual=Block([DummyScalarTranslation(6.0)]),
     )
-    output = Block([TranslationScalar(0.0)])
-    inverter = InverterRelaxationRichardson[TranslationScalar](
+    output = Block([DummyScalarTranslation(0.0)])
+    inverter = InverterRelaxationRichardson[DummyScalarTranslation](
         damping=0.25,
         configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=1),
         monitor=monitor,

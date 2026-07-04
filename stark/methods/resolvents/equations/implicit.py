@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from collections.abc import MutableSequence
+from typing import Generic
 
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines.shared.algebraist.arity import AlgebraistArity
@@ -14,8 +15,9 @@ from stark.core.contracts import (
     DerivativeLike,
     IntervalLike,
     LinearizerLike,
-    State,
+    StateType,
     Translation,
+    TranslationType,
     Allocator,
 )
 from stark.core.contracts.translation_basis import TranslationBasis
@@ -52,7 +54,7 @@ class ResolventImplicitEquationJacobian:
         )
 
 
-class ResolventImplicitEquationDifferential:
+class ResolventImplicitEquationDifferential(Generic[TranslationType]):
     """Linearized one-stage implicit equation action ``I - alpha J``."""
 
     __slots__ = (
@@ -72,7 +74,7 @@ class ResolventImplicitEquationDifferential:
         self.jacobian = jacobian
         self.alpha = 0.0
 
-    def __call__(self, translation: Translation, out: Translation) -> None:
+    def __call__(self, translation: TranslationType, out: TranslationType) -> None:
         self.jacobian(translation, self.jacobian_buffer)
         self.combine2(1.0, translation, -self.alpha, self.jacobian_buffer, out)
 
@@ -103,7 +105,7 @@ class ResolventImplicitEquationDifferential:
             matrix[row * stride + column] += 1.0
 
 
-class ResolventImplicitEquationDifferentialCoupled:
+class ResolventImplicitEquationDifferentialCoupled(Generic[TranslationType]):
     """Linearized block action for coupled implicit equations."""
 
     __slots__ = (
@@ -138,9 +140,9 @@ class ResolventImplicitEquationDifferentialCoupled:
 
     def __call__(
         self,
-        source: BlockLike[Translation],
-        target: BlockLike[Translation],
-    ) -> BlockLike[Translation]:
+        source: BlockLike[TranslationType],
+        target: BlockLike[TranslationType],
+    ) -> BlockLike[TranslationType]:
         for row_index, row in enumerate(self.matrix):
             out_item = self.scale(0.0, target[row_index], target[row_index])
 
@@ -174,7 +176,7 @@ class ResolventImplicitEquationDifferentialCoupled:
         return target
 
 
-class ResolventImplicitEquation:
+class ResolventImplicitEquation(Generic[StateType, TranslationType]):
     """Reusable one-stage implicit equation evaluator.
 
     For a prepared ``ResolventRequest`` this evaluates:
@@ -210,8 +212,8 @@ class ResolventImplicitEquation:
     def __init__(
         self,
         method_name: str,
-        allocator: Allocator,
-        linearizer: LinearizerLike | None = None,
+        allocator: Allocator[StateType, TranslationType],
+        linearizer: LinearizerLike[StateType, TranslationType] | None = None,
         accelerator: Accelerator | None = None,
     ) -> None:
         self.method_name = method_name
@@ -232,7 +234,7 @@ class ResolventImplicitEquation:
         self.trial_state = allocator.allocate_state()
         self.linearization_state = allocator.allocate_state()
         self.rhs = allocator.allocate_translation()
-        self.derivative: DerivativeLike | None = None
+        self.derivative: DerivativeLike[StateType, TranslationType] | None = None
         self.derivative_buffer = allocator.allocate_translation()
         self.alpha = 0.0
 
@@ -240,7 +242,7 @@ class ResolventImplicitEquation:
             ResolventLinearizer(linearizer) if linearizer is not None else None
         )
         self.jacobian_operator = ResolventImplicitEquationJacobian(method_name)
-        self.residual_operator = ResolventImplicitEquationDifferential(
+        self.residual_operator = ResolventImplicitEquationDifferential[TranslationType](
             self.combine2,
             allocator.allocate_translation,
             self.jacobian_operator,
@@ -251,7 +253,10 @@ class ResolventImplicitEquation:
             else self._differential_missing
         )
 
-    def prepare(self, problem: ResolventRequest) -> "ResolventImplicitEquation":
+    def prepare(
+        self,
+        problem: ResolventRequest[StateType, TranslationType],
+    ) -> "ResolventImplicitEquation[StateType, TranslationType]":
         self.interval = problem.interval
         self.base_state = problem.origin
         self.alpha = problem.alpha
@@ -266,8 +271,8 @@ class ResolventImplicitEquation:
 
     def __call__(
         self,
-        block: Block[Translation],
-        out: Block[Translation],
+        block: Block[TranslationType],
+        out: Block[TranslationType],
     ) -> None:
         interval = self.interval
         derivative = self.derivative
@@ -287,16 +292,16 @@ class ResolventImplicitEquation:
             out[0],
         )
 
-    def differential(self, block: Block[Translation], out) -> None:
+    def differential(self, block: Block[TranslationType], out) -> None:
         self._differential(block, out)
 
-    def _differential_missing(self, block: Block[Translation], out) -> None:
+    def _differential_missing(self, block: Block[TranslationType], out) -> None:
         del block, out
         raise RuntimeError(
             f"{self.method_name} Newton resolution requires a linearizer."
         )
 
-    def _differential_configured(self, block: Block[Translation], out) -> None:
+    def _differential_configured(self, block: Block[TranslationType], out) -> None:
         linearizer = self.linearizer
         interval = self.interval
         assert linearizer is not None
@@ -314,7 +319,7 @@ class ResolventImplicitEquation:
         out[0] = self.residual_operator
 
 
-class ResolventImplicitEquationCoupled:
+class ResolventImplicitEquationCoupled(Generic[StateType, TranslationType]):
     """Reusable coupled implicit equation evaluator."""
 
     __slots__ = (
@@ -342,8 +347,8 @@ class ResolventImplicitEquationCoupled:
     def __init__(
         self,
         method_name: str,
-        allocator: Allocator,
-        linearizer: LinearizerLike | None = None,
+        allocator: Allocator[StateType, TranslationType],
+        linearizer: LinearizerLike[StateType, TranslationType] | None = None,
         accelerator: Accelerator | None = None,
     ) -> None:
         self.method_name = method_name
@@ -363,16 +368,16 @@ class ResolventImplicitEquationCoupled:
         self.stage_count = 0
         self.stage_shifts: tuple[float, ...] = ()
         self.matrix: tuple[tuple[float, ...], ...] = ()
-        self.stage_states: list[State] = []
+        self.stage_states: list[StateType] = []
         self.stage_intervals: list[IntervalLike | None] = []
-        self.rhs_block = Block([])
-        self.derivative: DerivativeLike | None = None
-        self.derivative_buffers: list[Translation] = []
+        self.rhs_block = Block[TranslationType]([])
+        self.derivative: DerivativeLike[StateType, TranslationType] | None = None
+        self.derivative_buffers: list[TranslationType] = []
         self.linearizer = (
             ResolventLinearizer(linearizer) if linearizer is not None else None
         )
         self.jacobian_operators: list[ResolventImplicitEquationJacobian] = []
-        self.residual_operator: ResolventImplicitEquationDifferentialCoupled | None = None
+        self.residual_operator: ResolventImplicitEquationDifferentialCoupled[TranslationType] | None = None
         self._differential = (
             self._differential_configured
             if linearizer is not None
@@ -380,7 +385,10 @@ class ResolventImplicitEquationCoupled:
         )
         self.step = 0.0
 
-    def prepare(self, problem: ResolventRequestCoupled) -> "ResolventImplicitEquationCoupled":
+    def prepare(
+        self,
+        problem: ResolventRequestCoupled[StateType, TranslationType],
+    ) -> "ResolventImplicitEquationCoupled[StateType, TranslationType]":
         self._ensure_stage_count(len(problem.stage_shifts))
 
         self.base_state = problem.origin
@@ -426,8 +434,8 @@ class ResolventImplicitEquationCoupled:
 
     def __call__(
         self,
-        block: Block[Translation],
-        out: Block[Translation],
+        block: Block[TranslationType],
+        out: Block[TranslationType],
     ) -> None:
         if len(block) != self.stage_count or len(out) != self.stage_count:
             raise ValueError(
@@ -466,13 +474,13 @@ class ResolventImplicitEquationCoupled:
 
             out[row_index] = out_item
 
-    def differential(self, block: Block[Translation], out) -> None:
+    def differential(self, block: Block[TranslationType], out) -> None:
         self._differential(block, out)
 
     def refresh_differential_operator(
         self,
-        block: Block[Translation],
-    ) -> BlockOperatorLike[Translation]:
+        block: Block[TranslationType],
+    ) -> BlockOperatorLike[TranslationType]:
         """Refresh and return the coupled differential operator for `block`."""
 
         residual_operator = self.residual_operator
@@ -483,13 +491,13 @@ class ResolventImplicitEquationCoupled:
         self.differential(block, residual_operator)
         return residual_operator
 
-    def _differential_missing(self, block: Block[Translation], out) -> None:
+    def _differential_missing(self, block: Block[TranslationType], out) -> None:
         del block, out
         raise RuntimeError(
             f"{self.method_name} Newton resolution requires a linearizer."
         )
 
-    def _differential_configured(self, block: Block[Translation], out) -> None:
+    def _differential_configured(self, block: Block[TranslationType], out) -> None:
         linearizer = self.linearizer
         assert linearizer is not None
 
@@ -518,7 +526,7 @@ class ResolventImplicitEquationCoupled:
         self.stage_count = stage_count
         self.stage_states = [allocator.allocate_state() for _ in range(stage_count)]
         self.stage_intervals = [None for _ in range(stage_count)]
-        self.rhs_block = Block(
+        self.rhs_block = Block[TranslationType](
             [allocator.allocate_translation() for _ in range(stage_count)]
         )
         self.derivative_buffers = [
@@ -528,7 +536,7 @@ class ResolventImplicitEquationCoupled:
             ResolventImplicitEquationJacobian(f"{self.method_name}[stage {index}]")
             for index in range(stage_count)
         ]
-        self.residual_operator = ResolventImplicitEquationDifferentialCoupled(
+        self.residual_operator = ResolventImplicitEquationDifferentialCoupled[TranslationType](
             self.scale,
             self.combine2,
             allocator.allocate_translation,

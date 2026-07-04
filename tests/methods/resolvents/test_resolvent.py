@@ -1,6 +1,7 @@
 """Basic smoke tests for the project scaffold."""
 
 import importlib
+from typing import ClassVar
 
 import numpy as np
 
@@ -10,7 +11,13 @@ from stark.engines import Accelerator, AcceleratorNone, EngineNumpy
 from stark.core.block.operator import BlockOperatorDiagonal
 from stark.diagnostics.comparison import ComparisonEntry, ComparisonProblem, ComparisonRunner
 from stark.core.block import Block
-from stark.core.contracts import Resolvent
+from stark.core.contracts import (
+    BlockLike,
+    InverterOutputMode,
+    InverterRequest,
+    IntervalLike,
+    Resolvent,
+)
 from stark.methods.inverters.support import InverterDescriptor
 from stark.methods.resolvents import (
     ResolventAnderson,
@@ -57,6 +64,7 @@ from stark.methods.schemes.implicit.fixed import (
     RADAU_IIA5_TABLEAU,
 )
 from stark.methods.schemes.method.tableau import Tableau, TableauImex
+from tests.support import DummyScalarAllocator, DummyScalarTranslation
 
 
 def test_package_imports() -> None:
@@ -164,7 +172,7 @@ def test_scheme_imports() -> None:
 
 
 class MinimalScheme:
-    def __call__(self, interval: Interval, state: object) -> float:
+    def __call__(self, interval: IntervalLike, state: object) -> float:
         del interval, state
         return 0.0
 
@@ -172,57 +180,15 @@ class MinimalScheme:
         return state
 
 
-class MinimalAllocator:
-    def allocate_state(self) -> object:
-        return object()
-
-    def copy_state(self, source: object, out: object) -> None:
-        del out, source
-
-    def allocate_translation(self) -> "MinimalTranslation":
-        return MinimalTranslation()
-
-
-class MinimalTranslation:
-    def __call__(self, origin: object, result: object) -> None:
-        del origin, result
-
-    def norm(self) -> float:
-        return 0.0
-
-    def __add__(self, other: "MinimalTranslation") -> "MinimalTranslation":
-        del other
-        return MinimalTranslation()
-
-    def __rmul__(self, scalar: float) -> "MinimalTranslation":
-        del scalar
-        return MinimalTranslation()
-
-    @staticmethod
-    def scale(a: float, x: "MinimalTranslation", out: "MinimalTranslation") -> "MinimalTranslation":
-        del a, x
-        return out
-
-    @staticmethod
-    def combine2(
-        a0: float,
-        x0: "MinimalTranslation",
-        a1: float,
-        x1: "MinimalTranslation",
-        out: "MinimalTranslation",
-    ) -> "MinimalTranslation":
-        del a0, x0, a1, x1
-        return out
-
-    linear_combine = [scale, combine2]
-
-
 class MinimalInverter:
-    def bind(self, operator: object) -> None:
-        del operator
+    output_mode: ClassVar[InverterOutputMode] = InverterOutputMode.overwrite
 
-    def __call__(self, rhs: Block, out: Block) -> None:
-        del rhs, out
+    def __call__(
+        self,
+        request: InverterRequest[DummyScalarTranslation],
+        output: BlockLike[DummyScalarTranslation],
+    ) -> None:
+        del request, output
 
 
 def test_core_objects_have_readable_representations() -> None:
@@ -268,7 +234,7 @@ def test_core_objects_have_readable_representations() -> None:
     )
     stepper = IntegratorStepper(MinimalScheme())
     auditor = Auditor(interval=interval, stepper=stepper, snapshots=True, exercise=False)
-    allocator = MinimalAllocator()
+    allocator = DummyScalarAllocator()
     auto_picard = ResolventPicard(allocator, accelerator=AcceleratorNone())
     auto_coupled_picard = ResolventCoupledPicard(
         allocator,

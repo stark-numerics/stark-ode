@@ -6,11 +6,13 @@ import pytest
 
 from stark import Interval, Tolerance
 from stark.core import Integrator, IntegratorStepper
+from stark.core.contracts import IntervalLike
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.diagnostics.monitor import Monitor
 from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
 from stark.methods.schemes.implicit.adaptive.bdf2 import SchemeBDF2
+from stark.methods.schemes.specialization.specialist import SchemeSpecialist
 
 
 @dataclass(slots=True)
@@ -47,7 +49,7 @@ class ScalarAllocator:
 
 
 def constant_rhs(
-    interval: Interval,
+    interval: IntervalLike,
     state: ScalarState,
     out: ScalarTranslation,
 ) -> None:
@@ -57,7 +59,7 @@ def constant_rhs(
 
 def make_scheme(
     *,
-    specialist: object | None = None,
+    specialist: SchemeSpecialist | None = None,
     monitor=None,
 ) -> SchemeBDF2:
     allocator = ScalarAllocator()
@@ -88,11 +90,11 @@ def test_bdf2_public_call_uses_redirect_call() -> None:
     state = ScalarState(0.0)
 
     def replacement_call(
-        replacement_interval: Interval,
-        replacement_state: ScalarState,
+        interval: IntervalLike,
+        state,
     ) -> float:
-        del replacement_interval
-        replacement_state.value = 42.0
+        del interval
+        state.value = 42.0
         return 0.03125
 
     scheme.redirect_call = replacement_call

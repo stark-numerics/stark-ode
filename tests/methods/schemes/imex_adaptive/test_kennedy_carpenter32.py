@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from stark import Interval, Tolerance
+from stark.core.contracts import DerivativeLike, IntervalLike
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines.shared.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.diagnostics.monitor import Monitor
@@ -90,12 +91,12 @@ class ArrayScalarAllocator:
 
 @dataclass(slots=True)
 class SplitDerivative:
-    explicit: object
-    implicit: object
+    explicit: DerivativeLike
+    implicit: DerivativeLike
 
 
 def zero_rhs(
-    interval: Interval,
+    interval: IntervalLike,
     state: ScalarState,
     out: ScalarTranslation,
 ) -> None:
@@ -104,7 +105,7 @@ def zero_rhs(
 
 
 def array_explicit_rhs(
-    interval: Interval,
+    interval: IntervalLike,
     state: ArrayScalarState,
     out: ArrayScalarTranslation,
 ) -> None:
@@ -113,7 +114,7 @@ def array_explicit_rhs(
 
 
 def array_implicit_rhs(
-    interval: Interval,
+    interval: IntervalLike,
     state: ArrayScalarState,
     out: ArrayScalarTranslation,
 ) -> None:

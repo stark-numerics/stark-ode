@@ -2,29 +2,39 @@ from __future__ import annotations
 
 from typing import Protocol, TypeVar
 
-from stark.core.block import Block
-from stark.core.contracts import Operator, Translation
+from stark.core.contracts import BlockLike, TranslationType
 
 OperatorTypeContravariant = TypeVar(
     "OperatorTypeContravariant",
-    bound=Operator,
     contravariant=True,
 )
+"""Contravariant output-operator type used by a residual differential.
+
+Residual implementations often know a more specific differential object than
+the package-wide operator contract. The type variable lets the residual mutate
+that concrete object while the translation buffers stay type-preserving.
+"""
 
 
-class ResolventResidual(Protocol[OperatorTypeContravariant]):
-    """Residual object used by new-paradigm resolvents."""
+class ResolventResidual(Protocol[TranslationType, OperatorTypeContravariant]):
+    """Residual object used by direct resolvent implementations.
+
+    The residual reads a candidate correction block and writes the residual
+    block in-place. The translation type is carried through both blocks so
+    method tests and user extensions can use precise scalar, vector, or
+    backend-specific translation objects without losing type information.
+    """
 
     def __call__(
         self,
-        delta: Block[Translation],
-        out: Block[Translation],
+        delta: BlockLike[TranslationType],
+        out: BlockLike[TranslationType],
     ) -> None:
         ...
 
     def differential(
         self,
-        delta: Block[Translation],
+        delta: BlockLike[TranslationType],
         out: OperatorTypeContravariant,
     ) -> None:
         ...

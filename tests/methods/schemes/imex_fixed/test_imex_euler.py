@@ -1,104 +1,40 @@
 ﻿from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
 
-from stark import Interval, Tolerance
+from stark import Configuration, Derivative, Interval, Tolerance
+from stark.core.contracts import IntervalLike
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventPicard
-from stark import Configuration
 from stark.methods.schemes.imex.fixed.euler import SchemeIMEXEuler
+from stark.methods.schemes.specialization.specialist import SchemeSpecialist
+from tests.support import (
+    DummyScalarAllocator,
+    DummyScalarState,
+    DummyScalarTranslation,
+    DummyTableauSpecialist,
+    dummy_constant_derivative,
+)
 
 
-@dataclass(slots=True)
-class ScalarState:
-    value: float = 0.0
+class DummyLinearDerivative:
+    """Scalar derivative fixture for the implicit linear solve check."""
 
-
-@dataclass(slots=True)
-class ScalarTranslation:
-    value: float = 0.0
-
-    def __call__(self, origin: ScalarState, result: ScalarState) -> None:
-        result.value = origin.value + self.value
-
-    def norm(self) -> float:
-        return abs(self.value)
-
-    def __add__(self, other: ScalarTranslation) -> ScalarTranslation:
-        return ScalarTranslation(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> ScalarTranslation:
-        return ScalarTranslation(scalar * self.value)
-
-
-class ScalarAllocator:
-    def allocate_state(self) -> ScalarState:
-        return ScalarState()
-
-    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
-        out.value = source.value
-
-    def allocate_translation(self) -> ScalarTranslation:
-        return ScalarTranslation()
-
-
-class ConstantDerivative:
-    def __init__(self, value: float) -> None:
-        self.value = value
-
-    def __call__(
-        self,
-        interval: Interval,
-        state: ScalarState,
-        out: ScalarTranslation,
-    ) -> None:
-        del interval, state
-        out.value = self.value
-
-
-class LinearDerivative:
     def __init__(self, rate: float) -> None:
         self.rate = rate
 
     def __call__(
         self,
-        interval: Interval,
-        state: ScalarState,
-        out: ScalarTranslation,
+        interval: IntervalLike,
+        state: DummyScalarState,
+        out: DummyScalarTranslation,
     ) -> None:
         del interval
         out.value = self.rate * state.value
 
 
-@dataclass(slots=True)
-class SplitDerivative:
-    explicit: object
-    implicit: object
-
-
-class StubSpecialist:
-    def provide_delta(self, stencil):
-        coefficients = tuple(stencil.coefficients)
-        stencil_scale = stencil.scale
-
-        def kernel(step: float, *terms):
-            *translations, out = terms
-            out.value = step * stencil_scale * sum(
-                coefficient * translation.value
-                for coefficient, translation in zip(coefficients, translations, strict=True)
-            )
-            return out
-
-        return kernel
-
-    provide_apply = provide_delta
-
-
 def make_resolvent(
-    implicit_derivative,
-    allocator: ScalarAllocator,
+    allocator: DummyScalarAllocator,
 ) -> ResolventPicard:
     return ResolventPicard(
         allocator,
@@ -112,18 +48,17 @@ def make_constant_scheme(
     explicit_value: float = 1.0,
     implicit_value: float = 2.0,
     *,
-    specialist: object | None = None,
+    specialist: SchemeSpecialist[DummyScalarState, DummyScalarTranslation] | None = None,
 ) -> SchemeIMEXEuler:
-    allocator = ScalarAllocator()
-    implicit = ConstantDerivative(implicit_value)
-    derivative = SplitDerivative(
-        explicit=ConstantDerivative(explicit_value),
-        implicit=implicit,
+    allocator = DummyScalarAllocator()
+    derivative = Derivative.split(
+        explicit=dummy_constant_derivative(explicit_value),
+        implicit=dummy_constant_derivative(implicit_value),
     )
     return SchemeIMEXEuler(
         derivative,
         allocator,
-        resolvent=make_resolvent(implicit, allocator),
+        resolvent=make_resolvent(allocator),
         specialist=specialist,
     )
 
@@ -139,18 +74,18 @@ def test_imex_euler_default_call_path_is_scheme_owned_generic_call() -> None:
 
 
 def test_imex_euler_specialist_path_is_scheme_owned_generated_call() -> None:
-    scheme = make_constant_scheme(specialist=StubSpecialist())
+    scheme = make_constant_scheme(specialist=DummyTableauSpecialist())
 
     assert scheme.redirect_call == scheme.call_step
 
 
 def test_imex_euler_specialist_path_matches_generic_path() -> None:
     generic = make_constant_scheme()
-    specialized = make_constant_scheme(specialist=StubSpecialist())
+    specialized = make_constant_scheme(specialist=DummyTableauSpecialist())
     generic_interval = Interval(present=0.0, step=0.125, stop=1.0)
     specialized_interval = Interval(present=0.0, step=0.125, stop=1.0)
-    generic_state = ScalarState(0.0)
-    specialized_state = ScalarState(0.0)
+    generic_state = DummyScalarState(0.0)
+    specialized_state = DummyScalarState(0.0)
 
     generic_dt = generic(generic_interval, generic_state)
     specialized_dt = specialized(specialized_interval, specialized_state)
@@ -162,14 +97,14 @@ def test_imex_euler_specialist_path_matches_generic_path() -> None:
 def test_imex_euler_public_call_uses_redirect_call() -> None:
     scheme = make_constant_scheme()
     interval = Interval(present=0.0, step=0.125, stop=1.0)
-    state = ScalarState(0.0)
+    state = DummyScalarState(0.0)
 
     def replacement_call(
-        replacement_interval: Interval,
-        replacement_state: ScalarState,
+        interval: IntervalLike,
+        state: DummyScalarState,
     ) -> float:
-        del replacement_interval
-        replacement_state.value = 42.0
+        del interval
+        state.value = 42.0
         return 0.03125
 
     scheme.redirect_call = replacement_call
@@ -183,7 +118,7 @@ def test_imex_euler_public_call_uses_redirect_call() -> None:
 def test_imex_euler_call_performs_one_split_constant_rhs_step() -> None:
     scheme = make_constant_scheme(explicit_value=1.0, implicit_value=2.0)
     interval = Interval(present=0.0, step=0.125, stop=1.0)
-    state = ScalarState(0.0)
+    state = DummyScalarState(0.0)
 
     accepted_dt = scheme(interval, state)
 
@@ -195,7 +130,7 @@ def test_imex_euler_call_performs_one_split_constant_rhs_step() -> None:
 def test_imex_euler_call_clips_to_remaining_interval() -> None:
     scheme = make_constant_scheme(explicit_value=1.0, implicit_value=2.0)
     interval = Interval(present=0.2, step=0.125, stop=0.25)
-    state = ScalarState(0.0)
+    state = DummyScalarState(0.0)
 
     accepted_dt = scheme(interval, state)
 
@@ -207,7 +142,7 @@ def test_imex_euler_call_clips_to_remaining_interval() -> None:
 def test_imex_euler_returns_zero_when_interval_is_complete() -> None:
     scheme = make_constant_scheme()
     interval = Interval(present=1.0, step=0.125, stop=1.0)
-    state = ScalarState(0.0)
+    state = DummyScalarState(0.0)
 
     accepted_dt = scheme(interval, state)
 
@@ -216,28 +151,29 @@ def test_imex_euler_returns_zero_when_interval_is_complete() -> None:
 
 
 def test_imex_euler_solves_linear_implicit_split() -> None:
-    allocator = ScalarAllocator()
-    implicit = LinearDerivative(rate=-1.0)
-    derivative = SplitDerivative(
-        explicit=ConstantDerivative(0.0),
+    allocator = DummyScalarAllocator()
+    implicit = DummyLinearDerivative(rate=-1.0)
+    derivative = Derivative.split(
+        explicit=dummy_constant_derivative(0.0),
         implicit=implicit,
     )
     scheme = SchemeIMEXEuler(
         derivative,
         allocator,
-        resolvent=make_resolvent(implicit, allocator),
+        resolvent=make_resolvent(allocator),
     )
     interval = Interval(present=0.0, step=0.1, stop=1.0)
-    state = ScalarState(1.0)
+    state = DummyScalarState(1.0)
 
     accepted_dt = scheme(interval, state)
 
     assert accepted_dt == pytest.approx(0.1)
     assert state.value == pytest.approx(1.0 / 1.1)
 
+
 def test_imex_euler_snapshot_is_exposed_through_scheme() -> None:
     scheme = make_constant_scheme()
-    state = ScalarState(3.0)
+    state = DummyScalarState(3.0)
 
     snapshot = scheme.snapshot_state(state)
 

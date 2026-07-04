@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from types import SimpleNamespace
 
 import pytest
@@ -14,21 +13,11 @@ from stark.problem.derivative import (
     DerivativeKernelAcceptsIntervalReturns,
     DerivativeAdapterAcceptsInstantWrites,
 )
-
-
-@dataclass(slots=True)
-class DummyInterval:
-    present: float
-
-
-@dataclass(slots=True)
-class DummyState:
-    y: float
-
-
-@dataclass(slots=True)
-class DummyTranslation:
-    dy: float = 0.0
+from tests.support import (
+    DummyDerivativeInterval,
+    DummyDerivativeState,
+    DummyDerivativeTranslation,
+)
 
 
 def test_plain_callable_is_recognised_as_time_in_place() -> None:
@@ -36,11 +25,11 @@ def test_plain_callable_is_recognised_as_time_in_place() -> None:
         out.dy = t * state.y
 
     derivative = Derivative(rhs)
-    out = DummyTranslation()
+    out = DummyDerivativeTranslation()
 
     assert isinstance(derivative.implementation, DerivativeAdapterAcceptsInstantWrites)
 
-    derivative(DummyInterval(2.0), DummyState(3.0), out)
+    derivative(DummyDerivativeInterval(2.0), DummyDerivativeState(3.0), out)
 
     assert out.dy == 6.0
 
@@ -50,11 +39,11 @@ def test_plain_two_argument_callable_is_recognised_as_returning() -> None:
         return t * state.y
 
     derivative = Derivative(rhs)
-    out = DummyTranslation()
+    out = DummyDerivativeTranslation()
 
     assert isinstance(derivative.implementation, DerivativeAdapterAcceptsInstantReturns)
 
-    derivative(DummyInterval(2.0), DummyState(3.0), out)
+    derivative(DummyDerivativeInterval(2.0), DummyDerivativeState(3.0), out)
 
     assert out.dy == 6.0
 
@@ -70,7 +59,7 @@ def test_returning_signature_can_be_declared_as_decorator() -> None:
         algebraist_frame=Frame({"y": {"translation": "dy"}}).to_algebraist_frame(),
     )
 
-    derivative(DummyInterval(2.0), DummyState(3.0), out)
+    derivative(DummyDerivativeInterval(2.0), DummyDerivativeState(3.0), out)
 
     assert out.dy == 6.0
 
@@ -80,11 +69,11 @@ def test_interval_in_place_signature_passes_interval_object() -> None:
         out.dy = interval.present + state.y
 
     derivative = Derivative(DerivativeStyle.accepts_interval_writes(rhs))
-    out = DummyTranslation()
+    out = DummyDerivativeTranslation()
 
     assert isinstance(derivative.implementation, DerivativeAdapterAcceptsIntervalWrites)
 
-    derivative(DummyInterval(2.0), DummyState(3.0), out)
+    derivative(DummyDerivativeInterval(2.0), DummyDerivativeState(3.0), out)
 
     assert out.dy == 5.0
 
@@ -104,12 +93,12 @@ def test_kernel_signature_calls_field_level_function() -> None:
             parameters=(2.0,),
         )
     )
-    state = DummyState([3.0])
-    out = DummyTranslation([0.0])
+    state = DummyDerivativeState([3.0])
+    out = DummyDerivativeTranslation([0.0])
 
     assert isinstance(derivative.implementation, DerivativeKernelAcceptsInstantWrites)
 
-    derivative(DummyInterval(0.0), state, out)
+    derivative(DummyDerivativeInterval(0.0), state, out)
 
     assert calls == [(0.0, [3.0], 2.0)]
     assert out.dy == [6.0]
@@ -121,12 +110,12 @@ def test_kernel_signature_can_be_declared_as_decorator() -> None:
         dy[0] = scale * y[0]
 
     derivative = Derivative(kernel.with_parameters(3.0))
-    state = DummyState([4.0])
-    out = DummyTranslation([0.0])
+    state = DummyDerivativeState([4.0])
+    out = DummyDerivativeTranslation([0.0])
 
     assert isinstance(derivative.implementation, DerivativeKernelAcceptsInstantWrites)
 
-    derivative(DummyInterval(0.0), state, out)
+    derivative(DummyDerivativeInterval(0.0), state, out)
 
     assert out.dy == [12.0]
 
@@ -138,12 +127,12 @@ def test_interval_kernel_signature_passes_interval_object() -> None:
         dy[0] = scale * t * y[0]
 
     derivative = Derivative(kernel.with_parameters(3.0))
-    state = DummyState([4.0])
-    out = DummyTranslation([0.0])
+    state = DummyDerivativeState([4.0])
+    out = DummyDerivativeTranslation([0.0])
 
     assert isinstance(derivative.implementation, DerivativeKernelAcceptsIntervalWrites)
 
-    derivative(DummyInterval(2.0), state, out)
+    derivative(DummyDerivativeInterval(2.0), state, out)
 
     assert out.dy == [24.0]
 
@@ -154,12 +143,12 @@ def test_returning_kernel_signature_writes_return_value() -> None:
         return [scale * y[0]]
 
     derivative = Derivative(kernel.with_parameters(3.0))
-    state = DummyState([4.0])
-    out = DummyTranslation([0.0])
+    state = DummyDerivativeState([4.0])
+    out = DummyDerivativeTranslation([0.0])
 
     assert isinstance(derivative.implementation, DerivativeKernelAcceptsInstantReturns)
 
-    derivative(DummyInterval(0.0), state, out)
+    derivative(DummyDerivativeInterval(0.0), state, out)
 
     assert out.dy == [12.0]
 
@@ -171,12 +160,12 @@ def test_interval_returning_kernel_signature_passes_interval_object() -> None:
         return [scale * t * y[0]]
 
     derivative = Derivative(kernel.with_parameters(3.0))
-    state = DummyState([4.0])
-    out = DummyTranslation([0.0])
+    state = DummyDerivativeState([4.0])
+    out = DummyDerivativeTranslation([0.0])
 
     assert isinstance(derivative.implementation, DerivativeKernelAcceptsIntervalReturns)
 
-    derivative(DummyInterval(2.0), state, out)
+    derivative(DummyDerivativeInterval(2.0), state, out)
 
     assert out.dy == [24.0]
 

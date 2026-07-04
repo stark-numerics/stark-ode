@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from stark import Interval, Tolerance
+from stark.core.contracts import IntervalLike
 from stark.core import Integrator, IntegratorStepper
 from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
@@ -59,7 +60,7 @@ class ArrayAllocator:
 
 
 class ArrayDerivative:
-    def __call__(self, interval: Interval, state: ArrayState, out: ArrayTranslation) -> None:
+    def __call__(self, interval: IntervalLike, state: ArrayState, out: ArrayTranslation) -> None:
         out.dy[...] = np.array(
             [
                 state.y[1] + 0.25 * interval.present,
@@ -81,7 +82,7 @@ class ArraySpecialist:
                 *terms,
             ):
                 *translations, result = terms
-                delta = _combine_delta(step, stencil_scale, coefficients, translations)
+                delta = _combine_delta(step, stencil_scale, coefficients, tuple(translations))
                 delta(origin, result)
                 return result
 
@@ -92,7 +93,7 @@ class ArraySpecialist:
             *terms,
         ):
             *translations, out = terms
-            delta = _combine_delta(step, stencil_scale, coefficients, translations)
+            delta = _combine_delta(step, stencil_scale, coefficients, tuple(translations))
             out.dy[...] = delta.dy
             return out
 

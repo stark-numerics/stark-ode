@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Configuration, Interval, Tolerance
+from stark.core.contracts import IntervalLike
 from stark.methods.schemes.execution.step_control import (
     SchemeStepAdaptiveAdvanceReport,
     SchemeStepControl,
@@ -46,7 +47,7 @@ class ScalarAllocator:
 
 
 def zero_rhs(
-    interval: Interval,
+    interval: IntervalLike,
     state: ScalarState,
     out: ScalarTranslation,
 ) -> None:

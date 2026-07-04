@@ -5,9 +5,6 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from stark.core.contracts.contract_audit import AuditRecorder
-from stark.core.contracts.block import BlockLike
-from stark.core.contracts.interval import IntervalLike
-from stark.core.contracts.state import State
 
 
 class Resolvent(Protocol):
@@ -20,16 +17,17 @@ class Resolvent(Protocol):
 
     The scheme packages the stage interval, origin state, known right-hand
     side, diagonal shift, and derivative into a small problem object. The
-    resolvent reads that object and writes the solved correction block into
-    `out`.
+    resolvent reads that object and returns the solved correction block.
+
+    The broad contract intentionally leaves the concrete request and block
+    types as ``Any``. Built-in resolvents carry precise generics internally,
+    but schemes accept this public handshake because different resolvent
+    families use different request shapes.
     """
 
     tableau: Any | None
 
-    def bind(self, interval: IntervalLike, state: State) -> None:
-        ...
-
-    def __call__(self, problem: Any, out: BlockLike) -> None:
+    def __call__(self, problem: Any, delta: Any) -> Any:
         ...
 
 
@@ -38,14 +36,9 @@ class ResolventAudit:
 
     def __call__(self, recorder: AuditRecorder, resolvent: Any) -> None:
         recorder.check(
-            callable(getattr(resolvent, "bind", None)),
-            "Resolvent provides bind(interval, state).",
-            "Add bind(interval, state) before solving shifted implicit equations.",
-        )
-        recorder.check(
             callable(resolvent),
-            "Resolvent provides __call__(problem, out).",
-            "Add __call__(problem, out) to solve the scheme-provided implicit problem.",
+            "Resolvent provides __call__(problem, delta).",
+            "Add __call__(problem, delta) returning the solved correction block.",
         )
 
 

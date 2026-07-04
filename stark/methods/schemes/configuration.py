@@ -2,23 +2,51 @@
 
 from __future__ import annotations
 
-from typing import Protocol
 from dataclasses import dataclass, field
+from typing import Protocol
+
 from stark.core.contracts.scheme_predictor import SchemePredictorLike
 from stark.core.tolerance import Tolerance
 from stark.methods.schemes.predictor import SchemePredictorKnown
 
-@dataclass(frozen=False, slots=True)
-class SchemeConfiguration(Protocol):
-    """Scheme configuration shape required by fixed and adaptive schemes."""
 
-    scheme_tolerance: Tolerance
-    adaptive_scheme_safety: float
-    adaptive_scheme_min_factor: float
-    adaptive_scheme_max_factor: float
-    adaptive_scheme_error_exponent: float
-    adaptive_scheme_maximum_rejections: int | None
-    scheme_predictor: SchemePredictorLike | None
+class SchemeConfiguration(Protocol):
+    """Read-only scheme configuration shape required by scheme implementations.
+
+    The application-wide `Configuration` object is immutable, while the
+    scheme-local default configuration remains a simple mutable dataclass for
+    standalone use. Read-only protocol properties let both shapes satisfy the
+    same contract without coupling schemes to either concrete class.
+    """
+
+    @property
+    def scheme_tolerance(self) -> Tolerance:
+        ...
+
+    @property
+    def adaptive_scheme_safety(self) -> float:
+        ...
+
+    @property
+    def adaptive_scheme_min_factor(self) -> float:
+        ...
+
+    @property
+    def adaptive_scheme_max_factor(self) -> float:
+        ...
+
+    @property
+    def adaptive_scheme_error_exponent(self) -> float:
+        ...
+
+    @property
+    def adaptive_scheme_maximum_rejections(self) -> int | None:
+        ...
+
+    @property
+    def scheme_predictor(self) -> SchemePredictorLike | None:
+        ...
+
 
 @dataclass(frozen=False, slots=True)
 class SchemeConfigurationDefault:

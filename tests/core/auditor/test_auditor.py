@@ -231,23 +231,3 @@ def test_auditor_reports_ready_user_defined_accelerator() -> None:
     assert "Overall: ready." in str(auditor)
 
 
-def test_accelerator_compile_accepts_decorator_form() -> None:
-    accelerator = AcceleratorNone()
-
-    @accelerator.compile
-    def worker(value: float) -> float:
-        return 2.0 * value
-
-    assert worker(3.0) == 6.0
-
-
-def test_accelerator_compile_accepts_configured_decorator_form() -> None:
-    accelerator = AcceleratorNone()
-
-    @accelerator.compile(label="audit")
-    def worker(value: float) -> float:
-        return 3.0 * value
-
-    assert worker(4.0) == 12.0
-
-

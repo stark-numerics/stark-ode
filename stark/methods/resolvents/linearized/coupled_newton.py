@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from stark.methods.resolvents.configuration import ResolventConfiguration, ResolventConfigurationDefault
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Generic, cast
 
 from stark.core.block import Block, BlockAllocator
 from stark.core.contracts import (
@@ -13,7 +13,8 @@ from stark.core.contracts import (
     Inverter,
     InverterOutputMode,
     LinearizerLike,
-    Translation,
+    StateType,
+    TranslationType,
     Allocator,
 )
 from stark.engines.shared.accelerators import AcceleratorNone
@@ -36,7 +37,7 @@ from stark.methods.resolvents.method.safety import ResolventSafety, ResolventSaf
 # Optional extension: records resolvent monitor events.
 # Provides: assign_monitor, unassign_monitor, and record_solve.
 @with_resolvent_monitoring
-class ResolventCoupledNewton:
+class ResolventCoupledNewton(Generic[StateType, TranslationType]):
     """Newton iteration for coupled implicit RK stage systems.
 
     Algorithm sketch:
@@ -86,13 +87,13 @@ class ResolventCoupledNewton:
 
     def __init__(
         self,
-        allocator: Allocator,
-        linearizer: LinearizerLike,
-        inverter: Inverter[Translation],
+        allocator: Allocator[StateType, TranslationType],
+        linearizer: LinearizerLike[StateType, TranslationType],
+        inverter: Inverter[TranslationType],
         configuration: ResolventConfiguration | None = None,
         safety: ResolventSafety | None = None,
         accelerator: Accelerator | None = None,
-        specialist: ResolventSpecialist[Translation] | None = None,
+        specialist: ResolventSpecialist[TranslationType] | None = None,
         tableau: Any | None = None,
     ) -> None:
         self.tableau = tableau
@@ -113,7 +114,7 @@ class ResolventCoupledNewton:
         )
 
         self.accelerator = accelerator if accelerator is not None else AcceleratorNone()
-        self.equation = ResolventImplicitEquationCoupled(
+        self.equation = ResolventImplicitEquationCoupled[StateType, TranslationType](
             "ResolventCoupledNewton",
             allocator,
             linearizer=linearizer,
@@ -134,7 +135,7 @@ class ResolventCoupledNewton:
 
     def prepare_specialized_kernels(
         self,
-        specialist: ResolventSpecialist[Translation],
+        specialist: ResolventSpecialist[TranslationType],
     ) -> None:
         # Step 5: Newton update delta <- delta + correction.
         self.newton_update = specialist.provide(
@@ -143,9 +144,9 @@ class ResolventCoupledNewton:
 
     def solve_correction_improve(
         self,
-        operator: BlockOperatorLike[Translation],
-        rhs: Block[Translation],
-        correction: Block[Translation],
+        operator: BlockOperatorLike[TranslationType],
+        rhs: Block[TranslationType],
+        correction: Block[TranslationType],
     ) -> None:
         correction.replace(0.0 * correction)
         request = ResolventInverterRequest(operator=operator, residual=rhs)
@@ -153,14 +154,14 @@ class ResolventCoupledNewton:
 
     def solve_correction_overwrite(
         self,
-        operator: BlockOperatorLike[Translation],
-        rhs: Block[Translation],
-        correction: Block[Translation],
+        operator: BlockOperatorLike[TranslationType],
+        rhs: Block[TranslationType],
+        correction: Block[TranslationType],
     ) -> None:
         request = ResolventInverterRequest(operator=operator, residual=rhs)
         self.inverter(request, correction)
 
-    def prepare_buffers(self, delta: Block[Translation]) -> None:
+    def prepare_buffers(self, delta: Block[TranslationType]) -> None:
         size = len(delta)
         if self.size == size:
             return
@@ -172,16 +173,16 @@ class ResolventCoupledNewton:
 
     def call_inline(
         self,
-        problem: ResolventRequestCoupled,
-        delta: Block[Translation],
-    ) -> Block[Translation]:
+        problem: ResolventRequestCoupled[StateType, TranslationType],
+        delta: Block[TranslationType],
+    ) -> Block[TranslationType]:
         self.alpha = problem.step
         self.prepare_buffers(delta)
 
         equation = self.equation.prepare(problem)
-        correction = cast(Block[Translation], self.correction)
-        residual = cast(Block[Translation], self.residual_buffer)
-        rhs = cast(Block[Translation], self.rhs_buffer)
+        correction = cast(Block[TranslationType], self.correction)
+        residual = cast(Block[TranslationType], self.residual_buffer)
+        rhs = cast(Block[TranslationType], self.rhs_buffer)
 
         block_size = len(delta)
         iteration_count = 0
@@ -225,16 +226,16 @@ class ResolventCoupledNewton:
 
     def call_specialized(
         self,
-        problem: ResolventRequestCoupled,
-        delta: Block[Translation],
-    ) -> Block[Translation]:
+        problem: ResolventRequestCoupled[StateType, TranslationType],
+        delta: Block[TranslationType],
+    ) -> Block[TranslationType]:
         self.alpha = problem.step
         self.prepare_buffers(delta)
 
         equation = self.equation.prepare(problem)
-        correction = cast(Block[Translation], self.correction)
-        residual = cast(Block[Translation], self.residual_buffer)
-        rhs = cast(Block[Translation], self.rhs_buffer)
+        correction = cast(Block[TranslationType], self.correction)
+        residual = cast(Block[TranslationType], self.residual_buffer)
+        rhs = cast(Block[TranslationType], self.rhs_buffer)
         newton_update = self.newton_update
         assert newton_update is not None
 
@@ -278,7 +279,11 @@ class ResolventCoupledNewton:
             f"{self.max_iterations} iterations (error={error:g})."
         )
 
-    def __call__(self, problem, delta):
+    def __call__(
+        self,
+        problem: ResolventRequestCoupled[StateType, TranslationType],
+        delta: Block[TranslationType],
+    ) -> Block[TranslationType]:
         return self.redirect_call(problem, delta)
 
 __all__ = ["ResolventCoupledNewton"]

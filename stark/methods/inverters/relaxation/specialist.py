@@ -4,7 +4,7 @@ from typing import Protocol
 
 from stark.core.block import BlockKernel
 from stark.core.contracts import Translation, TranslationType
-from stark.methods.inverters.relaxation.stencil import InverterRelaxationStencil, InverterRelaxationStencilUpdate
+from stark.methods.inverters.relaxation.stencil import InverterRelaxationStencilUpdate
 
 
 class InverterRelaxationSpecialist(Protocol[TranslationType]):
@@ -12,7 +12,7 @@ class InverterRelaxationSpecialist(Protocol[TranslationType]):
 
     def provide(
         self,
-        stencil: InverterRelaxationStencil | InverterRelaxationStencilUpdate,
+        stencil: InverterRelaxationStencilUpdate,
     ) -> BlockKernel[TranslationType]:
         ...
 

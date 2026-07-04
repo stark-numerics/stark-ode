@@ -124,6 +124,12 @@ class SchemeKennedyCarpenter32:
 
     descriptor = SchemeDescriptor("KC32", "Kennedy-Carpenter 3(2)")
     @classmethod
+    def display_tableau(cls) -> str:
+        """Installed by `with_scheme_display` from `stark.methods.schemes.display`."""
+
+        raise NotImplementedError("with_scheme_display installs display_tableau.")
+
+    @classmethod
     def display_resolvent_problem(cls) -> str:
         return display_imex_resolvent_problem(
             cls.tableau,

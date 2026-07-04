@@ -7,7 +7,9 @@ from stark.methods.resolvents.specialization.stencil import ResolventStencilBloc
 from tests.support import DummyScalarTranslation
 
 
-class ItemSpecialist:
+class DummyResolventItemSpecialist:
+    """Scalar item specialist used to test block lifting for resolvent stencils."""
+
     def provide_delta(self, stencil: ResolventStencilBlock):
         def kernel(step: float, *items: Any) -> DummyScalarTranslation:
             sources = items[:-1]
@@ -34,7 +36,7 @@ def test_resolvent_stencil_block_normalizes_coefficients() -> None:
 
 
 def test_block_specialist_uplifts_entry_kernel() -> None:
-    specialist = BlockSpecialist(ItemSpecialist())
+    specialist = BlockSpecialist(DummyResolventItemSpecialist())
     kernel = specialist.provide(ResolventStencilBlock((1.0, -1.0)))
 
     out = Block([DummyScalarTranslation(0.0), DummyScalarTranslation(0.0)])

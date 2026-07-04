@@ -77,11 +77,13 @@ class RiccatiTranslation:
     def __rmul__(self, scalar: float) -> RiccatiTranslation:
         return RiccatiTranslation(scalar * self.dt, scalar * self.dx)
 
+    @staticmethod
     def scale(a: float, x: RiccatiTranslation, out: RiccatiTranslation) -> RiccatiTranslation:
         out.dt = a * x.dt
         out.dx = a * x.dx
         return out
 
+    @staticmethod
     def combine2(
         a0: float,
         x0: RiccatiTranslation,
@@ -93,6 +95,7 @@ class RiccatiTranslation:
         out.dx = a0 * x0.dx + a1 * x1.dx
         return out
 
+    @staticmethod
     def combine3(
         a0: float,
         x0: RiccatiTranslation,
@@ -106,6 +109,7 @@ class RiccatiTranslation:
         out.dx = a0 * x0.dx + a1 * x1.dx + a2 * x2.dx
         return out
 
+    @staticmethod
     def combine4(
         a0: float,
         x0: RiccatiTranslation,
@@ -121,6 +125,7 @@ class RiccatiTranslation:
         out.dx = a0 * x0.dx + a1 * x1.dx + a2 * x2.dx + a3 * x3.dx
         return out
 
+    @staticmethod
     def combine5(
         a0: float,
         x0: RiccatiTranslation,
@@ -138,6 +143,7 @@ class RiccatiTranslation:
         out.dx = a0 * x0.dx + a1 * x1.dx + a2 * x2.dx + a3 * x3.dx + a4 * x4.dx
         return out
 
+    @staticmethod
     def combine6(
         a0: float,
         x0: RiccatiTranslation,
@@ -157,6 +163,7 @@ class RiccatiTranslation:
         out.dx = a0 * x0.dx + a1 * x1.dx + a2 * x2.dx + a3 * x3.dx + a4 * x4.dx + a5 * x5.dx
         return out
 
+    @staticmethod
     def combine7(
         a0: float,
         x0: RiccatiTranslation,

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import pytest
 
 from stark import Interval, Tolerance
+from stark.core.contracts import IntervalLike
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
@@ -45,7 +46,7 @@ class ScalarAllocator:
 
 
 def constant_rhs(
-    interval: Interval,
+    interval: IntervalLike,
     state: ScalarState,
     out: ScalarTranslation,
 ) -> None:
@@ -84,11 +85,11 @@ def test_backward_euler_public_call_uses_redirect_call() -> None:
     state = ScalarState(0.0)
 
     def replacement_call(
-        replacement_interval: Interval,
-        replacement_state: ScalarState,
+        interval: IntervalLike,
+        state,
     ) -> float:
-        del replacement_interval
-        replacement_state.value = 42.0
+        del interval
+        state.value = 42.0
         return 0.03125
 
     scheme.redirect_call = replacement_call

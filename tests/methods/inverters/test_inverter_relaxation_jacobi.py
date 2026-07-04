@@ -1,60 +1,34 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from typing import cast
 
 import pytest
 
 from stark.core.block import Block
 from stark.core.block.operator import BlockOperatorDiagonal
+from stark.core.contracts import BlockOperatorEntryLike
 from stark.methods.inverters.relaxation import InverterRelaxationJacobi
 from stark import Configuration, Tolerance
 from stark.diagnostics.monitor import MonitorInverter
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
-
-
-@dataclass(slots=True)
-class TranslationScalar:
-    value: float = 0.0
-
-    def __call__(self, origin, result) -> None:
-        result.value = origin.value + self.value
-
-    def norm(self) -> float:
-        return abs(self.value)
-
-    def __add__(self, other: "TranslationScalar") -> "TranslationScalar":
-        return TranslationScalar(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> "TranslationScalar":
-        return TranslationScalar(scalar * self.value)
-
-
-@dataclass(slots=True)
-class ScaleEntryOperator:
-    scale: float
-
-    def __call__(self, source: TranslationScalar, target: TranslationScalar) -> None:
-        target.value = self.scale * source.value
-
-    def inverse(self, source: TranslationScalar, target: TranslationScalar) -> None:
-        target.value = source.value / self.scale
+from tests.support import DummyScalarEntryOperator, DummyScalarTranslation
 
 
 def invert_entry(
-    operator: ScaleEntryOperator,
-    source: TranslationScalar,
-    target: TranslationScalar,
+    operator: BlockOperatorEntryLike[DummyScalarTranslation],
+    source: DummyScalarTranslation,
+    target: DummyScalarTranslation,
 ) -> None:
-    operator.inverse(source, target)
+    cast(DummyScalarEntryOperator, operator).inverse(source, target)
 
 
 def test_jacobi_solves_diagonal_scaled_request_in_one_step() -> None:
     request = ResolventInverterRequest(
-        operator=BlockOperatorDiagonal([ScaleEntryOperator(2.0), ScaleEntryOperator(4.0)]),
-        residual=Block([TranslationScalar(6.0), TranslationScalar(20.0)]),
+        operator=BlockOperatorDiagonal([DummyScalarEntryOperator(2.0), DummyScalarEntryOperator(4.0)]),
+        residual=Block([DummyScalarTranslation(6.0), DummyScalarTranslation(20.0)]),
     )
-    output = Block([TranslationScalar(0.0), TranslationScalar(0.0)])
-    inverter = InverterRelaxationJacobi[TranslationScalar](
+    output = Block([DummyScalarTranslation(0.0), DummyScalarTranslation(0.0)])
+    inverter = InverterRelaxationJacobi[DummyScalarTranslation](
         invert_entry,
         configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=2),
     )
@@ -70,11 +44,11 @@ def test_jacobi_solves_diagonal_scaled_request_in_one_step() -> None:
 def test_jacobi_records_success_through_init_time_monitor() -> None:
     monitor = MonitorInverter()
     request = ResolventInverterRequest(
-        operator=BlockOperatorDiagonal([ScaleEntryOperator(2.0), ScaleEntryOperator(4.0)]),
-        residual=Block([TranslationScalar(6.0), TranslationScalar(20.0)]),
+        operator=BlockOperatorDiagonal([DummyScalarEntryOperator(2.0), DummyScalarEntryOperator(4.0)]),
+        residual=Block([DummyScalarTranslation(6.0), DummyScalarTranslation(20.0)]),
     )
-    output = Block([TranslationScalar(0.0), TranslationScalar(0.0)])
-    inverter = InverterRelaxationJacobi[TranslationScalar](
+    output = Block([DummyScalarTranslation(0.0), DummyScalarTranslation(0.0)])
+    inverter = InverterRelaxationJacobi[DummyScalarTranslation](
         invert_entry,
         configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=2),
         monitor=monitor,
@@ -95,11 +69,11 @@ def test_jacobi_records_success_through_init_time_monitor() -> None:
 def test_jacobi_records_initial_acceptance() -> None:
     monitor = MonitorInverter()
     request = ResolventInverterRequest(
-        operator=BlockOperatorDiagonal([ScaleEntryOperator(2.0)]),
-        residual=Block([TranslationScalar(6.0)]),
+        operator=BlockOperatorDiagonal([DummyScalarEntryOperator(2.0)]),
+        residual=Block([DummyScalarTranslation(6.0)]),
     )
-    output = Block([TranslationScalar(3.0)])
-    inverter = InverterRelaxationJacobi[TranslationScalar](
+    output = Block([DummyScalarTranslation(3.0)])
+    inverter = InverterRelaxationJacobi[DummyScalarTranslation](
         invert_entry,
         configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0)),
         monitor=monitor,
@@ -117,11 +91,11 @@ def test_jacobi_records_initial_acceptance() -> None:
 def test_jacobi_records_failure_when_budget_is_exhausted() -> None:
     monitor = MonitorInverter()
     request = ResolventInverterRequest(
-        operator=BlockOperatorDiagonal([ScaleEntryOperator(2.0)]),
-        residual=Block([TranslationScalar(6.0)]),
+        operator=BlockOperatorDiagonal([DummyScalarEntryOperator(2.0)]),
+        residual=Block([DummyScalarTranslation(6.0)]),
     )
-    output = Block([TranslationScalar(0.0)])
-    inverter = InverterRelaxationJacobi[TranslationScalar](
+    output = Block([DummyScalarTranslation(0.0)])
+    inverter = InverterRelaxationJacobi[DummyScalarTranslation](
         invert_entry,
         damping=0.5,
         configuration=Configuration(inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0), inverter_maximum_steps=1),
@@ -142,4 +116,3 @@ def test_jacobi_records_failure_when_budget_is_exhausted() -> None:
 def test_jacobi_rejects_non_positive_damping() -> None:
     with pytest.raises(ValueError, match="damping"):
         InverterRelaxationJacobi(invert_entry, damping=0.0)
-

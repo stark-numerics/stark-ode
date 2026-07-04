@@ -12,7 +12,7 @@ def decay_rhs(t: float, state, out) -> None:
     out.dy[0] = -0.5 * state.y[0]
 
 
-class CustomForwardEuler:
+class DummyCustomScheme:
     """Minimal user-defined scheme for comparison tests."""
 
     def __init__(self, derivative, allocator) -> None:
@@ -85,14 +85,14 @@ def test_comparison_reports_pairwise_differences() -> None:
 def test_comparison_accepts_user_defined_scheme_through_method() -> None:
     problem = build_problem()
     entries = [
-        ComparisonEntry("custom Euler", Method(CustomForwardEuler)),
+        ComparisonEntry("custom Euler", Method(DummyCustomScheme)),
         ComparisonEntry("built-in RK4", Method(SchemeRK4)),
     ]
 
     report = ComparisonRunner(problem, entries, repeats=1)()
 
     assert report.final_difference_map()["custom Euler"]["built-in RK4"] > 0.0
-    assert "Custom scheme CustomForwardEuler" in report.render()
+    assert "Custom scheme DummyCustomScheme" in report.render()
 
 
 def test_comparison_fieldwise_rms_error_supports_value_and_sample_scaling() -> None:
@@ -124,9 +124,10 @@ def test_comparison_reports_pairwise_trajectory_differences() -> None:
     report = ComparisonRunner(problem, entries, repeats=1)()
 
     assert report.trajectory_differences is not None
-    assert report.trajectory_difference_map() is not None
-    assert report.trajectory_difference_map()["Euler"]["Euler"] == 0.0
-    assert report.trajectory_difference_map()["Euler"]["RK4"] > 0.0
+    trajectory_difference_map = report.trajectory_difference_map()
+    assert trajectory_difference_map is not None
+    assert trajectory_difference_map["Euler"]["Euler"] == 0.0
+    assert trajectory_difference_map["Euler"]["RK4"] > 0.0
     assert "Pairwise trajectory differences" in report.render()
     assert "default RMS of checkpoint-wise state differences" in report.render()
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic
 
 from stark.core import Configuration
 from stark.core.block import Block, BlockOperatorDiagonal
@@ -11,7 +11,8 @@ from stark.core.contracts import (
     Inverter,
     InverterOutputMode,
     LinearizerLike,
-    Translation,
+    StateType,
+    TranslationType,
     Allocator,
 )
 from stark.engines.shared.accelerators import AcceleratorNone
@@ -35,7 +36,7 @@ from stark.methods.resolvents.method.safety import ResolventSafety, ResolventSaf
 # Optional extension: records resolvent monitor events.
 # Provides: assign_monitor, unassign_monitor, and record_solve.
 @with_resolvent_monitoring
-class ResolventNewton:
+class ResolventNewton(Generic[StateType, TranslationType]):
     """Newton iteration for one-stage shifted implicit residuals.
 
     Residual equation:
@@ -88,13 +89,13 @@ class ResolventNewton:
 
     def __init__(
         self,
-        allocator: Allocator,
-        linearizer: LinearizerLike,
-        inverter: Inverter[Translation],
+        allocator: Allocator[StateType, TranslationType],
+        linearizer: LinearizerLike[StateType, TranslationType],
+        inverter: Inverter[TranslationType],
         configuration: ResolventConfiguration | None = None,
         safety: ResolventSafety | None = None,
         accelerator: Accelerator | None = None,
-        specialist: ResolventSpecialist[Translation] | None = None,
+        specialist: ResolventSpecialist[TranslationType] | None = None,
         tableau: Any | None = None,
     ) -> None:
         self.tableau = tableau
@@ -114,16 +115,16 @@ class ResolventNewton:
         )
 
         self.accelerator = accelerator if accelerator is not None else AcceleratorNone()
-        self.equation = ResolventImplicitEquation(
+        self.equation = ResolventImplicitEquation[StateType, TranslationType](
             "ResolventNewton",
             allocator,
             linearizer=linearizer,
             accelerator=self.accelerator,
         )
-        self.correction = Block([allocator.allocate_translation()])
-        self.residual_buffer = Block([allocator.allocate_translation()])
-        self.rhs_buffer = Block([allocator.allocate_translation()])
-        self.operator = BlockOperatorDiagonal([None])
+        self.correction = Block[TranslationType]([allocator.allocate_translation()])
+        self.residual_buffer = Block[TranslationType]([allocator.allocate_translation()])
+        self.rhs_buffer = Block[TranslationType]([allocator.allocate_translation()])
+        self.operator = BlockOperatorDiagonal[TranslationType]([None])
         self.newton_update = None
 
         if specialist is not None:
@@ -135,7 +136,7 @@ class ResolventNewton:
 
     def prepare_specialized_kernels(
         self,
-        specialist: ResolventSpecialist[Translation],
+        specialist: ResolventSpecialist[TranslationType],
     ) -> None:
         # Step 5: Newton update delta <- delta + correction.
         self.newton_update = specialist.provide(
@@ -144,9 +145,9 @@ class ResolventNewton:
 
     def solve_correction_improve(
         self,
-        operator: BlockOperatorDiagonal[Translation],
-        rhs: Block[Translation],
-        correction: Block[Translation],
+        operator: BlockOperatorDiagonal[TranslationType],
+        rhs: Block[TranslationType],
+        correction: Block[TranslationType],
     ) -> None:
         correction.replace(0.0 * correction)
         request = ResolventInverterRequest(operator=operator, residual=rhs)
@@ -154,18 +155,18 @@ class ResolventNewton:
 
     def solve_correction_overwrite(
         self,
-        operator: BlockOperatorDiagonal[Translation],
-        rhs: Block[Translation],
-        correction: Block[Translation],
+        operator: BlockOperatorDiagonal[TranslationType],
+        rhs: Block[TranslationType],
+        correction: Block[TranslationType],
     ) -> None:
         request = ResolventInverterRequest(operator=operator, residual=rhs)
         self.inverter(request, correction)
 
     def call_inline(
         self,
-        problem: ResolventRequest,
-        delta: Block[Translation],
-    ) -> Block[Translation]:
+        problem: ResolventRequest[StateType, TranslationType],
+        delta: Block[TranslationType],
+    ) -> Block[TranslationType]:
         self.alpha = problem.alpha
 
         equation = self.equation.prepare(problem)
@@ -216,9 +217,9 @@ class ResolventNewton:
 
     def call_specialized(
         self,
-        problem: ResolventRequest,
-        delta: Block[Translation],
-    ) -> Block[Translation]:
+        problem: ResolventRequest[StateType, TranslationType],
+        delta: Block[TranslationType],
+    ) -> Block[TranslationType]:
         self.alpha = problem.alpha
 
         equation = self.equation.prepare(problem)
@@ -268,7 +269,11 @@ class ResolventNewton:
             f"{self.max_iterations} iterations (error={error:g})."
         )
 
-    def __call__(self, problem, delta):
+    def __call__(
+        self,
+        problem: ResolventRequest[StateType, TranslationType],
+        delta: Block[TranslationType],
+    ) -> Block[TranslationType]:
         return self.redirect_call(problem, delta)
 
 __all__ = ["ResolventNewton"]

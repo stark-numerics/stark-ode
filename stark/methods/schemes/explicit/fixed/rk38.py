@@ -78,6 +78,12 @@ class SchemeRK38:
 
     descriptor = SchemeDescriptor("RK38", "3/8 Rule Runge-Kutta")
 
+    @classmethod
+    def display_tableau(cls) -> str:
+        """Installed by `with_scheme_display` from `stark.methods.schemes.display`."""
+
+        raise NotImplementedError("with_scheme_display installs display_tableau.")
+
     def snapshot_state(self, state: State) -> State:
         return self.runtime.snapshot_state(state)
 

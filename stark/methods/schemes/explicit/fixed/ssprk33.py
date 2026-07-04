@@ -75,6 +75,12 @@ class SchemeSSPRK33:
 
     descriptor = SchemeDescriptor("SSPRK33", "SSP RK33")
 
+    @classmethod
+    def display_tableau(cls) -> str:
+        """Installed by `with_scheme_display` from `stark.methods.schemes.display`."""
+
+        raise NotImplementedError("with_scheme_display installs display_tableau.")
+
     def snapshot_state(self, state: State) -> State:
         return self.runtime.snapshot_state(state)
 

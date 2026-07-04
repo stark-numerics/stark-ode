@@ -83,6 +83,12 @@ class SchemeKennedyCarpenter43_7:
 
     descriptor = SchemeDescriptor("KC43-7", "Kennedy-Carpenter 4(3) 7-stage")
     @classmethod
+    def display_tableau(cls) -> str:
+        """Installed by `with_scheme_display` from `stark.methods.schemes.display`."""
+
+        raise NotImplementedError("with_scheme_display installs display_tableau.")
+
+    @classmethod
     def display_resolvent_problem(cls) -> str:
         return display_imex_resolvent_problem(
             cls.tableau,

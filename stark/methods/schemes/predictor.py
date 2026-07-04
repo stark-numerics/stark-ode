@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import cast
 
-from stark.core.contracts import Translation
 from stark.core.contracts.linear_combine import Scale
+from stark.core.contracts.translation import TranslationType
 
 
 class SchemePredictorKnown:
@@ -20,13 +20,13 @@ class SchemePredictorKnown:
     def __call__(
         self,
         *,
-        known: Translation | None,
-        previous: Translation | None,
-        delta: Translation,
-        scale: Scale,
-    ) -> Translation:
+        known: TranslationType | None,
+        previous: TranslationType | None,
+        delta: TranslationType,
+        scale: Scale[TranslationType],
+    ) -> TranslationType:
         del previous
-        return scale(1.0, cast(Translation, known), delta)
+        return scale(1.0, cast(TranslationType, known), delta)
 
 
 class SchemePredictorZero:
@@ -41,11 +41,11 @@ class SchemePredictorZero:
     def __call__(
         self,
         *,
-        known: Translation | None,
-        previous: Translation | None,
-        delta: Translation,
-        scale: Scale,
-    ) -> Translation:
+        known: TranslationType | None,
+        previous: TranslationType | None,
+        delta: TranslationType,
+        scale: Scale[TranslationType],
+    ) -> TranslationType:
         del known, previous
         return scale(0.0, delta, delta)
 
@@ -64,13 +64,13 @@ class SchemePredictorPrevious:
     def __call__(
         self,
         *,
-        known: Translation | None,
-        previous: Translation | None,
-        delta: Translation,
-        scale: Scale,
-    ) -> Translation:
+        known: TranslationType | None,
+        previous: TranslationType | None,
+        delta: TranslationType,
+        scale: Scale[TranslationType],
+    ) -> TranslationType:
         del known
-        return scale(1.0, cast(Translation, previous), delta)
+        return scale(1.0, cast(TranslationType, previous), delta)
 
 
 __all__ = [

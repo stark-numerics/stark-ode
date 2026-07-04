@@ -17,68 +17,30 @@ from stark.engines.shared.algebraist.runtime import (
     AlgebraistRuntimeSpecialist,
 )
 from stark.methods.schemes.specialization.stencil import SchemeStencil
+from tests.support import (
+    DummyRuntimeAllocator,
+    DummyRuntimeState,
+    DummyRuntimeTranslation,
+    DummyRuntimeTranslationWithLinearCombine,
+    dummy_runtime_combine2,
+    dummy_runtime_scale,
+)
 
 
 @dataclass
-class State:
+class NormTranslation:
+    """Translation-shaped object for layout norm tests with excluded fields."""
+
     value: float = 0.0
+    ignored: float = 0.0
 
 
-@dataclass
-class Translation:
-    value: float = 0.0
+def scalar_field_norm(value: object) -> float:
+    """Return an absolute scalar norm with the callable shape runtime expects."""
 
-    def __call__(self, origin: State, result: State) -> None:
-        result.value = origin.value + self.value
-
-    def norm(self) -> float:
-        return abs(self.value)
-
-    def __add__(self, other: Translation) -> Translation:
-        return Translation(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> Translation:
-        return Translation(scalar * self.value)
-
-
-class Allocator:
-    def allocate_translation(self) -> Translation:
-        return Translation()
-
-
-def scale(a: float, x: Translation, out: Translation) -> Translation:
-    out.value = a * x.value
-    return out
-
-
-def combine2(
-    a0: float,
-    x0: Translation,
-    a1: float,
-    x1: Translation,
-    out: Translation,
-) -> Translation:
-    out.value = a0 * x0.value + a1 * x1.value
-    return out
-
-
-def combine3(
-    a0: float,
-    x0: Translation,
-    a1: float,
-    x1: Translation,
-    a2: float,
-    x2: Translation,
-    out: Translation,
-) -> Translation:
-    out.value = a0 * x0.value + a1 * x1.value + a2 * x2.value
-    return out
-
-
-class TranslationWithLinearCombine(Translation):
-    def __init__(self, value: float = 0.0) -> None:
-        super().__init__(value)
-        self.linear_combine = (scale, combine2, combine3)
+    if not isinstance(value, int | float):
+        raise TypeError("scalar field norm expects a numeric value.")
+    return abs(float(value))
 
 
 def test_arity_validates_value() -> None:
@@ -90,19 +52,19 @@ def test_arity_validates_value() -> None:
 
 def test_runtime_general_uses_return_fallback_without_linear_combine() -> None:
     general = AlgebraistRuntimeLinearCombine(
-        translation=Translation(),
-        allocator=Allocator(),
+        translation=DummyRuntimeTranslation(),
+        allocator=DummyRuntimeAllocator(),
     )
     combine = general.provide(AlgebraistArity(3))
-    out = Translation()
+    out = DummyRuntimeTranslation()
 
     result = combine(
         2.0,
-        Translation(1.0),
+        DummyRuntimeTranslation(1.0),
         3.0,
-        Translation(2.0),
+        DummyRuntimeTranslation(2.0),
         4.0,
-        Translation(3.0),
+        DummyRuntimeTranslation(3.0),
         out,
     )
 
@@ -112,21 +74,21 @@ def test_runtime_general_uses_return_fallback_without_linear_combine() -> None:
 
 def test_runtime_general_synthesizes_higher_arity_from_direct_combine2() -> None:
     general = AlgebraistRuntimeLinearCombine(
-        translation=TranslationWithLinearCombine(),
-        allocator=Allocator(),
+        translation=DummyRuntimeTranslationWithLinearCombine(),
+        allocator=DummyRuntimeAllocator(),
     )
     combine = general.provide(AlgebraistArity(4))
-    out = Translation()
+    out = DummyRuntimeTranslation()
 
     result = combine(
         1.0,
-        Translation(1.0),
+        DummyRuntimeTranslation(1.0),
         2.0,
-        Translation(2.0),
+        DummyRuntimeTranslation(2.0),
         3.0,
-        Translation(3.0),
+        DummyRuntimeTranslation(3.0),
         4.0,
-        Translation(4.0),
+        DummyRuntimeTranslation(4.0),
         out,
     )
 
@@ -136,14 +98,14 @@ def test_runtime_general_synthesizes_higher_arity_from_direct_combine2() -> None
 
 def test_runtime_general_accepts_explicit_linear_combine_override() -> None:
     general = AlgebraistRuntimeLinearCombine(
-        translation=Translation(),
-        allocator=Allocator(),
-        linear_combine=(scale, combine2),
+        translation=DummyRuntimeTranslation(),
+        allocator=DummyRuntimeAllocator(),
+        linear_combine=(dummy_runtime_scale, dummy_runtime_combine2),
     )
     combine = general.provide(AlgebraistArity(2))
-    out = Translation()
+    out = DummyRuntimeTranslation()
 
-    result = combine(2.0, Translation(3.0), 4.0, Translation(5.0), out)
+    result = combine(2.0, DummyRuntimeTranslation(3.0), 4.0, DummyRuntimeTranslation(5.0), out)
 
     assert result is out
     assert out.value == pytest.approx(26.0)
@@ -151,8 +113,8 @@ def test_runtime_general_accepts_explicit_linear_combine_override() -> None:
 
 def test_runtime_general_as_tuple_provides_requested_arity_family() -> None:
     general = AlgebraistRuntimeLinearCombine(
-        translation=TranslationWithLinearCombine(),
-        allocator=Allocator(),
+        translation=DummyRuntimeTranslationWithLinearCombine(),
+        allocator=DummyRuntimeAllocator(),
     )
     family = general.as_tuple(max_arity=5)
 
@@ -163,30 +125,39 @@ def test_runtime_general_as_tuple_provides_requested_arity_family() -> None:
 
 def test_runtime_specialist_binds_delta_coefficients() -> None:
     specialist = AlgebraistRuntimeSpecialist(
-        translation=TranslationWithLinearCombine(),
-        allocator=Allocator(),
+        translation=DummyRuntimeTranslationWithLinearCombine(),
+        allocator=DummyRuntimeAllocator(),
     )
     kernel = specialist.provide_delta(SchemeStencil(scale=0.5, coefficients=(1.0, 2.0)))
-    out = Translation()
+    out = DummyRuntimeTranslation()
 
-    result = kernel(4.0, Translation(3.0), Translation(5.0), out)
+    result = kernel(4.0, DummyRuntimeTranslation(3.0), DummyRuntimeTranslation(5.0), out)
 
     assert result is out
     assert out.value == pytest.approx(26.0)
 
 
 def test_runtime_specialist_applies_delta_to_origin_state() -> None:
-    specialist: AlgebraistRuntimeSpecialist[State, Translation] = AlgebraistRuntimeSpecialist(
-        translation=TranslationWithLinearCombine(),
-        allocator=Allocator(),
+    specialist: AlgebraistRuntimeSpecialist[
+        DummyRuntimeState,
+        DummyRuntimeTranslation,
+    ] = AlgebraistRuntimeSpecialist(
+        translation=DummyRuntimeTranslationWithLinearCombine(),
+        allocator=DummyRuntimeAllocator(),
     )
     kernel = specialist.provide_apply(
         SchemeStencil(scale=1.0, coefficients=(0.25, 0.75), apply=True)
     )
 
-    origin = State(10.0)
-    result = State()
-    returned = kernel(2.0, origin, Translation(4.0), Translation(8.0), result)
+    origin = DummyRuntimeState(10.0)
+    result = DummyRuntimeState()
+    returned = kernel(
+        2.0,
+        origin,
+        DummyRuntimeTranslation(4.0),
+        DummyRuntimeTranslation(8.0),
+        result,
+    )
 
     assert returned is result
     assert result.value == pytest.approx(24.0)
@@ -194,11 +165,11 @@ def test_runtime_specialist_applies_delta_to_origin_state() -> None:
 
 def test_runtime_specialist_binds_empty_stencil_as_zero_delta() -> None:
     specialist = AlgebraistRuntimeSpecialist(
-        translation=TranslationWithLinearCombine(),
-        allocator=Allocator(),
+        translation=DummyRuntimeTranslationWithLinearCombine(),
+        allocator=DummyRuntimeAllocator(),
     )
     kernel = specialist.provide_delta(SchemeStencil(coefficients=()))
-    out = Translation(5.0)
+    out = DummyRuntimeTranslation(5.0)
 
     result = kernel(2.0, out)
 
@@ -223,11 +194,9 @@ def test_runtime_norm_uses_layout_norm_fields() -> None:
                 ),
             )
         ),
-        field_norms=(abs, abs),
+        field_norms=(scalar_field_norm, scalar_field_norm),
     ).provide()
 
-    translation = type("RuntimeNormTranslation", (), {})()
-    translation.value = -3.0
-    translation.ignored = 100.0
+    translation = NormTranslation(value=-3.0, ignored=100.0)
 
     assert norm(translation) == pytest.approx(3.0)

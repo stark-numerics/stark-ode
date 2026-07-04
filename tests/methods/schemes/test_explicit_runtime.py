@@ -1,51 +1,23 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
 
 from stark import Interval
+from stark.core.contracts import IntervalLike
 from stark.methods.schemes.execution.derivative import SchemeDerivative
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
 from stark.methods.schemes.explicit.runtime import SchemeRuntimeExplicit
+from tests.support import DummyScalarAllocator, DummyScalarState, DummyScalarTranslation
 
 
-@dataclass(slots=True)
-class ScalarState:
-    value: float = 0.0
-
-
-@dataclass(slots=True)
-class ScalarTranslation:
-    value: float = 0.0
-
-    def __call__(self, origin: ScalarState, result: ScalarState) -> None:
-        result.value = origin.value + self.value
-
-    def norm(self) -> float:
-        return abs(self.value)
-
-    def __add__(self, other: ScalarTranslation) -> ScalarTranslation:
-        return ScalarTranslation(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> ScalarTranslation:
-        return ScalarTranslation(scalar * self.value)
-
-
-class ScalarAllocator:
-    def allocate_state(self) -> ScalarState:
-        return ScalarState()
-
-    def copy_state(self, source: ScalarState, out: ScalarState) -> None:
-        out.value = source.value
-
-    def allocate_translation(self) -> ScalarTranslation:
-        return ScalarTranslation()
+ScalarState = DummyScalarState
+ScalarTranslation = DummyScalarTranslation
+ScalarAllocator = DummyScalarAllocator
 
 
 def exponential_growth(
-    interval: Interval,
+    interval: IntervalLike,
     state: ScalarState,
     out: ScalarTranslation,
 ) -> None:
@@ -58,22 +30,6 @@ def increment_by_one(
     result: ScalarState,
 ) -> None:
     result.value = origin.value + 1.0
-
-
-class FixedDelta:
-    def __call__(self, origin: ScalarState, result: ScalarState) -> None:
-        result.value = origin.value + 1.0
-
-    def norm(self) -> float:
-        return 1.0
-
-    def __add__(self, other: FixedDelta) -> FixedDelta:
-        del other
-        return FixedDelta()
-
-    def __rmul__(self, scalar: float) -> FixedDelta:
-        del scalar
-        return FixedDelta()
 
 
 def test_explicit_runtime_constructs_prepared_derivative_and_step_support() -> None:
@@ -126,7 +82,7 @@ def test_explicit_runtime_workspace_apply_delta_updates_state_in_place() -> None
         ScalarAllocator(),
     )
     state = ScalarState(2.0)
-    delta = FixedDelta()
+    delta = ScalarTranslation(1.0)
 
     runtime.workspace.apply_delta(delta, state)
 
