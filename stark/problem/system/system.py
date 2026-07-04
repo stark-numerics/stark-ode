@@ -74,7 +74,6 @@ class SystemIVP:
       for collecting output without later mutation changing earlier samples.
     - `mutating_trajectory(...)` yields the mutable working interval/state
       objects themselves, suitable for benchmarks and streaming observation.
-    - `integrate(...)` is a short alias for the stable trajectory path.
     """
 
     system: System
@@ -157,17 +156,6 @@ class SystemIVP:
             checkpoints,
         )
 
-    def integrate(self, checkpoints: Checkpoints | None = None) -> Iterator[tuple[IntervalLike, State]]:
-        """
-        Yield stable copied trajectory snapshots.
-
-        This is a concise alias for `stable_trajectory(checkpoints=...)` kept
-        for examples and simple scripts where copied trajectory output is the
-        natural default.
-        """
-
-        return self.stable_trajectory(checkpoints=checkpoints)
-
     def final_result(
         self,
         *,
@@ -240,8 +228,7 @@ class System:
 
         The returned `SystemIVP` keeps the prepared objects together. It
         can be reused for repeated solves via `final_result(...)`,
-        `integrate(...)`, `stable_trajectory(...)`, or
-        `mutating_trajectory(...)`.
+        `stable_trajectory(...)`, or `mutating_trajectory(...)`.
         """
 
         configuration = configuration if configuration is not None else Configuration()

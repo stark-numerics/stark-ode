@@ -33,5 +33,5 @@ else:
         )
 
         print("JAX return-style derivative")
-        for interval, state in ivp.integrate():
+        for interval, state in ivp.stable_trajectory():
             print(f"t={interval.present:.1f}, y={float(state.y[0]):.6f}")

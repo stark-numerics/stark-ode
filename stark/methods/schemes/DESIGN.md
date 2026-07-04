@@ -95,3 +95,20 @@ forcing every stage operation through an extra indirection.
 Avoid one-line helper functions for things a scheme can say directly. A method
 such as `snapshot_state` is clearer as a small real method on the scheme than as
 a module-level function assigned onto the class.
+
+## Generic Scheme Classes
+
+The core contracts are generic over state and translation types, but concrete
+scheme classes intentionally keep readable public constructor signatures for
+the beta release. The internals preserve concrete types through runtime objects,
+requests, resolvents, inverters, and shared fixtures; users should not need to
+write `SchemeEuler[StateType, TranslationType]` merely to solve an IVP.
+
+A future contributor may decide to make every concrete scheme class explicitly
+generic, for example `class SchemeEuler(Generic[StateType, TranslationType])`.
+Only do this if it fixes a noticeable user-side typing hole, such as IDE hover
+text or checker diagnostics failing to preserve a user's concrete state and
+translation types through scheme composition. If that change is made, add an
+in-code comment near the class definition explaining why the generic parameters
+exist; otherwise they look like type-theory decoration rather than useful API
+support.

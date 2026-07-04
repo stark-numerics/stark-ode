@@ -17,7 +17,8 @@ Most scripts dot-source `devtools/_common.ps1`. By default they scan:
 - `pyproject.toml`
 
 Generated/cache directories such as `.git/`, `.venv/`, `.pytest_cache/`,
-`__pycache__/`, `.asv/`, and `.pip-tmp/` are ignored.
+`__pycache__/`, `.asv/`, `.pip-tmp/`, `docs/_build/`, and `devtools/tmp/`
+are ignored.
 
 ## Rename workflow
 

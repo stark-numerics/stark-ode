@@ -30,5 +30,5 @@ if __name__ == "__main__":
     )
 
     print("Structured two-field oscillator")
-    for interval, state in ivp.integrate():
+    for interval, state in ivp.stable_trajectory():
         print(f"t={interval.present:.2f}, x={state.x[0]:.6f}, v={state.v[0]:.6f}")

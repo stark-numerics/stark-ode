@@ -1,20 +1,18 @@
 # .\devtools\check-release-surface.ps1
 #
 # Audit the public surface before release. By default this script is
-# non-destructive: it reports generated caches, stale topology, forbidden
-# imports, and top-level `stark` exports that should be reviewed.
+# non-destructive: it reports generated caches, forbidden imports, and
+# top-level `stark` exports that should be reviewed.
 #
 # Examples:
 #   .\devtools\check-release-surface.ps1
 #   .\devtools\check-release-surface.ps1 -FailOnUnexpectedTopLevel
 #   .\devtools\check-release-surface.ps1 -CleanCaches
-#   .\devtools\check-release-surface.ps1 -DeleteStaleDirs
 
 [CmdletBinding()]
 param(
     [switch]$CleanCaches,
     [switch]$VerboseCaches,
-    [switch]$DeleteStaleDirs,
     [switch]$FailOnUnexpectedTopLevel,
     [int]$ContextLines = 0
 )
@@ -34,14 +32,6 @@ function Write-Section {
     Write-Host ("=" * 88)
     Write-Host $Title
     Write-Host ("=" * 88)
-}
-
-function Test-PathUnderRepo {
-    param([Parameter(Mandatory = $true)][string]$Path)
-
-    $repo = (Resolve-Path -LiteralPath ".").Path
-    $resolved = (Resolve-Path -LiteralPath $Path).Path
-    return $resolved.StartsWith($repo, [System.StringComparison]::OrdinalIgnoreCase)
 }
 
 function Get-TopLevelExports {
@@ -172,19 +162,6 @@ $forbiddenImports = @(
     "stark.executor"
 )
 
-$staleDirs = @(
-    ".\stark\accelerators",
-    ".\stark\algebraist",
-    ".\stark\carriers",
-    ".\stark\contracts",
-    ".\stark\executor",
-    ".\stark\interface",
-    ".\stark\engines\backends",
-    ".\stark\engines\accelerators",
-    ".\stark\engines\algebraist",
-    ".\stark\engines\carriers"
-)
-
 $failures = 0
 
 Write-Host "STARK release-surface audit"
@@ -214,41 +191,6 @@ else {
         if (@($cacheItems.Files).Count -gt 0 -or @($cacheItems.Dirs).Count -gt 0) {
             Write-Host "Pass -VerboseCaches to list every generated cache path."
         }
-    }
-}
-
-Write-Section "Stale topology directories"
-$presentStaleDirs = @()
-foreach ($dir in $staleDirs) {
-    if (Test-Path -LiteralPath $dir) {
-        $presentStaleDirs += $dir
-    }
-}
-
-if ($presentStaleDirs.Count -eq 0) {
-    Write-Host "No stale topology directories found."
-}
-else {
-    Write-Host "Stale topology directories found:"
-    foreach ($dir in $presentStaleDirs) {
-        Write-Host "  $dir"
-    }
-
-    if ($DeleteStaleDirs) {
-        Write-Host ""
-        Write-Host "Deleting stale directories."
-        foreach ($dir in $presentStaleDirs) {
-            if (-not (Test-PathUnderRepo -Path $dir)) {
-                throw "Refusing to delete path outside repository: $dir"
-            }
-            Remove-Item -LiteralPath $dir -Recurse -Force
-            Write-Host "  removed $dir"
-        }
-    }
-    else {
-        Write-Host ""
-        Write-Host "Pass -DeleteStaleDirs to remove them after reviewing the list."
-        $failures += 1
     }
 }
 

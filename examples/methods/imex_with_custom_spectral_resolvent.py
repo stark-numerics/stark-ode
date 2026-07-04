@@ -85,7 +85,7 @@ if __name__ == "__main__":
     )
 
     print("IMEX with a custom spectral diffusion resolvent")
-    for interval, state in ivp.integrate(checkpoints=4):
+    for interval, state in ivp.stable_trajectory(checkpoints=4):
         print(
             f"t={interval.present:.3f}, "
             f"mean={state.u.mean(): .6f}, "

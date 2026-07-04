@@ -155,6 +155,6 @@ if __name__ == "__main__":
     print("The linearizer supplies J(y)v and a dense fill for the same Jacobian.")
     print()
 
-    for interval, state in ivp.integrate(checkpoints=4):
+    for interval, state in ivp.stable_trajectory(checkpoints=4):
         y0, y1 = state.y
         print(f"t={interval.present:.3f}, y0={y0:.8f}, y1={y1:.8f}")

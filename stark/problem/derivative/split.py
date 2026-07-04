@@ -27,17 +27,4 @@ class DerivativeSplit:
     implicit: DerivativeLike
     explicit: DerivativeLike
 
-    @property
-    def im(self) -> DerivativeLike:
-        """Short alias for the implicit derivative worker."""
-
-        return self.implicit
-
-    @property
-    def ex(self) -> DerivativeLike:
-        """Short alias for the explicit derivative worker."""
-
-        return self.explicit
-
-
 __all__ = ["DerivativeSplit"]

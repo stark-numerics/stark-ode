@@ -28,5 +28,5 @@ if __name__ == "__main__":
     )
 
     print("NumPy backend")
-    for interval, state in ivp.integrate():
+    for interval, state in ivp.stable_trajectory():
         print(f"{interval.present:.3f}", state.y)

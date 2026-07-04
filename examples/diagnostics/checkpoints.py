@@ -34,6 +34,6 @@ if __name__ == "__main__":
     )
 
     print("Checkpointed harmonic oscillator")
-    for interval, state in ivp.integrate(checkpoints=4):
+    for interval, state in ivp.stable_trajectory(checkpoints=4):
         position, velocity = state.y
         print(f"checkpoint t={interval.present:.2f}, x={position:.6f}, v={velocity:.6f}")

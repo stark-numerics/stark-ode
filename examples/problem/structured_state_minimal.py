@@ -46,7 +46,7 @@ if __name__ == "__main__":
     )
 
     print("Nested structured state through Frame paths")
-    for interval, state in ivp.integrate():
+    for interval, state in ivp.stable_trajectory():
         position = state.model.particle.position[0]
         velocity = state.model.particle.velocity[0]
         print(f"t={interval.present:.1f}, x={position:.6f}, v={velocity:.6f}")

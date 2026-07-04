@@ -28,6 +28,6 @@ if __name__ == "__main__":
     )
 
     print("NumPy harmonic oscillator")
-    for interval, state in ivp.integrate():
+    for interval, state in ivp.stable_trajectory():
         position, velocity = state.y
         print(f"t={interval.present:.2f}, x={position:.6f}, v={velocity:.6f}")

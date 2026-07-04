@@ -41,6 +41,8 @@ $script:DevtoolsIgnoredPathFragments = @(
     "/.asv/",
     "/.jupyter-runtime/",
     "/.pip-tmp/",
+    "/docs/_build/",
+    "/devtools/tmp/",
     "/__pycache__/"
 )
 

@@ -27,5 +27,5 @@ else:
         )
 
         print("CuPy in-place derivative")
-        for interval, state in ivp.integrate():
+        for interval, state in ivp.stable_trajectory():
             print(f"t={interval.present:.1f}, y={float(cp.asnumpy(state.y)[0]):.6f}")

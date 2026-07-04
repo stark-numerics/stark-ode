@@ -47,7 +47,7 @@ ivp = system.ivp(
     engine=EngineNumpy,
 )
 
-for interval, state in ivp.integrate():
+for interval, state in ivp.stable_trajectory():
     print(f"t={interval.present:.1f}, y={state.y[0]:.6f}")
 ```
 
