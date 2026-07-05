@@ -4,6 +4,12 @@ Schemes are the hot step-level objects in STARK. They are called repeatedly by
 integrators, so construction should choose the call path once and the repeated
 `__call__` should stay tiny.
 
+## To Do
+
+- Review schemes for hot-path clutter before a stable release.
+- Revisit Dormand-Prince FSAL support when there is a benchmark that can show
+  whether it is worth the additional scheme machinery.
+
 ## Role
 
 A scheme owns the time-stepping formula. It receives a problem state, an

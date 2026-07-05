@@ -1,61 +1,75 @@
 # stark-ode
 
-**State Translation Adaptive Runge-Kutta** for Python values, arrays, and
-user-defined state types.
+**State Translation Adaptive Runge-Kutta** for Python values, NumPy arrays, and
+structured simulation state.
 
-STARK is an ODE integration package with a friendly interface for ordinary
-scalar and array initial-value problems, plus an explicit core API for problems
-whose state is not naturally a single flat vector.
+`stark-ode` is an ODE integration package for initial-value problems. Its
+default user path is:
 
-Start with `stark.problem.StarkIVP` when your state is a Python scalar,
-sequence, NumPy array, CuPy array, or JAX array. Move to the core STARK objects
-when a simulation already has its own domain model: particles, fields,
-lattices, structured arrays, nested dataclasses, or other objects where
-flattening everything solely to call a solver would obscure the code.
+```text
+System + Frame + Method + Engine
+```
 
-For performance-sensitive ordinary array problems, dense NumPy arrays are a
-good first choice. They can be one-dimensional or multidimensional, and the
-interface layer uses in-place array routing where possible.
+A `System` describes the problem, a `Frame` names the state fields, a `Method`
+chooses the numerical stack, and an engine chooses where state is stored and
+where algebra is performed.
 
-## What STARK provides
+## Why STARK Is Different
 
-- Adaptive embedded Runge-Kutta schemes, including Cash-Karp,
-  Dormand-Prince, Fehlberg 4(5), Bogacki-Shampine, and Tsitouras 5.
-- Fixed-step schemes, including Euler, Heun, midpoint, Kutta
-  third-order, RK4, RK38, Ralston, and SSP RK33.
-- Implicit schemes, including backward Euler, implicit midpoint,
-  Crank-Nicolson, Crouzeix DIRK3, Gauss-Legendre 4, Lobatto IIIC 4, Radau IIA 5,
-  SDIRK21, Kvaerno3, Kvaerno4, and BDF2.
-- IMEX schemes, including IMEX Euler and Kennedy-Carpenter adaptive ARK
-  pairs from orders 3(2) through 5(4).
-- Built-in nonlinear resolvents, including Picard, Anderson, Broyden, and
-  Newton.
-- Built-in linear inverters, including GMRES, FGMRES, and BiCGStab.
-- A public `stark.problem` layer for ordinary Python values and array-backed
-  initial conditions.
-- Snapshot and live integration loops.
-- A `ComparisonRunner` helper for comparing two or more scheme setups on the same
-  problem, including timing and `cProfile` summaries.
-- Optional checkpoints for evenly spaced outputs or user-specified output
-  times.
-- An auditor that checks whether user objects satisfy the STARK contracts.
-- Extension points for custom schemes and problem-specific fast translation
-  kernels, including Algebraist providers for inspectable generated stage
-  algebra.
-- A `Dynamics.split(...)` helper for splitting a right-hand side into implicit
-  and explicit parts ahead of IMEX schemes.
+Many ODE packages start by flattening state into one vector. STARK instead
+keeps a visible split between:
 
-Performance-sensitive custom objects can expose Algebraist-backed
-`linear_combine` kernels on their translation type and can pass a scheme
-specialist into built-in schemes. This is a performance option for large
-states, long-running integrations, or repeated solves where the compiled
-kernels are reused many times. Accelerated backends may need a noticeable
-warmup or compilation pass, so tiny one-off integrations can be faster on the
-plain path.
+```text
+state        the model configuration
+translation  the solver increment or tangent object
+engine       the storage and algebra policy
+method       the numerical time-stepping stack
+```
+
+That split is the point of the package. It means STARK can support ordinary
+array-valued IVPs while also leaving room for more specialised models:
+
+- **Foreign object models** can keep their own state and increment classes when
+  flattening would damage the model design.
+- **Arbitrary state representations** can be described either with a high-level
+  `Frame` or, for advanced users, with custom state, translation, and allocator
+  objects.
+- **The translation layer** makes solver increments explicit, so schemes can
+  combine, scale, apply, and measure changes without assuming every state is a
+  NumPy vector.
+- **Implicit and IMEX machinery** is built from composable schemes, resolvents,
+  linearizers, and inverters rather than a single opaque stiff-solver switch.
+- **Extensible algebra** lets `Frame`-backed systems use generated Algebraist
+  kernels, while advanced models can provide their own fast paths when the
+  generic runtime route is not enough.
+
+For the high-level path, start with [`docs/getting-started.md`](docs/getting-started.md).
+For custom models, see [`docs/foreign-models.md`](docs/foreign-models.md). For
+extension points, see [`docs/extending.md`](docs/extending.md).
+
+## What STARK Provides
+
+- Explicit fixed-step schemes such as Euler, midpoint, Heun, Kutta3, RK4,
+  RK38, Ralston, and SSP RK33.
+- Explicit adaptive schemes such as Bogacki-Shampine, Cash-Karp,
+  Dormand-Prince, Fehlberg 4(5), and Tsitouras 5.
+- Implicit schemes such as backward Euler, implicit midpoint,
+  Crank-Nicolson, Crouzeix DIRK3, Gauss-Legendre 4, Lobatto IIIC 4,
+  Radau IIA 5, BDF2, SDIRK21, Kvaerno3, Kvaerno4, and Kvaerno5.
+- IMEX schemes including IMEX Euler and Kennedy-Carpenter adaptive ARK pairs.
+- Resolvents for implicit correction problems, including Picard, Newton,
+  coupled Newton, chord, very-chord, Anderson, and Broyden families.
+- Inverters for linear correction problems, including dense, Krylov Arnoldi,
+  Richardson, Jacobi, and specialist relaxation paths.
+- Engines for native Python values and NumPy arrays, plus optional JAX and CuPy
+  engines when those dependencies are installed and usable.
+- Diagnostics for monitoring integrations and comparing methods on short runs.
+- Runnable examples organised by topic.
+- Generated API reference and contributor design notes.
 
 ## Installation
 
-Install directly from GitHub:
+Before the beta is published, install directly from GitHub:
 
 ```powershell
 python -m pip install git+https://github.com/stark-numerics/stark-ode.git
@@ -74,217 +88,151 @@ Optional extras are available by task:
 ```powershell
 python -m pip install -e ".[accelerators]"
 python -m pip install -e ".[examples]"
+python -m pip install -e ".[docs]"
 python -m pip install -e ".[comparison]"
+python -m pip install -e ".[asv]"
 ```
 
-- Core install:
-  all built-in schemes, resolvents, inverters, auditing, and comparison tools.
-- `.[accelerators]`:
-  `AcceleratorNumba` and `AcceleratorJax`.
-- `.[examples]`:
-  plotting and accelerator dependencies used by the script-style examples.
-- `.[comparison]`:
-  SciPy, Diffrax, JAX, and accelerator dependencies used by the comparison
+- `.[accelerators]`: JAX and Numba dependencies used by accelerator paths.
+- `.[examples]`: dependencies used by the runnable examples.
+- `.[docs]`: Sphinx, MyST, and the documentation theme.
+- `.[comparison]`: SciPy, Diffrax, JAX, and other dependencies for comparison
   reports.
+- `.[asv]`: contributor benchmarking tools.
+
+`jax`, `cupy`, and `numba` support depends on the local Python and hardware
+environment. Optional backend examples skip quietly when their dependency is
+not installed.
 
 ## Quick Start
 
-For scalar or array-valued problems, use the interface layer:
+This is the smallest high-level solve: one named scalar-like state field,
+integrated with Cash-Karp on the NumPy engine.
 
 ```python
 import numpy as np
 
-from stark import Interval
-from stark.problem import StarkIVP
+from stark import Frame, Interval, Method, System
+from stark.engines import EngineNumpy
+from stark.methods import SchemeCashKarp
 
 
-def exponential_decay(t, y):
-    return -0.5 * y
+def exponential_decay(t, state, out) -> None:
+    del t
+    out.dy[0] = -0.5 * state.y[0]
 
 
-ivp = StarkIVP(
+system = System(
     dynamics=exponential_decay,
-    initial=np.array([2.0, 4.0, 8.0]),
-    interval=Interval(present=0.0, step=0.1, stop=2.0),
+    frame=Frame.scalar("y", translation="dy"),
+)
+ivp = system.ivp(
+    initial={"y": np.array([2.0])},
+    interval=Interval(present=0.0, step=0.1, stop=1.0),
+    method=Method(SchemeCashKarp),
+    engine=EngineNumpy,
 )
 
-for interval, state in ivp.integrate():
-    print(interval.present, state.value)
+for interval, state in ivp.stable_trajectory():
+    print(interval.present, state.y[0])
 ```
 
-Plain dynamics callables use the familiar return style `f(t, y) -> dy`.
-For performance-sensitive array code, STARK also supports explicit in-place
-dynamics with `@StarkDynamics.in_place`.
+The examples in `examples/getting_started/` are the best first stop after this
+snippet.
 
-The interface layer chooses a carrier for the initial value, wraps the state,
-selects routing appropriate to the value semantics, builds a default scheme,
-and runs the core STARK integration objects. It supports:
+## Problem Shape
 
-- native Python `int`, `float`, `list`, and `tuple` values;
-- NumPy arrays;
-- CuPy arrays when CuPy is installed and usable;
-- JAX arrays in a Python-level solve. This does not yet mean whole-solver
-  `jax.jit`, `jax.grad`, or `jax.vmap`.
+Most user code starts by declaring a `System`:
 
-See the interface guide for return-style and in-place dynamics, explicit
-carrier selection, routing, backend support levels, and examples:
-[`docs/interface.md`](docs/interface.md).
+- `dynamics`: the state-change law;
+- `frame`: the names and shapes of state fields and translation fields;
+- optional `linearizer`: the Jacobian action needed by Newton-style implicit
+  methods.
 
-From a source checkout with the package installed, the script-style interface
-examples can be run in module mode:
-
-```powershell
-python -m examples.interface.native
-python -m examples.interface.numpy
-python -m examples.interface.cupy
-python -m examples.interface.jax
-```
-
-## Core Shape
-
-A STARK integration usually has five user-side objects:
+The `Frame` helpers cover common state layouts:
 
 ```python
-from stark import Marcher, Integrator, Interval, Tolerance
-from stark.engines.shared.accelerators import AcceleratorNone
-from stark.methods.schemes import SchemeDormandPrince
-
-allocator = MyAllocator()
-dynamics = MyDynamics()
-scheme = SchemeDormandPrince(dynamics, allocator)
-Configuration = Configuration(
-    tolerance=Tolerance(atol=1.0e-8, rtol=1.0e-6),
-)
-marcher = Marcher(scheme)
-integrate = Integrator()
-
-state = initial_state()
-interval = Interval(present=0.0, step=1.0e-3, stop=1.0)
-
-for output_interval, output_state in integrate(marcher, interval, state, checkpoints=100):
-    observe(output_interval, output_state)
+Frame.scalar("y", translation="dy")
+Frame.vector("y", translation="dy", length=2)
+Frame.array("u", translation="du", shape=(32, 32))
+Frame.fields(...)
 ```
 
-The user provides:
+Use `DynamicsStyle` decorators when a dynamics function needs an explicit
+signature, for example return-style functions or field kernels that are easier
+to accelerate.
 
-- a state object;
-- a translation object that can be applied, scaled, added, and measured;
-- an allocator that allocates and copies states/translations;
-- a dynamics callable `dynamics(interval, state, out)` that writes the
-  time derivative into a translation.
-- an `Configuration` that carries runtime Tolerance, and ConfigurationAdaptivity
-  policy.
+## Methods
 
-Use this explicit core shape when the interface layer is not enough: custom
-state objects, custom translation types, implicit or IMEX method setup,
-problem-specific fast paths, or detailed control over schemes, resolvents, and
-inverters.
+A `Method` is a stack:
 
-Accelerators are passed directly to the objects that use them, such as
-Algebraist providers, resolvents, or inverters. `Configuration` deliberately carries
-only runtime execution policy.
+```text
+scheme -> optional resolvent -> optional inverter
+```
 
-For split problems, declare the implicit and explicit parts through
-`Dynamics.split(...)`:
+For ordinary non-stiff problems, start with an explicit adaptive scheme:
 
 ```python
-from stark import Dynamics
+from stark import Method
+from stark.methods import SchemeCashKarp
 
-imex = Dynamics.split(
-    implicit=implicit_dynamics,
-    explicit=explicit_dynamics,
-)
+method = Method(SchemeCashKarp)
 ```
 
-See the functionality guide for the full contract surface and built-in worker
-inventory.
-
-## Implicit shape
-
-Implicit and IMEX schemes add a few more moving parts. Alongside the
-allocator and dynamics, users may provide:
-
-- a stage `Resolvent`, such as `ResolventNewton` or `ResolventAnderson`;
-- for Newton-backed resolvents, a `LinearizerLike` that supplies the Jacobian
-  action of the dynamics;
-- for Newton-backed resolvents, an `Inverter`, such as `InverterBiCGStab`.
-
-For example:
+The method catalogue gives named recipes:
 
 ```python
-from stark import Marcher, Tolerance
-from stark.engines.shared.accelerators import AcceleratorNone
-from stark.methods.inverters import InverterBiCGStab
-from stark.methods.inverters import InverterPolicy, Tolerance
-from stark.methods.resolvents import ResolventNewton
-from stark.methods.resolvents.policy import Configuration
-from stark.methods.resolvents.Tolerance import Tolerance
-from stark.methods.schemes import SchemeKvaerno3
+from stark.methods import METHOD_CATALOGUE
 
-allocator = MyAllocator()
-dynamics = MyDynamics()
-linearizer = MyLinearizer()
-accelerator = AcceleratorNone()
-inverter = InverterBiCGStab(
-    allocator,
-    my_inner_product,
-    Tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
-    policy=InverterPolicy(max_iterations=24),
-    accelerator=accelerator,
-)
-resolvent = ResolventNewton(
-    dynamics,
-    allocator,
-    linearizer=linearizer,
-    inverter=inverter,
-    Tolerance=Tolerance(atol=1.0e-7, rtol=1.0e-7),
-    policy=Configuration(max_iterations=24),
-    accelerator=accelerator,
-)
-scheme = SchemeKvaerno3(
-    dynamics,
-    allocator,
-    resolvent=resolvent,
-)
-Configuration = Configuration(scheme_tolerance=Tolerance(atol=1.0e-6, rtol=1.0e-5))
-marcher = Marcher(scheme)
+method = METHOD_CATALOGUE.method("kvaerno5-newton-dense")
 ```
 
-Anderson- or Broyden-backed resolvents are similar, but they do not need a
-linearizer or inverter. They do need an inner product on translations.
+Implicit and IMEX methods may need a linearizer, a resolvent, and an inverter.
+See `docs/implicit.md` and the examples under `examples/methods/` and
+`examples/inverters/` before building those stacks by hand.
+
+## Engines
+
+Engines choose storage and algebra policy:
+
+```python
+from stark.engines import EngineNative, EngineNumpy
+```
+
+Optional engines are exported when their dependencies import successfully:
+
+```python
+from stark.engines import EngineJax, EngineCupy
+```
+
+The JAX and CuPy engines are backend storage/arithmetic paths. They do not imply
+that the whole solver is automatically `jax.jit`, `jax.grad`, GPU-optimal, or
+appropriate for every problem shape.
 
 ## Documentation
 
-Start with the interface guide if you are solving ordinary scalar or array
-initial-value problems:
-[`docs/interface.md`](docs/interface.md).
+The manual starts at [`docs/index.md`](docs/index.md). The most useful path for
+new users is:
 
-The compact functionality guide is [`docs/README.md`](docs/README.md). It
-maps the explicit core API: integration objects, built-in schemes, resolvents,
-inverters, accelerators, execution tools, auditing hooks, custom scheme
-contracts, `Algebraist`, and translation fast paths.
+```text
+concepts -> getting-started -> problem -> methods
+```
 
-For a conceptual guide to the main object families and extension points, see
-[`docs/object_map.md`](docs/object_map.md).
+Useful pages:
 
-Accelerators follow the same philosophy. Built-in workers live under
-`stark.engines.shared.accelerators`, the contracts live under `stark.core.contracts`, and custom
-accelerators can be checked with `Auditor(..., accelerator=...)` before a run.
+- [`docs/getting-started.md`](docs/getting-started.md)
+- [`docs/problem.md`](docs/problem.md)
+- [`docs/methods.md`](docs/methods.md)
+- [`docs/implicit.md`](docs/implicit.md)
+- [`docs/engines.md`](docs/engines.md)
+- [`docs/diagnostics.md`](docs/diagnostics.md)
+- [`docs/examples.md`](docs/examples.md)
 
-For a terminology-first map of the main ideas, see
-[`docs/concepts.md`](docs/concepts.md). For the mathematical view of the
-low-level contracts, see [`docs/contract-maths.md`](docs/contract-maths.md).
+Contributor notes start at [`docs/contributing/README.md`](docs/contributing/README.md).
 
 ## Examples
 
-Small executable examples live under [`examples/getting_started/`](examples/getting_started/)
-and concept folders such as [`examples/problem/`](examples/problem/),
-[`examples/methods/`](examples/methods/), and
-[`examples/diagnostics/`](examples/diagnostics/). Each example is a focused
-teaching script: if a longer story needs several concepts, it should be split
-into smaller runnable lessons.
-
-From a source checkout:
+Examples are executable documentation. From a source checkout:
 
 ```powershell
 python -m pip install -e ".[examples]"
@@ -292,23 +240,29 @@ python -m examples.getting_started
 python -m examples.problem
 python -m examples.methods
 python -m examples.diagnostics
+python -m examples.engines
+python -m examples.inverters
 ```
 
 Useful starting points include:
 
 ```powershell
-python -m examples.problem.foreign_model_plug_in_solver
-python -m examples.problem.reaction_diffusion_array
-python -m examples.methods.imex_with_custom_spectral_resolvent
-python -m examples.methods.matrix_free_jacobian
-python -m examples.diagnostics.error_ratio_trace
+python -m examples.getting_started.scalar_decay
+python -m examples.getting_started.numpy_oscillator
+python -m examples.problem.dynamics_styles
+python -m examples.methods.choose_scheme
+python -m examples.methods.resolvent_linearized
+python -m examples.diagnostics.compare_custom_scheme
 ```
+
+The maintained example inventory lives in [`examples/manifest.py`](examples/manifest.py),
+and the examples guide is [`examples/README.md`](examples/README.md).
 
 ## Competition Reports
 
-Competition reports live under [`competition/`](competition/). They compare STARK,
-SciPy, and Diffrax implementations of the same problems while keeping each
-implementation close to its native idiom.
+Competition reports live under [`competition/`](competition/). They compare
+STARK, SciPy, and Diffrax implementations of the same problems while keeping
+each implementation close to its native idiom.
 
 ```powershell
 python -m pip install -e ".[comparison]"
@@ -322,12 +276,13 @@ python -m competition.robertson.report
 
 ```powershell
 python -m pip install -e ".[dev]"
-python -m pytest
+python -m pytest -q
+.\devtools\check-types.ps1
+.\devtools\check-release-surface.ps1
 ```
 
-Contributors working on performance-sensitive internals can use the ASV suite
-described in [`docs/benchmarking.md`](docs/benchmarking.md). ASV is contributor
-tooling; ordinary solver use does not require it.
+Contributor benchmarks use ASV and are described in
+[`benchmarks/README.md`](benchmarks/README.md).
 
 ## Citation
 

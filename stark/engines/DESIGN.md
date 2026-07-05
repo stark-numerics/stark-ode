@@ -6,6 +6,11 @@ An engine package should be cohesive. A future backend such as Torch should
 enter as a recognisable backend package, not as scattered helper files across
 unrelated directories.
 
+## To Do
+
+- Add a Torch engine as a full backend package when there is a real user or
+  downstream-package need for it.
+
 ## Topology
 
 The intended shape is flat enough that backend ownership is visible:

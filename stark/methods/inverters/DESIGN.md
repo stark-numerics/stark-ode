@@ -4,6 +4,15 @@ Inverters provide inverse actions for linear correction problems. They are used
 by resolvents, but they are kept as their own method family because the same
 inverse-action ideas can support several resolvent styles.
 
+## To Do
+
+- Review inverters for hot-path clutter and public shape before a stable
+  release.
+- Reconcile Krylov implementation details with the intended request-based
+  design, especially restart and preconditioner behaviour.
+- Confirm that `InverterDense.instance(operator)` remains the intended public
+  spelling for operator-bound dense reuse.
+
 ## Current Families
 
 - `dense`: materialises small operators and solves them locally with

@@ -10,6 +10,15 @@ This mirrors the package architecture. A STARK performance result is rarely
 "the speed of a scheme" in isolation. It is the behaviour of a scheme,
 resolvent, inverter, engine, and problem shape working together.
 
+## To Do
+
+- Expand ASV coverage for scheme calls.
+- Expand ASV coverage for backend comparisons.
+- Expand ASV coverage for generated Algebraist kernels.
+- Expand ASV coverage for dense/direct and Krylov inverter paths.
+- Expand ASV coverage for representative end-to-end IVP runs.
+- Add Torch to backend comparison benchmarks after a Torch engine exists.
+
 ## Catalogue Layers
 
 `stark.methods.METHOD_CATALOGUE` owns package-level method-stack recipes. It
@@ -62,7 +71,7 @@ ASV parameters should be stable strings such as
 to catalogue axes. This keeps ASV output readable and avoids serialising rich
 objects as benchmark parameters.
 
-## Future Coverage Targets
+## Coverage Targets
 
 - FPUT-style coupled Hamiltonian chains are useful future representative
   problems for large coupled states and energy/invariant drift.

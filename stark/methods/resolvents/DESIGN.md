@@ -4,6 +4,13 @@ Resolvents solve the nonlinear or implicit correction problems created by
 schemes. They are not usually called as often as low-level algebra kernels, but
 they still sit on important hot paths for stiff methods.
 
+## To Do
+
+- Review resolvents for hot-path clutter and public shape before a stable
+  release.
+- Decide whether `ResolventChord` and `ResolventVeryChord` remain public once
+  the implicit-method examples and benchmarks make their actual value clear.
+
 ## Call Path Convention
 
 Resolvent classes should mirror schemes:
