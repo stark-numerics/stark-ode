@@ -14,6 +14,14 @@ Subpackages
 Submodules
 ----------
 
+stark.methods.catalogue module
+------------------------------
+
+.. automodule:: stark.methods.catalogue
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 stark.methods.method module
 ---------------------------
 

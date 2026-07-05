@@ -31,6 +31,14 @@ stark.engines.native.carriers.carrier module
    :show-inheritance:
    :undoc-members:
 
+stark.engines.native.carriers.hints module
+------------------------------------------
+
+.. automodule:: stark.engines.native.carriers.hints
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 stark.engines.native.carriers.storage module
 --------------------------------------------
 

@@ -45,7 +45,7 @@ stark.core.contracts.contract\_audit module
    :undoc-members:
 
 stark.core.contracts.dynamics module
---------------------------------------
+------------------------------------
 
 .. automodule:: stark.core.contracts.dynamics
    :members:
@@ -53,7 +53,7 @@ stark.core.contracts.dynamics module
    :undoc-members:
 
 stark.core.contracts.dynamics\_split module
----------------------------------------------
+-------------------------------------------
 
 .. automodule:: stark.core.contracts.dynamics_split
    :members:

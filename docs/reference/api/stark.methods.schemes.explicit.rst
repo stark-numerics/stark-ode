@@ -9,3 +9,14 @@ Subpackages
 
    stark.methods.schemes.explicit.adaptive
    stark.methods.schemes.explicit.fixed
+
+Submodules
+----------
+
+stark.methods.schemes.explicit.runtime module
+---------------------------------------------
+
+.. automodule:: stark.methods.schemes.explicit.runtime
+   :members:
+   :show-inheritance:
+   :undoc-members:

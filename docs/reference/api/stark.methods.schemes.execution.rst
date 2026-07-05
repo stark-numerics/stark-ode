@@ -13,7 +13,7 @@ stark.methods.schemes.execution.call module
    :undoc-members:
 
 stark.methods.schemes.execution.dynamics module
--------------------------------------------------
+-----------------------------------------------
 
 .. automodule:: stark.methods.schemes.execution.dynamics
    :members:

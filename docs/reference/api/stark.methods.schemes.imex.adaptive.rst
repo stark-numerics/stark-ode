@@ -4,6 +4,14 @@ stark.methods.schemes.imex.adaptive package
 Submodules
 ----------
 
+stark.methods.schemes.imex.adaptive.kennedy\_carpenter module
+-------------------------------------------------------------
+
+.. automodule:: stark.methods.schemes.imex.adaptive.kennedy_carpenter
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 stark.methods.schemes.imex.adaptive.kennedy\_carpenter32 module
 ---------------------------------------------------------------
 

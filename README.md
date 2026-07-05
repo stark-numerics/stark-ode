@@ -1,91 +1,77 @@
 # stark-ode
 
-**State Translation Adaptive Runge-Kutta** for Python values, NumPy arrays, and
-structured simulation state.
+**State Translation Adaptive Runge-Kutta** for structured ordinary differential
+equations.
 
-`stark-ode` is an ODE integration package for initial-value problems. Its
-default user path is:
+`stark-ode` is an initial-value ODE solver that works with ordinary Python
+values, NumPy arrays, and structured simulation state.
 
-```text
-System + Frame + Method + Engine
-```
-
-A `System` describes the problem, a `Frame` names the state fields, a `Method`
-chooses the numerical stack, and an engine chooses where state is stored and
-where algebra is performed.
-
-## Why STARK Is Different
-
-Many ODE packages start by flattening state into one vector. STARK instead
-keeps a visible split between:
+Unlike most Python ODE libraries, STARK does **not** assume that every model
+state is a single flat vector. Instead it separates the mathematical problem,
+the state representation, the numerical method, and the execution backend into
+independent concepts:
 
 ```text
-state        the model configuration
-translation  the solver increment or tangent object
-engine       the storage and algebra policy
-method       the numerical time-stepping stack
+System -> Frame -> Method -> Engine
 ```
 
-That split is the point of the package. It means STARK can support ordinary
-array-valued IVPs while also leaving room for more specialised models:
+- **System** describes the differential equations.
+- **Frame** describes the structure of the state.
+- **Method** chooses the numerical integration algorithm.
+- **Engine** chooses where state is stored and where algebra is performed.
 
-- **Foreign object models** can keep their own state and increment classes when
-  flattening would damage the model design.
-- **Arbitrary state representations** can be described either with a high-level
-  `Frame` or, for advanced users, with custom state, translation, and allocator
-  objects.
-- **The translation layer** makes solver increments explicit, so schemes can
-  combine, scale, apply, and measure changes without assuming every state is a
-  NumPy vector.
-- **Implicit and IMEX machinery** is built from composable schemes, resolvents,
-  linearizers, and inverters rather than a single opaque stiff-solver switch.
-- **Extensible algebra** lets `Frame`-backed systems use generated Algebraist
-  kernels, while advanced models can provide their own fast paths when the
-  generic runtime route is not enough.
+That separation allows the same numerical methods to work with simple array
+problems, structured state, and more specialised simulation models without
+changing the solver architecture.
 
-For the high-level path, start with [`docs/getting-started.md`](docs/getting-started.md).
-For custom models, see [`docs/foreign-models.md`](docs/foreign-models.md). For
-extension points, see [`docs/extending.md`](docs/extending.md).
+## Why STARK?
 
-## What STARK Provides
+Most ODE libraries start by flattening state into one vector.
 
-- Explicit fixed-step schemes such as Euler, midpoint, Heun, Kutta3, RK4,
-  RK38, Ralston, and SSP RK33.
-- Explicit adaptive schemes such as Bogacki-Shampine, Cash-Karp,
-  Dormand-Prince, Fehlberg 4(5), and Tsitouras 5.
-- Implicit schemes such as backward Euler, implicit midpoint,
-  Crank-Nicolson, Crouzeix DIRK3, Gauss-Legendre 4, Lobatto IIIC 4,
-  Radau IIA 5, BDF2, SDIRK21, Kvaerno3, Kvaerno4, and Kvaerno5.
-- IMEX schemes including IMEX Euler and Kennedy-Carpenter adaptive ARK pairs.
-- Resolvents for implicit correction problems, including Picard, Newton,
-  coupled Newton, chord, very-chord, Anderson, and Broyden families.
-- Inverters for linear correction problems, including dense, Krylov Arnoldi,
-  Richardson, Jacobi, and specialist relaxation paths.
-- Engines for native Python values and NumPy arrays, plus optional JAX and CuPy
-  engines when those dependencies are installed and usable.
-- Diagnostics for monitoring integrations and comparing methods on short runs.
-- Runnable examples organised by topic.
-- Generated API reference and contributor design notes.
+STARK instead keeps the distinction between:
+
+- the **state** of the model;
+- the **translation** or increment applied by the solver;
+- the **numerical method**;
+- the **execution backend**.
+
+This makes several things possible without changing the solver architecture:
+
+- named and structured state fields;
+- existing object-oriented simulation models;
+- explicit, implicit, and IMEX methods under one API;
+- alternative storage backends including NumPy, JAX, and CuPy;
+- extensible algebra for specialised state representations.
+
+If your model is naturally a single dense vector, STARK still works well. If it
+is not naturally a vector, STARK is designed specifically for that use case.
 
 ## Installation
 
-Before the beta is published, install directly from GitHub:
+Until the beta release is published on PyPI:
 
-```powershell
+```bash
 python -m pip install git+https://github.com/stark-numerics/stark-ode.git
 ```
 
-For a local editable checkout:
+Once a beta is published on PyPI:
 
-```powershell
+```bash
+python -m pip install --pre stark-ode
+```
+
+For development:
+
+```bash
 git clone https://github.com/stark-numerics/stark-ode.git
 cd stark-ode
 python -m pip install -e .
 ```
 
-Optional extras are available by task:
+Optional extras are available for documentation, examples, benchmarking,
+accelerators, and comparison reports:
 
-```powershell
+```bash
 python -m pip install -e ".[accelerators]"
 python -m pip install -e ".[examples]"
 python -m pip install -e ".[docs]"
@@ -93,21 +79,7 @@ python -m pip install -e ".[comparison]"
 python -m pip install -e ".[asv]"
 ```
 
-- `.[accelerators]`: JAX and Numba dependencies used by accelerator paths.
-- `.[examples]`: dependencies used by the runnable examples.
-- `.[docs]`: Sphinx, MyST, and the documentation theme.
-- `.[comparison]`: SciPy, Diffrax, JAX, and other dependencies for comparison
-  reports.
-- `.[asv]`: contributor benchmarking tools.
-
-`jax`, `cupy`, and `numba` support depends on the local Python and hardware
-environment. Optional backend examples skip quietly when their dependency is
-not installed.
-
 ## Quick Start
-
-This is the smallest high-level solve: one named scalar-like state field,
-integrated with Cash-Karp on the NumPy engine.
 
 ```python
 import numpy as np
@@ -117,7 +89,7 @@ from stark.engines import EngineNumpy
 from stark.methods import SchemeCashKarp
 
 
-def exponential_decay(t, state, out) -> None:
+def exponential_decay(t, state, out):
     del t
     out.dy[0] = -0.5 * state.y[0]
 
@@ -126,6 +98,7 @@ system = System(
     dynamics=exponential_decay,
     frame=Frame.scalar("y", translation="dy"),
 )
+
 ivp = system.ivp(
     initial={"y": np.array([2.0])},
     interval=Interval(present=0.0, step=0.1, stop=1.0),
@@ -137,159 +110,78 @@ for interval, state in ivp.stable_trajectory():
     print(interval.present, state.y[0])
 ```
 
-The examples in `examples/getting_started/` are the best first stop after this
-snippet.
-
-## Problem Shape
-
-Most user code starts by declaring a `System`:
-
-- `dynamics`: the state-change law;
-- `frame`: the names and shapes of state fields and translation fields;
-- optional `linearizer`: the Jacobian action needed by Newton-style implicit
-  methods.
-
-The `Frame` helpers cover common state layouts:
-
-```python
-Frame.scalar("y", translation="dy")
-Frame.vector("y", translation="dy", length=2)
-Frame.array("u", translation="du", shape=(32, 32))
-Frame.fields(...)
-```
-
-Use `DynamicsStyle` decorators when a dynamics function needs an explicit
-signature, for example return-style functions or field kernels that are easier
-to accelerate.
-
-## Methods
-
-A `Method` is a stack:
-
-```text
-scheme -> optional resolvent -> optional inverter
-```
-
-For ordinary non-stiff problems, start with an explicit adaptive scheme:
-
-```python
-from stark import Method
-from stark.methods import SchemeCashKarp
-
-method = Method(SchemeCashKarp)
-```
-
-The method catalogue gives named recipes:
-
-```python
-from stark.methods import METHOD_CATALOGUE
-
-method = METHOD_CATALOGUE.method("kvaerno5-newton-dense")
-```
-
-Implicit and IMEX methods may need a linearizer, a resolvent, and an inverter.
-See `docs/implicit.md` and the examples under `examples/methods/` and
-`examples/inverters/` before building those stacks by hand.
-
-## Engines
-
-Engines choose storage and algebra policy:
-
-```python
-from stark.engines import EngineNative, EngineNumpy
-```
-
-Optional engines are exported when their dependencies import successfully:
-
-```python
-from stark.engines import EngineJax, EngineCupy
-```
-
-The JAX and CuPy engines are backend storage/arithmetic paths. They do not imply
-that the whole solver is automatically `jax.jit`, `jax.grad`, GPU-optimal, or
-appropriate for every problem shape.
-
 ## Documentation
 
-The manual starts at [`docs/index.md`](docs/index.md). The most useful path for
-new users is:
+The documentation is organised by learning path.
 
-```text
-concepts -> getting-started -> problem -> methods
-```
+| If you want to... | Read |
+|-------------------|------|
+| Learn the design | `docs/concepts.md` |
+| Solve your first problem | `docs/getting-started.md` |
+| Build and configure systems | `docs/problem.md` |
+| Choose numerical methods | `docs/methods.md` |
+| Use implicit and IMEX methods | `docs/implicit.md` |
+| Understand execution backends | `docs/engines.md` |
+| Monitor integrations | `docs/diagnostics.md` |
+| Browse runnable examples | `docs/examples.md` |
 
-Useful pages:
-
-- [`docs/getting-started.md`](docs/getting-started.md)
-- [`docs/problem.md`](docs/problem.md)
-- [`docs/methods.md`](docs/methods.md)
-- [`docs/implicit.md`](docs/implicit.md)
-- [`docs/engines.md`](docs/engines.md)
-- [`docs/diagnostics.md`](docs/diagnostics.md)
-- [`docs/examples.md`](docs/examples.md)
-
-Contributor notes start at [`docs/contributing/README.md`](docs/contributing/README.md).
+For contributors, design notes begin in `docs/contributing/README.md`.
 
 ## Examples
 
-Examples are executable documentation. From a source checkout:
+Examples are executable documentation. Recommended starting points are:
 
-```powershell
-python -m pip install -e ".[examples]"
-python -m examples.getting_started
-python -m examples.problem
-python -m examples.methods
-python -m examples.diagnostics
-python -m examples.engines
-python -m examples.inverters
-```
-
-Useful starting points include:
-
-```powershell
+```bash
 python -m examples.getting_started.scalar_decay
 python -m examples.getting_started.numpy_oscillator
 python -m examples.problem.dynamics_styles
 python -m examples.methods.choose_scheme
-python -m examples.methods.resolvent_linearized
 python -m examples.diagnostics.compare_custom_scheme
 ```
 
-The maintained example inventory lives in [`examples/manifest.py`](examples/manifest.py),
-and the examples guide is [`examples/README.md`](examples/README.md).
+Each example demonstrates one aspect of the library and can be run directly
+after installing the `examples` extra.
 
-## Competition Reports
+## Features
 
-Competition reports live under [`competition/`](competition/). They compare
-STARK, SciPy, and Diffrax implementations of the same problems while keeping
-each implementation close to its native idiom.
+STARK includes:
 
-```powershell
-python -m pip install -e ".[comparison]"
-python -m competition.brusselator_2d.report
-python -m competition.fput.report
-python -m competition.fitzhugh_nagumo_1d.report
-python -m competition.robertson.report
-```
+- explicit Runge-Kutta methods;
+- adaptive embedded Runge-Kutta methods;
+- implicit DIRK, SDIRK, Gauss, Radau, and BDF methods;
+- IMEX methods;
+- Newton, Picard, Anderson, Broyden, and related nonlinear resolvents;
+- dense and iterative linear inversion strategies;
+- native Python, NumPy, JAX, and CuPy execution engines;
+- diagnostics, comparison tooling, and benchmarking support;
+- extension points for custom state representations and numerical algorithms.
+
+See the documentation for the complete method catalogue.
+
+## Who Is STARK For?
+
+STARK is intended for users who:
+
+- want to preserve the structure of simulation state;
+- work with dataclasses or object-oriented models;
+- need explicit, implicit, and IMEX methods within one framework;
+- want to experiment with numerical algorithms or extend solver components.
+
+If every problem you solve is already naturally represented as a single dense
+NumPy vector, SciPy's `solve_ivp` may be the simpler choice.
 
 ## Development
 
-```powershell
+```bash
 python -m pip install -e ".[dev]"
 python -m pytest -q
-.\devtools\check-types.ps1
-.\devtools\check-release-surface.ps1
 ```
-
-Contributor benchmarks use ASV and are described in
-[`benchmarks/README.md`](benchmarks/README.md).
 
 ## Citation
 
-If you use `stark-ode` in research or published work, please cite the package
-repository. Citation metadata is provided in [`CITATION.cff`](CITATION.cff), and
-GitHub should render it as a ready-to-copy citation.
+If you use STARK in published work, please cite the repository. Citation
+metadata is provided in `CITATION.cff`.
 
 ## License
 
-`stark-ode` is released under the MIT license. See [`LICENSE`](LICENSE).
+MIT License.
