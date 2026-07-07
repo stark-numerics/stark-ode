@@ -122,6 +122,15 @@ provider for temporary checks:
 python -m pytest -p no:cacheprovider
 ```
 
+## Design TODOs
+
+Post-release work lives in local `DESIGN.md` files rather than in a root TODO
+file. To list every `## To Do` section:
+
+```powershell
+.\devtools\list-design-todos.ps1
+```
+
 ## Benchmark checks
 
 ASV discovery and tiered runs are wrapped so you do not need to remember the

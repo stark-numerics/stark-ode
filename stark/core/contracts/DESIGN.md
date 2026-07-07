@@ -57,11 +57,13 @@ Prefer focused imports when writing docs or implementation code:
 - `stark.core.contracts.carrier`: carrier bundles
 - `stark.core.contracts.dynamics`: right-hand-side workers
 - `stark.core.contracts.dynamics_split`: IMEX dynamics split protocol
+- `stark.core.contracts.field`: structured fields inside frame-like declarations
 - `stark.core.contracts.inner_product`: translation-space inner products
 - `stark.core.contracts.integrator`: trajectory-building workers
 - `stark.core.contracts.interval`: timeline cursors
 - `stark.core.contracts.linear_combine`: translation algebra fast paths
 - `stark.core.contracts.linearizer`: Jacobian-action workers
+- `stark.core.contracts.norm`: norm policies
 - `stark.core.contracts.stepper`: step-accepting workers
 - `stark.core.contracts.operator`: matrix-free linear operators
 - `stark.core.contracts.residual`: residual workers for nonlinear solves

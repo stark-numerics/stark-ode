@@ -56,7 +56,7 @@ def test_returning_signature_can_be_declared_as_decorator() -> None:
     dynamics = Dynamics(rhs)
     out = SimpleNamespace(
         dy=0.0,
-        algebraist_frame=Frame({"y": {"translation": "dy"}}).to_algebraist_frame(),
+        frame=Frame({"y": {"translation": "dy"}}),
     )
 
     dynamics(DummyDynamicsInterval(2.0), DummyDynamicsState(3.0), out)

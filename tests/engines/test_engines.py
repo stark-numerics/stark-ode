@@ -5,7 +5,7 @@ from typing import Any, Protocol
 import numpy as np
 import pytest
 
-from stark import Frame, FrameField
+from stark import Frame, Field
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorInnerProduct,
@@ -53,8 +53,8 @@ def test_stark_engine_numpy_exposes_backend_bundle() -> None:
     accelerator = AcceleratorNone()
     layout = Frame(
         (
-            FrameField("u", translation="du", shape=(2, 3)),
-            FrameField("v", translation="dv", shape=(2, 3)),
+            Field("u", translation="du", shape=(2, 3)),
+            Field("v", translation="dv", shape=(2, 3)),
         )
     )
 
@@ -71,8 +71,8 @@ def test_stark_engine_numpy_allocator_builds_owned_structures() -> None:
     engine = EngineNumpy(
         Frame(
             (
-                FrameField("u", translation="du", shape=(2, 2)),
-                FrameField("v", translation="dv", shape=(2, 2)),
+                Field("u", translation="du", shape=(2, 2)),
+                Field("v", translation="dv", shape=(2, 2)),
             )
         ),
         dtype=np.float32,
@@ -91,8 +91,8 @@ def test_stark_engine_numpy_translation_applies_fieldwise_delta() -> None:
     engine = EngineNumpy(
         Frame(
             (
-                FrameField("u", translation="du", shape=(2,)),
-                FrameField("v", translation="dv", shape=(2,)),
+                Field("u", translation="du", shape=(2,)),
+                Field("v", translation="dv", shape=(2,)),
             )
         )
     )
@@ -116,8 +116,8 @@ def test_stark_engine_numpy_exposes_algebraist_providers() -> None:
     engine = EngineNumpy(
         Frame(
             (
-                FrameField("u", translation="du", shape=(2,)),
-                FrameField("v", translation="dv", shape=(2,)),
+                Field("u", translation="du", shape=(2,)),
+                Field("v", translation="dv", shape=(2,)),
             )
         )
     )
@@ -132,8 +132,8 @@ def test_stark_engine_numpy_exposes_layout_inner_product() -> None:
     engine = EngineNumpy(
         Frame(
             (
-                FrameField("u", translation="du", shape=(2,)),
-                FrameField("v", translation="dv", shape=(2,)),
+                Field("u", translation="du", shape=(2,)),
+                Field("v", translation="dv", shape=(2,)),
             )
         )
     )
@@ -145,15 +145,15 @@ def test_stark_engine_numpy_exposes_layout_inner_product() -> None:
     right.du[...] = (10.0, 20.0)
     right.dv[...] = (30.0, 40.0)
 
-    assert engine.allocator.inner_product(left, right) == pytest.approx(150.0)
+    assert engine.allocator.inner_product(left, right) == pytest.approx(300.0)
 
 
 def test_stark_engine_numpy_translation_basis_inspects_full_translation() -> None:
     engine = EngineNumpy(
         Frame(
             (
-                FrameField("u", translation="du", shape=(2,)),
-                FrameField("v", translation="dv", shape=(1,)),
+                Field("u", translation="du", shape=(2,)),
+                Field("v", translation="dv", shape=(1,)),
             )
         )
     )
@@ -183,8 +183,8 @@ def test_stark_engine_native_uses_array_backed_fields() -> None:
     engine = EngineNative(
         Frame(
             (
-                FrameField("u", translation="du", shape=(2,)),
-                FrameField("v", translation="dv", shape=(2,)),
+                Field("u", translation="du", shape=(2,)),
+                Field("v", translation="dv", shape=(2,)),
             )
         )
     )
@@ -206,11 +206,11 @@ def test_stark_engine_native_uses_array_backed_fields() -> None:
     assert isinstance(engine.algebraist_inner_product, AlgebraistGeneratorInnerProduct)
     assert isinstance(engine.algebraist_norm, AlgebraistGeneratorNorm)
     assert isinstance(engine.algebraist_specialist, AlgebraistGeneratorSpecialist)
-    assert engine.allocator.inner_product(delta, delta) == pytest.approx(1500.0)
+    assert engine.allocator.inner_product(delta, delta) == pytest.approx(3000.0)
 
 
 def test_stark_engine_native_rejects_multidimensional_shapes() -> None:
-    layout = Frame((FrameField("u", translation="du", shape=(2, 2)),))
+    layout = Frame((Field("u", translation="du", shape=(2, 2)),))
 
     with pytest.raises(ValueError, match="one-dimensional"):
         EngineNative(layout)
@@ -223,8 +223,8 @@ def test_stark_engine_cupy_optional() -> None:
     engine = EngineCupy(
         Frame(
             (
-                FrameField("u", translation="du", shape=(2,)),
-                FrameField("v", translation="dv", shape=(2,)),
+                Field("u", translation="du", shape=(2,)),
+                Field("v", translation="dv", shape=(2,)),
             )
         ),
         dtype=cp.float32,
@@ -249,7 +249,7 @@ def test_stark_engine_cupy_optional() -> None:
     assert isinstance(engine.algebraist_specialist, AlgebraistGeneratorSpecialist)
     assert len(engine.allocator.linear_combine) >= 2
     inner_product = engine.allocator.inner_product(delta, delta)
-    assert float(inner_product.get()) == pytest.approx(1500.0)
+    assert float(inner_product.get()) == pytest.approx(3000.0)
 
 
 def test_stark_engine_jax_optional() -> None:
@@ -259,8 +259,8 @@ def test_stark_engine_jax_optional() -> None:
     engine = EngineJax(
         Frame(
             (
-                FrameField("u", translation="du", shape=(2,)),
-                FrameField("v", translation="dv", shape=(2,)),
+                Field("u", translation="du", shape=(2,)),
+                Field("v", translation="dv", shape=(2,)),
             )
         ),
         dtype=jnp.float32,
@@ -284,4 +284,4 @@ def test_stark_engine_jax_optional() -> None:
     assert isinstance(engine.algebraist_norm, AlgebraistGeneratorNorm)
     assert isinstance(engine.algebraist_specialist, AlgebraistGeneratorSpecialist)
     assert len(engine.allocator.linear_combine) >= 2
-    assert engine.allocator.inner_product(delta, delta) == pytest.approx(1500.0)
+    assert engine.allocator.inner_product(delta, delta) == pytest.approx(3000.0)

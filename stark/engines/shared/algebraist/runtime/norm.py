@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from math import sqrt
 from typing import Generic, TypeVar
 
-from stark.engines.shared.algebraist.frame import AlgebraistFrame
+from stark.core.contracts.frame import FrameLike
 
 TranslationType = TypeVar("TranslationType")
 
@@ -14,7 +14,7 @@ TranslationType = TypeVar("TranslationType")
 class AlgebraistRuntimeNorm(Generic[TranslationType]):
     """Runtime provider of frame-aware translation norm kernels."""
 
-    frame: AlgebraistFrame
+    frame: FrameLike
     field_norms: Sequence[Callable[[object], float]]
 
     def __post_init__(self) -> None:
@@ -23,14 +23,16 @@ class AlgebraistRuntimeNorm(Generic[TranslationType]):
 
     def provide(self, request: None = None) -> Callable[[TranslationType], float]:
         del request
-        fields_and_norms = tuple(zip(self.frame.fields, self.field_norms, strict=True))
+        entries = tuple(
+            zip(self.frame.fields, self.frame.norms, self.field_norms, strict=True)
+        )
 
         def kernel(translation: TranslationType) -> float:
             total = 0.0
-            for field, norm in fields_and_norms:
-                if not field.norm.include:
+            for field, frame_norm, carrier_norm in entries:
+                if getattr(frame_norm, "kind", None) == "excluded":
                     continue
-                field_norm = norm(field.translation_path(translation))
+                field_norm = carrier_norm(field.translation_path(translation))
                 total += field_norm * field_norm
             return sqrt(total)
 

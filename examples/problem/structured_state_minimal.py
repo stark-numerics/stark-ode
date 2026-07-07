@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import DynamicsStyle, Frame, Interval, Method, System
+from stark import DynamicsStyle, Field, Frame, Interval, Method, System
 from stark.engines import EngineNumpy
 from stark.methods import SchemeRK4
 
@@ -23,9 +23,19 @@ def harmonic_motion(_time: float, state, out) -> None:
 
 
 def build_system() -> System:
-    frame = Frame.from_fields(
-        ("model.particle.position", "delta.particle.position", (1,)),
-        ("model.particle.velocity", "delta.particle.velocity", (1,)),
+    frame = Frame(
+        (
+            Field(
+                "model.particle.position",
+                translation="delta.particle.position",
+                shape=(1,),
+            ),
+            Field(
+                "model.particle.velocity",
+                translation="delta.particle.velocity",
+                shape=(1,),
+            ),
+        )
     )
     return System(dynamics=harmonic_motion, frame=frame)
 

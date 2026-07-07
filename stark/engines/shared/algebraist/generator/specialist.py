@@ -4,6 +4,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Generic, TypeVar, cast
 
+from stark.core.contracts.frame import FrameLike
 from stark.core.contracts.state import State
 from stark.core.contracts.translation import Translation
 from stark.engines.shared.accelerators.none import AcceleratorNone
@@ -13,7 +14,6 @@ from stark.engines.shared.algebraist.generator.target import (
     AlgebraistGeneratorTarget,
     AlgebraistGeneratorTargetMutable,
 )
-from stark.engines.shared.algebraist.frame import AlgebraistFrame
 from stark.engines.shared.algebraist.stencil import AlgebraistStencil
 from stark.engines.shared.algebraist.allocator import AlgebraistAllocator
 from stark.core.contracts.accelerator import Accelerator
@@ -32,7 +32,7 @@ class AlgebraistGeneratorSpecialist(Generic[StateType, TranslationType]):
 
     translation: TranslationType
     allocator: AlgebraistAllocator[TranslationType]
-    frame: AlgebraistFrame
+    frame: FrameLike
     linear_combine: Sequence[Callable[..., TranslationType]] | None = None
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
     target: AlgebraistGeneratorTarget = field(default_factory=AlgebraistGeneratorTargetMutable)

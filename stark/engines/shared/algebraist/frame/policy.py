@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import prod
-from typing import Protocol
+from typing import ClassVar, Protocol
 
 MAX_UNRAVEL_SIZE = 16
 
@@ -22,21 +22,28 @@ def _normalize_shape(shape: tuple[int, ...] | list[int]) -> tuple[int, ...]:
 class AlgebraistFramePolicy(Protocol):
     """Policy describing how a frame field is emitted/traversed."""
 
+    kind: ClassVar[str]
+
 
 @dataclass(frozen=True, slots=True)
 class AlgebraistFrameScalar:
     """Emit direct scalar assignment with no indexing or broadcasting."""
+
+    kind: ClassVar[str] = "scalar"
 
 
 @dataclass(frozen=True, slots=True)
 class AlgebraistFrameBroadcast:
     """Emit whole-field broadcast assignment, for example target[...] = expression."""
 
+    kind: ClassVar[str] = "broadcast"
+
 
 @dataclass(frozen=True, slots=True)
 class AlgebraistFrameLooped:
     """Emit generated loops over a known shape or runtime rank."""
 
+    kind: ClassVar[str] = "looped"
     rank: int | None = None
     shape: tuple[int, ...] | list[int] | None = None
 
@@ -69,6 +76,7 @@ class AlgebraistFrameUnravel:
     silently falling back to looped emission.
     """
 
+    kind: ClassVar[str] = "unravel"
     shape: tuple[int, ...] | list[int]
 
     def __post_init__(self) -> None:

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from math import sqrt
 from typing import Any, SupportsFloat, cast
 
-from stark.engines.shared.algebraist.frame import AlgebraistFrame
+from stark.core.contracts.frame import FrameLike
 from stark.engines.cupy.carriers import CarrierCupy
 
 
@@ -12,7 +12,7 @@ from stark.engines.cupy.carriers import CarrierCupy
 class EngineTranslationCupy:
     """Structured CuPy translation using in-place field carrier arithmetic."""
 
-    algebraist_frame: AlgebraistFrame = field(repr=False)
+    algebraist_frame: FrameLike = field(repr=False)
     carriers: tuple[CarrierCupy, ...] = field(repr=False)
     allocator: Any = field(repr=False)
     linear_combine: tuple[Any, ...] = field(default=(), repr=False)
@@ -67,8 +67,13 @@ class EngineTranslationCupy:
             return float(cast(SupportsFloat, value))
 
         total = 0.0
-        for field, carrier in zip(self.algebraist_frame.fields, self.carriers, strict=True):
-            if not field.norm.include:
+        for field, norm, carrier in zip(
+            self.algebraist_frame.fields,
+            self.algebraist_frame.norms,
+            self.carriers,
+            strict=True,
+        ):
+            if getattr(norm, "kind", None) == "excluded":
                 continue
             field_norm = carrier.norm(field.translation_path(self))
             total += field_norm * field_norm

@@ -13,12 +13,11 @@ from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
-from stark.engines.shared.algebraist.frame import AlgebraistFrame, AlgebraistFrameLooped
 from stark.engines.numpy.carriers import CarrierNumpy
 from stark.core.contracts.accelerator import Accelerator
+from stark.core.contracts.frame import FrameLike
 from stark.engines.numpy.allocator import EngineAllocatorNumpy
 from stark.engines.shared.basis import EngineTranslationBasis
-from stark.problem.frame.frame import Frame
 
 
 def _default_accelerator() -> Accelerator:
@@ -41,10 +40,10 @@ class EngineNumpy:
     callables.
     """
 
-    frame: Frame
+    frame: FrameLike
     dtype: Any = np.float64
     accelerator: Accelerator = field(default_factory=_default_accelerator)
-    algebraist_frame: AlgebraistFrame = field(init=False)
+    algebraist_frame: FrameLike = field(init=False)
     carriers: tuple[CarrierNumpy, ...] = field(init=False, repr=False)
     allocator: EngineAllocatorNumpy = field(init=False, repr=False)
     algebraist_inner_product: AlgebraistGeneratorInnerProduct = field(init=False, repr=False)
@@ -76,17 +75,20 @@ class EngineNumpy:
         return EngineTranslationBasis(self.algebraist_frame, self.carriers)
 
     def __post_init__(self) -> None:
-        algebraist_frame = self.frame.to_algebraist_frame()
+        algebraist_frame = self.frame
         carriers: list[CarrierNumpy] = []
         dtype = np.dtype(self.dtype)
 
         for field in algebraist_frame.fields:
             policy = field.policy
-            if not isinstance(policy, AlgebraistFrameLooped) or policy.shape is None:
+            shape = getattr(policy, "shape", None)
+            if shape is None:
+                shape = getattr(field, "shape", None)
+            if getattr(policy, "kind", None) != "looped" or shape is None:
                 raise ValueError(
                     "EngineNumpy requires every frame field to declare shape."
                 )
-            carriers.append(CarrierNumpy(np.zeros(policy.shape, dtype=dtype)))
+            carriers.append(CarrierNumpy(np.zeros(shape, dtype=dtype)))
 
         carrier_tuple = tuple(carriers)
         allocator = EngineAllocatorNumpy(

@@ -17,6 +17,7 @@ from typing import Any, cast
 from stark.core.contracts import (
     DynamicsLike,
     DynamicsSplitLike,
+    FrameLike,
     IntervalLike,
     SchemeLike,
     State,
@@ -28,14 +29,13 @@ from stark.core.integrator.integrator import Checkpoints, Integrator
 from stark.core.integrator.stepper import IntegratorStepper
 from stark.problem.dynamics import Dynamics, DynamicsSignature
 from stark.problem.dynamics.split import DynamicsSplit
-from stark.problem.frame.frame import Frame
 from stark.problem.linearizer.linearizer import Linearizer
 from stark.problem.linearizer.implementation import LinearizerImplementation
 from stark.problem.linearizer.signature import LinearizerSignature
 from stark.methods.method import Method, MethodError
 
 
-EngineFactory = Callable[[Frame], Engine]
+EngineFactory = Callable[[FrameLike], Engine]
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,7 +204,7 @@ class System:
     """
 
     dynamics: object
-    frame: Frame
+    frame: FrameLike
     linearizer: object | None = None
     inner_product: object | None = None
 

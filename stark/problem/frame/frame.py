@@ -1,73 +1,27 @@
 """User-facing frame declarations for structured state.
 
 A `Frame` names the state fields a model owns, the translation fields where
-dynamics are written, each field's storage shape, and the norm policy used
-by adaptive methods. Engines translate this declaration into backend-specific
-allocation and algebra kernels.
+dynamics are written, each field's storage shape, and the frame-level policies
+used by adaptive methods and algebra helpers. Engines translate this
+declaration into backend-specific allocation and algebra kernels.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any, cast
 
-from stark.engines.shared.algebraist.frame import (
-    AlgebraistFrame,
-    AlgebraistFrameBroadcast,
-    AlgebraistFrameField,
-    AlgebraistFrameLooped,
-    AlgebraistFrameNormPolicy,
-    AlgebraistFramePolicy,
-    AlgebraistFrameScalar,
-    AlgebraistFrameUnravel,
-)
-from stark.engines.shared.algebraist.frame.path import AlgebraistFramePathLike
-from stark.problem.frame.norm import FrameNormPolicy, FrameNormRMS
-
-FrameFieldSpec = tuple[
-    AlgebraistFramePathLike,
-    AlgebraistFramePathLike,
-    tuple[int, ...] | list[int],
-]
+from stark.core.contracts.field import FieldLike
+from stark.core.contracts.inner_product import InnerProductNamed
+from stark.core.contracts.norm import NormLike
+from stark.problem.frame.field import Field
+from stark.problem.frame.inner_product import InnerProductL2
+from stark.problem.frame.norm import NormRMS
+from stark.problem.frame.path import FieldPath, FieldPathLike
 
 
-@dataclass(frozen=True, slots=True)
-class FrameField:
-    """One user-facing state field in a STARK frame."""
-
-    state: AlgebraistFramePathLike
-    translation: AlgebraistFramePathLike | None = None
-    shape: tuple[int, ...] | list[int] | None = None
-    norm: FrameNormPolicy | AlgebraistFrameNormPolicy = field(
-        default_factory=FrameNormRMS
-    )
-
-    def __post_init__(self) -> None:
-        if self.translation is None:
-            object.__setattr__(self, "translation", self.state)
-
-    def to_algebraist_field(self) -> AlgebraistFrameField:
-        translation = self.translation
-        if translation is None:
-            translation = self.state
-        return AlgebraistFrameField(
-            translation,
-            self.state,
-            policy=self.algebraist_policy(),
-            norm=self.algebraist_norm(),
-        )
-
-    def algebraist_norm(self) -> AlgebraistFrameNormPolicy:
-        norm = self.norm
-        if hasattr(norm, "to_algebraist_norm"):
-            return cast(FrameNormPolicy, norm).to_algebraist_norm()
-        return norm
-
-    def algebraist_policy(self) -> AlgebraistFramePolicy:
-        if self.shape is not None:
-            return AlgebraistFrameLooped(shape=self.shape)
-        return AlgebraistFrameBroadcast()
+FrameFieldLike = FieldLike[Any, Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,42 +31,79 @@ class Frame:
 
     A frame tells an engine which state paths exist, which translation paths
     hold their updates, what shape each field has, and how each field contributes
-    to norms. It accepts explicit `FrameField` objects, simple path names,
-    or a mapping such as `{"y": {"translation": "dy", "shape": (2,)}}`.
+    to norms and inner products. It accepts explicit `FieldLike` objects,
+    simple path names, or a mapping such as
+    `{"y": {"translation": "dy", "shape": (2,)}}`.
     """
 
-    fields: tuple[FrameField, ...]
+    fields: tuple[FrameFieldLike, ...]
+    norms: tuple[NormLike[object], ...]
+    inner_products: tuple[InnerProductNamed[object], ...]
 
     def __init__(
         self,
-        fields: FrameField
-        | AlgebraistFramePathLike
-        | Mapping[AlgebraistFramePathLike, Any]
-        | Iterable[FrameField | AlgebraistFramePathLike | Mapping[str, Any]],
+        fields: FrameFieldLike
+        | FieldPathLike
+        | Mapping[FieldPathLike, Any]
+        | Iterable[FrameFieldLike | FieldPathLike | Mapping[str, Any]],
+        norms: NormLike[object] | Iterable[NormLike[object]] | None = None,
+        inner_products: InnerProductNamed[object]
+        | Iterable[InnerProductNamed[object]]
+        | None = None,
     ) -> None:
         if isinstance(fields, Mapping):
-            field_mapping = cast(Mapping[AlgebraistFramePathLike, Any], fields)
-            normalized = tuple(
+            field_mapping = cast(Mapping[FieldPathLike, Any], fields)
+            entries = tuple(
                 self._field_from_mapping_item(state, spec)
                 for state, spec in field_mapping.items()
             )
-        elif isinstance(fields, FrameField) or isinstance(fields, str):
-            normalized = (self._coerce_field(fields),)
+        elif isinstance(fields, str) or self._is_field_like(fields):
+            entries = (
+                self._coerce_field(
+                    cast(FrameFieldLike | FieldPathLike | Mapping[str, Any], fields)
+                ),
+            )
         else:
-            normalized = tuple(self._coerce_field(field) for field in fields)
-        if not normalized:
+            field_iterable = cast(
+                Iterable[FrameFieldLike | FieldPathLike | Mapping[str, Any]],
+                fields,
+            )
+            entries = tuple(self._coerce_field(field) for field in field_iterable)
+        if not entries:
             raise ValueError("Frame requires at least one field.")
 
-        object.__setattr__(self, "fields", normalized)
-        self.to_algebraist_frame()
+        normalized_fields = tuple(field for field, _norm, _inner_product in entries)
+        declared_norms = tuple(norm for _field, norm, _inner_product in entries)
+        declared_inner_products = tuple(
+            inner_product for _field, _norm, inner_product in entries
+        )
+        normalized_norms = (
+            declared_norms
+            if norms is None
+            else self._normalize_norms(norms, count=len(normalized_fields))
+        )
+        normalized_inner_products = (
+            declared_inner_products
+            if inner_products is None
+            else self._normalize_inner_products(
+                inner_products,
+                count=len(normalized_fields),
+            )
+        )
+
+        object.__setattr__(self, "fields", normalized_fields)
+        object.__setattr__(self, "norms", normalized_norms)
+        object.__setattr__(self, "inner_products", normalized_inner_products)
+        self._validate()
 
     @classmethod
     def scalar(
         cls,
-        state: AlgebraistFramePathLike,
+        state: FieldPathLike,
         *,
-        translation: AlgebraistFramePathLike | None = None,
-        norm: FrameNormPolicy | AlgebraistFrameNormPolicy | None = None,
+        translation: FieldPathLike | None = None,
+        norm: NormLike[object] | None = None,
+        inner_product: InnerProductNamed[object] | None = None,
     ) -> "Frame":
         """Build a one-field frame for scalar-like state storage.
 
@@ -127,16 +118,19 @@ class Frame:
         }
         if norm is not None:
             spec["norm"] = norm
+        if inner_product is not None:
+            spec["inner_product"] = inner_product
         return cls({state: spec})
 
     @classmethod
     def vector(
         cls,
-        state: AlgebraistFramePathLike,
+        state: FieldPathLike,
         *,
-        translation: AlgebraistFramePathLike | None = None,
+        translation: FieldPathLike | None = None,
         length: int,
-        norm: FrameNormPolicy | AlgebraistFrameNormPolicy | None = None,
+        norm: NormLike[object] | None = None,
+        inner_product: InnerProductNamed[object] | None = None,
     ) -> "Frame":
         """Build a one-field frame for vector state storage.
 
@@ -150,16 +144,19 @@ class Frame:
         }
         if norm is not None:
             spec["norm"] = norm
+        if inner_product is not None:
+            spec["inner_product"] = inner_product
         return cls({state: spec})
 
     @classmethod
     def array(
         cls,
-        state: AlgebraistFramePathLike,
+        state: FieldPathLike,
         *,
-        translation: AlgebraistFramePathLike | None = None,
+        translation: FieldPathLike | None = None,
         shape: tuple[int, ...] | list[int],
-        norm: FrameNormPolicy | AlgebraistFrameNormPolicy | None = None,
+        norm: NormLike[object] | None = None,
+        inner_product: InnerProductNamed[object] | None = None,
     ) -> "Frame":
         """Build a one-field frame for array state storage.
 
@@ -174,70 +171,130 @@ class Frame:
         }
         if norm is not None:
             spec["norm"] = norm
+        if inner_product is not None:
+            spec["inner_product"] = inner_product
         return cls({state: spec})
-
-    @classmethod
-    def from_fields(cls, *fields: FrameField | FrameFieldSpec) -> "Frame":
-        """Build a frame from compact `(state, translation, shape)` entries.
-
-        This is a convenience spelling for small multi-field systems where the
-        full mapping syntax is visually heavier than the declaration itself.
-        For advanced field options, pass `FrameField(...)` objects or use the
-        full `Frame({...})` mapping syntax.
-        """
-
-        return cls(tuple(cls._coerce_field_spec(field) for field in fields))
-
-    @staticmethod
-    def _coerce_field_spec(field: FrameField | FrameFieldSpec) -> FrameField:
-        if isinstance(field, FrameField):
-            return field
-        state, translation, shape = field
-        return FrameField(state, translation=translation, shape=shape)
 
     @staticmethod
     def _coerce_field(
-        field: FrameField | AlgebraistFramePathLike | Mapping[str, Any],
-    ) -> FrameField:
-        if isinstance(field, FrameField):
-            return field
+        field: FrameFieldLike | FieldPathLike | Mapping[str, Any],
+    ) -> tuple[FrameFieldLike, NormLike[object], InnerProductNamed[object]]:
         if isinstance(field, Mapping):
             return Frame._field_from_spec(field)
-        return FrameField(field)
+        if Frame._is_path_like(field):
+            return Field(cast(FieldPathLike, field)), NormRMS(), InnerProductL2()
+        if Frame._is_field_like(field):
+            return cast(FrameFieldLike, field), NormRMS(), InnerProductL2()
+        raise TypeError("Frame fields must be Field-like, path-like, or mappings.")
 
     @staticmethod
-    def _field_from_spec(spec: Mapping[str, Any]) -> FrameField:
+    def _field_from_spec(
+        spec: Mapping[str, Any],
+    ) -> tuple[FrameFieldLike, NormLike[object], InnerProductNamed[object]]:
         if "state" not in spec:
             raise ValueError("Frame field mappings require a 'state' entry.")
         kwargs = Frame._field_kwargs(spec)
-        return FrameField(spec["state"], **kwargs)
+        norm = cast(NormLike[object], kwargs.pop("norm", NormRMS()))
+        inner_product = cast(
+            InnerProductNamed[object],
+            kwargs.pop("inner_product", InnerProductL2()),
+        )
+        return Field(spec["state"], **kwargs), norm, inner_product
 
     @staticmethod
     def _field_from_mapping_item(
-        state: AlgebraistFramePathLike,
+        state: FieldPathLike,
         spec: Any,
-    ) -> FrameField:
+    ) -> tuple[FrameFieldLike, NormLike[object], InnerProductNamed[object]]:
         if spec is None:
-            return FrameField(state)
+            return Field(state), NormRMS(), InnerProductL2()
         if not isinstance(spec, Mapping):
             raise TypeError(
                 "Frame mapping values must be field option mappings or None."
             )
         kwargs = Frame._field_kwargs(spec)
-        return FrameField(state, **kwargs)
+        norm = cast(NormLike[object], kwargs.pop("norm", NormRMS()))
+        inner_product = cast(
+            InnerProductNamed[object],
+            kwargs.pop("inner_product", InnerProductL2()),
+        )
+        return Field(state, **kwargs), norm, inner_product
+
+    @staticmethod
+    def _is_path_like(value: Any) -> bool:
+        if isinstance(value, str):
+            return True
+        if not isinstance(value, Sequence):
+            return False
+        return all(isinstance(part, str) for part in value)
+
+    @staticmethod
+    def _is_field_like(value: Any) -> bool:
+        attributes = (
+            "state",
+            "translation",
+            "shape",
+            "policy",
+            "state_path",
+            "translation_path",
+        )
+        methods = ("state_expression", "translation_expression")
+        return all(hasattr(value, name) for name in attributes) and all(
+            callable(getattr(value, name, None)) for name in methods
+        )
 
     @staticmethod
     def _field_kwargs(spec: Mapping[str, Any]) -> dict[str, Any]:
-        allowed = {"state", "translation", "shape", "norm"}
+        allowed = {
+            "state",
+            "translation",
+            "shape",
+            "norm",
+            "inner_product",
+            "policy",
+        }
         unsupported = tuple(name for name in spec if name not in allowed)
         if unsupported:
             names = ", ".join(str(name) for name in unsupported)
             raise ValueError(f"Unsupported Frame field option(s): {names}.")
         return {
             name: spec[name]
-            for name in ("translation", "shape", "norm")
+            for name in ("translation", "shape", "norm", "inner_product", "policy")
             if name in spec
         }
+
+    @staticmethod
+    def _normalize_norms(
+        norms: NormLike[object] | Iterable[NormLike[object]],
+        *,
+        count: int,
+    ) -> tuple[NormLike[object], ...]:
+        if callable(norms) and hasattr(norms, "kind"):
+            return tuple(cast(NormLike[object], norms) for _index in range(count))
+
+        normalized = tuple(cast(Iterable[NormLike[object]], norms))
+        if len(normalized) != count:
+            raise ValueError("Frame requires one norm per field.")
+        return normalized
+
+    @staticmethod
+    def _normalize_inner_products(
+        inner_products: InnerProductNamed[object] | Iterable[InnerProductNamed[object]],
+        *,
+        count: int,
+    ) -> tuple[InnerProductNamed[object], ...]:
+        if callable(inner_products) and hasattr(inner_products, "kind"):
+            return tuple(
+                cast(InnerProductNamed[object], inner_products)
+                for _index in range(count)
+            )
+
+        normalized = tuple(
+            cast(Iterable[InnerProductNamed[object]], inner_products)
+        )
+        if len(normalized) != count:
+            raise ValueError("Frame requires one inner product per field.")
+        return normalized
 
     def __iter__(self):
         return iter(self.fields)
@@ -245,11 +302,28 @@ class Frame:
     def __len__(self) -> int:
         return len(self.fields)
 
-    def to_algebraist_frame(self) -> AlgebraistFrame:
-        return AlgebraistFrame(field.to_algebraist_field() for field in self.fields)
+    @property
+    def translation_paths(self) -> tuple[FieldPath, ...]:
+        return tuple(field.translation_path for field in self.fields)
+
+    @property
+    def state_paths(self) -> tuple[FieldPath, ...]:
+        return tuple(field.state_path for field in self.fields)
+
+    def _validate(self) -> None:
+        translation_paths = self.translation_paths
+        state_paths = self.state_paths
+
+        if len(set(translation_paths)) != len(translation_paths):
+            raise ValueError("Frame fields must have unique translation paths.")
+
+        if len(set(state_paths)) != len(state_paths):
+            raise ValueError("Frame fields must have unique state paths.")
 
 
 __all__ = [
     "Frame",
-    "FrameField",
+    "Field",
+    "FieldPath",
+    "FieldPathLike",
 ]

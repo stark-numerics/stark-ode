@@ -2,16 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from math import prod
 from typing import Generic, TypeVar
 
-from stark.engines.shared.algebraist.frame import (
-    AlgebraistFrame,
-    AlgebraistFrameLooped,
-    AlgebraistFrameNormMax,
-    AlgebraistFrameNormRMS,
-    AlgebraistFrameUnravel,
-)
+from stark.core.contracts.frame import FrameLike
+from stark.engines.shared.algebraist.frame.entries import included_inner_product_entries
 
 TranslationType = TypeVar("TranslationType")
 
@@ -20,33 +14,18 @@ TranslationType = TypeVar("TranslationType")
 class AlgebraistRuntimeInnerProduct(Generic[TranslationType]):
     """Runtime provider of frame-aware translation inner products."""
 
-    frame: AlgebraistFrame
+    frame: FrameLike
 
     def provide(self, request: None = None) -> Callable[[TranslationType, TranslationType], float]:
         del request
-        fields = self.frame.fields
+        entries = included_inner_product_entries(self.frame)
 
         def kernel(left: TranslationType, right: TranslationType) -> float:
             total = 0.0
-            for field in fields:
-                if not field.norm.include:
-                    continue
-                scale = 1.0
-                if isinstance(field.norm, AlgebraistFrameNormRMS):
-                    policy = field.policy
-                    if isinstance(policy, AlgebraistFrameLooped):
-                        if policy.shape is None:
-                            raise ValueError("Runtime inner product requires shaped RMS looped fields.")
-                        scale = float(prod(policy.shape))
-                    elif isinstance(policy, AlgebraistFrameUnravel):
-                        scale = float(prod(policy.shape))
-                    else:
-                        raise ValueError("Runtime inner product requires shaped RMS fields.")
-                elif not isinstance(field.norm, AlgebraistFrameNormMax):
-                    raise ValueError("Runtime inner product requires RMS or max norm fields.")
+            for field, inner_product in entries:
                 left_value = field.translation_path(left)
                 right_value = field.translation_path(right)
-                total += float((left_value * right_value).sum()) / scale
+                total += inner_product(left_value, right_value)
             return total
 
         return kernel

@@ -1,43 +1,28 @@
 # Frame Design Notes
 
-`Frame` is the named schema for high-level state and translation fields.
+The frame package is moving toward typing by protocol rather than by concrete
+classes.
 
-It is the preferred route for ordinary user models because it gives STARK
-enough structure to generate carriers, translations, allocators, norms, and
-prepared algebra.
+`Frame` remains the user-facing way to declare structured state in `stark-ode`,
+and `Field` remains the default concrete field implementation. However, frame
+contents are intended to be accepted structurally through contracts such as
+`FieldLike`, `NormLike`, and `InnerProductNamed`.
 
-## Role
+This matters because downstream packages need to enrich the same concepts
+without fighting concrete type checks. For example, `stark-pde` may need a
+PDE-specific field that carries spatial lattice, boundary, plotting, or domain
+metadata while still satisfying the core STARK field contract consumed by
+allocation and algebra machinery.
 
-A frame connects:
+The desired direction is:
 
-```text
-state field        y
-translation field  dy
-shape              scalar/vector/array/nested field shape
-norm policy        how adaptive errors are measured
-```
+- concrete objects provide convenient defaults for ordinary `stark-ode` users
+- core contracts describe the behavior engines require
+- frame and algebraist code depend on those contracts, not exact classes
+- algebraist-specific views, such as included norm entries, are derived by
+  algebraist helpers rather than required on the frame contract
+- specialized packages can provide enriched fields or frames that duck type into
+  the same machinery
 
-Convenience constructors such as `Frame.scalar`, `Frame.vector`,
-`Frame.array`, and `Frame.from_fields` are concise spellings of the fuller
-mapping syntax. Documentation should make that equivalence visible.
-
-## Why Frame Comes Before Custom Allocators
-
-Nested or structured data does not automatically require custom state classes.
-If a model can be described as named scalar or array fields, use `Frame` first.
-
-Custom allocators are for foreign models with constructor requirements,
-invariants, external resources, or behaviour that would be damaged by asking
-STARK to own the storage.
-
-## Norm Policy
-
-Frame fields own their contribution to translation norms. This lets users carry
-diagnostic or auxiliary fields without forcing those fields into adaptive error
-control.
-
-## Design Rule
-
-Frame should expose the model shape clearly enough for users and structured
-enough for engines. Avoid pushing users toward low-level contracts when a named
-frame can express the state.
+This is intentionally a gradual migration. Compatibility constructors such as
+string paths and mapping specs should keep producing ordinary `Field` objects, while internal storage and engine-facing APIs should avoid unnecessary concrete `Field` requirements.

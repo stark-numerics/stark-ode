@@ -13,15 +13,9 @@ from stark.engines.shared.algebraist.generator.target import (
     AlgebraistGeneratorTargetMutable,
     AlgebraistGeneratorTargetMutableVectorized,
 )
-from stark.engines.shared.algebraist.frame import (
-    AlgebraistFrame,
-    AlgebraistFrameLooped,
-    AlgebraistFrameNormMax,
-    AlgebraistFrameNormRMS,
-    AlgebraistFrameScalar,
-    AlgebraistFrameUnravel,
-)
 from stark.core.contracts.accelerator import Accelerator
+from stark.core.contracts.frame import FrameLike
+from stark.engines.shared.algebraist.frame.entries import included_norm_entries
 
 TranslationType = TypeVar("TranslationType")
 
@@ -31,7 +25,7 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
     """Generated provider of frame-aware translation norm kernels."""
 
     translation: TranslationType
-    frame: AlgebraistFrame
+    frame: FrameLike
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
     target: AlgebraistGeneratorTarget = field(default_factory=AlgebraistGeneratorTargetMutable)
 
@@ -40,28 +34,32 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
         source = getattr(self.target, "source_norm", None)
         if callable(source):
             return cast(str, source(self.frame))
+        norm_entries = included_norm_entries(self.frame)
         parameters = [
             field.translation_name
-            for field in self.frame.norm_fields
+            for field, _norm in norm_entries
         ]
         lines = [f"def _kernel_flat({', '.join(parameters)}):", "    total = 0.0"]
 
-        for field in self.frame.norm_fields:
+        for field, norm in norm_entries:
             name = field.translation_name
             policy = field.policy
-            norm = field.norm
-            if isinstance(policy, AlgebraistFrameScalar):
-                if not isinstance(norm, (AlgebraistFrameNormRMS, AlgebraistFrameNormMax)):
+            policy_kind = getattr(policy, "kind", None)
+            if policy_kind == "scalar":
+                if getattr(norm, "kind", None) not in {"rms", "max"}:
                     raise ValueError("Generated norm requires RMS or max norm fields.")
                 lines.append(f"    total += abs({name}) ** 2")
                 continue
-            if isinstance(policy, AlgebraistFrameLooped):
-                if policy.shape is None:
+            if policy_kind == "looped":
+                shape = getattr(policy, "shape", None)
+                if shape is None:
+                    shape = getattr(field, "shape", None)
+                if shape is None:
                     raise ValueError("Generated norm requires looped fields to declare shape.")
                 lines.extend(
                     self._looped_field_lines(
                         name=name,
-                        shape=tuple(policy.shape),
+                        shape=tuple(shape),
                         norm=norm,
                         vectorized=isinstance(
                             self.target,
@@ -73,11 +71,16 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
                     )
                 )
                 continue
-            if isinstance(policy, AlgebraistFrameUnravel):
+            if policy_kind == "unravel":
+                shape = getattr(policy, "shape", None)
+                if shape is None:
+                    shape = getattr(field, "shape", None)
+                if shape is None:
+                    raise ValueError("Generated norm requires unravelled fields to declare shape.")
                 lines.extend(
                     self._unravelled_field_lines(
                         name=name,
-                        shape=tuple(policy.shape),
+                        shape=tuple(shape),
                         norm=norm,
                     )
                 )
@@ -91,7 +94,7 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
         lines.append("def kernel(translation):")
         arguments = [
             field.translation_expression("translation")
-            for field in self.frame.norm_fields
+            for field, _norm in norm_entries
         ]
         lines.append(f"    return _kernel_flat({', '.join(arguments)})")
         return "\n".join(lines) + "\n"
@@ -113,10 +116,11 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
         norm: object,
         vectorized: bool = False,
     ) -> list[str]:
+        norm_kind = getattr(norm, "kind", None)
         if vectorized:
-            if isinstance(norm, AlgebraistFrameNormRMS):
+            if norm_kind == "rms":
                 return [f"    total += (abs({name}) ** 2).sum() / {float(prod(shape))!r}"]
-            if isinstance(norm, AlgebraistFrameNormMax):
+            if norm_kind == "max":
                 return [
                     f"    field_norm = abs({name}).max()",
                     "    total += field_norm ** 2",
@@ -124,9 +128,9 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
             raise ValueError("Generated norm requires RMS or max norm fields.")
 
         index_names = tuple(f"i{index}" for index in range(len(shape)))
-        if isinstance(norm, AlgebraistFrameNormRMS):
+        if norm_kind == "rms":
             lines = ["    subtotal = 0.0"]
-        elif isinstance(norm, AlgebraistFrameNormMax):
+        elif norm_kind == "max":
             lines = ["    field_norm = 0.0"]
         else:
             raise ValueError("Generated norm requires RMS or max norm fields.")
@@ -135,7 +139,7 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
             lines.append(f"{indent}for {index_name} in range({bound}):")
         index = "".join(f"[{index_name}]" for index_name in index_names)
         assignment_indent = "    " * (len(shape) + 1)
-        if isinstance(norm, AlgebraistFrameNormRMS):
+        if norm_kind == "rms":
             lines.append(f"{assignment_indent}subtotal += abs({name}{index}) ** 2")
             lines.append(f"    total += subtotal / {float(prod(shape))!r}")
         else:
@@ -154,21 +158,22 @@ class AlgebraistGeneratorNorm(Generic[TranslationType]):
     ) -> list[str]:
         from itertools import product
 
-        if isinstance(norm, AlgebraistFrameNormRMS):
+        norm_kind = getattr(norm, "kind", None)
+        if norm_kind == "rms":
             lines = ["    subtotal = 0.0"]
-        elif isinstance(norm, AlgebraistFrameNormMax):
+        elif norm_kind == "max":
             lines = ["    field_norm = 0.0"]
         else:
             raise ValueError("Generated norm requires RMS or max norm fields.")
         for index_tuple in product(*(range(dimension) for dimension in shape)):
             index = "".join(f"[{index}]" for index in index_tuple)
-            if isinstance(norm, AlgebraistFrameNormRMS):
+            if norm_kind == "rms":
                 lines.append(f"    subtotal += abs({name}{index}) ** 2")
             else:
                 lines.append(f"    item_norm = abs({name}{index})")
                 lines.append("    if item_norm > field_norm:")
                 lines.append("        field_norm = item_norm")
-        if isinstance(norm, AlgebraistFrameNormRMS):
+        if norm_kind == "rms":
             lines.append(f"    total += subtotal / {float(prod(shape))!r}")
         else:
             lines.append("    total += field_norm ** 2")

@@ -6,16 +6,17 @@ from typing import Any
 
 import numpy as np
 
-from stark import Frame, FrameField
+from stark import Frame, Field
 from stark.engines import EngineNumpy
-from stark.problem import FrameNormExcluded, FrameNormRMS
+from stark.problem import NormExcluded, NormRMS
 
 
 frame = Frame(
     (
-        FrameField("u", translation="du", shape=(2,), norm=FrameNormRMS()),
-        FrameField("diagnostic", translation="ddiagnostic", shape=(2,), norm=FrameNormExcluded()),
-    )
+        Field("u", translation="du", shape=(2,)),
+        Field("diagnostic", translation="ddiagnostic", shape=(2,)),
+    ),
+    norms=(NormRMS(), NormExcluded()),
 )
 
 

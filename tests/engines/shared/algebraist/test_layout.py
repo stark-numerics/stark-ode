@@ -7,16 +7,19 @@ import pytest
 from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
     AlgebraistFrameBroadcast,
-    AlgebraistFrameField,
+    AlgebraistField,
     AlgebraistFrameLooped,
-    AlgebraistFrameNormExcluded,
-    AlgebraistFramePath,
+    AlgebraistInnerProductExcluded,
+    AlgebraistInnerProductL2,
+    AlgebraistNormExcluded,
+    AlgebraistNormRMS,
+    AlgebraistFieldPath,
     AlgebraistFrameUnravel,
 )
 
 
 def test_layout_path_normalizes_dotted_string() -> None:
-    path = AlgebraistFramePath.from_value("position.velocity")
+    path = AlgebraistFieldPath.from_value("position.velocity")
 
     assert path.parts == ("position", "velocity")
     assert path.name == "position_velocity"
@@ -24,7 +27,7 @@ def test_layout_path_normalizes_dotted_string() -> None:
 
 
 def test_layout_path_normalizes_sequence() -> None:
-    path = AlgebraistFramePath.from_value(("position", "velocity"))
+    path = AlgebraistFieldPath.from_value(("position", "velocity"))
 
     assert path.parts == ("position", "velocity")
 
@@ -35,18 +38,18 @@ def test_layout_path_normalizes_sequence() -> None:
 )
 def test_layout_path_rejects_invalid_segments(value) -> None:
     with pytest.raises(ValueError):
-        AlgebraistFramePath.from_value(value)
+        AlgebraistFieldPath.from_value(value)
 
 
 def test_layout_path_rejects_invalid_expression_root() -> None:
-    path = AlgebraistFramePath.from_value("position")
+    path = AlgebraistFieldPath.from_value("position")
 
     with pytest.raises(ValueError):
         path.expression("not valid")
 
 
 def test_layout_path_get_set_and_ensure_traverse_runtime_objects() -> None:
-    path = AlgebraistFramePath.from_value("position.velocity")
+    path = AlgebraistFieldPath.from_value("position.velocity")
     root = SimpleNamespace()
 
     parent = path.ensure_parent(root)
@@ -60,7 +63,7 @@ def test_layout_path_get_set_and_ensure_traverse_runtime_objects() -> None:
 
 
 def test_layout_field_normalizes_paths_and_policy() -> None:
-    field = AlgebraistFrameField(
+    field = AlgebraistField(
         translation_path="delta.position",
         state_path=("state", "position"),
         policy=AlgebraistFrameLooped(shape=(3,)),
@@ -76,7 +79,7 @@ def test_layout_field_normalizes_paths_and_policy() -> None:
 
 
 def test_layout_field_defaults_to_broadcast_policy() -> None:
-    field = AlgebraistFrameField(
+    field = AlgebraistField(
         translation_path="delta",
         state_path="state",
     )
@@ -108,8 +111,8 @@ def test_layout_rejects_duplicate_translation_paths() -> None:
     with pytest.raises(ValueError):
         AlgebraistFrame(
             fields=(
-                AlgebraistFrameField("delta", "state_a"),
-                AlgebraistFrameField("delta", "state_b"),
+                AlgebraistField("delta", "state_a"),
+                AlgebraistField("delta", "state_b"),
             )
         )
 
@@ -118,30 +121,34 @@ def test_layout_rejects_duplicate_state_paths() -> None:
     with pytest.raises(ValueError):
         AlgebraistFrame(
             fields=(
-                AlgebraistFrameField("delta_a", "state"),
-                AlgebraistFrameField("delta_b", "state"),
+                AlgebraistField("delta_a", "state"),
+                AlgebraistField("delta_b", "state"),
             )
         )
 
 
-def test_layout_exposes_norm_fields_and_paths() -> None:
-    first = AlgebraistFrameField("delta_a", "state_a")
-    second = AlgebraistFrameField(
+def test_layout_exposes_norm_entries_and_paths() -> None:
+    first = AlgebraistField("delta_a", "state_a")
+    second = AlgebraistField(
         "delta_b",
         "state_b",
-        norm=AlgebraistFrameNormExcluded(),
     )
 
-    frame = AlgebraistFrame(fields=(first, second))
+    frame = AlgebraistFrame(
+        fields=(first, second),
+        norms=(AlgebraistNormRMS(), AlgebraistNormExcluded()),
+        inner_products=(AlgebraistInnerProductL2(), AlgebraistInnerProductExcluded()),
+    )
 
     assert len(frame) == 2
     assert tuple(frame) == (first, second)
-    assert frame.norm_fields == (first,)
+    assert frame.norm_entries == ((first, frame.norms[0]),)
+    assert frame.inner_product_entries == ((first, frame.inner_products[0]),)
     assert frame.translation_paths == (
-        AlgebraistFramePath.from_value("delta_a"),
-        AlgebraistFramePath.from_value("delta_b"),
+        AlgebraistFieldPath.from_value("delta_a"),
+        AlgebraistFieldPath.from_value("delta_b"),
     )
     assert frame.state_paths == (
-        AlgebraistFramePath.from_value("state_a"), 
-        AlgebraistFramePath.from_value("state_b")
+        AlgebraistFieldPath.from_value("state_a"), 
+        AlgebraistFieldPath.from_value("state_b")
     )

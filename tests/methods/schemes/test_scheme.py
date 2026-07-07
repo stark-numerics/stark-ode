@@ -7,7 +7,7 @@ from stark.core import IntegratorStepper
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines.shared.algebraist.arity import AlgebraistArity
 from stark.engines.shared.algebraist.generator import AlgebraistGeneratorLinearCombine
-from stark.engines.shared.algebraist.frame import AlgebraistFrame, AlgebraistFrameField
+from stark.engines.shared.algebraist.frame import AlgebraistFrame, AlgebraistField
 from stark.core.auditor import Auditor
 from stark.core.integrator.integrator import Integrator
 from stark.diagnostics.monitor import Monitor
@@ -247,7 +247,7 @@ def test_scheme_step_support_consumes_algebraist_linear_combine_contract() -> No
         translation=DummyAlgebraistTranslation([1.0, 2.0]),
         allocator=allocator,
         frame=AlgebraistFrame(
-            fields=(AlgebraistFrameField("value", "value"),),
+            fields=(AlgebraistField("value", "value"),),
         ),
     )
     DummyAlgebraistTranslation.linear_combine = (

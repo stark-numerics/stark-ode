@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import DynamicsStyle, Frame, Interval, Method, System
+from stark import DynamicsStyle, Field, Frame, Interval, Method, System
 from stark.engines import EngineNumpy
 from stark.methods import SchemeCashKarp
 
@@ -17,9 +17,11 @@ def oscillator(t: float, state, out) -> None:
 
 
 if __name__ == "__main__":
-    frame = Frame.from_fields(
-        ("x", "dx", (1,)),
-        ("v", "dv", (1,)),
+    frame = Frame(
+        (
+            Field("x", translation="dx", shape=(1,)),
+            Field("v", translation="dv", shape=(1,)),
+        )
     )
     system = System(dynamics=oscillator, frame=frame)
     ivp = system.ivp(

@@ -10,10 +10,11 @@ from stark.engines.shared.algebraist.generator import (
 )
 from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
-    AlgebraistFrameField,
+    AlgebraistField,
     AlgebraistFrameLooped,
-    AlgebraistFrameNormExcluded,
-    AlgebraistFrameNormMax,
+    AlgebraistNormExcluded,
+    AlgebraistNormMax,
+    AlgebraistNormRMS,
     AlgebraistFrameScalar,
     AlgebraistFrameUnravel,
 )
@@ -28,12 +29,12 @@ from tests.support import (
 def frame() -> AlgebraistFrame:
     return AlgebraistFrame(
         fields=(
-            AlgebraistFrameField(
+            AlgebraistField(
                 translation_path="dx",
                 state_path="x",
                 policy=AlgebraistFrameScalar(),
             ),
-            AlgebraistFrameField(
+            AlgebraistField(
                 translation_path="values",
                 state_path="values",
                 policy=AlgebraistFrameUnravel(shape=(2,)),
@@ -112,7 +113,7 @@ def test_generator_looped_fields_match_vector_algebra():
         allocator=DummyStructuredAllocator(size=3),
         frame=AlgebraistFrame(
             fields=(
-                AlgebraistFrameField(
+                AlgebraistField(
                     translation_path="values",
                     state_path="values",
                     policy=AlgebraistFrameLooped(shape=(3,)),
@@ -138,7 +139,7 @@ def test_generator_specialist_looped_update_matches_tableau_algebra():
         allocator=DummyStructuredAllocator(size=3),
         frame=AlgebraistFrame(
             fields=(
-                AlgebraistFrameField(
+                AlgebraistField(
                     translation_path="values",
                     state_path="values",
                     policy=AlgebraistFrameLooped(shape=(3,)),
@@ -167,7 +168,7 @@ def test_generator_unit_apply_omits_runtime_step_and_unit_multiply():
         allocator=DummyStructuredAllocator(size=3),
         frame=AlgebraistFrame(
             fields=(
-                AlgebraistFrameField(
+                AlgebraistField(
                     translation_path="values",
                     state_path="values",
                     policy=AlgebraistFrameLooped(shape=(3,)),
@@ -189,7 +190,7 @@ def test_generator_unit_apply_matches_translation_call_algebra():
         allocator=DummyStructuredAllocator(size=3),
         frame=AlgebraistFrame(
             fields=(
-                AlgebraistFrameField(
+                AlgebraistField(
                     translation_path="values",
                     state_path="values",
                     policy=AlgebraistFrameLooped(shape=(3,)),
@@ -214,18 +215,18 @@ def test_generator_norm_uses_included_looped_fields():
         translation=DummyStructuredTranslation(0.0, [0.0, 0.0, 0.0]),
         frame=AlgebraistFrame(
             fields=(
-                AlgebraistFrameField(
+                AlgebraistField(
                     translation_path="values",
                     state_path="values",
                     policy=AlgebraistFrameLooped(shape=(3,)),
                 ),
-                AlgebraistFrameField(
+                AlgebraistField(
                     translation_path="dx",
                     state_path="x",
                     policy=AlgebraistFrameScalar(),
-                    norm=AlgebraistFrameNormExcluded(),
                 ),
-            )
+            ),
+            norms=(AlgebraistNormRMS(), AlgebraistNormExcluded()),
         ),
     )
     source = provider.source_string()
@@ -246,13 +247,13 @@ def test_generator_norm_uses_field_max_policy():
         translation=DummyStructuredTranslation(0.0, [0.0, 0.0, 0.0]),
         frame=AlgebraistFrame(
             fields=(
-                AlgebraistFrameField(
+                AlgebraistField(
                     translation_path="values",
                     state_path="values",
                     policy=AlgebraistFrameLooped(shape=(3,)),
-                    norm=AlgebraistFrameNormMax(),
                 ),
-            )
+            ),
+            norms=(AlgebraistNormMax(),),
         ),
     )
     source = provider.source_string()

@@ -10,7 +10,7 @@ from stark import (
     DynamicsSignature,
     DynamicsStyle,
     Frame,
-    FrameField,
+    Field,
     Method,
     System,
     Tolerance,
@@ -98,7 +98,7 @@ def test_package_imports() -> None:
     assert DynamicsSignature is not None
     assert DynamicsStyle is not None
     assert Frame is not None
-    assert FrameField is not None
+    assert Field is not None
     assert Method is not None
     assert System is not None
     assert not hasattr(stark, "DynamicsIMEX")
@@ -127,7 +127,7 @@ def test_algebraist_package_imports() -> None:
     assert algebraist.AlgebraistRuntimeSpecialist is not None
     assert algebraist.AlgebraistGeneratorLinearCombine is not None
     assert algebraist.AlgebraistGeneratorSpecialist is not None
-    assert algebraist.AlgebraistFrameField is not None
+    assert algebraist.AlgebraistField is not None
     assert algebraist.AlgebraistFrameLooped is not None
 
 

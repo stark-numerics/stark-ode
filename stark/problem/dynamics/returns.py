@@ -12,7 +12,7 @@ from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
 from typing import Any
 
-from stark.engines.shared.algebraist.frame.path import AlgebraistFramePath
+from stark.problem.frame.path import FieldPath
 
 
 def assign_returned_translation(result: Any, out: Any) -> None:
@@ -21,7 +21,9 @@ def assign_returned_translation(result: Any, out: Any) -> None:
     if result is None:
         raise TypeError("Return-style dynamics must return translation values.")
 
-    frame = getattr(out, "algebraist_frame", None)
+    frame = getattr(out, "frame", None)
+    if frame is None:
+        frame = getattr(out, "algebraist_frame", None)
     fields_ = getattr(frame, "fields", None)
     if fields_ is not None:
         field_tuple = tuple(fields_)
@@ -39,7 +41,7 @@ def assign_returned_fields(result: Any, out: Any, paths: tuple[str, ...]) -> Non
     if result is None:
         raise TypeError("Return-style kernels must return translation values.")
 
-    normalized = tuple(AlgebraistFramePath(path) for path in paths)
+    normalized = tuple(FieldPath(path) for path in paths)
     if isinstance(result, Mapping):
         values = [_mapping_value(result, path, path) for path in normalized]
     elif len(normalized) == 1:
@@ -77,8 +79,8 @@ def _returned_values_for_frame(result: Any, fields_: tuple[Any, ...]) -> tuple[A
 
 def _mapping_value(
     result: Mapping[Any, Any],
-    translation_path: AlgebraistFramePath,
-    state_path: AlgebraistFramePath,
+    translation_path: FieldPath,
+    state_path: FieldPath,
 ) -> Any:
     """Read one frame field from a mapping-style dynamics return value."""
 
@@ -93,8 +95,8 @@ def _mapping_value(
 
 def _object_value(
     result: Any,
-    translation_path: AlgebraistFramePath,
-    state_path: AlgebraistFramePath,
+    translation_path: FieldPath,
+    state_path: FieldPath,
 ) -> Any:
     """Read one frame field from an object-style dynamics return value."""
 
@@ -109,8 +111,8 @@ def _object_value(
 
 def _object_value_or_missing(
     result: Any,
-    translation_path: AlgebraistFramePath,
-    state_path: AlgebraistFramePath,
+    translation_path: FieldPath,
+    state_path: FieldPath,
 ) -> Any:
     """Read one frame field from an object-style result if present."""
 
@@ -123,8 +125,8 @@ def _object_value_or_missing(
 
 
 def _path_keys(
-    translation_path: AlgebraistFramePath,
-    state_path: AlgebraistFramePath,
+    translation_path: FieldPath,
+    state_path: FieldPath,
 ) -> tuple[Any, ...]:
     """Mapping keys accepted for one frame field."""
 

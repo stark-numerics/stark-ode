@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any
 
-from stark.engines.shared.algebraist.frame import AlgebraistFrame
+from stark.core.contracts.frame import FrameLike
 from stark.engines.cupy.translation import EngineTranslationCupy
 from stark.engines.cupy.carriers import CarrierCupy
 
@@ -13,7 +13,7 @@ from stark.engines.cupy.carriers import CarrierCupy
 class EngineAllocatorCupy:
     """Allocate structured CuPy state and translation objects."""
 
-    algebraist_frame: AlgebraistFrame
+    algebraist_frame: FrameLike
     carriers: tuple[CarrierCupy, ...] = field(repr=False)
     linear_combine: tuple[Any, ...] = field(default=(), repr=False)
     apply_translation: Any = field(default=None, repr=False)

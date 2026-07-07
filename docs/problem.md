@@ -40,13 +40,15 @@ array_frame = Frame({
 })
 ```
 
-For small structured systems, `Frame.from_fields(...)` keeps the shape of the
-problem visible without the mapping punctuation:
+For small structured systems, explicit `Field(...)` declarations keep the shape
+of the problem visible without the mapping punctuation:
 
 ```python
-frame = Frame.from_fields(
-    ("position", "dposition", (3,)),
-    ("velocity", "dvelocity", (3,)),
+frame = Frame(
+    (
+        Field("position", translation="dposition", shape=(3,)),
+        Field("velocity", translation="dvelocity", shape=(3,)),
+    )
 )
 ```
 

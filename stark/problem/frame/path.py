@@ -1,3 +1,5 @@
+"""Path types used by user-facing frame declarations."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -5,41 +7,39 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, overload
 
-from stark.core.contracts.field import FieldPathLike as AlgebraistFieldPathLike
+from stark.core.contracts.field import FieldPathLike
 
 
 @dataclass(frozen=True, slots=True)
-class AlgebraistFieldPath(Sequence[str]):
-    """Validated attribute path in an Algebraist frame."""
+class FieldPath(Sequence[str]):
+    """Validated attribute path in a user-facing frame."""
 
     parts: tuple[str, ...]
 
     @classmethod
-    def from_value(cls, value: AlgebraistFieldPathLike) -> "AlgebraistFieldPath":
+    def from_value(cls, value: FieldPathLike) -> "FieldPath":
         """Build a validated frame path from a dotted string or sequence."""
         return cls(value)
 
-    def __init__(self, value: AlgebraistFieldPathLike) -> None:
+    def __init__(self, value: FieldPathLike) -> None:
         object.__setattr__(self, "parts", self._normalize(value))
 
     @staticmethod
-    def _normalize(value: AlgebraistFieldPathLike) -> tuple[str, ...]:
+    def _normalize(value: FieldPathLike) -> tuple[str, ...]:
         if isinstance(value, str):
             parts = tuple(value.split("."))
         else:
             parts = tuple(value)
 
         if not parts:
-            raise ValueError("AlgebraistFieldPath cannot be empty.")
+            raise ValueError("FieldPath cannot be empty.")
         for part in parts:
             if not isinstance(part, str):
-                raise TypeError("AlgebraistFieldPath parts must be strings.")
+                raise TypeError("FieldPath parts must be strings.")
             if not part:
-                raise ValueError("AlgebraistFieldPath parts cannot be empty.")
+                raise ValueError("FieldPath parts cannot be empty.")
             if not part.isidentifier():
-                raise ValueError(
-                    f"AlgebraistFieldPath part {part!r} is not a valid identifier."
-                )
+                raise ValueError(f"FieldPath part {part!r} is not a valid identifier.")
         return parts
 
     @property
@@ -77,12 +77,6 @@ class AlgebraistFieldPath(Sequence[str]):
             target = child
         return target
 
-    def __iter__(self):
-        return iter(self.parts)
-
-    def __len__(self) -> int:
-        return len(self.parts)
-
     @overload
     def __getitem__(self, index: int) -> str: ...
 
@@ -92,5 +86,14 @@ class AlgebraistFieldPath(Sequence[str]):
     def __getitem__(self, index: int | slice) -> str | tuple[str, ...]:
         return self.parts[index]
 
+    def __len__(self) -> int:
+        return len(self.parts)
+
     def __str__(self) -> str:
         return ".".join(self.parts)
+
+
+__all__ = [
+    "FieldPath",
+    "FieldPathLike",
+]

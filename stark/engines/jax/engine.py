@@ -7,12 +7,9 @@ import jax  # type: ignore[import-not-found]
 import jax.numpy as jnp  # type: ignore[import-not-found]
 
 from stark.core.contracts.accelerator import Accelerator
+from stark.core.contracts.frame import FrameLike
 from stark.engines.shared.accelerators import AcceleratorJax
 from stark.engines.shared.algebraist.arity import AlgebraistArity
-from stark.engines.shared.algebraist.frame import (
-    AlgebraistFrame,
-    AlgebraistFrameLooped,
-)
 from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorInnerProduct,
     AlgebraistGeneratorLinearCombine,
@@ -24,7 +21,6 @@ from stark.engines.jax.allocator import EngineAllocatorJax
 from stark.engines.jax.carriers import CarrierJax
 from stark.engines.jax.carriers.storage import CarrierJaxValue
 from stark.engines.shared.basis import EngineTranslationBasis
-from stark.problem.frame.frame import Frame
 
 
 def _jax_x64_enabled() -> bool:
@@ -78,10 +74,10 @@ class EngineJax:
     `jnp.complex128` with x64 enabled.
     """
 
-    frame: Frame
+    frame: FrameLike
     dtype: Any | None = None
     accelerator: Accelerator = field(default_factory=AcceleratorJax)
-    algebraist_frame: AlgebraistFrame = field(init=False)
+    algebraist_frame: FrameLike = field(init=False)
     carriers: tuple[CarrierJax, ...] = field(init=False, repr=False)
     allocator: EngineAllocatorJax = field(init=False, repr=False)
     algebraist_inner_product: AlgebraistGeneratorInnerProduct = field(init=False, repr=False)
@@ -110,16 +106,19 @@ class EngineJax:
         dtype = _resolve_jax_dtype(self.dtype)
         object.__setattr__(self, "dtype", dtype)
 
-        algebraist_frame = self.frame.to_algebraist_frame()
+        algebraist_frame = self.frame
         carriers: list[CarrierJax] = []
 
         for field in algebraist_frame.fields:
             policy = field.policy
-            if not isinstance(policy, AlgebraistFrameLooped) or policy.shape is None:
+            shape = getattr(policy, "shape", None)
+            if shape is None:
+                shape = getattr(field, "shape", None)
+            if getattr(policy, "kind", None) != "looped" or shape is None:
                 raise ValueError(
                     "EngineJax requires every frame field to declare shape."
                 )
-            template = cast(CarrierJaxValue, jnp.zeros(policy.shape, dtype=dtype))
+            template = cast(CarrierJaxValue, jnp.zeros(shape, dtype=dtype))
             carriers.append(CarrierJax(template))
 
         carrier_tuple = tuple(carriers)

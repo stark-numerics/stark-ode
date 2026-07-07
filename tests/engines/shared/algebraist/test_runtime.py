@@ -7,8 +7,9 @@ import pytest
 from stark.engines.shared.algebraist.arity import AlgebraistArity
 from stark.engines.shared.algebraist.frame import (
     AlgebraistFrame,
-    AlgebraistFrameField,
-    AlgebraistFrameNormExcluded,
+    AlgebraistField,
+    AlgebraistNormExcluded,
+    AlgebraistNormRMS,
     AlgebraistFrameScalar,
 )
 from stark.engines.shared.algebraist.runtime import (
@@ -177,22 +178,22 @@ def test_runtime_specialist_binds_empty_stencil_as_zero_delta() -> None:
     assert out.value == pytest.approx(0.0)
 
 
-def test_runtime_norm_uses_layout_norm_fields() -> None:
+def test_runtime_norm_uses_layout_norm_entries() -> None:
     norm = AlgebraistRuntimeNorm(
         frame=AlgebraistFrame(
             (
-                AlgebraistFrameField(
+                AlgebraistField(
                     translation_path="value",
                     state_path="value",
                     policy=AlgebraistFrameScalar(),
                 ),
-                AlgebraistFrameField(
+                AlgebraistField(
                     translation_path="ignored",
                     state_path="ignored",
                     policy=AlgebraistFrameScalar(),
-                    norm=AlgebraistFrameNormExcluded(),
                 ),
-            )
+            ),
+            norms=(AlgebraistNormRMS(), AlgebraistNormExcluded()),
         ),
         field_norms=(scalar_field_norm, scalar_field_norm),
     ).provide()

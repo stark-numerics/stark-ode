@@ -4,11 +4,11 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Generic, TypeVar
 
+from stark.core.contracts.frame import FrameLike
 from stark.engines.shared.accelerators.none import AcceleratorNone
 from stark.engines.shared.algebraist.runtime.support import AlgebraistRuntimeSupport
 from stark.engines.shared.algebraist.stencil import AlgebraistStencil
 from stark.engines.shared.algebraist.allocator import AlgebraistAllocator
-from stark.engines.shared.algebraist.frame import AlgebraistFrame
 from stark.core.contracts.accelerator import Accelerator
 from stark.core.contracts.state import State
 from stark.core.contracts.translation import Translation
@@ -27,7 +27,7 @@ class AlgebraistRuntimeSpecialist(Generic[StateType, TranslationType]):
 
     translation: TranslationType
     allocator: AlgebraistAllocator[TranslationType]
-    frame: AlgebraistFrame | None = None
+    frame: FrameLike | None = None
     linear_combine: Sequence[Callable[..., TranslationType]] | None = None
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
     _support: AlgebraistRuntimeSupport[TranslationType] = field(init=False, repr=False)

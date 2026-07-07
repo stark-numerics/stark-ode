@@ -1,47 +1,43 @@
 from __future__ import annotations
 
-from stark import Frame, FrameField
-from stark.engines.shared.algebraist.frame import AlgebraistFrameLooped
+from stark import Frame, Field
 
 
-def test_stark_frame_converts_to_algebraist_frame() -> None:
+def test_stark_frame_accepts_explicit_fields() -> None:
     frame = Frame(
         fields=(
-            FrameField("u", translation="du", shape=(2, 2)),
-            FrameField("v", translation="dv", shape=(2, 2)),
+            Field("u", translation="du", shape=(2, 2)),
+            Field("v", translation="dv", shape=(2, 2)),
         )
     )
 
-    algebraist_frame = frame.to_algebraist_frame()
-
-    assert tuple(str(path) for path in algebraist_frame.state_paths) == ("u", "v")
-    assert tuple(str(path) for path in algebraist_frame.translation_paths) == ("du", "dv")
-    assert all(isinstance(field.policy, AlgebraistFrameLooped) for field in algebraist_frame)
+    assert tuple(str(field.state_path) for field in frame.fields) == ("u", "v")
+    assert tuple(str(field.translation_path) for field in frame.fields) == ("du", "dv")
+    assert all(field.policy.kind == "looped" for field in frame.fields)
+    assert all(field.shape == (2, 2) for field in frame.fields)
 
 
 def test_stark_frame_defaults_translation_to_state_path() -> None:
     frame = Frame(fields=("u", "v"))
-    algebraist_frame = frame.to_algebraist_frame()
 
-    assert tuple(str(path) for path in algebraist_frame.state_paths) == ("u", "v")
-    assert tuple(str(path) for path in algebraist_frame.translation_paths) == ("u", "v")
+    assert tuple(str(field.state_path) for field in frame.fields) == ("u", "v")
+    assert tuple(str(field.translation_path) for field in frame.fields) == ("u", "v")
 
 
 def test_stark_frame_accepts_single_string_field() -> None:
     frame = Frame("uv")
-    algebraist_frame = frame.to_algebraist_frame()
 
-    assert tuple(str(path) for path in algebraist_frame.state_paths) == ("uv",)
-    assert tuple(str(path) for path in algebraist_frame.translation_paths) == ("uv",)
+    assert tuple(str(field.state_path) for field in frame.fields) == ("uv",)
+    assert tuple(str(field.translation_path) for field in frame.fields) == ("uv",)
 
 
 def test_stark_frame_accepts_field_mapping() -> None:
     frame = Frame({"u": {"translation": "du", "shape": (2, 2)}})
-    algebraist_frame = frame.to_algebraist_frame()
 
-    assert tuple(str(path) for path in algebraist_frame.state_paths) == ("u",)
-    assert tuple(str(path) for path in algebraist_frame.translation_paths) == ("du",)
-    assert all(isinstance(field.policy, AlgebraistFrameLooped) for field in algebraist_frame)
+    assert tuple(str(field.state_path) for field in frame.fields) == ("u",)
+    assert tuple(str(field.translation_path) for field in frame.fields) == ("du",)
+    assert all(field.policy.kind == "looped" for field in frame.fields)
+    assert all(field.shape == (2, 2) for field in frame.fields)
 
 
 def test_stark_frame_scalar_factory_matches_mapping_syntax() -> None:
@@ -65,21 +61,9 @@ def test_stark_frame_array_factory_matches_mapping_syntax() -> None:
     assert frame.fields == explicit.fields
 
 
-def test_stark_frame_fields_factory_matches_mapping_syntax() -> None:
-    frame = Frame.from_fields(("u", "du", (2,)), ("v", "dv", (3,)))
-    explicit = Frame(
-        {
-            "u": {"translation": "du", "shape": (2,)},
-            "v": {"translation": "dv", "shape": (3,)},
-        }
-    )
-
-    assert frame.fields == explicit.fields
-
-
 def test_stark_frame_field_rejects_invalid_shape() -> None:
     try:
-        FrameField("u", shape=(2, 0)).to_algebraist_field()
+        Field("u", shape=(2, 0))
     except ValueError as exc:
         assert "shape dimensions must be positive" in str(exc)
     else:  # pragma: no cover - defensive failure branch

@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import prod
+from typing import Any
 
+from stark.core.contracts.frame import FrameLike
 from stark.engines.shared.algebraist.arity import AlgebraistArity
-from stark.engines.shared.algebraist.frame import (
-    AlgebraistFrame,
-    AlgebraistFrameField,
-    AlgebraistFrameLooped,
-    AlgebraistFrameNormMax,
-    AlgebraistFrameNormRMS,
+from stark.engines.shared.algebraist.frame.entries import (
+    included_inner_product_entries,
+    included_norm_entries,
 )
 from stark.engines.shared.algebraist.generator.expression import AlgebraistGeneratorEmitterExpression
 from stark.engines.shared.algebraist.stencil import AlgebraistStencil
@@ -32,10 +31,10 @@ class AlgebraistGeneratorTargetCupy:
 
     kernel_prefix: str = "stark_cupy_algebraist"
 
-    def source_linear_combine(self, frame: AlgebraistFrame, request: AlgebraistArity) -> str:
+    def source_linear_combine(self, frame: FrameLike, request: AlgebraistArity) -> str:
         return self._source_algebra(frame=frame, kind="general", source_count=request.value)
 
-    def source_specialist(self, frame: AlgebraistFrame, stencil: AlgebraistStencil) -> str:
+    def source_specialist(self, frame: FrameLike, stencil: AlgebraistStencil) -> str:
         coefficients = tuple(float(coefficient) for coefficient in stencil.coefficients)
         kind = "update" if stencil.apply else "delta"
         return self._source_algebra(
@@ -46,7 +45,7 @@ class AlgebraistGeneratorTargetCupy:
             stencil_scale=float(stencil.scale),
         )
 
-    def source_unit_apply(self, frame: AlgebraistFrame) -> str:
+    def source_unit_apply(self, frame: FrameLike) -> str:
         return self._source_algebra(
             frame=frame,
             kind="unit_apply",
@@ -54,17 +53,17 @@ class AlgebraistGeneratorTargetCupy:
             coefficients=(1.0,),
         )
 
-    def source_norm(self, frame: AlgebraistFrame) -> str:
+    def source_norm(self, frame: FrameLike) -> str:
         lines = ["import cupy as cp", "", "def kernel(translation):", "    total = 0.0"]
-        for field in frame.norm_fields:
+        for field, norm in included_norm_entries(frame):
             shape = self._require_looped_shape(field)
             name = field.translation_expression("translation")
-            norm = field.norm
-            if isinstance(norm, AlgebraistFrameNormRMS):
+            norm_kind = getattr(norm, "kind", None)
+            if norm_kind == "rms":
                 scale = float(prod(shape))
                 lines.append(f"    total = total + cp.sum(cp.abs({name}) ** 2) / {scale!r}")
                 continue
-            if isinstance(norm, AlgebraistFrameNormMax):
+            if norm_kind == "max":
                 lines.append(f"    field_norm = cp.max(cp.abs({name}))")
                 lines.append("    total = total + field_norm * field_norm")
                 continue
@@ -72,19 +71,21 @@ class AlgebraistGeneratorTargetCupy:
         lines.append("    return cp.sqrt(total)")
         return "\n".join(lines) + "\n"
 
-    def source_inner_product(self, frame: AlgebraistFrame) -> str:
+    def source_inner_product(self, frame: FrameLike) -> str:
         lines = ["import cupy as cp", "", "def kernel(left, right):", "    total = 0.0"]
-        for field in frame.norm_fields:
+        for field, inner_product in included_inner_product_entries(frame):
             shape = self._require_looped_shape(field)
             left = field.translation_expression("left")
             right = field.translation_expression("right")
-            norm = field.norm
-            if isinstance(norm, AlgebraistFrameNormRMS):
-                scale = float(prod(shape))
-            elif isinstance(norm, AlgebraistFrameNormMax):
+            inner_product_kind = getattr(inner_product, "kind", None)
+            if inner_product_kind == "l2":
                 scale = 1.0
+            elif inner_product_kind == "rms":
+                scale = float(prod(shape))
             else:
-                raise ValueError("CuPy generated inner product requires RMS or max norm fields.")
+                raise ValueError(
+                    "CuPy generated inner product requires L2 or RMS inner product fields."
+                )
             lines.append(f"    total = total + cp.sum({left} * {right}) / {scale!r}")
         lines.append("    return total")
         return "\n".join(lines) + "\n"
@@ -92,7 +93,7 @@ class AlgebraistGeneratorTargetCupy:
     def _source_algebra(
         self,
         *,
-        frame: AlgebraistFrame,
+        frame: FrameLike,
         kind: Kind,
         source_count: int,
         coefficients: tuple[float, ...] | None = None,
@@ -125,7 +126,7 @@ class AlgebraistGeneratorTargetCupy:
         self,
         *,
         field_index: int,
-        field: AlgebraistFrameField,
+        field: Any,
         kind: Kind,
         source_count: int,
         coefficients: tuple[float, ...] | None,
@@ -198,7 +199,7 @@ class AlgebraistGeneratorTargetCupy:
     def _wrapper_lines(
         self,
         *,
-        frame: AlgebraistFrame,
+        frame: FrameLike,
         kind: Kind,
         source_count: int,
     ) -> list[str]:
@@ -238,7 +239,7 @@ class AlgebraistGeneratorTargetCupy:
     @staticmethod
     def _wrapper_arguments(
         *,
-        field: AlgebraistFrameField,
+        field: Any,
         kind: Kind,
         source_count: int,
         target_root: str,
@@ -262,10 +263,14 @@ class AlgebraistGeneratorTargetCupy:
         return arguments
 
     @staticmethod
-    def _require_looped_shape(field: AlgebraistFrameField) -> tuple[int, ...]:
-        if not isinstance(field.policy, AlgebraistFrameLooped) or field.policy.shape is None:
+    def _require_looped_shape(field: Any) -> tuple[int, ...]:
+        policy = field.policy
+        shape = getattr(policy, "shape", None)
+        if shape is None:
+            shape = getattr(field, "shape", None)
+        if getattr(policy, "kind", None) != "looped" or shape is None:
             raise ValueError("CuPy generated algebra requires shaped looped frame fields.")
-        return tuple(field.policy.shape)
+        return tuple(shape)
 
 
 __all__ = ["AlgebraistGeneratorTargetCupy"]

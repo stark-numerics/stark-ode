@@ -2,19 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from itertools import product
-from typing import Literal
+from typing import Any, Literal
 
+from stark.core.contracts.frame import FrameLike
 from stark.engines.shared.algebraist.arity import AlgebraistArity
 from stark.engines.shared.algebraist.stencil import AlgebraistStencil
 from stark.engines.shared.algebraist.generator.expression import AlgebraistGeneratorEmitterExpression
-from stark.engines.shared.algebraist.frame import (
-    AlgebraistFrame,
-    AlgebraistFrameBroadcast,
-    AlgebraistFrameField,
-    AlgebraistFrameLooped,
-    AlgebraistFrameScalar,
-    AlgebraistFrameUnravel,
-)
 from stark.engines.shared.algebraist.generator.target import (
     AlgebraistGeneratorTarget,
     AlgebraistGeneratorTargetFunctional,
@@ -29,7 +22,7 @@ Kind = Literal["general", "delta", "update"]
 class AlgebraistGeneratorEmitter:
     """Emit complete source strings for generated Algebraist kernels."""
 
-    frame: AlgebraistFrame
+    frame: FrameLike
     target: AlgebraistGeneratorTarget = field(default_factory=AlgebraistGeneratorTargetMutable)
 
     def _uses_functional_updates(self) -> bool:
@@ -43,6 +36,10 @@ class AlgebraistGeneratorEmitter:
                 AlgebraistGeneratorTargetMutableVectorized,
             ),
         )
+
+    @staticmethod
+    def _policy_kind(policy: object) -> str | None:
+        return getattr(policy, "kind", None)
 
     def general(self, request: AlgebraistArity) -> str:
         arity = request.value
@@ -87,8 +84,8 @@ class AlgebraistGeneratorEmitter:
         if hoist_lines:
             flat_lines.extend(hoist_lines)
 
-        scalar_fields: list[AlgebraistFrameField] = []
-        array_fields: list[AlgebraistFrameField] = []
+        scalar_fields: list[Any] = []
+        array_fields: list[Any] = []
         for layout_field in self.frame.fields:
             field_lines, is_scalar = self._field_lines(
                 kind=kind,
@@ -140,8 +137,8 @@ class AlgebraistGeneratorEmitter:
         flat_parameters = self._flat_parameters_unit_apply(source_count=source_count)
         flat_lines: list[str] = [f"def _kernel_flat({', '.join(flat_parameters)}):"]
 
-        scalar_fields: list[AlgebraistFrameField] = []
-        array_fields: list[AlgebraistFrameField] = []
+        scalar_fields: list[Any] = []
+        array_fields: list[Any] = []
         for layout_field in self.frame.fields:
             field_lines, is_scalar = self._field_lines(
                 kind="update",
@@ -199,7 +196,7 @@ class AlgebraistGeneratorEmitter:
             if kind == "update":
                 parameters.append(self._origin_name(field))
             parameters.extend(f"x{index}_{field.translation_name}" for index in range(source_count))
-            if not isinstance(field.policy, AlgebraistFrameScalar):
+            if self._policy_kind(field.policy) != "scalar":
                 parameters.append(self._target_name(kind, field))
         return parameters
 
@@ -208,7 +205,7 @@ class AlgebraistGeneratorEmitter:
         for field in self.frame.fields:
             parameters.append(self._origin_name(field))
             parameters.extend(f"x{index}_{field.translation_name}" for index in range(source_count))
-            if not isinstance(field.policy, AlgebraistFrameScalar):
+            if self._policy_kind(field.policy) != "scalar":
                 parameters.append(self._target_name("update", field))
         return parameters
 
@@ -217,8 +214,8 @@ class AlgebraistGeneratorEmitter:
         *,
         kind: Kind,
         source_count: int,
-        scalar_fields: tuple[AlgebraistFrameField, ...],
-        array_fields: tuple[AlgebraistFrameField, ...],
+        scalar_fields: tuple[Any, ...],
+        array_fields: tuple[Any, ...],
     ) -> list[str]:
         if kind == "general":
             signature = self._general_wrapper_signature(source_count)
@@ -273,8 +270,8 @@ class AlgebraistGeneratorEmitter:
         self,
         *,
         source_count: int,
-        scalar_fields: tuple[AlgebraistFrameField, ...],
-        array_fields: tuple[AlgebraistFrameField, ...],
+        scalar_fields: tuple[Any, ...],
+        array_fields: tuple[Any, ...],
     ) -> list[str]:
         lines = [f"def kernel({self._update_wrapper_signature_unit_apply(source_count)}):"]
         flat_args = self._flat_arguments_unit_apply(source_count=source_count)
@@ -330,7 +327,7 @@ class AlgebraistGeneratorEmitter:
                 arguments.append(field.state_expression("origin"))
             for index in range(source_count):
                 arguments.append(field.translation_expression(f"x{index}"))
-            if not isinstance(field.policy, AlgebraistFrameScalar):
+            if self._policy_kind(field.policy) != "scalar":
                 target_root = "result" if kind == "update" else "out"
                 expression = (
                     field.state_expression(target_root)
@@ -346,7 +343,7 @@ class AlgebraistGeneratorEmitter:
             arguments.append(field.state_expression("origin"))
             for index in range(source_count):
                 arguments.append(field.translation_expression(f"x{index}"))
-            if not isinstance(field.policy, AlgebraistFrameScalar):
+            if self._policy_kind(field.policy) != "scalar":
                 arguments.append(field.state_expression("result"))
         return arguments
 
@@ -354,7 +351,7 @@ class AlgebraistGeneratorEmitter:
         self,
         *,
         kind: Kind,
-        field: AlgebraistFrameField,
+        field: Any,
         source_count: int,
         coefficient_names: tuple[str, ...],
         fixed_coefficients: tuple[float, ...] | None,
@@ -380,32 +377,34 @@ class AlgebraistGeneratorEmitter:
             expression = f"{origin_name} + {expression}"
 
         policy = field.policy
-        if isinstance(policy, AlgebraistFrameScalar):
+        policy_kind = self._policy_kind(policy)
+        if policy_kind == "scalar":
             return [f"    _scalar_{target_name} = {expression}"], True
-        if isinstance(policy, AlgebraistFrameBroadcast):
+        if policy_kind == "broadcast":
             if self._uses_functional_updates():
                 return [f"    {target_name} = {expression}"], False
             return [f"    {target_name}[...] = {expression}"], False
-        if isinstance(policy, AlgebraistFrameLooped):
-            return self._looped_lines(policy=policy, target=target_name, origin=origin_name, sources=source_names, coefficients=coefficient_names, fixed_coefficients=fixed_coefficients, inline_fixed_coefficients=inline_fixed_coefficients, kind=kind), False
-        if isinstance(policy, AlgebraistFrameUnravel):
-            return self._unravel_lines(policy=policy, target=target_name, origin=origin_name, sources=source_names, coefficients=coefficient_names, fixed_coefficients=fixed_coefficients, inline_fixed_coefficients=inline_fixed_coefficients, kind=kind), False
+        if policy_kind == "looped":
+            return self._looped_lines(field=field, policy=policy, target=target_name, origin=origin_name, sources=source_names, coefficients=coefficient_names, fixed_coefficients=fixed_coefficients, inline_fixed_coefficients=inline_fixed_coefficients, kind=kind), False
+        if policy_kind == "unravel":
+            return self._unravel_lines(field=field, policy=policy, target=target_name, origin=origin_name, sources=source_names, coefficients=coefficient_names, fixed_coefficients=fixed_coefficients, inline_fixed_coefficients=inline_fixed_coefficients, kind=kind), False
         raise TypeError(f"Unsupported Algebraist frame policy: {policy!r}")
 
     @staticmethod
-    def _target_name(kind: Kind, field: AlgebraistFrameField) -> str:
+    def _target_name(kind: Kind, field: Any) -> str:
         prefix = "result" if kind == "update" else "out"
         name = field.state_name if kind == "update" else field.translation_name
         return f"{prefix}_{name}"
 
     @staticmethod
-    def _origin_name(field: AlgebraistFrameField) -> str:
+    def _origin_name(field: Any) -> str:
         return f"origin_{field.state_name}"
 
     def _looped_lines(
         self,
         *,
-        policy: AlgebraistFrameLooped,
+        field: Any,
+        policy: object,
         target: str,
         origin: str,
         sources: tuple[str, ...],
@@ -414,7 +413,10 @@ class AlgebraistGeneratorEmitter:
         inline_fixed_coefficients: bool = False,
         kind: Kind,
     ) -> list[str]:
-        if self._uses_vectorized_arrays() and policy.shape is not None:
+        shape = getattr(policy, "shape", None)
+        if shape is None:
+            shape = getattr(field, "shape", None)
+        if self._uses_vectorized_arrays() and shape is not None:
             if kind == "general":
                 expression = AlgebraistGeneratorEmitterExpression.from_runtime_coefficients(
                     coefficients=coefficients,
@@ -434,15 +436,17 @@ class AlgebraistGeneratorEmitter:
                 return [f"    {target} = {expression}"]
             return [f"    {target}[...] = {expression}"]
 
-        rank = policy.rank
+        rank = getattr(policy, "rank", None)
+        if rank is None and shape is not None:
+            rank = len(shape)
         if rank is None:
             raise ValueError("looped policy rank was not normalized.")
         index_names = tuple(f"i{index}" for index in range(rank))
         lines: list[str] = []
         for depth, index_name in enumerate(index_names):
             indent = "    " * (depth + 1)
-            if policy.shape is not None:
-                bound = policy.shape[depth]
+            if shape is not None:
+                bound = shape[depth]
             else:
                 bound = f"{target}.shape[{depth}]"
             lines.append(f"{indent}for {index_name} in range({bound}):")
@@ -467,7 +471,8 @@ class AlgebraistGeneratorEmitter:
     def _unravel_lines(
         self,
         *,
-        policy: AlgebraistFrameUnravel,
+        field: Any,
+        policy: object,
         target: str,
         origin: str,
         sources: tuple[str, ...],
@@ -476,8 +481,13 @@ class AlgebraistGeneratorEmitter:
         inline_fixed_coefficients: bool = False,
         kind: Kind,
     ) -> list[str]:
+        shape = getattr(policy, "shape", None)
+        if shape is None:
+            shape = getattr(field, "shape", None)
+        if shape is None:
+            raise ValueError("unravel policy requires shape.")
         lines: list[str] = []
-        for index_tuple in product(*(range(dimension) for dimension in policy.shape)):
+        for index_tuple in product(*(range(dimension) for dimension in shape)):
             index = self._index_expression(tuple(str(index) for index in index_tuple))
             expression = self._expression_for_index(
                 kind=kind,

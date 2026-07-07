@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from itertools import accumulate
 from typing import Any
 
-from stark.engines.shared.algebraist.frame import AlgebraistFrame
+from stark.core.contracts.frame import FrameLike
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,7 +28,7 @@ class EngineTranslationBasis:
     by hand.
     """
 
-    algebraist_frame: AlgebraistFrame
+    algebraist_frame: FrameLike
     carriers: tuple[Any, ...]
     offsets: tuple[int, ...] = field(init=False)
     dimension: int = field(init=False)

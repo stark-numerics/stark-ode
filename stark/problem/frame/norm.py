@@ -1,66 +1,76 @@
-"""Norm policies used by `FrameField` declarations."""
+"""Norm policies used by `Field` declarations."""
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Protocol
+from math import sqrt
+from numbers import Number
+from typing import ClassVar, cast
 
-from stark.engines.shared.algebraist.frame import (
-    AlgebraistFrameNormExcluded,
-    AlgebraistFrameNormMax,
-    AlgebraistFrameNormPolicy,
-    AlgebraistFrameNormRMS,
-)
+from stark.core.contracts.norm import NormLike
+
+ScalarValue = float | complex
 
 
-class FrameNormPolicy(Protocol):
-    """User-facing norm policy for one `FrameField`."""
+def translation_field_values(translation_field) -> Iterable[ScalarValue]:
+    if isinstance(translation_field, Number):
+        return cast(tuple[ScalarValue], (translation_field,))
 
-    @property
-    def include(self) -> bool: ...
-
-    def to_algebraist_norm(self) -> AlgebraistFrameNormPolicy: ...
+    flat = getattr(translation_field, "flat", None)
+    if flat is not None:
+        return cast(Iterable[ScalarValue], flat)
+    try:
+        return cast(Iterable[ScalarValue], iter(translation_field))
+    except TypeError:
+        return cast(tuple[ScalarValue], (translation_field,))
 
 
 @dataclass(frozen=True, slots=True)
-class FrameNormRMS:
+class NormRMS:
     """Use a root-mean-square field norm."""
 
-    @property
-    def include(self) -> bool:
-        return True
+    kind: ClassVar[str] = "rms"
 
-    def to_algebraist_norm(self) -> AlgebraistFrameNormPolicy:
-        return AlgebraistFrameNormRMS()
+    def __call__(self, translation_field) -> float:
+        total = 0.0
+        count = 0
+        for item in translation_field_values(translation_field):
+            total += abs(item) ** 2
+            count += 1
+        if count == 0:
+            return 0.0
+        return sqrt(total / count)
 
 
 @dataclass(frozen=True, slots=True)
-class FrameNormMax:
+class NormMax:
     """Use a maximum absolute-entry field norm."""
 
-    @property
-    def include(self) -> bool:
-        return True
+    kind: ClassVar[str] = "max"
 
-    def to_algebraist_norm(self) -> AlgebraistFrameNormPolicy:
-        return AlgebraistFrameNormMax()
+    def __call__(self, translation_field) -> float:
+        result = 0.0
+        for item in translation_field_values(translation_field):
+            item_norm = abs(item)
+            if item_norm > result:
+                result = item_norm
+        return float(result)
 
 
 @dataclass(frozen=True, slots=True)
-class FrameNormExcluded:
+class NormExcluded:
     """Exclude this field from frame-aware norms."""
 
-    @property
-    def include(self) -> bool:
-        return False
+    kind: ClassVar[str] = "excluded"
 
-    def to_algebraist_norm(self) -> AlgebraistFrameNormPolicy:
-        return AlgebraistFrameNormExcluded()
+    def __call__(self, translation_field) -> float:
+        return 0.0
 
 
 __all__ = [
-    "FrameNormExcluded",
-    "FrameNormMax",
-    "FrameNormPolicy",
-    "FrameNormRMS",
+    "NormExcluded",
+    "NormLike",
+    "NormMax",
+    "NormRMS",
 ]

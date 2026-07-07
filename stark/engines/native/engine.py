@@ -11,12 +11,11 @@ from stark.engines.shared.algebraist.generator import (
     AlgebraistGeneratorNorm,
     AlgebraistGeneratorSpecialist,
 )
-from stark.engines.shared.algebraist.frame import AlgebraistFrame, AlgebraistFrameLooped
 from stark.engines.native.carriers import CarrierNativeArray
 from stark.core.contracts.accelerator import Accelerator
+from stark.core.contracts.frame import FrameLike
 from stark.engines.native.allocator import EngineAllocatorNative
 from stark.engines.shared.basis import EngineTranslationBasis
-from stark.problem.frame.frame import Frame
 
 
 def _default_accelerator() -> Accelerator:
@@ -38,10 +37,10 @@ class EngineNative:
     `array.array` values and uses Numba by default when it is installed.
     """
 
-    frame: Frame
+    frame: FrameLike
     typecode: str = "d"
     accelerator: Accelerator = field(default_factory=_default_accelerator)
-    algebraist_frame: AlgebraistFrame = field(init=False)
+    algebraist_frame: FrameLike = field(init=False)
     carriers: tuple[CarrierNativeArray, ...] = field(init=False, repr=False)
     allocator: EngineAllocatorNative = field(init=False, repr=False)
     algebraist_inner_product: AlgebraistGeneratorInnerProduct = field(init=False, repr=False)
@@ -73,20 +72,23 @@ class EngineNative:
         return EngineTranslationBasis(self.algebraist_frame, self.carriers)
 
     def __post_init__(self) -> None:
-        algebraist_frame = self.frame.to_algebraist_frame()
+        algebraist_frame = self.frame
         carriers: list[CarrierNativeArray] = []
 
         for field in algebraist_frame.fields:
             policy = field.policy
-            if not isinstance(policy, AlgebraistFrameLooped) or policy.shape is None:
+            shape = getattr(policy, "shape", None)
+            if shape is None:
+                shape = getattr(field, "shape", None)
+            if getattr(policy, "kind", None) != "looped" or shape is None:
                 raise ValueError(
                     "EngineNative requires every frame field to declare shape."
                 )
-            if len(policy.shape) != 1:
+            if len(shape) != 1:
                 raise ValueError(
                     "EngineNative currently supports one-dimensional field shapes only."
                 )
-            carriers.append(CarrierNativeArray(array(self.typecode, (0.0 for _ in range(policy.shape[0])))))
+            carriers.append(CarrierNativeArray(array(self.typecode, (0.0 for _ in range(shape[0])))))
 
         carrier_tuple = tuple(carriers)
         allocator = EngineAllocatorNative(

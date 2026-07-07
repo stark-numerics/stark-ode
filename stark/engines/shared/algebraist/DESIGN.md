@@ -23,7 +23,7 @@ For a high-level solve, the intended path is:
 
 ```text
 Frame
-  -> AlgebraistFrame / AlgebraistFrameField layout
+  -> AlgebraistFrame / AlgebraistField layout
   -> carrier choices from Engine
   -> allocator for state/translation objects
   -> Algebraist generator providers
@@ -50,6 +50,16 @@ specialist stage updates
 ```
 
 This is where backend acceleration should happen for ordinary high-level use.
+
+## To Do
+
+- Investigate loop fusion for frames with multiple array fields of the same
+  shape. Coupled systems often carry two or more arrays with identical extents;
+  the looped Algebraist path may be able to perform matching field operations
+  in one loop rather than walking each field separately. This should be decided
+  during Algebraist preparation, where the frame layout is known, by detecting
+  compatible shapes and dispatching to a generated Algebraist form with a
+  smarter loop arrangement.
 
 ## Frame, Generator, and Target
 

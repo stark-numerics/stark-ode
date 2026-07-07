@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any
 
-from stark.engines.shared.algebraist.frame import AlgebraistFrame
+from stark.core.contracts.frame import FrameLike
 from stark.engines.jax.carriers import CarrierJax
 from stark.engines.jax.translation import EngineTranslationJax
 
@@ -13,7 +13,7 @@ from stark.engines.jax.translation import EngineTranslationJax
 class EngineAllocatorJax:
     """Allocate structured JAX state and translation objects."""
 
-    algebraist_frame: AlgebraistFrame
+    algebraist_frame: FrameLike
     carriers: tuple[CarrierJax, ...] = field(repr=False)
     linear_combine: tuple[Any, ...] = field(default=(), repr=False)
     apply_translation: Any = field(default=None, repr=False)

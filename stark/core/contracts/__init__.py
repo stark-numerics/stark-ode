@@ -24,9 +24,18 @@ from stark.core.contracts.dynamics import DynamicsAudit, DynamicsLike
 from stark.core.contracts.dynamics_split import DynamicsSplitAudit, DynamicsSplitLike
 from stark.core.contracts.errors import StarkError, StarkErrorRecoverable
 from stark.core.contracts.engine import Engine
-from stark.core.contracts.inner_product import InnerProduct
+from stark.core.contracts.field import (
+    FieldLike,
+    FieldPath,
+    FieldPathLike,
+    FieldPolicyLike,
+    FieldPolicyType,
+)
+from stark.core.contracts.frame import FrameLike
+from stark.core.contracts.inner_product import InnerProduct, InnerProductNamed
 from stark.core.contracts.integrator import IntegratorLike
 from stark.core.contracts.interval import IntervalLike
+from stark.core.contracts.norm import NormLike
 from stark.core.contracts.inverter import (
     Inverter,
     InverterInstance,
@@ -67,6 +76,9 @@ from stark.core.contracts.translation import TranslationAudit
 from stark.core.contracts.translation_basis import TranslationBasis
 from stark.core.contracts.translation import (
     Translation,
+    TranslationFieldType,
+    TranslationFieldTypeCovariant,
+    TranslationFieldTypeContravariant,
     TranslationType,
     TranslationTypeCovariant,
     TranslationTypeContravariant,
@@ -101,9 +113,16 @@ __all__ = [
     "DynamicsSplitAudit",
     "DynamicsSplitLike",
     "Engine",
+    "FieldLike",
+    "FieldPath",
+    "FieldPathLike",
+    "FieldPolicyLike",
+    "FieldPolicyType",
+    "FrameLike",
     "StarkError",
     "StarkErrorRecoverable",
     "InnerProduct",
+    "InnerProductNamed",
     "IntegratorLike",
     "IntervalLike",
     "Inverter",
@@ -115,6 +134,7 @@ __all__ = [
     "LinearResidual",
     "LinearizerLike",
     "LinearizerAudit",
+    "NormLike",
     "IntegratorStepperAudit",
     "IntegratorStepperLike",
     "Operator",
@@ -136,6 +156,9 @@ __all__ = [
     "Translation",
     "TranslationAudit",
     "TranslationBasis",
+    "TranslationFieldType",
+    "TranslationFieldTypeCovariant",
+    "TranslationFieldTypeContravariant",
     "TranslationType",
     "TranslationTypeCovariant",
     "TranslationTypeContravariant",

@@ -145,9 +145,9 @@ Names should identify ownership before role.
 Use:
 
 ```text
-FrameField
+Field
 AlgebraistFrame
-AlgebraistFrameField
+AlgebraistField
 InverterKrylovBasis
 InverterKrylovProjection
 SchemePredictorKnown

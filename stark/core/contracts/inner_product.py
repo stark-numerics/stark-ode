@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, ClassVar, Protocol
+
+from stark.core.contracts.translation import TranslationFieldTypeContravariant
 
 
 class InnerProduct(Protocol):
@@ -14,8 +16,23 @@ class InnerProduct(Protocol):
     an inner product compatible with the translation space.
     """
 
-    def __call__(self, left: Any, right: Any) -> float:
-        ...
+    def __call__(
+        self,
+        left: Any,
+        right: Any,
+    ) -> float: ...
 
 
-__all__ = ["InnerProduct"]
+class InnerProductNamed(Protocol[TranslationFieldTypeContravariant]):
+    """Frame-level inner product policy for one translation field."""
+
+    kind: ClassVar[str]
+
+    def __call__(
+        self,
+        left: TranslationFieldTypeContravariant,
+        right: TranslationFieldTypeContravariant,
+    ) -> float: ...
+
+
+__all__ = ["InnerProduct", "InnerProductNamed"]

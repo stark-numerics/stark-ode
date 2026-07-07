@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from stark import Configuration, Interval, Frame, FrameField, Method, System
+from stark import Configuration, Interval, Frame, Field, Method, System
 from stark.problem.dynamics import DynamicsAdapterAcceptsInstantWrites
 from stark.engines.shared.accelerators import AcceleratorNone
 from stark.engines import EngineNumpy
@@ -58,8 +58,8 @@ def dynamics(interval, state, out) -> None:
 def test_system_ivp_builds_engine_state_and_declared_scheme() -> None:
     frame = Frame(
         (
-            FrameField("u", translation="du", shape=(2,)),
-            FrameField("v", translation="dv", shape=(2,)),
+            Field("u", translation="du", shape=(2,)),
+            Field("v", translation="dv", shape=(2,)),
         )
     )
     system = System(dynamics=dynamics, frame=frame)

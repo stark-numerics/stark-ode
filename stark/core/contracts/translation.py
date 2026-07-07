@@ -80,6 +80,33 @@ worker that can handle a broad translation type can also stand in for a worker
 that is only required to handle a narrower one.
 """
 
+TranslationFieldType = TypeVar("TranslationFieldType")
+"""Invariant type variable for one field stored on a translation object.
+
+Use this when a contract must preserve the exact selected translation-field
+type across input and output positions.
+"""
+
+TranslationFieldTypeCovariant = TypeVar(
+    "TranslationFieldTypeCovariant",
+    covariant=True,
+)
+"""Covariant type variable for producers of selected translation-field values.
+
+Use this when a contract only returns a field value taken from a translation
+object.
+"""
+
+TranslationFieldTypeContravariant = TypeVar(
+    "TranslationFieldTypeContravariant",
+    contravariant=True,
+)
+"""Contravariant type variable for one field stored on a translation object.
+
+Use this for policies or workers that consume a selected translation field
+rather than the whole translation object, such as field-level norm policies.
+"""
+
 
 class TranslationAudit:
     """Record checks for the translation algebra contract."""
@@ -176,6 +203,9 @@ class TranslationAudit:
 
 __all__ = [
     "Translation",
+    "TranslationFieldType",
+    "TranslationFieldTypeCovariant",
+    "TranslationFieldTypeContravariant",
     "TranslationType",
     "TranslationTypeCovariant",
     "TranslationTypeContravariant",

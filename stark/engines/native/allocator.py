@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any
 
-from stark.engines.shared.algebraist.frame import AlgebraistFrame
+from stark.core.contracts.frame import FrameLike
 from stark.engines.native.carriers import CarrierNativeArray
 from stark.engines.native.translation import EngineTranslationNative
 
@@ -13,7 +13,7 @@ from stark.engines.native.translation import EngineTranslationNative
 class EngineAllocatorNative:
     """Allocate structured native state and translation objects."""
 
-    algebraist_frame: AlgebraistFrame
+    algebraist_frame: FrameLike
     carriers: tuple[CarrierNativeArray, ...] = field(repr=False)
     linear_combine: tuple[Any, ...] = field(default=(), repr=False)
     apply_translation: Any = field(default=None, repr=False)
