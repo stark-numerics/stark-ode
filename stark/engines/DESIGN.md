@@ -2,13 +2,12 @@
 
 Engines choose where STARK stores arrays and performs algebra.
 
-An engine package should be cohesive. A future backend such as Torch should
-enter as a recognisable backend package, not as scattered helper files across
-unrelated directories.
+The engine layer should keep backend ownership visible without forcing every
+backend through a deep package tree.
 
 ## To Do
 
-- Add a Torch engine as a full backend package when there is a real user or
+- Add a Torch engine/carrier pair when there is a real user or
   downstream-package need for it.
 
 ## Topology
@@ -16,30 +15,42 @@ unrelated directories.
 The intended shape is flat enough that backend ownership is visible:
 
 ```text
-engines/shared
-engines/native
-engines/numpy
-engines/cupy
-engines/jax
-engines/torch    future
+engines/allocator.py
+engines/engine_*.py
+engines/translation_factory_*.py
+engines/translation_basis.py
+engines/accelerators
+engines/algebraist
+engines/generator
+engines/carriers
+engines/carrier_numpy
+engines/carrier_native
+engines/carrier_cupy
+engines/carrier_jax
+engines/carrier_torch    future
 ```
 
-Backend-specific carriers, allocators, translations, targets, and policies
-should live near the backend they serve. Shared abstractions belong in
-`engines/shared` only when more than one backend genuinely uses them.
+Backend-specific carriers, targets, and policies should live near the backend
+they serve. Cross-backend construction helpers such as the shared allocator and
+translation factories can live at `engines/` level when their role is visible
+and they are parameterised by backend-specific carriers. Shared abstractions
+belong in named packages such as `engines/algebraist`, `engines/generator`,
+`engines/accelerators`, or `engines/carriers`; avoid a vague extra `shared`
+layer.
 
-`engines/shared` should not become a second backend. Backend identity should
-remain visible in the concrete backend package.
+Backend identity should remain visible in the engine module and concrete
+carrier package.
 
 ## Role
 
 An engine owns:
 
 - state and translation carriers,
-- allocator behaviour,
+- allocator configuration,
 - backend array type and dtype policy,
 - translation bases,
-- Algebraist/generator selection,
+- prepared Algebraist bundle and generated target selection,
+- generator policy describing source-shape decisions,
 - accelerator choice where relevant.
 
 ## Generated and Runtime Algebra
@@ -49,6 +60,23 @@ algebra is the fallback for unknown or foreign user state shapes.
 
 This matters for performance and for mental model clarity: ordinary high-level
 models should give engines enough structure to optimise.
+
+## Backend Notes
+
+NumPy is the reference array backend for ordinary high-level use. It should
+remain predictable, easy to inspect, and representative of the array backend
+shape.
+
+Native stores one-dimensional fields in Python `array.array` objects. It is a
+dependency-light CPU path and currently rejects multi-dimensional frame fields.
+
+CuPy stores shaped fields in GPU arrays. CuPy-specific expression choices, such
+as elementwise kernel generation and host scalar extraction, belong in the CuPy
+target/carrier path rather than in generic translation code.
+
+JAX stores shaped fields in immutable JAX arrays. Generated algebra should
+prefer functional return-style kernels; whole-solver JIT is a separate future
+boundary.
 
 ## Hint Types
 

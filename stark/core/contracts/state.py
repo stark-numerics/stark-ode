@@ -2,7 +2,7 @@
 
 STARK state objects are deliberately unconstrained. They may be dataclasses,
 NumPy arrays, nested structures, or domain-specific mutable containers. The
-library learns how to allocate and copy them through the `Allocator` or carrier
+library learns how to allocate and copy them through the allocator or carrier
 contracts rather than through inheritance.
 """
 

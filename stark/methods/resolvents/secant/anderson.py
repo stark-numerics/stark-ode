@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
-from stark.engines.shared.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.core.block import Block, BlockAllocator
-from stark.core.contracts import Accelerator, InnerProduct, Translation, Allocator
+from stark.core.contracts import Accelerator, InnerProduct, Translation, AllocatorLike
 from stark.methods.resolvents.method.descriptor import ResolventDescriptor
 from stark.methods.resolvents.method.errors import ResolventError
 from stark.methods.resolvents.monitoring.monitor import MonitorResolventLike
@@ -239,7 +239,7 @@ class ResolventAnderson:
 
     def __init__(
         self,
-        allocator: Allocator,
+        allocator: AllocatorLike,
         inner_product: InnerProduct,
         configuration: ResolventConfiguration | None = None,
         depth: int = 4,

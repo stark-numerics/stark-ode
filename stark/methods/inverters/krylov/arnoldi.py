@@ -8,7 +8,7 @@ from typing import ClassVar, Generic, cast
 from stark.core.block import Block, BlockAllocationAllocator, BlockAllocator
 from stark.core.contracts import (
     Accelerator,
-    Allocator,
+    AllocatorLike,
     BlockLike,
     BlockOperatorLike,
     InnerProduct,
@@ -16,8 +16,8 @@ from stark.core.contracts import (
     InverterRequest,
     TranslationType,
 )
-from stark.engines.shared.accelerators import AcceleratorNone
-from stark.engines.shared.algebraist.runtime import AlgebraistRuntimeLinearCombine
+from stark.engines.accelerators import AcceleratorNone
+from stark.engines.algebraist.runtime import AlgebraistRuntimeLinearCombine
 from stark.methods.inverters.configuration import (
     InverterConfiguration,
     InverterConfigurationDefault,
@@ -75,7 +75,7 @@ class InverterKrylovArnoldi(Generic[TranslationType]):
     use goes through instance(operator).
     """
 
-    allocator: Allocator
+    allocator: AllocatorLike
     inner_product: InnerProduct
     restart: int = 16
     breakdown_tolerance: float = 1.0e-30

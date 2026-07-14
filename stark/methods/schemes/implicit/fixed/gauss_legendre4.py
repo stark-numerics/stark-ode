@@ -4,7 +4,7 @@ from stark.methods.schemes.configuration import SchemeConfiguration
 from math import sqrt
 from typing import Any, cast
 
-from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, AllocatorLike
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
 from stark.methods.schemes.execution.call import SchemeCall
@@ -102,7 +102,7 @@ class SchemeGaussLegendre4:
     def __init__(
         self,
         dynamics: DynamicsLike,
-        allocator: Allocator,
+        allocator: AllocatorLike,
         resolvent: Resolvent,
         *,
         configuration: SchemeConfiguration | None = None,

@@ -195,3 +195,11 @@ stark.core.contracts.translation\_basis module
    :members:
    :show-inheritance:
    :undoc-members:
+
+stark.core.contracts.translation\_factory module
+------------------------------------------------
+
+.. automodule:: stark.core.contracts.translation_factory
+   :members:
+   :show-inheritance:
+   :undoc-members:

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -6,7 +6,7 @@ import pytest
 
 from stark import Interval, Tolerance
 from stark.core.contracts import IntervalLike
-from stark.engines.shared.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
 from stark.methods.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler

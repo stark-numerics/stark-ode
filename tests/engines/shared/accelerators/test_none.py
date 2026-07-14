@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.engines.shared.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 
 
 def test_none_accelerator_compile_accepts_decorator_form() -> None:

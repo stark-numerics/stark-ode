@@ -13,9 +13,9 @@ from stark.core.contracts import (
     LinearizerLike,
     StateType,
     TranslationType,
-    Allocator,
+    AllocatorLike,
 )
-from stark.engines.shared.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.methods.resolvents.configuration import ResolventConfiguration
 from stark.methods.resolvents.method.descriptor import ResolventDescriptor
 from stark.methods.resolvents.method.errors import ResolventError
@@ -89,7 +89,7 @@ class ResolventNewton(Generic[StateType, TranslationType]):
 
     def __init__(
         self,
-        allocator: Allocator[StateType, TranslationType],
+        allocator: AllocatorLike[StateType, TranslationType],
         linearizer: LinearizerLike[StateType, TranslationType],
         inverter: Inverter[TranslationType],
         configuration: ResolventConfiguration | None = None,

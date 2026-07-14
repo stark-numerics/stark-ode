@@ -7,8 +7,8 @@ from stark.methods.resolvents.configuration import ResolventConfiguration
 from typing import TYPE_CHECKING, Any, cast
 
 from stark.core.block import Block, BlockAllocator
-from stark.core.contracts import Accelerator, Translation, Allocator
-from stark.engines.shared.accelerators import AcceleratorNone
+from stark.core.contracts import Accelerator, Translation, AllocatorLike
+from stark.engines.accelerators import AcceleratorNone
 from stark.methods.resolvents.method.descriptor import ResolventDescriptor
 from stark.methods.resolvents.method.errors import ResolventError
 from stark.methods.resolvents.monitoring.monitor import MonitorResolventLike
@@ -72,7 +72,7 @@ class ResolventCoupledPicard:
 
     def __init__(
         self,
-        allocator: Allocator,
+        allocator: AllocatorLike,
         configuration: ResolventConfiguration | None = None,
         safety: ResolventSafety | None = None,
         accelerator: Accelerator | None = None,

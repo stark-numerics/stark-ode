@@ -3,9 +3,9 @@ import math
 import numpy as np
 import pytest
 
-from stark.engines.native.carriers import CarrierNative
+from stark.engines.carrier_native import CarrierNative
 
-from stark.engines.numpy.carriers import CarrierNumpy
+from stark.engines.carrier_numpy import CarrierNumpy
 def test_native_scalar_carrier_parts() -> None:
     carrier = CarrierNative(2.0)
 
@@ -121,7 +121,7 @@ def test_numpy_norms_rms_default() -> None:
 
 def test_cupy_carrier_optional() -> None:
     cp = pytest.importorskip("cupy")
-    from stark.engines.cupy.carriers import CarrierCupy
+    from stark.engines.carrier_cupy import CarrierCupy
     carrier = CarrierCupy(cp.asarray([1.0, 2.0, 3.0]))
 
     result = carrier.allocation.zero_translation()
@@ -136,7 +136,7 @@ def test_cupy_carrier_optional() -> None:
 
 def test_cupy_translate_allows_state_result_aliasing_optional() -> None:
     cp = pytest.importorskip("cupy")
-    from stark.engines.cupy.carriers import CarrierCupy
+    from stark.engines.carrier_cupy import CarrierCupy
     carrier = CarrierCupy(cp.asarray([1.0, 2.0, 3.0]))
 
     state = cp.asarray([1.0, 2.0, 3.0])
@@ -149,7 +149,7 @@ def test_cupy_translate_allows_state_result_aliasing_optional() -> None:
 
 def test_jax_carrier_optional() -> None:
     jnp = pytest.importorskip("jax.numpy")
-    from stark.engines.jax.carriers import CarrierJax
+    from stark.engines.carrier_jax import CarrierJax
     carrier = CarrierJax(jnp.asarray([1.0, 2.0, 3.0]))
 
     result = carrier.allocation.zero_translation()

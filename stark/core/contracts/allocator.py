@@ -9,7 +9,7 @@ from stark.core.contracts.state import State, StateType
 from stark.core.contracts.translation import Translation, TranslationTypeCovariant
 
 
-class Allocator(Protocol[StateType, TranslationTypeCovariant]):
+class AllocatorLike(Protocol[StateType, TranslationTypeCovariant]):
     """
     Factory for reusable scratch objects and state-copy operations.
 
@@ -20,8 +20,8 @@ class Allocator(Protocol[StateType, TranslationTypeCovariant]):
     - copy one state into another
     - allocate translation objects compatible with that state
 
-    `Allocator` is generic in the state and translation it owns. This lets a
-    concrete allocator such as `Allocator[ParticleState, ParticleDelta]` satisfy
+    `AllocatorLike` is generic in the state and translation it owns. This lets a
+    concrete allocator such as `AllocatorLike[ParticleState, ParticleDelta]` satisfy
     the same public contract without pretending its return values are only the
     broad `State` and `Translation` protocols.
 
@@ -112,4 +112,4 @@ class AllocatorAudit:
             recorder.check(True, "Allocator.copy_state(source, out) succeeds on blank states.")
 
 
-__all__ = ["Allocator", "AllocatorAudit"]
+__all__ = ["AllocatorLike", "AllocatorAudit"]

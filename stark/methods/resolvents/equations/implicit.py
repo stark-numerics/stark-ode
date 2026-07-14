@@ -4,9 +4,9 @@ from collections.abc import Callable
 from collections.abc import MutableSequence
 from typing import Generic
 
-from stark.engines.shared.accelerators import AcceleratorNone
-from stark.engines.shared.algebraist.arity import AlgebraistArity
-from stark.engines.shared.algebraist.runtime.linear_combine import AlgebraistRuntimeLinearCombine
+from stark.engines.accelerators import AcceleratorNone
+from stark.engines.algebraist.arity import AlgebraistArity
+from stark.engines.algebraist.runtime.linear_combine import AlgebraistRuntimeLinearCombine
 from stark.core.block import Block
 from stark.core.contracts import (
     Accelerator,
@@ -18,9 +18,9 @@ from stark.core.contracts import (
     StateType,
     Translation,
     TranslationType,
-    Allocator,
+    AllocatorLike,
 )
-from stark.core.contracts.translation_basis import TranslationBasis
+from stark.core.contracts.translation_basis import TranslationBasisLike
 from stark.methods.resolvents.requests.resolvent import (
     ResolventRequestCoupled,
     ResolventRequest,
@@ -28,7 +28,7 @@ from stark.methods.resolvents.requests.resolvent import (
 from stark.methods.resolvents.equations.workers import ResolventDynamics, ResolventLinearizer
 
 ResolventDenseFill = Callable[
-    [TranslationBasis[Translation], MutableSequence[float], int, int, int],
+    [TranslationBasisLike[Translation], MutableSequence[float], int, int, int],
     None,
 ]
 
@@ -80,7 +80,7 @@ class ResolventImplicitEquationDifferential(Generic[TranslationType]):
 
     def dense_fill_configured(
         self,
-        basis: TranslationBasis[Translation],
+        basis: TranslationBasisLike[Translation],
         matrix: MutableSequence[float],
         row_offset: int,
         column_offset: int,
@@ -212,7 +212,7 @@ class ResolventImplicitEquation(Generic[StateType, TranslationType]):
     def __init__(
         self,
         method_name: str,
-        allocator: Allocator[StateType, TranslationType],
+        allocator: AllocatorLike[StateType, TranslationType],
         linearizer: LinearizerLike[StateType, TranslationType] | None = None,
         accelerator: Accelerator | None = None,
     ) -> None:
@@ -347,7 +347,7 @@ class ResolventImplicitEquationCoupled(Generic[StateType, TranslationType]):
     def __init__(
         self,
         method_name: str,
-        allocator: Allocator[StateType, TranslationType],
+        allocator: AllocatorLike[StateType, TranslationType],
         linearizer: LinearizerLike[StateType, TranslationType] | None = None,
         accelerator: Accelerator | None = None,
     ) -> None:

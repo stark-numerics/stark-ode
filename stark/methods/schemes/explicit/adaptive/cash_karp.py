@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.core.contracts import DynamicsLike, IntervalLike, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, State, AllocatorLike
 from stark.methods.schemes.configuration import SchemeConfiguration,SchemeConfigurationDefault
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
@@ -152,7 +152,7 @@ class SchemeCashKarp:
     def __init__(
         self,
         dynamics: DynamicsLike,
-        allocator: Allocator,
+        allocator: AllocatorLike,
         configuration: SchemeConfiguration | None = None,
         specialist: SchemeSpecialist | None = None,
         monitor: SchemeMonitor | None = None,

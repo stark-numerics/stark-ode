@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.methods.schemes.predictor import SchemePredictorKnown
 from stark.core.block import Block
-from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, AllocatorLike
 from stark.core.contracts.errors import StarkErrorRecoverable
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
@@ -134,7 +134,7 @@ class SchemeSDIRK21:
     def __init__(
         self,
         dynamics: DynamicsLike,
-        allocator: Allocator,
+        allocator: AllocatorLike,
         resolvent: Resolvent,
         *,
         configuration: SchemeConfiguration | None = None,

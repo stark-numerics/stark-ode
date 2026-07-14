@@ -38,7 +38,7 @@ if __name__ == "__main__":
             inverter_tolerance=Tolerance(atol=1.0e-12, rtol=0.0),
             inverter_maximum_steps=4,
         ),
-        specialist=BlockSpecialist(engine.algebraist_specialist),
+        specialist=BlockSpecialist(engine.algebraist.specialist),
     )
 
     inverter(request, output)

@@ -8,7 +8,7 @@ from itertools import accumulate
 from typing import Generic, TypeVar
 
 from stark.core.contracts.block import BlockLike
-from stark.core.contracts.translation_basis import TranslationBasis
+from stark.core.contracts.translation_basis import TranslationBasisLike
 
 BlockBasisValueType = TypeVar("BlockBasisValueType")
 """Type variable for values analysed by each entry basis in a block basis."""
@@ -24,7 +24,7 @@ class BlockBasis(Generic[BlockBasisValueType]):
     index to the corresponding block entry and local translation coordinate.
     """
 
-    bases: Sequence[TranslationBasis[BlockBasisValueType]]
+    bases: Sequence[TranslationBasisLike[BlockBasisValueType]]
     offsets: tuple[int, ...] = field(init=False)
     dimension: int = field(init=False)
 

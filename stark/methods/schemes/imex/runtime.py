@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.core.auditor import Auditor
-from stark.core.contracts import DynamicsSplitLike, State, Allocator
+from stark.core.contracts import DynamicsSplitLike, State, AllocatorLike
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 
 
@@ -19,7 +19,7 @@ class SchemeRuntimeImex:
     def __init__(
         self,
         dynamics: DynamicsSplitLike,
-        allocator: Allocator,
+        allocator: AllocatorLike,
     ) -> None:
         translation_probe = allocator.allocate_translation()
         Auditor.require_imex_scheme_inputs(dynamics, allocator, translation_probe)

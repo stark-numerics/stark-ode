@@ -13,12 +13,12 @@ from stark.core.contracts.block import (
     BlockOperatorLike,
 )
 from stark.core.contracts.carrier import (
-    Carrier,
-    CarrierAllocation,
-    CarrierArithmetic,
-    CarrierNorm,
-    CarrierStorage,
-    CarrierValidation,
+    CarrierLike,
+    CarrierAllocationLike,
+    CarrierArithmeticLike,
+    CarrierNormLike,
+    CarrierStorageLike,
+    CarrierValidationLike,
 )
 from stark.core.contracts.dynamics import DynamicsAudit, DynamicsLike
 from stark.core.contracts.dynamics_split import DynamicsSplitAudit, DynamicsSplitLike
@@ -73,7 +73,7 @@ from stark.core.contracts.state import (
     StateTypeContravariant,
 )
 from stark.core.contracts.translation import TranslationAudit
-from stark.core.contracts.translation_basis import TranslationBasis
+from stark.core.contracts.translation_basis import TranslationBasisLike
 from stark.core.contracts.translation import (
     Translation,
     TranslationFieldType,
@@ -83,7 +83,8 @@ from stark.core.contracts.translation import (
     TranslationTypeCovariant,
     TranslationTypeContravariant,
 )
-from stark.core.contracts.allocator import Allocator, AllocatorAudit
+from stark.core.contracts.translation_factory import TranslationFactoryLike
+from stark.core.contracts.allocator import AllocatorLike, AllocatorAudit
 
 __all__ = [
     "Accelerator",
@@ -91,12 +92,12 @@ __all__ = [
     "BlockOperatorEntryLike",
     "BlockOperatorLike",
     "BlockOperatorDiagonalLike",
-    "Carrier",
-    "CarrierAllocation",
-    "CarrierArithmetic",
-    "CarrierNorm",
-    "CarrierStorage",
-    "CarrierValidation",
+    "CarrierLike",
+    "CarrierAllocationLike",
+    "CarrierArithmeticLike",
+    "CarrierNormLike",
+    "CarrierStorageLike",
+    "CarrierValidationLike",
     "Combine2",
     "Combine3",
     "Combine4",
@@ -155,13 +156,14 @@ __all__ = [
     "SupportsLinearCombine",
     "Translation",
     "TranslationAudit",
-    "TranslationBasis",
+    "TranslationBasisLike",
     "TranslationFieldType",
     "TranslationFieldTypeCovariant",
     "TranslationFieldTypeContravariant",
     "TranslationType",
     "TranslationTypeCovariant",
     "TranslationTypeContravariant",
-    "Allocator",
+    "TranslationFactoryLike",
+    "AllocatorLike",
     "AllocatorAudit",
 ]

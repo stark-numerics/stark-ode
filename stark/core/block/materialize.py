@@ -6,7 +6,7 @@ from typing import Generic, Protocol, TypeAlias, cast
 
 from stark.core.contracts.block import BlockLike, BlockOperatorDiagonalLike
 from stark.core.contracts.translation import TranslationType
-from stark.core.contracts.translation_basis import TranslationBasis
+from stark.core.contracts.translation_basis import TranslationBasisLike
 
 
 OperatorDenseMatrix: TypeAlias = MutableSequence[float]
@@ -15,7 +15,7 @@ OperatorDenseMatrix: TypeAlias = MutableSequence[float]
 
 OperatorDenseFill = Callable[
     [
-        TranslationBasis[TranslationType],
+        TranslationBasisLike[TranslationType],
         OperatorDenseMatrix,
         int,
         int,
@@ -46,7 +46,7 @@ class OperatorDenseEntryMaterializeDirect(Generic[TranslationType]):
     """Use an operator-provided dense-fill capability."""
 
     dense_fill: OperatorDenseFill[TranslationType]
-    basis: TranslationBasis[TranslationType]
+    basis: TranslationBasisLike[TranslationType]
 
     def refresh(
         self,
@@ -67,7 +67,7 @@ class OperatorDenseEntryMaterializeProbe(Generic[TranslationType]):
     """Materialize an operator by applying it to basis vectors."""
 
     operator: object
-    basis: TranslationBasis[TranslationType]
+    basis: TranslationBasisLike[TranslationType]
 
     def refresh(
         self,
@@ -96,7 +96,7 @@ class OperatorDenseEntryMaterializeProbe(Generic[TranslationType]):
 
 def dense_entry_materializer(
     operator: object,
-    basis: TranslationBasis[TranslationType],
+    basis: TranslationBasisLike[TranslationType],
     dense_fill: object | None = None,
 ) -> OperatorDenseEntryMaterialize[TranslationType]:
     if dense_fill is None:
@@ -126,7 +126,7 @@ class OperatorMaterialize(Generic[TranslationType]):
     """
 
     operator: object
-    basis: TranslationBasis[TranslationType]
+    basis: TranslationBasisLike[TranslationType]
     source: TranslationType
     image: TranslationType
     matrix: OperatorDenseMatrix | None = None
@@ -198,7 +198,7 @@ class BlockOperatorDiagonalMaterialize(Generic[TranslationType]):
     """
 
     operator: BlockOperatorDiagonalLike[TranslationType]
-    bases: TranslationBasis[TranslationType] | Sequence[TranslationBasis[TranslationType]]
+    bases: TranslationBasisLike[TranslationType] | Sequence[TranslationBasisLike[TranslationType]]
     source: BlockLike[TranslationType]
     image: BlockLike[TranslationType]
     matrix: OperatorDenseMatrix | None = None
@@ -228,8 +228,8 @@ class BlockOperatorDiagonalMaterialize(Generic[TranslationType]):
 
     def _normalize_bases(
         self,
-        bases: TranslationBasis[TranslationType] | Sequence[TranslationBasis[TranslationType]],
-    ) -> list[TranslationBasis[TranslationType]]:
+        bases: TranslationBasisLike[TranslationType] | Sequence[TranslationBasisLike[TranslationType]],
+    ) -> list[TranslationBasisLike[TranslationType]]:
         block_size = len(self.source)
         if len(self.image) != block_size:
             raise ValueError("Source and image blocks must have the same size.")
@@ -247,7 +247,7 @@ class BlockOperatorDiagonalMaterialize(Generic[TranslationType]):
         return normalized
 
     @staticmethod
-    def _build_offsets(bases: Sequence[TranslationBasis[TranslationType]]) -> list[int]:
+    def _build_offsets(bases: Sequence[TranslationBasisLike[TranslationType]]) -> list[int]:
         offsets = [0]
         for basis in bases:
             offsets.append(offsets[-1] + basis.dimension)
@@ -256,8 +256,8 @@ class BlockOperatorDiagonalMaterialize(Generic[TranslationType]):
     def _allocate_matrix(self) -> list[float]:
         return [0.0 for _ in range(self.dimension * self.dimension)]
 
-    def _prepared_bases(self) -> list[TranslationBasis[TranslationType]]:
-        return cast(list[TranslationBasis[TranslationType]], self.bases)
+    def _prepared_bases(self) -> list[TranslationBasisLike[TranslationType]]:
+        return cast(list[TranslationBasisLike[TranslationType]], self.bases)
 
     def _ensure_matrix(self) -> OperatorDenseMatrix:
         matrix = self.matrix

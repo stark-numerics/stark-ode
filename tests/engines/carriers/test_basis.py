@@ -5,10 +5,10 @@ from array import array
 import numpy as np
 import pytest
 
-from stark.engines.native.carriers import CarrierNative
+from stark.engines.carrier_native import CarrierNative
 
-from stark.engines.numpy.carriers import CarrierNumpy
-from stark.engines.native.carriers import (
+from stark.engines.carrier_numpy import CarrierNumpy
+from stark.engines.carrier_native import (
     CarrierBasisNativeArray,
     CarrierBasisNativeList,
     CarrierBasisNativeScalar,
@@ -18,10 +18,10 @@ from stark.engines.native.carriers import (
     CarrierNativeScalar,
     CarrierNativeTuple,
 )
-from stark.core.contracts import TranslationBasis
+from stark.core.contracts import TranslationBasisLike
 
 
-def assert_dual_coordinates(basis: TranslationBasis, output, values) -> None:
+def assert_dual_coordinates(basis: TranslationBasisLike, output, values) -> None:
     assert basis.dimension == len(values)
     for column, expected in enumerate(values):
         vector = basis.vector(column, output)
@@ -101,7 +101,7 @@ def test_numpy_basis_uses_canonical_flat_coordinates() -> None:
 
 def test_cupy_basis_optional() -> None:
     cp = pytest.importorskip("cupy")
-    from stark.engines.cupy.carriers import CarrierCupy
+    from stark.engines.carrier_cupy import CarrierCupy
     carrier = CarrierCupy(cp.zeros((2, 2)))
     output = carrier.allocation.zero_translation()
 
@@ -115,7 +115,7 @@ def test_cupy_basis_optional() -> None:
 
 def test_jax_basis_optional() -> None:
     jnp = pytest.importorskip("jax.numpy")
-    from stark.engines.jax.carriers import CarrierJax
+    from stark.engines.carrier_jax import CarrierJax
     carrier = CarrierJax(jnp.zeros((2, 2)))
     output = carrier.allocation.zero_translation()
 
@@ -144,7 +144,7 @@ def test_numpy_basis_analyses_and_synthesizes_coordinates() -> None:
 
 def test_jax_basis_synthesizes_return_style_translation() -> None:
     jnp = pytest.importorskip("jax.numpy")
-    from stark.engines.jax.carriers import CarrierJax
+    from stark.engines.carrier_jax import CarrierJax
     carrier = CarrierJax(jnp.zeros((2, 2)))
     output = carrier.allocation.zero_translation()
 

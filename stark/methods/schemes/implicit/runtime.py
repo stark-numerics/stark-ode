@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from stark.core.block import BlockAllocator
-from stark.core.contracts import DynamicsLike, State, Allocator, Resolvent
+from stark.core.contracts import DynamicsLike, State, AllocatorLike, Resolvent
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 
@@ -28,7 +28,7 @@ class SchemeRuntimeImplicit:
         self,
         scheme: SchemeRuntimeImplicitOwner,
         dynamics: DynamicsLike,
-        allocator: Allocator,
+        allocator: AllocatorLike,
     ) -> None:
         self.validate_resolvent_tableau(scheme)
         translation_probe = allocator.allocate_translation()

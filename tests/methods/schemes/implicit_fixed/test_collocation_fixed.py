@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -7,8 +7,8 @@ import pytest
 
 from stark import Interval, Tolerance
 from stark.core.contracts import IntervalLike
-from stark.engines.shared.accelerators import AcceleratorNone
-from stark.engines.shared.algebraist.runtime import AlgebraistRuntimeSpecialist
+from stark.engines.accelerators import AcceleratorNone
+from stark.engines.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.methods.resolvents import ResolventCoupledPicard
 from stark import Configuration
 from stark.methods.schemes.implicit.fixed.gauss_legendre4 import SchemeGaussLegendre4

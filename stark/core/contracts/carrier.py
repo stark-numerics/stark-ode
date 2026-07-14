@@ -20,14 +20,14 @@ from stark.core.contracts.translation import (
 )
 
 
-class CarrierStorage(Protocol[StateTypeContravariant, TranslationTypeContravariant]):
+class CarrierStorageLike(Protocol[StateTypeContravariant, TranslationTypeContravariant]):
     """Recognize state and translation values for one carrier family."""
 
     def is_state(self, value: StateTypeContravariant) -> bool: ...
     def is_translation(self, value: TranslationTypeContravariant) -> bool: ...
 
 
-class CarrierValidation(Protocol[StateType, TranslationType]):
+class CarrierValidationLike(Protocol[StateType, TranslationType]):
     """Validate or coerce objects at public carrier boundaries."""
 
     def validate_state(self, value: StateType) -> StateType: ...
@@ -35,7 +35,7 @@ class CarrierValidation(Protocol[StateType, TranslationType]):
     def coerce_translation(self, value: TranslationType) -> TranslationType: ...
 
 
-class CarrierAllocation(Protocol[StateType, TranslationType]):
+class CarrierAllocationLike(Protocol[StateType, TranslationType]):
     """Allocate and copy state/translation objects for reusable workspaces."""
 
     def zero_state(self) -> StateType: ...
@@ -45,7 +45,7 @@ class CarrierAllocation(Protocol[StateType, TranslationType]):
     def allocate_translation(self) -> TranslationType: ...
 
 
-class CarrierArithmetic(Protocol[StateType, TranslationType]):
+class CarrierArithmeticLike(Protocol[StateType, TranslationType]):
     """Perform carrier-aware state and translation algebra.
 
     `preference` declares whether implementations prefer return-style algebra
@@ -72,26 +72,26 @@ class CarrierArithmetic(Protocol[StateType, TranslationType]):
     def combine11(self, a0: float, x0: TranslationType, a1: float, x1: TranslationType, a2: float, x2: TranslationType, a3: float, x3: TranslationType, a4: float, x4: TranslationType, a5: float, x5: TranslationType, a6: float, x6: TranslationType, a7: float, x7: TranslationType, a8: float, x8: TranslationType, a9: float, x9: TranslationType, a10: float, x10: TranslationType, result: TranslationType) -> TranslationType | None: ...
     def combine12(self, a0: float, x0: TranslationType, a1: float, x1: TranslationType, a2: float, x2: TranslationType, a3: float, x3: TranslationType, a4: float, x4: TranslationType, a5: float, x5: TranslationType, a6: float, x6: TranslationType, a7: float, x7: TranslationType, a8: float, x8: TranslationType, a9: float, x9: TranslationType, a10: float, x10: TranslationType, a11: float, x11: TranslationType, result: TranslationType) -> TranslationType | None: ...
 
-class CarrierNorm(Protocol[TranslationTypeContravariant]):
+class CarrierNormLike(Protocol[TranslationTypeContravariant]):
     """Measure translation size for error control and convergence tests."""
 
     def __call__(self, value: TranslationTypeContravariant) -> float: ...
 
 
-class Carrier(Protocol[StateType, TranslationType]):
+class CarrierLike(Protocol[StateType, TranslationType]):
     """Complete carrier bundle for one state/translation representation."""
 
     @property
-    def storage(self) -> CarrierStorage[StateType, TranslationType]: ...
+    def storage(self) -> CarrierStorageLike[StateType, TranslationType]: ...
 
     @property
-    def validation(self) -> CarrierValidation[StateType, TranslationType]: ...
+    def validation(self) -> CarrierValidationLike[StateType, TranslationType]: ...
 
     @property
-    def allocation(self) -> CarrierAllocation[StateType, TranslationType]: ...
+    def allocation(self) -> CarrierAllocationLike[StateType, TranslationType]: ...
 
     @property
-    def arithmetic(self) -> CarrierArithmetic[StateType, TranslationType]: ...
+    def arithmetic(self) -> CarrierArithmeticLike[StateType, TranslationType]: ...
 
     @property
-    def norm(self) -> CarrierNorm[TranslationType]: ...
+    def norm(self) -> CarrierNormLike[TranslationType]: ...

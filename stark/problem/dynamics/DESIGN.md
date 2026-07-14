@@ -1,6 +1,6 @@
 # Dynamics Design Notes
 
-Dynamicss are the user-side language for the ODE right-hand side.
+Dynamics are the user-side language for the ODE right-hand side.
 
 This package exists because users should be able to write the equation in a
 natural form, while schemes receive a consistent in-place worker that can reuse
@@ -40,7 +40,7 @@ Kernel styles exist to reduce repeated field discovery and to give engines more
 structure for prepared algebra/acceleration. They should not invent a second
 dynamics language. They are adapters for field-focused callables.
 
-## Split Dynamicss
+## Split Dynamics
 
 Split dynamics belong here because an IMEX split is a property of the
 problem statement:

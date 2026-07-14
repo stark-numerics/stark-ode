@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.methods.schemes.configuration import SchemeConfiguration
 from typing import Any, cast
 
-from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, AllocatorLike
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_fixed_step_monitoring
 from stark.methods.schemes.execution.call import SchemeCall
@@ -126,7 +126,7 @@ class SchemeCrouzeixDIRK3:
     def __init__(
         self,
         dynamics: DynamicsLike,
-        allocator: Allocator,
+        allocator: AllocatorLike,
         resolvent: Resolvent,
         *,
         configuration: SchemeConfiguration | None = None,

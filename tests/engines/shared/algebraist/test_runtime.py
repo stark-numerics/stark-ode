@@ -4,20 +4,14 @@ from dataclasses import dataclass
 
 import pytest
 
-from stark.engines.shared.algebraist.arity import AlgebraistArity
-from stark.engines.shared.algebraist.frame import (
-    AlgebraistFrame,
-    AlgebraistField,
-    AlgebraistNormExcluded,
-    AlgebraistNormRMS,
-    AlgebraistFrameScalar,
-)
-from stark.engines.shared.algebraist.runtime import (
+from stark.engines.algebraist.arity import AlgebraistArity
+from stark.engines.algebraist.runtime import (
     AlgebraistRuntimeLinearCombine,
     AlgebraistRuntimeNorm,
     AlgebraistRuntimeSpecialist,
 )
 from stark.methods.schemes.specialization.stencil import SchemeStencil
+from stark.problem.frame import Field, FieldPolicy, Frame, NormExcluded, NormRMS
 from tests.support import (
     DummyRuntimeAllocator,
     DummyRuntimeState,
@@ -164,6 +158,25 @@ def test_runtime_specialist_applies_delta_to_origin_state() -> None:
     assert result.value == pytest.approx(24.0)
 
 
+def test_runtime_specialist_unit_apply_uses_existing_translation() -> None:
+    specialist: AlgebraistRuntimeSpecialist[
+        DummyRuntimeState,
+        DummyRuntimeTranslation,
+    ] = AlgebraistRuntimeSpecialist(
+        translation=DummyRuntimeTranslationWithLinearCombine(),
+        allocator=DummyRuntimeAllocator(),
+    )
+    kernel = specialist.provide_unit_apply()
+
+    origin = DummyRuntimeState(10.0)
+    translation = DummyRuntimeTranslation(4.0)
+    result = DummyRuntimeState()
+    returned = kernel(origin, translation, result)
+
+    assert returned is result
+    assert result.value == pytest.approx(14.0)
+
+
 def test_runtime_specialist_binds_empty_stencil_as_zero_delta() -> None:
     specialist = AlgebraistRuntimeSpecialist(
         translation=DummyRuntimeTranslationWithLinearCombine(),
@@ -180,20 +193,12 @@ def test_runtime_specialist_binds_empty_stencil_as_zero_delta() -> None:
 
 def test_runtime_norm_uses_layout_norm_entries() -> None:
     norm = AlgebraistRuntimeNorm(
-        frame=AlgebraistFrame(
+        frame=Frame(
             (
-                AlgebraistField(
-                    translation_path="value",
-                    state_path="value",
-                    policy=AlgebraistFrameScalar(),
-                ),
-                AlgebraistField(
-                    translation_path="ignored",
-                    state_path="ignored",
-                    policy=AlgebraistFrameScalar(),
-                ),
+                Field("value", translation="value", policy=FieldPolicy.scalar()),
+                Field("ignored", translation="ignored", policy=FieldPolicy.scalar()),
             ),
-            norms=(AlgebraistNormRMS(), AlgebraistNormExcluded()),
+            norms=(NormRMS(), NormExcluded()),
         ),
         field_norms=(scalar_field_norm, scalar_field_norm),
     ).provide()

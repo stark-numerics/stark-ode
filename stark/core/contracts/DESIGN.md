@@ -16,7 +16,7 @@ custom dynamics       -> DynamicsLike
 custom linearizer       -> LinearizerLike
 custom scheme           -> SchemeLike
 custom inverter         -> Inverter
-custom state/translation -> StateLike / TranslationLike
+custom state/translation -> State / Translation
 ```
 
 Auditors can use these protocols to produce clearer errors than a later hot
@@ -71,6 +71,7 @@ Prefer focused imports when writing docs or implementation code:
 - `stark.core.contracts.inverter`: linear solvers and preconditioners
 - `stark.core.contracts.state`: unconstrained mutable state objects
 - `stark.core.contracts.translation`: linear update objects
+- `stark.core.contracts.translation_factory`: translation constructors for engine allocation
 - `stark.core.contracts.allocator`: state and translation factories
 
 Use the package-level `stark.core.contracts` imports for convenience in examples and interactive exploration.

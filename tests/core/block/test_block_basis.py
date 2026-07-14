@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from stark.core.block import Block, BlockBasis
-from stark.engines.numpy.carriers import CarrierNumpy
+from stark.engines.carrier_numpy import CarrierNumpy
 from tests.support import DummyVectorBasis, DummyVectorTranslation
 
 

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Generic
 
-from stark.engines.shared.algebraist.runtime import AlgebraistRuntimeLinearCombine
-from stark.core.contracts import Allocator, StateType, TranslationType
+from stark.engines.algebraist.runtime import AlgebraistRuntimeLinearCombine
+from stark.core.contracts import AllocatorLike, StateType, TranslationType
 from stark.methods.schemes.execution.interval import SchemeShiftedInterval
 
 
@@ -43,7 +43,7 @@ class SchemeStepSupport(Generic[StateType, TranslationType]):
 
     def __init__(
         self,
-        allocator: Allocator[StateType, TranslationType],
+        allocator: AllocatorLike[StateType, TranslationType],
         translation: TranslationType,
     ) -> None:
         self.allocate_state = allocator.allocate_state

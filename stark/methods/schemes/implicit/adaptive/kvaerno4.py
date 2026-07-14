@@ -3,7 +3,7 @@ from __future__ import annotations
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.methods.schemes.predictor import SchemePredictorKnown
 from stark.core.block import Block
-from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, Allocator
+from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, AllocatorLike
 from stark.core.contracts.errors import StarkErrorRecoverable
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
@@ -126,7 +126,7 @@ class SchemeKvaerno4:
 
     tableau = KVAERNO4_TABLEAU
 
-    def __init__(self, dynamics: DynamicsLike, allocator: Allocator, resolvent: Resolvent, *, configuration: SchemeConfiguration | None = None, specialist: SchemeSpecialist | None = None, monitor: SchemeMonitor | None = None) -> None:
+    def __init__(self, dynamics: DynamicsLike, allocator: AllocatorLike, resolvent: Resolvent, *, configuration: SchemeConfiguration | None = None, specialist: SchemeSpecialist | None = None, monitor: SchemeMonitor | None = None) -> None:
         self.error_delta_call = unbound_scheme_call
         self.high_delta_call = unbound_scheme_call
         self.known2_call = unbound_scheme_call

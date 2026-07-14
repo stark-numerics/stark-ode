@@ -13,7 +13,7 @@ from typing import Any
 from stark import Configuration, Frame, Tolerance
 from stark.core.block import Block
 from stark.core.block.operator import BlockOperatorDiagonal
-from stark.core.contracts import BlockOperatorEntryLike, TranslationBasis
+from stark.core.contracts import BlockOperatorEntryLike, TranslationBasisLike
 from stark.engines import EngineNumpy
 from stark.methods import InverterRelaxationJacobi
 from stark.methods.inverters.support import InverterDefect
@@ -22,7 +22,7 @@ from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 
 @dataclass(slots=True)
 class ScaleEntryOperator:
-    basis: TranslationBasis[Any]
+    basis: TranslationBasisLike[Any]
     scale: float
     coordinates: list[float]
     image: list[float]

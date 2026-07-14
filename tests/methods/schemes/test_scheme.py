@@ -4,10 +4,9 @@ from typing import Any, ClassVar
 import numpy as np
 
 from stark.core import IntegratorStepper
-from stark.engines.shared.accelerators import AcceleratorNone
-from stark.engines.shared.algebraist.arity import AlgebraistArity
-from stark.engines.shared.algebraist.generator import AlgebraistGeneratorLinearCombine
-from stark.engines.shared.algebraist.frame import AlgebraistFrame, AlgebraistField
+from stark.engines.accelerators import AcceleratorNone
+from stark.engines.algebraist.arity import AlgebraistArity
+from stark.engines.algebraist.generator import AlgebraistGeneratorLinearCombine
 from stark.core.auditor import Auditor
 from stark.core.integrator.integrator import Integrator
 from stark.diagnostics.monitor import Monitor
@@ -36,6 +35,7 @@ from stark.methods.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 from stark import Dynamics
 from stark.core.contracts import DynamicsSplitLike, IntervalLike
+from stark.problem.frame import Field, Frame
 
 
 @dataclass(slots=True)
@@ -246,8 +246,8 @@ def test_scheme_step_support_consumes_algebraist_linear_combine_contract() -> No
     provider = AlgebraistGeneratorLinearCombine(
         translation=DummyAlgebraistTranslation([1.0, 2.0]),
         allocator=allocator,
-        frame=AlgebraistFrame(
-            fields=(AlgebraistField("value", "value"),),
+        frame=Frame(
+            fields=(Field("value", translation="value"),),
         ),
     )
     DummyAlgebraistTranslation.linear_combine = (

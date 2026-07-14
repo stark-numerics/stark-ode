@@ -253,7 +253,7 @@ class System:
 
     def prepare_initial(self, initial: object, engine: Engine) -> object:
         state = engine.allocator.allocate_state()
-        for field, carrier in zip(engine.algebraist_frame.fields, engine.carriers, strict=True):
+        for field, carrier in zip(engine.frame.fields, engine.carriers, strict=True):
             value = self.initial_value(initial, field.state_path)
             validated = carrier.validation.validate_state(value)
             field.state_path.assign(state, carrier.allocation.copy_state(validated))
@@ -327,7 +327,7 @@ class System:
                     "dynamics": dynamics,
                     "allocator": engine.allocator,
                     "configuration": configuration,
-                    "specialist": engine.algebraist_specialist,
+                    "specialist": engine.algebraist.specialist,
                     "resolvent": resolvent,
                 },
                 options=method.scheme_options,

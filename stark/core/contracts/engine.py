@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from stark.core.contracts.accelerator import Accelerator
-from stark.core.contracts.allocator import Allocator
+from stark.core.contracts.allocator import AllocatorLike
 
 
 class Engine(Protocol):
@@ -19,12 +19,7 @@ class Engine(Protocol):
 
     @property
     def frame(self) -> Any:
-        """User-facing frame used to construct this backend bundle."""
-        ...
-
-    @property
-    def algebraist_frame(self) -> Any:
-        """Algebraist frame derived from the user-facing frame."""
+        """Frame-like layout used to construct this backend bundle."""
         ...
 
     @property
@@ -33,33 +28,18 @@ class Engine(Protocol):
         ...
 
     @property
-    def allocator(self) -> Allocator:
+    def allocator(self) -> AllocatorLike:
         """Allocator for backend-owned state and translation objects."""
         ...
 
     @property
     def carriers(self) -> tuple[Any, ...]:
-        """Carrier objects corresponding to the algebraist frame fields."""
+        """Carrier objects corresponding to the frame fields."""
         ...
 
     @property
-    def algebraist_linear_combine(self) -> Any:
-        """Provider for backend linear-combine kernels."""
-        ...
-
-    @property
-    def algebraist_norm(self) -> Any:
-        """Provider for backend norm kernels."""
-        ...
-
-    @property
-    def algebraist_inner_product(self) -> Any:
-        """Provider for backend inner-product kernels."""
-        ...
-
-    @property
-    def algebraist_specialist(self) -> Any:
-        """Provider for backend specialist kernels."""
+    def algebraist(self) -> Any:
+        """Prepared algebra providers for this backend/frame pair."""
         ...
 
     def translation_basis(self) -> Any:

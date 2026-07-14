@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Generic
 
 from stark.core.auditor import Auditor
-from stark.core.contracts import Allocator, DynamicsLike, StateType, TranslationType
+from stark.core.contracts import AllocatorLike, DynamicsLike, StateType, TranslationType
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 
 
@@ -27,7 +27,7 @@ class SchemeRuntimeExplicit(Generic[StateType, TranslationType]):
     def __init__(
         self,
         dynamics: DynamicsLike[StateType, TranslationType],
-        allocator: Allocator[StateType, TranslationType],
+        allocator: AllocatorLike[StateType, TranslationType],
     ) -> None:
         first_translation = allocator.allocate_translation()
         Auditor.require_scheme_inputs(dynamics, allocator, first_translation)

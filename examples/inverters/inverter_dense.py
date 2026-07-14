@@ -12,7 +12,7 @@ from typing import Any
 from stark import Frame
 from stark.core.block import Block, BlockBasis
 from stark.core.block.operator import BlockOperatorDiagonal
-from stark.core.contracts import TranslationBasis
+from stark.core.contracts import TranslationBasisLike
 from stark.engines import EngineNumpy
 from stark.methods import InverterDense
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
@@ -21,7 +21,7 @@ from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 class MatrixOperator:
     """Apply and materialise ``[[2, 1], [1, 3]]`` on one translation field."""
 
-    def __init__(self, basis: TranslationBasis[Any]) -> None:
+    def __init__(self, basis: TranslationBasisLike[Any]) -> None:
         self.basis = basis
         self.image = [0.0, 0.0]
         self.result = [0.0, 0.0]

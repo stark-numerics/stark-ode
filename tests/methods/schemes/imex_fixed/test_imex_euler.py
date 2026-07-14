@@ -4,7 +4,7 @@ import pytest
 
 from stark import Configuration, Dynamics, Interval, Tolerance
 from stark.core.contracts import IntervalLike
-from stark.engines.shared.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventPicard
 from stark.methods.schemes.imex.fixed.euler import SchemeIMEXEuler
 from stark.methods.schemes.specialization.specialist import SchemeSpecialist

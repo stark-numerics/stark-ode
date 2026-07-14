@@ -14,7 +14,7 @@ from stark.core.contracts import (
     InverterRequest,
     TranslationType,
 )
-from stark.core.contracts.translation_basis import TranslationBasis
+from stark.core.contracts.translation_basis import TranslationBasisLike
 from stark.methods.inverters.nucleus import InverterNucleus, InverterNucleusFactor
 from stark.methods.inverters.support import (
     InverterDescriptor,
@@ -77,7 +77,7 @@ class InverterDenseInstanceSingle(Generic[TranslationType]):
     """Operator-bound dense solve action for a single cached block matrix."""
 
     inverter: InverterDense[TranslationType]
-    basis: TranslationBasis[TranslationType]
+    basis: TranslationBasisLike[TranslationType]
     matrix: list[float]
     image: list[float]
     result: list[float]

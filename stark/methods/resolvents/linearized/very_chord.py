@@ -9,14 +9,14 @@ from stark.core import Configuration
 from stark.core.block import Block, BlockOperatorDiagonal
 from stark.core.contracts import (
     Accelerator,
-    Allocator,
+    AllocatorLike,
     Inverter,
     InverterInstance,
     InverterOutputMode,
     LinearizerLike,
     Translation,
 )
-from stark.engines.shared.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.methods.resolvents.configuration import ResolventConfiguration
 from stark.methods.resolvents.display.decorators import with_resolvent_display
 from stark.methods.resolvents.equations.implicit import ResolventImplicitEquation
@@ -96,7 +96,7 @@ class ResolventVeryChord:
 
     def __init__(
         self,
-        allocator: Allocator,
+        allocator: AllocatorLike,
         linearizer: LinearizerLike,
         inverter: Inverter[Translation],
         configuration: ResolventConfiguration | None = None,

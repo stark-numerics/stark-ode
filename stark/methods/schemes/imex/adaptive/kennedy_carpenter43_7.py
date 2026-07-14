@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stark.core.contracts import Allocator, DynamicsSplitLike, IntervalLike, Resolvent, State
+from stark.core.contracts import AllocatorLike, DynamicsSplitLike, IntervalLike, Resolvent, State
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.execution.step_control import SchemeStepControl
@@ -104,7 +104,7 @@ class SchemeKennedyCarpenter43_7:
     def __init__(
         self,
         dynamics: DynamicsSplitLike,
-        allocator: Allocator,
+        allocator: AllocatorLike,
         resolvent: Resolvent,
         *,
         configuration: SchemeConfiguration | None = None,

@@ -4,13 +4,17 @@ Engines own storage and arithmetic backends.
 
 ## Backends
 
-- [`stark.engines.numpy`](api/stark.engines.numpy.rst)
-- [`stark.engines.native`](api/stark.engines.native.rst)
-- [`stark.engines.cupy`](api/stark.engines.cupy.rst)
-- [`stark.engines.jax`](api/stark.engines.jax.rst)
+- [`stark.engines.engine_numpy`](api/stark.engines.rst)
+- [`stark.engines.engine_native`](api/stark.engines.rst)
+- [`stark.engines.engine_cupy`](api/stark.engines.rst)
+- [`stark.engines.engine_jax`](api/stark.engines.rst)
 
-## Shared Support
+## Support
 
-- [`stark.engines.shared`](api/stark.engines.shared.rst)
-- [`stark.engines.shared.accelerators`](api/stark.engines.shared.accelerators.rst)
-- [`stark.engines.shared.algebraist`](api/stark.engines.shared.algebraist.rst)
+- [`stark.engines.accelerators`](api/stark.engines.rst)
+- [`stark.engines.algebraist`](api/stark.engines.rst)
+- [`stark.engines.carriers`](api/stark.engines.rst)
+- [`stark.engines.carrier_numpy`](api/stark.engines.rst)
+- [`stark.engines.carrier_native`](api/stark.engines.rst)
+- [`stark.engines.carrier_cupy`](api/stark.engines.rst)
+- [`stark.engines.carrier_jax`](api/stark.engines.rst)

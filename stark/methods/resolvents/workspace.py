@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from math import sqrt
 from typing import Callable
 
-from stark.engines.shared.accelerators import AcceleratorNone
-from stark.engines.shared.algebraist.runtime import AlgebraistRuntimeLinearCombine
+from stark.engines.accelerators import AcceleratorNone
+from stark.engines.algebraist.runtime import AlgebraistRuntimeLinearCombine
 from stark.core.block import Block
-from stark.core.contracts import Accelerator, InnerProduct, Translation, Allocator
+from stark.core.contracts import Accelerator, InnerProduct, Translation, AllocatorLike
 from stark.methods.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 
@@ -29,7 +29,7 @@ class ResolventWorkspace:
 
     def __init__(
         self,
-        allocator: Allocator,
+        allocator: AllocatorLike,
         translation: Translation,
         safety: ResolventSafety | None = None,
         inner_product: InnerProduct | None = None,

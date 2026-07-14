@@ -17,7 +17,7 @@ from benchmarks.catalogue import (
 from benchmarks.problems import BenchmarkProblemDefinition
 from stark import Method
 from stark.core.configuration import Configuration
-from stark.engines.shared.accelerators import AcceleratorNumba
+from stark.engines.accelerators import AcceleratorNumba
 from stark.methods import METHOD_CATALOGUE
 from stark.methods.catalogue import MethodCatalogue, MethodCatalogueStack
 from stark.problem.system.system import EngineFactory, SystemIVP

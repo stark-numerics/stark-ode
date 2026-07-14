@@ -6,7 +6,7 @@ from stark.diagnostics.comparison import Comparison
 from stark.core.configuration import Configuration
 from stark.core.interval import Interval
 from stark.core.tolerance import Tolerance
-from stark.engines.numpy.engine import EngineNumpy
+from stark.engines.engine_numpy import EngineNumpy
 from stark.problem import DynamicsStyle
 from stark.problem.frame.frame import Frame
 from stark.methods.method import Method

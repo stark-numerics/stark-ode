@@ -423,7 +423,7 @@ def _copy_ivp_interval(ivp: Any) -> Any:
 def _ivp_state_difference(ivp: Any) -> Difference:
     def difference(left: Any, right: Any) -> float:
         delta = ivp.engine.allocator.allocate_translation()
-        for field, carrier in zip(ivp.engine.algebraist_frame.fields, ivp.engine.carriers, strict=True):
+        for field, carrier in zip(ivp.engine.frame.fields, ivp.engine.carriers, strict=True):
             carrier.arithmetic.combine2(
                 1.0,
                 field.state_path(right),

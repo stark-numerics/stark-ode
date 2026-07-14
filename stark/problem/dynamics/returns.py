@@ -22,8 +22,6 @@ def assign_returned_translation(result: Any, out: Any) -> None:
         raise TypeError("Return-style dynamics must return translation values.")
 
     frame = getattr(out, "frame", None)
-    if frame is None:
-        frame = getattr(out, "algebraist_frame", None)
     fields_ = getattr(frame, "fields", None)
     if fields_ is not None:
         field_tuple = tuple(fields_)

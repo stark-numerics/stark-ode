@@ -668,7 +668,7 @@ class DummyVectorBasis:
 
     Dense inverter tests use this to exercise the real materialisation path
     with a transparent list-backed vector. The basis follows the public
-    `TranslationBasis` contract, including accepting generic mutable coordinate
+    `TranslationBasisLike` contract, including accepting generic mutable coordinate
     buffers rather than only concrete lists.
     """
 

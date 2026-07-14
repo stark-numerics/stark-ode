@@ -4,7 +4,7 @@ import numpy as np
 
 from stark import Configuration, Interval, Frame, Field, Method, System
 from stark.problem.dynamics import DynamicsAdapterAcceptsInstantWrites
-from stark.engines.shared.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark.engines import EngineNumpy
 
 
@@ -87,7 +87,7 @@ def test_system_ivp_builds_engine_state_and_declared_scheme() -> None:
     assert ivp.scheme.dynamics.function is dynamics
     assert ivp.scheme.allocator is ivp.engine.allocator
     assert ivp.scheme.configuration is configuration
-    assert ivp.scheme.specialist is ivp.engine.algebraist_specialist
+    assert ivp.scheme.specialist is ivp.engine.algebraist.specialist
     np.testing.assert_array_equal(ivp.initial.u, np.array([1.0, 2.0]))
     np.testing.assert_array_equal(ivp.initial.v, np.array([3.0, 4.0]))
 

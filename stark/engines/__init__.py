@@ -7,13 +7,14 @@ authors and advanced users inspecting storage, carrier, or Algebraist details.
 """
 
 from stark.core.contracts.engine import Engine
-from stark.engines.native import EngineNative
-from stark.engines.numpy import EngineNumpy
-from stark.engines.shared.accelerators import Accelerator, AcceleratorNone
+from stark.engines.allocator import Allocator
+from stark.engines.accelerators import Accelerator, AcceleratorNone
+from stark.engines.engine_native import EngineNative
+from stark.engines.engine_numpy import EngineNumpy
 
 has_engine_cupy = False
 try:
-    from stark.engines.cupy import EngineCupy
+    from stark.engines.engine_cupy import EngineCupy
 except ImportError:
     pass
 else:
@@ -21,7 +22,7 @@ else:
 
 has_engine_jax = False
 try:
-    from stark.engines.jax import EngineJax
+    from stark.engines.engine_jax import EngineJax
 except ImportError:
     pass
 else:
@@ -31,6 +32,7 @@ if has_engine_cupy and has_engine_jax:
     __all__ = (
         "Accelerator",
         "AcceleratorNone",
+        "Allocator",
         "Engine",
         "EngineCupy",
         "EngineJax",
@@ -41,6 +43,7 @@ elif has_engine_cupy:
     __all__ = (
         "Accelerator",
         "AcceleratorNone",
+        "Allocator",
         "Engine",
         "EngineCupy",
         "EngineNative",
@@ -50,6 +53,7 @@ elif has_engine_jax:
     __all__ = (
         "Accelerator",
         "AcceleratorNone",
+        "Allocator",
         "Engine",
         "EngineJax",
         "EngineNative",
@@ -59,6 +63,7 @@ else:
     __all__ = (
         "Accelerator",
         "AcceleratorNone",
+        "Allocator",
         "Engine",
         "EngineNative",
         "EngineNumpy",

@@ -146,8 +146,8 @@ Use:
 
 ```text
 Field
-AlgebraistFrame
-AlgebraistField
+Frame
+EngineCupy
 InverterKrylovBasis
 InverterKrylovProjection
 SchemePredictorKnown

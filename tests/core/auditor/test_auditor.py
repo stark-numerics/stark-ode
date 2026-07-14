@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from stark.engines.shared.accelerators import AcceleratorNone
+from stark.engines.accelerators import AcceleratorNone
 from stark import Dynamics, DynamicsStyle
 from stark.core.auditor import AuditError, Auditor
 from stark import Tolerance
