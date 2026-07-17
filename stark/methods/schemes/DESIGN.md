@@ -54,15 +54,15 @@ diagnostic logic into the numerical body.
 Schemes intentionally receive monitors at initialization time. They should not
 be mutated to attach or remove monitors later.
 
-## Specialists
+## LinearFixed Providers
 
-A specialist is usually prepared by the Algebraist/engine stack and gives a
+A LinearFixed provider is usually prepared by the engine Generator and gives a
 scheme a faster implementation of repeated stage algebra. It may also be
 user-overridden. That override path is deliberate: future packages such as
 `stark-pde` are expected to need domain-specific stage updates.
 
-The default path should still be understandable without a specialist. The
-specialist is an acceleration or domain-extension seam, not the mathematical
+The default path should still be understandable without a LinearFixed provider. The
+provider is an acceleration or domain-extension seam, not the mathematical
 definition of the scheme.
 
 ## Shared Family Objects

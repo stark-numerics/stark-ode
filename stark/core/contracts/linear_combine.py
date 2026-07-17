@@ -1,20 +1,21 @@
-"""Protocols for translation linear-combination fast paths.
+"""Contracts for translation linear-combination fast paths.
 
-These contracts document the optional generic algebra kernels a translation can
-provide through `translation.linear_combine`. They are deliberately explicit up
-to arity seven because those signatures are readable and useful to type
-checkers. Higher arities are still documented as callable protocols, but use
-variadic terms to avoid making this public docs layer unreadable.
+`LinearCombine` is a tuple of callables indexed by arity: entry 0 scales one
+translation, entry 1 combines two translations, and so on. The arity-specific
+protocols below document the intended calling convention for common entries,
+but the exported table type stays deliberately broad so generated and
+user-provided kernels can duck type cleanly.
 """
 
 from __future__ import annotations
 
-from typing import Protocol
+from collections.abc import Callable
+from typing import Any, Protocol, TypeAlias
 
 from stark.core.contracts.translation import Translation, TranslationType
 
 
-class Scale(Protocol[TranslationType]):
+class LinearCombineScaleLike(Protocol[TranslationType]):
     """Set `out = a * x` and return `out`.
 
     The protocol is generic because scale kernels are commonly attached to a
@@ -27,7 +28,7 @@ class Scale(Protocol[TranslationType]):
         ...
 
 
-class Combine2(Protocol):
+class LinearCombineArity2Like(Protocol):
     """Set `out = a0 * x0 + a1 * x1` and return `out`."""
 
     def __call__(
@@ -41,7 +42,7 @@ class Combine2(Protocol):
         ...
 
 
-class Combine3(Protocol):
+class LinearCombineArity3Like(Protocol):
     """Set `out = a0 * x0 + a1 * x1 + a2 * x2` and return `out`."""
 
     def __call__(
@@ -57,7 +58,7 @@ class Combine3(Protocol):
         ...
 
 
-class Combine4(Protocol):
+class LinearCombineArity4Like(Protocol):
     """Set `out = a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3` and return `out`."""
 
     def __call__(
@@ -75,7 +76,7 @@ class Combine4(Protocol):
         ...
 
 
-class Combine5(Protocol):
+class LinearCombineArity5Like(Protocol):
     """Set `out = a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4` and return `out`."""
 
     def __call__(
@@ -95,7 +96,7 @@ class Combine5(Protocol):
         ...
 
 
-class Combine6(Protocol):
+class LinearCombineArity6Like(Protocol):
     """Set `out = a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4 + a5 * x5` and return `out`."""
 
     def __call__(
@@ -117,7 +118,7 @@ class Combine6(Protocol):
         ...
 
 
-class Combine7(Protocol):
+class LinearCombineArity7Like(Protocol):
     """Set `out = a0 * x0 + a1 * x1 + a2 * x2 + a3 * x3 + a4 * x4 + a5 * x5 + a6 * x6` and return `out`."""
 
     def __call__(
@@ -141,86 +142,102 @@ class Combine7(Protocol):
         ...
 
 
-class Combine8(Protocol):
+class LinearCombineArity8Like(Protocol):
     """Set `out` to an eight-term linear combination and return `out`."""
 
     def __call__(self, *terms: object) -> Translation:
         ...
 
 
-class Combine9(Protocol):
+class LinearCombineArity9Like(Protocol):
     """Set `out` to a nine-term linear combination and return `out`."""
 
     def __call__(self, *terms: object) -> Translation:
         ...
 
 
-class Combine10(Protocol):
+class LinearCombineArity10Like(Protocol):
     """Set `out` to a ten-term linear combination and return `out`."""
 
     def __call__(self, *terms: object) -> Translation:
         ...
 
 
-class Combine11(Protocol):
+class LinearCombineArity11Like(Protocol):
     """Set `out` to an eleven-term linear combination and return `out`."""
 
     def __call__(self, *terms: object) -> Translation:
         ...
 
 
-class Combine12(Protocol):
+class LinearCombineArity12Like(Protocol):
     """Set `out` to a twelve-term linear combination and return `out`."""
 
     def __call__(self, *terms: object) -> Translation:
         ...
 
 
-LinearCombine = tuple[
-    Scale
-    | Combine2
-    | Combine3
-    | Combine4
-    | Combine5
-    | Combine6
-    | Combine7
-    | Combine8
-    | Combine9
-    | Combine10
-    | Combine11
-    | Combine12,
-    ...,
-]
+LinearCombine: TypeAlias = tuple[Callable[..., Any], ...]
+"""Linear-combination kernels indexed by translation arity.
+
+A `LinearCombine` table is attached to an allocator or translation-like object
+when that object wants to provide its own hot-path linear algebra.
+
+Table layout:
+
+- `linear_combine[0]`: `scale(a, x, out)` writes `out = a * x`
+- `linear_combine[1]`: `combine2(a0, x0, a1, x1, out)` writes two terms
+- `linear_combine[n - 1]`: combines `n` `(scalar, translation)` pairs into `out`
+
+Every kernel must mutate the supplied `out` translation and return `out`.
+These callables sit on scheme hot paths, so custom implementations should avoid
+runtime branching, type inspection, allocation, and generic `*terms` parsing
+where performance matters.
+
+If a custom allocator wants to provide low-arity handwritten kernels, declare
+them as optional optimisation seeds. `Allocator.runtime` prepares a complete
+table when the allocator is constructed:
+
+```python
+@Allocator.runtime
+@Allocator.linear_combine(scale, combine2)
+class MyAllocator:
+    ...
+
+allocator = MyAllocator(...)
+```
+"""
 
 
-class SupportsLinearCombine(Protocol):
-    """
-    Translation-like object with generic vector linear-combination kernels.
+class LinearCombineSupporting(Protocol):
+    """Translation-like object with generic linear-combination kernels.
 
     `linear_combine[0]` is `scale`; `linear_combine[1]` is `combine2`;
-    higher entries are `combine3`, `combine4`, and so on. This remains the
-    generic scheme/workspace fast-path contract. Tableau-specialized kernels
-    should use a separate contract rather than overloading this tuple.
+    higher entries are `combine3`, `combine4`, and so on. Kernels mutate and
+    return the output translation. Built-in schemes currently expect entries
+    for arities 1..12 after allocator setup. Users can supply optional
+    low-arity seeds with `Allocator.linear_combine(...)`; `Allocator.runtime`
+    can synthesize the remaining entries.
     """
 
     linear_combine: LinearCombine
 
 
 __all__ = [
-    "Combine10",
-    "Combine11",
-    "Combine12",
-    "Combine2",
-    "Combine3",
-    "Combine4",
-    "Combine5",
-    "Combine6",
-    "Combine7",
-    "Combine8",
-    "Combine9",
     "LinearCombine",
-    "Scale",
-    "SupportsLinearCombine",
+    "LinearCombineArity10Like",
+    "LinearCombineArity11Like",
+    "LinearCombineArity12Like",
+    "LinearCombineArity2Like",
+    "LinearCombineArity3Like",
+    "LinearCombineArity4Like",
+    "LinearCombineArity5Like",
+    "LinearCombineArity6Like",
+    "LinearCombineArity7Like",
+    "LinearCombineArity8Like",
+    "LinearCombineArity9Like",
+    "LinearCombineScaleLike",
+    "LinearCombineSupporting",
 ]
 
 

@@ -4,6 +4,7 @@ from typing import Protocol
 
 from stark.core.block import BlockAllocator
 from stark.core.contracts import DynamicsLike, State, AllocatorLike, Resolvent
+from stark.methods.linear_combine import require_linear_combine_kernels
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 
@@ -33,7 +34,14 @@ class SchemeRuntimeImplicit:
         self.validate_resolvent_tableau(scheme)
         translation_probe = allocator.allocate_translation()
         self.dynamics = dynamics
-        self.workspace = SchemeStepSupport(allocator, translation_probe)
+        self.workspace = SchemeStepSupport(
+            allocator,
+            require_linear_combine_kernels(
+                allocator,
+                arity=12,
+                consumer=type(self).__name__,
+            ),
+        )
         self.block_allocator = BlockAllocator(allocator)
 
     @staticmethod

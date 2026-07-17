@@ -4,9 +4,6 @@ from collections.abc import Callable
 from collections.abc import MutableSequence
 from typing import Generic
 
-from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.runtime.linear_combine import AlgebraistRuntimeLinearCombine
 from stark.core.block import Block
 from stark.core.contracts import (
     Accelerator,
@@ -21,6 +18,7 @@ from stark.core.contracts import (
     AllocatorLike,
 )
 from stark.core.contracts.translation_basis import TranslationBasisLike
+from stark.methods.linear_combine import require_linear_combine_kernels
 from stark.methods.resolvents.requests.resolvent import (
     ResolventRequestCoupled,
     ResolventRequest,
@@ -217,16 +215,11 @@ class ResolventImplicitEquation(Generic[StateType, TranslationType]):
         accelerator: Accelerator | None = None,
     ) -> None:
         self.method_name = method_name
-        translation_probe = allocator.allocate_translation()
-        accelerator = accelerator if accelerator is not None else AcceleratorNone()
-        general = AlgebraistRuntimeLinearCombine(
-            translation=translation_probe,
+        self.scale, self.combine2, self.combine3 = require_linear_combine_kernels(
             allocator=allocator,
-            accelerator=accelerator,
+            arity=3,
+            consumer=f"{method_name} implicit resolvent equation",
         )
-        self.scale = general.provide(AlgebraistArity(1))
-        self.combine2 = general.provide(AlgebraistArity(2))
-        self.combine3 = general.provide(AlgebraistArity(3))
 
         self.copy_state = allocator.copy_state
         self.base_state = allocator.allocate_state()
@@ -352,15 +345,11 @@ class ResolventImplicitEquationCoupled(Generic[StateType, TranslationType]):
         accelerator: Accelerator | None = None,
     ) -> None:
         self.method_name = method_name
-        translation_probe = allocator.allocate_translation()
-        accelerator = accelerator if accelerator is not None else AcceleratorNone()
-        general = AlgebraistRuntimeLinearCombine(
-            translation=translation_probe,
+        self.scale, self.combine2 = require_linear_combine_kernels(
             allocator=allocator,
-            accelerator=accelerator,
+            arity=2,
+            consumer=f"{method_name} coupled implicit resolvent equation",
         )
-        self.scale = general.provide(AlgebraistArity(1))
-        self.combine2 = general.provide(AlgebraistArity(2))
         self.copy_state = allocator.copy_state
         self.allocator = allocator
         self.base_state = allocator.allocate_state()

@@ -15,12 +15,12 @@ class DummyExplicitScheme:
         allocator,
         *,
         configuration=None,
-        specialist=None,
+        linear_fixed=None,
     ) -> None:
         self.dynamics = dynamics
         self.allocator = allocator
         self.configuration = configuration
-        self.specialist = specialist
+        self.linear_fixed = linear_fixed
 
     def snapshot_state(self, state):
         out = self.allocator.allocate_state()
@@ -40,13 +40,13 @@ class DummyImplicitScheme(DummyExplicitScheme):
         resolvent,
         *,
         configuration=None,
-        specialist=None,
+        linear_fixed=None,
     ) -> None:
         super().__init__(
             dynamics,
             allocator,
             configuration=configuration,
-            specialist=specialist,
+            linear_fixed=linear_fixed,
         )
         self.resolvent = resolvent
 
@@ -87,7 +87,7 @@ def test_system_ivp_builds_engine_state_and_declared_scheme() -> None:
     assert ivp.scheme.dynamics.function is dynamics
     assert ivp.scheme.allocator is ivp.engine.allocator
     assert ivp.scheme.configuration is configuration
-    assert ivp.scheme.specialist is ivp.engine.algebraist.specialist
+    assert ivp.scheme.linear_fixed is ivp.engine.generator
     np.testing.assert_array_equal(ivp.initial.u, np.array([1.0, 2.0]))
     np.testing.assert_array_equal(ivp.initial.v, np.array([3.0, 4.0]))
 

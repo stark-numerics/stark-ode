@@ -18,7 +18,7 @@ real test mismatch.
 Good shared helpers are not elaborate fixtures. They should be tiny concrete
 objects with meaningful docstrings, such as `DummyScalarTranslation`,
 `DummyArrayTranslation`, `DummyVectorTranslation`, `DummyVectorBasis`,
-`DummyStructuredTranslation`, and `DummyTableauSpecialist`.
+`DummyStructuredTranslation`, and `DummyTableauLinearFixed`.
 Hover text in an IDE is part of the documentation layer, so avoid say-what-you-
 see docstrings and explain why the object exists.
 

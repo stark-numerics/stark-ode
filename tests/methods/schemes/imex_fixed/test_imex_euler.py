@@ -7,12 +7,12 @@ from stark.core.contracts import IntervalLike
 from stark.engines.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventPicard
 from stark.methods.schemes.imex.fixed.euler import SchemeIMEXEuler
-from stark.methods.schemes.specialization.specialist import SchemeSpecialist
+from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
 from tests.support import (
     DummyScalarAllocator,
     DummyScalarState,
     DummyScalarTranslation,
-    DummyTableauSpecialist,
+    DummyTableauLinearFixed,
     dummy_constant_dynamics,
 )
 
@@ -48,7 +48,7 @@ def make_constant_scheme(
     explicit_value: float = 1.0,
     implicit_value: float = 2.0,
     *,
-    specialist: SchemeSpecialist[DummyScalarState, DummyScalarTranslation] | None = None,
+    linear_fixed: SchemeLinearFixed[DummyScalarState, DummyScalarTranslation] | None = None,
 ) -> SchemeIMEXEuler:
     allocator = DummyScalarAllocator()
     dynamics = Dynamics.split(
@@ -59,7 +59,7 @@ def make_constant_scheme(
         dynamics,
         allocator,
         resolvent=make_resolvent(allocator),
-        specialist=specialist,
+        linear_fixed=linear_fixed,
     )
 
 
@@ -73,15 +73,15 @@ def test_imex_euler_default_call_path_is_scheme_owned_generic_call() -> None:
     assert scheme.redirect_call == scheme.call_step
 
 
-def test_imex_euler_specialist_path_is_scheme_owned_generated_call() -> None:
-    scheme = make_constant_scheme(specialist=DummyTableauSpecialist())
+def test_imex_euler_linear_fixed_path_is_scheme_owned_generated_call() -> None:
+    scheme = make_constant_scheme(linear_fixed=DummyTableauLinearFixed())
 
     assert scheme.redirect_call == scheme.call_step
 
 
-def test_imex_euler_specialist_path_matches_generic_path() -> None:
+def test_imex_euler_linear_fixed_path_matches_generic_path() -> None:
     generic = make_constant_scheme()
-    specialized = make_constant_scheme(specialist=DummyTableauSpecialist())
+    specialized = make_constant_scheme(linear_fixed=DummyTableauLinearFixed())
     generic_interval = Interval(present=0.0, step=0.125, stop=1.0)
     specialized_interval = Interval(present=0.0, step=0.125, stop=1.0)
     generic_state = DummyScalarState(0.0)

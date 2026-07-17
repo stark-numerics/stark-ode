@@ -3,11 +3,17 @@
 Engines decide where state lives and which algebra kernels a prepared IVP uses.
 Most examples can import `EngineNumpy`, `EngineNative`, `EngineCupy`, or
 `EngineJax` from this package. Deeper engine modules are primarily for backend
-authors and advanced users inspecting storage, carrier, or Algebraist details.
+authors and advanced users inspecting storage, carriers, allocators, or
+generated kernels.
 """
 
 from stark.core.contracts.engine import Engine
-from stark.engines.allocator import Allocator
+from stark.engines.allocator import (
+    Allocator,
+    AllocatorCarried,
+    AllocatorGeneratedHooks,
+    AllocatorRuntimeHooks,
+)
 from stark.engines.accelerators import Accelerator, AcceleratorNone
 from stark.engines.engine_native import EngineNative
 from stark.engines.engine_numpy import EngineNumpy
@@ -33,6 +39,9 @@ if has_engine_cupy and has_engine_jax:
         "Accelerator",
         "AcceleratorNone",
         "Allocator",
+        "AllocatorCarried",
+        "AllocatorGeneratedHooks",
+        "AllocatorRuntimeHooks",
         "Engine",
         "EngineCupy",
         "EngineJax",
@@ -44,6 +53,9 @@ elif has_engine_cupy:
         "Accelerator",
         "AcceleratorNone",
         "Allocator",
+        "AllocatorCarried",
+        "AllocatorGeneratedHooks",
+        "AllocatorRuntimeHooks",
         "Engine",
         "EngineCupy",
         "EngineNative",
@@ -54,6 +66,9 @@ elif has_engine_jax:
         "Accelerator",
         "AcceleratorNone",
         "Allocator",
+        "AllocatorCarried",
+        "AllocatorGeneratedHooks",
+        "AllocatorRuntimeHooks",
         "Engine",
         "EngineJax",
         "EngineNative",
@@ -64,6 +79,9 @@ else:
         "Accelerator",
         "AcceleratorNone",
         "Allocator",
+        "AllocatorCarried",
+        "AllocatorGeneratedHooks",
+        "AllocatorRuntimeHooks",
         "Engine",
         "EngineNative",
         "EngineNumpy",

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from typing import Generic
+from warnings import warn
 
-from stark.engines.algebraist.runtime import AlgebraistRuntimeLinearCombine
-from stark.core.contracts import AllocatorLike, StateType, TranslationType
+from stark.core.contracts import AllocatorLike, LinearCombine, StateType, TranslationType
 from stark.methods.schemes.execution.interval import SchemeShiftedInterval
+
+
+SCHEME_STEP_SUPPORT_LINEAR_COMBINE_ARITY = 12
 
 
 class SchemeStepSupport(Generic[StateType, TranslationType]):
@@ -44,16 +47,23 @@ class SchemeStepSupport(Generic[StateType, TranslationType]):
     def __init__(
         self,
         allocator: AllocatorLike[StateType, TranslationType],
-        translation: TranslationType,
+        linear_combine: LinearCombine,
     ) -> None:
+        if len(linear_combine) < SCHEME_STEP_SUPPORT_LINEAR_COMBINE_ARITY:
+            message = (
+                "SchemeStepSupport requires a prepared linear_combine table "
+                "covering translation arities 1..12; got "
+                f"{len(linear_combine)} kernel(s). Decorate the allocator "
+                "class with @Allocator.runtime before constructing it so STARK "
+                "can prepare a complete table, or pass a complete custom "
+                "linear_combine tuple."
+            )
+            warn(message, RuntimeWarning, stacklevel=2)
+            raise ValueError(message)
         self.allocate_state = allocator.allocate_state
         self.allocate_translation = allocator.allocate_translation
         self.copy_state = allocator.copy_state
         self.interval_at = SchemeShiftedInterval()
-        algebraist = AlgebraistRuntimeLinearCombine(
-            translation,
-            allocator=allocator,
-        )
         (
             self.scale,
             self.combine2,
@@ -67,7 +77,7 @@ class SchemeStepSupport(Generic[StateType, TranslationType]):
             self.combine10,
             self.combine11,
             self.combine12,
-        ) = algebraist.as_tuple(12)
+        ) = linear_combine[:SCHEME_STEP_SUPPORT_LINEAR_COMBINE_ARITY]
 
     def allocate_state_buffer(self) -> StateType:
         return self.allocate_state()

@@ -5,8 +5,8 @@ from math import sqrt
 from typing import Any
 
 from stark.core.contracts.allocator import AllocatorLike
+from stark.core.contracts.carrier import CarrierLike
 from stark.core.contracts.frame import FrameLike
-from stark.engines.carrier_jax import CarrierJax
 
 
 @dataclass
@@ -14,7 +14,7 @@ class TranslationFactoryJax:
     """Structured JAX translation using return-style field carrier arithmetic."""
 
     frame: FrameLike = field(repr=False)
-    carriers: tuple[CarrierJax, ...] = field(repr=False)
+    carriers: tuple[CarrierLike[Any, Any], ...] = field(repr=False)
     allocator: AllocatorLike[Any, TranslationFactoryJax] = field(repr=False)
     linear_combine: tuple[Any, ...] = field(default=(), repr=False)
     apply_translation: Any = field(default=None, repr=False)

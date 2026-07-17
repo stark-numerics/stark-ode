@@ -12,7 +12,8 @@ unknown. It keeps the example focused on the matrix-free call shape:
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Callable
+from typing import Any, cast
 
 from stark import Configuration, Frame, Tolerance
 from stark.core.block import Block
@@ -54,9 +55,16 @@ if __name__ == "__main__":
         inverter_tolerance=Tolerance(atol=1.0e-12, rtol=1.0e-12),
         inverter_maximum_steps=8,
     )
+    inner_product = allocator.inner_product
+    assert inner_product is not None
+    inner_product_kernel = cast(Callable[[Any, Any], float], inner_product)
+
+    def krylov_inner_product(left: Any, right: Any) -> float:
+        return inner_product_kernel(left, right)
+
     inverter = InverterKrylovArnoldi(
         allocator,
-        allocator.inner_product,
+        krylov_inner_product,
         restart=4,
         configuration=configuration,
         preconditioner=precondition_by_half,

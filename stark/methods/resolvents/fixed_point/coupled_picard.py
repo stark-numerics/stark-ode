@@ -16,7 +16,7 @@ from stark.methods.resolvents.monitoring.decorators import with_resolvent_monito
 from stark.methods.resolvents.display.decorators import with_resolvent_display
 from stark.methods.resolvents.requests.resolvent import ResolventRequestCoupled
 from stark.methods.resolvents.equations.implicit import ResolventImplicitEquationCoupled
-from stark.methods.resolvents.specialization.specialist import ResolventSpecialist
+from stark.methods.resolvents.specialization.linear_fixed import ResolventLinearFixed
 from stark.methods.resolvents.specialization.stencil import ResolventStencilBlock
 from stark.methods.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
@@ -76,7 +76,7 @@ class ResolventCoupledPicard:
         configuration: ResolventConfiguration | None = None,
         safety: ResolventSafety | None = None,
         accelerator: Accelerator | None = None,
-        specialist: ResolventSpecialist[Translation] | None = None,
+        linear_fixed: ResolventLinearFixed[Translation] | None = None,
         tableau: Any | None = None,
     ) -> None:
         self.tableau = tableau
@@ -101,8 +101,8 @@ class ResolventCoupledPicard:
         self.picard_update = None
         self.size = -1
         
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
+        if linear_fixed is not None:
+            self.prepare_specialized_kernels(linear_fixed)
             self.call_step = self.call_specialized
         else:
             self.call_step = self.call_inline
@@ -110,10 +110,10 @@ class ResolventCoupledPicard:
 
     def prepare_specialized_kernels(
         self,
-        specialist: ResolventSpecialist[Translation],
+        linear_fixed: ResolventLinearFixed[Translation],
     ) -> None:
         # Step 4: coupled Picard correction delta <- delta - F(delta).
-        self.picard_update = specialist.provide(
+        self.picard_update = linear_fixed(
             ResolventStencilBlock((1.0, -1.0))
         )
 

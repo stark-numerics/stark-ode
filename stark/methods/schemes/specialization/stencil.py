@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TypeAlias
+from typing import Literal, TypeAlias
 
 from stark.methods.schemes.method.tableau import Tableau
 
@@ -18,11 +18,11 @@ class SchemeStencil:
 
         step * scale * sum(c_i * source_i)
 
-    If ``apply`` is false, a specialist should produce a delta kernel:
+    If ``apply`` is false, a linear_fixed should produce a delta kernel:
 
         out = step * scale * sum(c_i * source_i)
 
-    If ``apply`` is true, a specialist should produce an apply/update kernel:
+    If ``apply`` is true, a linear_fixed should produce an apply/update kernel:
 
         result = origin + step * scale * sum(c_i * source_i)
 
@@ -48,6 +48,10 @@ class SchemeStencil:
         )
         object.__setattr__(self, "scale", float(scale))
         object.__setattr__(self, "apply", bool(apply))
+
+    @property
+    def operation(self) -> Literal["linear_fixed"]:
+        return "linear_fixed"
 
 
 @dataclass(frozen=True, slots=True)

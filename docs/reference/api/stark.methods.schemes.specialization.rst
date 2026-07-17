@@ -12,10 +12,10 @@ stark.methods.schemes.specialization.imex\_stencil module
    :show-inheritance:
    :undoc-members:
 
-stark.methods.schemes.specialization.specialist module
+stark.methods.schemes.specialization.linear_fixed module
 ------------------------------------------------------
 
-.. automodule:: stark.methods.schemes.specialization.specialist
+.. automodule:: stark.methods.schemes.specialization.linear_fixed
    :members:
    :show-inheritance:
    :undoc-members:

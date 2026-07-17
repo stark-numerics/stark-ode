@@ -87,7 +87,7 @@ Implicit methods and advanced inverters may require additional operator or block
 
 Use `Frame` if your model can be described as named array/scalar fields, even
 when those fields are nested. The high-level path gives STARK more structure,
-which enables generated Algebraist kernels and backend acceleration.
+which enables generated engine kernels and backend acceleration.
 
 Use custom state/translation only when preserving the foreign model representation is more important than the generated high-level path.
 
@@ -96,4 +96,4 @@ Use custom state/translation only when preserving the foreign model representati
 - [Concepts and terminology](concepts.md) explains the state/translation model.
 - [Contract maths](contract-maths.md) gives the formal low-level view.
 - [Extending STARK](extending.md) explains method components such as schemes and inverters.
-- `stark/engines/shared/algebraist/DESIGN.md` explains why `Frame`-backed models can use generated kernels while foreign models may need runtime fallback.
+- `stark/engines/generator/DESIGN.md` and `stark/engines/allocator/DESIGN.md` explain why `Frame`-backed models can use generated kernels while foreign models can opt into runtime allocator completion.

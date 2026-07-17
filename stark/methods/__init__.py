@@ -16,7 +16,7 @@ from stark.methods.inverters import (
     InverterPreconditionerNone,
     InverterRelaxationJacobi,
     InverterRelaxationRichardson,
-    InverterRelaxationSpecialist,
+    InverterRelaxationLinearFixed,
     InverterRelaxationStencil,
     InverterRelaxationStencilUpdate,
 )
@@ -78,7 +78,7 @@ __all__ = (
     "InverterPreconditionerNone",
     "InverterRelaxationJacobi",
     "InverterRelaxationRichardson",
-    "InverterRelaxationSpecialist",
+    "InverterRelaxationLinearFixed",
     "InverterRelaxationStencil",
     "InverterRelaxationStencilUpdate",
     "Method",

@@ -20,10 +20,10 @@ stark.methods.inverters.relaxation.richardson module
    :show-inheritance:
    :undoc-members:
 
-stark.methods.inverters.relaxation.specialist module
+stark.methods.inverters.relaxation.linear_fixed module
 ----------------------------------------------------
 
-.. automodule:: stark.methods.inverters.relaxation.specialist
+.. automodule:: stark.methods.inverters.relaxation.linear_fixed
    :members:
    :show-inheritance:
    :undoc-members:

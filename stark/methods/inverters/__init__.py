@@ -16,7 +16,7 @@ from stark.methods.inverters.krylov import (
 from stark.methods.inverters.relaxation import (
     InverterRelaxationJacobi,
     InverterRelaxationRichardson,
-    InverterRelaxationSpecialist,
+    InverterRelaxationLinearFixed,
     InverterRelaxationStencil,
     InverterRelaxationStencilUpdate,
 )
@@ -33,7 +33,7 @@ __all__ = [
     "InverterPreconditionerNone",
     "InverterRelaxationJacobi",
     "InverterRelaxationRichardson",
-    "InverterRelaxationSpecialist",
+    "InverterRelaxationLinearFixed",
     "InverterRelaxationStencil",
     "InverterRelaxationStencilUpdate",
 ]

@@ -12,7 +12,7 @@ from stark.methods.schemes.imex.runtime import SchemeRuntimeImex
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
 from stark.methods.schemes.specialization.imex_stencil import SchemeStencilImexTableau
-from stark.methods.schemes.specialization.specialist import SchemeSpecialist
+from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
 from stark.methods.schemes.request import SchemeResolventRequest
 from stark.methods.schemes.method.tableau import Tableau, TableauImex
 
@@ -110,7 +110,7 @@ class SchemeIMEXEuler:
         resolvent: Resolvent,
         *,
         configuration: SchemeConfiguration | None = None,
-        specialist: SchemeSpecialist | None = None,
+        linear_fixed: SchemeLinearFixed | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
         del configuration
@@ -131,8 +131,8 @@ class SchemeIMEXEuler:
         self.rhs_block = Block([self.rhs])
         self.delta_block = Block([self.delta])
 
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
+        if linear_fixed is not None:
+            self.prepare_specialized_kernels(linear_fixed)
             self.call_body = self.call_specialized
             if monitor is None:
                 self.call_step = self.call_body
@@ -145,10 +145,10 @@ class SchemeIMEXEuler:
     ) -> float:
         return self.redirect_call(interval, state)
 
-    def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
+    def prepare_specialized_kernels(self, linear_fixed: SchemeLinearFixed) -> None:
         stencils = SchemeStencilImexTableau(self.tableau)
         # Step 1 builds the explicit right-hand side from the first explicit row.
-        self.advance_call = specialist.provide_delta(stencils.stage_rhs(1))
+        self.advance_call = linear_fixed(stencils.stage_rhs(1))
 
     def call_inline(
         self,

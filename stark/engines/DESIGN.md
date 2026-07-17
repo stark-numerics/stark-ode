@@ -20,7 +20,7 @@ engines/engine_*.py
 engines/translation_factory_*.py
 engines/translation_basis.py
 engines/accelerators
-engines/algebraist
+engines/_algebraist
 engines/generator
 engines/carriers
 engines/carrier_numpy
@@ -34,9 +34,9 @@ Backend-specific carriers, targets, and policies should live near the backend
 they serve. Cross-backend construction helpers such as the shared allocator and
 translation factories can live at `engines/` level when their role is visible
 and they are parameterised by backend-specific carriers. Shared abstractions
-belong in named packages such as `engines/algebraist`, `engines/generator`,
-`engines/accelerators`, or `engines/carriers`; avoid a vague extra `shared`
-layer.
+belong in named packages such as `engines/generator`, `engines/accelerators`,
+or `engines/carriers`; avoid a vague extra `shared` layer. `_algebraist` is a
+private transition package, not a public engine surface.
 
 Backend identity should remain visible in the engine module and concrete
 carrier package.
@@ -49,14 +49,14 @@ An engine owns:
 - allocator configuration,
 - backend array type and dtype policy,
 - translation bases,
-- prepared Algebraist bundle and generated target selection,
+- prepared Generator request surface,
 - generator policy describing source-shape decisions,
 - accelerator choice where relevant.
 
 ## Generated and Runtime Algebra
 
-Known `Frame`-backed state should prefer generated Algebraist paths. Runtime
-algebra is the fallback for unknown or foreign user state shapes.
+Known `Frame`-backed state should prefer request-driven Generator paths.
+Runtime algebra is the fallback for unknown or foreign user state shapes.
 
 This matters for performance and for mental model clarity: ordinary high-level
 models should give engines enough structure to optimise.

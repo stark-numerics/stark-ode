@@ -1,7 +1,7 @@
 """Shared typed test fixtures for STARK's public contracts.
 
 These helpers are intentionally tiny but complete. They satisfy the same
-state, translation, allocator, dynamics, and specialist contracts that user
+state, translation, allocator, dynamics, and fixed-linear contracts that user
 code is expected to satisfy, which keeps tests focused on the behaviour under
 test instead of on half-real local fakes.
 
@@ -16,16 +16,17 @@ from __future__ import annotations
 from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass
 from math import isclose, sqrt
-from typing import Any
+from typing import Any, ClassVar, cast
 
 import numpy as np
 
 from stark.core.contracts import BlockLike
 from stark.core.contracts import IntervalLike
+from stark.core.contracts import LinearCombine
 from stark.core.contracts import Operator
-from stark.methods.schemes.specialization.specialist import (
-    SchemeSpecialistKernelApply,
-    SchemeSpecialistKernelDelta,
+from stark.methods.schemes.specialization.linear_fixed import (
+    SchemeLinearFixedKernelApply,
+    SchemeLinearFixedKernelDelta,
 )
 from stark.methods.schemes.specialization.stencil import SchemeStencil
 from stark.problem import Dynamics, DynamicsStyle
@@ -132,11 +133,39 @@ class DummyScalarTranslation:
         )
         return out
 
-    linear_combine = [scale, combine2, combine3]
+    linear_combine: ClassVar[LinearCombine] = (scale, combine2, combine3)
+
+
+def scalar_value_combine_many(*terms: object) -> Any:
+    """Write an arbitrary scalar `.value` linear combination into the output."""
+
+    out = cast(Any, terms[-1])
+    if not hasattr(out, "value"):
+        raise TypeError("scalar-value combine needs an output with a value field.")
+
+    total = 0.0
+    for index in range(0, len(terms) - 1, 2):
+        scalar = cast(float, terms[index])
+        translation = cast(Any, terms[index + 1])
+        if not hasattr(translation, "value"):
+            raise TypeError("scalar-value combine terms need value fields.")
+        total += scalar * translation.value
+    out.value = total
+    return out
+
+
+scalar_value_linear_combine: LinearCombine = tuple(
+    scalar_value_combine_many for _ in range(12)
+)
+
+
+DummyScalarTranslation.linear_combine = scalar_value_linear_combine
 
 
 class DummyScalarAllocator:
     """Allocator pairing `DummyScalarState` with `DummyScalarTranslation`."""
+
+    linear_combine = DummyScalarTranslation.linear_combine
 
     def allocate_state(self) -> DummyScalarState:
         return DummyScalarState()
@@ -231,96 +260,6 @@ class DummyScalarLinearizer:
 
 
 @dataclass(slots=True)
-class DummyRuntimeState:
-    """One-field state for algebraist runtime provider tests."""
-
-    value: float = 0.0
-
-
-@dataclass(slots=True)
-class DummyRuntimeTranslation:
-    """Translation without direct fast-combine support for runtime fallback tests."""
-
-    value: float = 0.0
-
-    def __call__(
-        self,
-        origin: DummyRuntimeState,
-        result: DummyRuntimeState,
-    ) -> None:
-        result.value = origin.value + self.value
-
-    def norm(self) -> float:
-        return abs(self.value)
-
-    def __add__(self, other: DummyRuntimeTranslation) -> DummyRuntimeTranslation:
-        return DummyRuntimeTranslation(self.value + other.value)
-
-    def __rmul__(self, scalar: float) -> DummyRuntimeTranslation:
-        return DummyRuntimeTranslation(scalar * self.value)
-
-
-class DummyRuntimeAllocator:
-    """Allocator for algebraist runtime provider tests."""
-
-    def allocate_translation(self) -> DummyRuntimeTranslation:
-        return DummyRuntimeTranslation()
-
-
-def dummy_runtime_scale(
-    scalar: float,
-    translation: DummyRuntimeTranslation,
-    out: DummyRuntimeTranslation,
-) -> DummyRuntimeTranslation:
-    """Write a one-term runtime linear combination into `out`."""
-
-    out.value = scalar * translation.value
-    return out
-
-
-def dummy_runtime_combine2(
-    scalar_left: float,
-    translation_left: DummyRuntimeTranslation,
-    scalar_right: float,
-    translation_right: DummyRuntimeTranslation,
-    out: DummyRuntimeTranslation,
-) -> DummyRuntimeTranslation:
-    """Write a two-term runtime linear combination into `out`."""
-
-    out.value = scalar_left * translation_left.value + scalar_right * translation_right.value
-    return out
-
-
-def dummy_runtime_combine3(
-    scalar_a: float,
-    translation_a: DummyRuntimeTranslation,
-    scalar_b: float,
-    translation_b: DummyRuntimeTranslation,
-    scalar_c: float,
-    translation_c: DummyRuntimeTranslation,
-    out: DummyRuntimeTranslation,
-) -> DummyRuntimeTranslation:
-    """Write a three-term runtime linear combination into `out`."""
-
-    out.value = (
-        scalar_a * translation_a.value
-        + scalar_b * translation_b.value
-        + scalar_c * translation_c.value
-    )
-    return out
-
-
-class DummyRuntimeTranslationWithLinearCombine(DummyRuntimeTranslation):
-    """Runtime translation exposing direct low-arity combine kernels."""
-
-    linear_combine = (
-        dummy_runtime_scale,
-        dummy_runtime_combine2,
-        dummy_runtime_combine3,
-    )
-
-
-@dataclass(slots=True)
 class DummyArrayState:
     """NumPy-backed state for tests that need array-valued ODE behaviour."""
 
@@ -336,12 +275,13 @@ class DummyArrayState:
 class DummyArrayTranslation:
     """NumPy-backed translation matching `DummyArrayState`.
 
-    This fixture exercises the same array semantics that algebraist-generated
-    kernels use: translations are added to state in place, norms are dense
-    Euclidean norms, and arithmetic returns fresh translation objects.
+    This fixture exercises the same array semantics that generated kernels use:
+    translations are added to state in place, norms are dense Euclidean norms,
+    and arithmetic returns fresh translation objects.
     """
 
     dy: np.ndarray
+    linear_combine: ClassVar[LinearCombine]
 
     def __call__(self, origin: DummyArrayState, result: DummyArrayState) -> None:
         result.y[...] = origin.y + self.dy
@@ -356,8 +296,30 @@ class DummyArrayTranslation:
         return DummyArrayTranslation(scalar * self.dy)
 
 
+def dummy_array_combine_many(*terms: object) -> DummyArrayTranslation:
+    """Write an arbitrary array linear combination into the output term."""
+
+    out = terms[-1]
+    if not isinstance(out, DummyArrayTranslation):
+        raise TypeError("dummy array combine needs a DummyArrayTranslation output.")
+
+    out.dy[...] = 0.0
+    for index in range(0, len(terms) - 1, 2):
+        scalar = cast(float, terms[index])
+        translation = terms[index + 1]
+        if not isinstance(translation, DummyArrayTranslation):
+            raise TypeError("dummy array combine terms must be array translations.")
+        out.dy[...] += scalar * translation.dy
+    return out
+
+
+DummyArrayTranslation.linear_combine = tuple(dummy_array_combine_many for _ in range(12))
+
+
 class DummyArrayAllocator:
     """Allocator for fixed-size NumPy-backed dummy states."""
+
+    linear_combine = DummyArrayTranslation.linear_combine
 
     def __init__(self, size: int) -> None:
         self.size = size
@@ -399,18 +361,26 @@ class DummyArrayDynamics:
         )
 
 
-class DummyArraySpecialist:
-    """Tableau specialist for NumPy-backed dummy translations.
+class DummyArrayLinearFixed:
+    """Tableau fixed-linear provider for NumPy-backed dummy translations.
 
-    Generated algebraist kernels and hand-written specialist tests share the
+    Generated kernels and hand-written fixed-linear tests share the
     same in-place calling convention. This class keeps the test version in one
-    place so individual tests do not reinvent subtly different specialists.
+    place so individual tests do not reinvent subtly different fixed-linear providers.
     """
+
+    def __call__(
+        self,
+        stencil: SchemeStencil,
+    ) -> Any:
+        if stencil.apply:
+            return self.provide_apply(stencil)
+        return self.provide_delta(stencil)
 
     def provide_delta(
         self,
         stencil: SchemeStencil,
-    ) -> SchemeSpecialistKernelDelta[DummyArrayTranslation]:
+    ) -> SchemeLinearFixedKernelDelta[DummyArrayTranslation]:
         coefficients = tuple(stencil.coefficients)
         stencil_scale = stencil.scale
 
@@ -433,7 +403,7 @@ class DummyArraySpecialist:
     def provide_apply(
         self,
         stencil: SchemeStencil,
-    ) -> SchemeSpecialistKernelApply[DummyArrayState, DummyArrayTranslation]:
+    ) -> SchemeLinearFixedKernelApply[DummyArrayState, DummyArrayTranslation]:
         """Return the apply-form kernel for a tableau stencil."""
 
         coefficients = tuple(stencil.coefficients)
@@ -660,7 +630,35 @@ class DummyVectorTranslation:
         ]
         return output
 
-    linear_combine = [scale, combine2, combine3]
+    linear_combine: ClassVar[LinearCombine] = (scale, combine2, combine3)
+
+
+def dummy_vector_combine_many(*terms: object) -> DummyVectorTranslation:
+    """Write an arbitrary vector linear combination into the output term."""
+
+    out = terms[-1]
+    if not isinstance(out, DummyVectorTranslation):
+        raise TypeError("dummy vector combine needs a DummyVectorTranslation output.")
+
+    out.values[:] = [0.0 for _ in out.values]
+    for index in range(0, len(terms) - 1, 2):
+        scalar = cast(float, terms[index])
+        translation = terms[index + 1]
+        if not isinstance(translation, DummyVectorTranslation):
+            raise TypeError("dummy vector combine terms must be vector translations.")
+        out.values[:] = [
+            current + scalar * value
+            for current, value in zip(out.values, translation.values, strict=True)
+        ]
+    return out
+
+
+DummyVectorTranslation.linear_combine = (
+    DummyVectorTranslation.scale,
+    DummyVectorTranslation.combine2,
+    DummyVectorTranslation.combine3,
+    *(dummy_vector_combine_many for _ in range(9)),
+)
 
 
 class DummyVectorBasis:
@@ -708,6 +706,8 @@ class DummyVectorBasis:
 class DummyVectorAllocator:
     """Allocator for `DummyVectorState` and `DummyVectorTranslation`."""
 
+    linear_combine = DummyVectorTranslation.linear_combine
+
     def __init__(self, dimension: int) -> None:
         self.dimension = dimension
         self.basis = DummyVectorBasis(dimension)
@@ -737,68 +737,6 @@ def assert_dummy_vector_close(
         assert isclose(actual_value, expected_value, rel_tol=0.0, abs_tol=1.0e-12)
 
 
-@dataclass(slots=True)
-class DummyStructuredState:
-    """State with scalar and list fields for algebraist path tests."""
-
-    x: float
-    values: list[float]
-
-
-@dataclass(slots=True)
-class DummyStructuredTranslation:
-    """Translation with scalar and list fields for algebraist path tests."""
-
-    dx: float
-    values: list[float]
-
-    def __call__(
-        self,
-        origin: DummyStructuredState,
-        result: DummyStructuredState,
-    ) -> None:
-        result.x = origin.x + self.dx
-        result.values[:] = [
-            origin_value + translation_value
-            for origin_value, translation_value in zip(
-                origin.values,
-                self.values,
-                strict=True,
-            )
-        ]
-
-    def norm(self) -> float:
-        return sqrt(self.dx * self.dx + sum(value * value for value in self.values))
-
-    def __add__(
-        self,
-        other: DummyStructuredTranslation,
-    ) -> DummyStructuredTranslation:
-        return DummyStructuredTranslation(
-            self.dx + other.dx,
-            [
-                left + right
-                for left, right in zip(self.values, other.values, strict=True)
-            ],
-        )
-
-    def __rmul__(self, scalar: float) -> DummyStructuredTranslation:
-        return DummyStructuredTranslation(
-            scalar * self.dx,
-            [scalar * value for value in self.values],
-        )
-
-
-class DummyStructuredAllocator:
-    """Allocator for mixed scalar/list algebraist generator fixtures."""
-
-    def __init__(self, size: int = 2) -> None:
-        self.size = size
-
-    def allocate_translation(self) -> DummyStructuredTranslation:
-        return DummyStructuredTranslation(0.0, [0.0] * self.size)
-
-
 def dummy_zero_rhs(
     interval: IntervalLike,
     state: DummyScalarState,
@@ -821,18 +759,26 @@ def dummy_exponential_growth_rhs(
     out.value = state.value
 
 
-class DummyTableauSpecialist:
-    """Small specialist that evaluates tableau stencils directly.
+class DummyTableauLinearFixed:
+    """Small fixed-linear provider that evaluates tableau stencils directly.
 
     It lets tests exercise specialized scheme paths without depending on a
     backend code generator. The kernels it returns obey the same in-place
-    calling convention as generated specialist kernels.
+    calling convention as generated fixed-linear kernels.
     """
+
+    def __call__(
+        self,
+        stencil: SchemeStencil,
+    ) -> Any:
+        if stencil.apply:
+            return self.provide_apply(stencil)
+        return self.provide_delta(stencil)
 
     def provide_delta(
         self,
         stencil: SchemeStencil,
-    ) -> SchemeSpecialistKernelDelta[DummyScalarTranslation]:
+    ) -> SchemeLinearFixedKernelDelta[DummyScalarTranslation]:
         coefficients = tuple(stencil.coefficients)
         fixed_scale = stencil.scale
 
@@ -855,7 +801,7 @@ class DummyTableauSpecialist:
     def provide_apply(
         self,
         stencil: SchemeStencil,
-    ) -> SchemeSpecialistKernelApply[DummyScalarState, DummyScalarTranslation]:
+    ) -> SchemeLinearFixedKernelApply[DummyScalarState, DummyScalarTranslation]:
         """Return the apply-form kernel for a tableau stencil."""
 
         coefficients = tuple(stencil.coefficients)
@@ -868,7 +814,7 @@ class DummyTableauSpecialist:
         ) -> DummyScalarState:
             *translations, result = terms
             if not isinstance(result, DummyScalarState):
-                raise TypeError("DummyTableauSpecialist apply kernel needs an output buffer.")
+                raise TypeError("DummyTableauLinearFixed apply kernel needs an output buffer.")
             delta = self.combine_delta(
                 step,
                 fixed_scale,
@@ -904,29 +850,123 @@ class DummyTableauSpecialist:
         return total
 
 
+class DummyValueLinearFixed:
+    """Fixed-linear provider for tests with `.value` translations.
+
+    This is deliberately a small duck-typed test helper rather than an engine
+    generator. It lets scheme tests exercise their specialized call paths
+    without depending on an engine generator.
+    """
+
+    def __call__(
+        self,
+        stencil: SchemeStencil,
+    ) -> Any:
+        if stencil.apply:
+            return self.provide_apply(stencil)
+        return self.provide_delta(stencil)
+
+    def provide_delta(
+        self,
+        stencil: SchemeStencil,
+    ) -> Any:
+        coefficients = tuple(stencil.coefficients)
+        fixed_scale = stencil.scale
+
+        def delta_kernel(
+            step: float,
+            *terms: Any,
+        ) -> Any:
+            *translations, out = terms
+            if not translations:
+                self.write_value(out, 0.0)
+                return out
+
+            delta = self.combine_delta(
+                step,
+                fixed_scale,
+                coefficients,
+                tuple(translations),
+            )
+            out.value = delta.value
+            return out
+
+        return delta_kernel
+
+    def provide_apply(
+        self,
+        stencil: SchemeStencil,
+    ) -> Any:
+        coefficients = tuple(stencil.coefficients)
+        fixed_scale = stencil.scale
+
+        def apply_kernel(
+            step: float,
+            origin: Any,
+            *terms: Any,
+        ) -> Any:
+            *translations, result = terms
+            if not translations:
+                self.write_value(result, origin.value)
+                return result
+
+            delta = self.combine_delta(
+                step,
+                fixed_scale,
+                coefficients,
+                tuple(translations),
+            )
+            delta(origin, result)
+            return result
+
+        return apply_kernel
+
+    @staticmethod
+    def combine_delta(
+        step: float,
+        stencil_scale: float,
+        coefficients: tuple[float, ...],
+        translations: tuple[Any, ...],
+    ) -> Any:
+        if len(coefficients) != len(translations):
+            raise AssertionError(
+                f"stencil arity {len(coefficients)} received "
+                f"{len(translations)} translation(s)"
+            )
+
+        if not translations:
+            raise AssertionError("value fixed-linear tests need at least one term.")
+
+        total = 0.0 * translations[0]
+        for coefficient, translation in zip(coefficients, translations, strict=True):
+            total = total + (step * stencil_scale * coefficient) * translation
+        return total
+
+    @staticmethod
+    def write_value(target: Any, value: Any) -> None:
+        try:
+            target.value[...] = value
+        except TypeError:
+            target.value = value
+
+
 __all__ = [
     "DummyArrayAllocator",
     "DummyArrayDynamics",
-    "DummyArraySpecialist",
+    "DummyArrayLinearFixed",
     "DummyArrayState",
     "DummyArrayTranslation",
     "DummyScalarAllocator",
     "DummyScalarLinearizer",
     "DummyBlockScaleOperator",
-    "DummyRuntimeAllocator",
-    "DummyRuntimeState",
-    "DummyRuntimeTranslation",
-    "DummyRuntimeTranslationWithLinearCombine",
     "DummyDynamicsInterval",
     "DummyDynamicsState",
     "DummyDynamicsTranslation",
     "DummyScalarEntryOperator",
     "DummyScalarState",
     "DummyScalarTranslation",
-    "DummyStructuredAllocator",
-    "DummyStructuredState",
-    "DummyStructuredTranslation",
-    "DummyTableauSpecialist",
+    "DummyTableauLinearFixed",
+    "DummyValueLinearFixed",
     "DummyVectorAllocator",
     "DummyVectorBasis",
     "DummyVectorState",
@@ -934,13 +974,11 @@ __all__ = [
     "assert_dummy_vector_close",
     "dummy_array_combine_delta",
     "dummy_array_state",
-    "dummy_runtime_combine2",
-    "dummy_runtime_combine3",
-    "dummy_runtime_scale",
     "dummy_constant_dynamics",
     "dummy_quadratic_dynamics",
     "dummy_scalar_dynamics",
     "dummy_scalar_inner_product",
     "dummy_exponential_growth_rhs",
     "dummy_zero_rhs",
+    "scalar_value_linear_combine",
 ]

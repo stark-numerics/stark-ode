@@ -8,12 +8,12 @@ import pytest
 from stark import Interval, Tolerance
 from stark.core.contracts import IntervalLike
 from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
 from stark.methods.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
 from stark.methods.schemes.implicit.fixed.crank_nicolson import SchemeCrankNicolson
 from stark.methods.schemes.implicit.fixed.implicit_midpoint import SchemeImplicitMidpoint
+from tests.support import DummyValueLinearFixed, scalar_value_linear_combine
 
 
 @dataclass(slots=True)
@@ -39,6 +39,8 @@ class ScalarTranslation:
 
 
 class ScalarAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
@@ -80,6 +82,8 @@ class ArrayScalarTranslation:
 
 
 class ArrayScalarAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> ArrayScalarState:
         return ArrayScalarState.zero()
 
@@ -138,20 +142,13 @@ def make_scheme(scheme_cls):
     )
 
 
-def make_array_scheme(scheme_cls, *, specialist: bool = False):
+def make_array_scheme(scheme_cls, *, linear_fixed: bool = False):
     allocator = ArrayScalarAllocator()
     return scheme_cls(
         array_constant_rhs,
         allocator,
         resolvent=make_array_resolvent(scheme_cls, allocator),
-        specialist=(
-            AlgebraistRuntimeSpecialist(
-                translation=allocator.allocate_translation(),
-                allocator=allocator,
-            )
-            if specialist
-            else None
-        ),
+        linear_fixed=DummyValueLinearFixed() if linear_fixed else None,
     )
 
 
@@ -183,8 +180,8 @@ def test_one_stage_implicit_default_call_path_is_scheme_owned_generic_call(
     assert scheme.redirect_call == scheme.call_step
 
 
-def test_backward_euler_accepts_no_op_specialist_path() -> None:
-    scheme = make_array_scheme(SchemeBackwardEuler, specialist=True)
+def test_backward_euler_accepts_no_op_linear_fixed_path() -> None:
+    scheme = make_array_scheme(SchemeBackwardEuler, linear_fixed=True)
 
     assert scheme.redirect_call == scheme.call_step
 
@@ -196,10 +193,10 @@ def test_backward_euler_accepts_no_op_specialist_path() -> None:
         SchemeCrankNicolson,
     ],
 )
-def test_one_stage_implicit_specialist_path_is_scheme_owned_generated_call(
+def test_one_stage_implicit_linear_fixed_path_is_scheme_owned_generated_call(
     scheme_cls,
 ) -> None:
-    scheme = make_array_scheme(scheme_cls, specialist=True)
+    scheme = make_array_scheme(scheme_cls, linear_fixed=True)
 
     assert scheme.redirect_call == scheme.call_step
 
@@ -260,11 +257,11 @@ def test_one_stage_implicit_call_performs_one_constant_rhs_step(scheme_cls) -> N
         SchemeCrankNicolson,
     ],
 )
-def test_one_stage_implicit_specialist_path_matches_generic_path(
+def test_one_stage_implicit_linear_fixed_path_matches_generic_path(
     scheme_cls,
 ) -> None:
     generic = make_array_scheme(scheme_cls)
-    generated = make_array_scheme(scheme_cls, specialist=True)
+    generated = make_array_scheme(scheme_cls, linear_fixed=True)
     generic_interval = Interval(present=0.0, step=0.125, stop=1.0)
     generated_interval = Interval(present=0.0, step=0.125, stop=1.0)
     generic_state = ArrayScalarState.zero()
@@ -278,9 +275,9 @@ def test_one_stage_implicit_specialist_path_matches_generic_path(
     assert generated_interval.step == pytest.approx(generic_interval.step)
 
 
-def test_one_stage_implicit_specialist_kernels_are_prepared() -> None:
-    midpoint = make_array_scheme(SchemeImplicitMidpoint, specialist=True)
-    crank_nicolson = make_array_scheme(SchemeCrankNicolson, specialist=True)
+def test_one_stage_implicit_linear_fixed_kernels_are_prepared() -> None:
+    midpoint = make_array_scheme(SchemeImplicitMidpoint, linear_fixed=True)
+    crank_nicolson = make_array_scheme(SchemeCrankNicolson, linear_fixed=True)
 
     assert callable(midpoint.advance_update)
     assert callable(crank_nicolson.known_rhs_kernel)

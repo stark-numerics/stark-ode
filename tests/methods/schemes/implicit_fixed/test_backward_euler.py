@@ -10,6 +10,7 @@ from stark.engines.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
 from stark.methods.schemes.implicit.fixed.backward_euler import SchemeBackwardEuler
+from tests.support import scalar_value_linear_combine
 
 
 @dataclass(slots=True)
@@ -35,6 +36,8 @@ class ScalarTranslation:
 
 
 class ScalarAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 

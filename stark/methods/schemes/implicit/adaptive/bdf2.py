@@ -10,7 +10,7 @@ from stark.methods.schemes.monitoring.decorators import with_adaptive_step_monit
 from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.execution.step_control import SchemeStepControl
 from stark.methods.schemes.implicit.runtime import SchemeRuntimeImplicit
-from stark.methods.schemes.specialization.specialist import SchemeSpecialist
+from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
 from stark.methods.schemes.request import SchemeResolventRequest
 
 
@@ -57,10 +57,10 @@ class SchemeBDF2:
         resolvent: Resolvent,
         *,
         configuration: SchemeConfiguration | None = None,
-        specialist: SchemeSpecialist | None = None,
+        linear_fixed: SchemeLinearFixed | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
-        del specialist
+        del linear_fixed
         self.resolvent = resolvent
         self.runtime = SchemeRuntimeImplicit(self, dynamics, allocator)
         self.dynamics = self.runtime.dynamics

@@ -14,7 +14,7 @@ from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
 from stark.methods.schemes.display.display import display_implicit_resolvent_problem
 from stark.methods.schemes.implicit.runtime import SchemeRuntimeImplicit
-from stark.methods.schemes.specialization.specialist import SchemeSpecialist
+from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
 from stark.methods.schemes.request import SchemeResolventRequest
 from stark.methods.schemes.specialization.stencil import (
     SchemeStencil,
@@ -126,7 +126,7 @@ class SchemeKvaerno4:
 
     tableau = KVAERNO4_TABLEAU
 
-    def __init__(self, dynamics: DynamicsLike, allocator: AllocatorLike, resolvent: Resolvent, *, configuration: SchemeConfiguration | None = None, specialist: SchemeSpecialist | None = None, monitor: SchemeMonitor | None = None) -> None:
+    def __init__(self, dynamics: DynamicsLike, allocator: AllocatorLike, resolvent: Resolvent, *, configuration: SchemeConfiguration | None = None, linear_fixed: SchemeLinearFixed | None = None, monitor: SchemeMonitor | None = None) -> None:
         self.error_delta_call = unbound_scheme_call
         self.high_delta_call = unbound_scheme_call
         self.known2_call = unbound_scheme_call
@@ -157,8 +157,8 @@ class SchemeKvaerno4:
         self.monitor = monitor
         self.call_step = self.call_monitored if monitor is not None else self.call_body
         self.redirect_call = self.call_step
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
+        if linear_fixed is not None:
+            self.prepare_specialized_kernels(linear_fixed)
             self.call_body = self.call_specialized
             if monitor is None:
                 self.call_step = self.call_body
@@ -167,13 +167,13 @@ class SchemeKvaerno4:
     def __call__(self, interval: IntervalLike, state: State) -> float:
         return self.redirect_call(interval, state)
 
-    def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
-        self.known2_call = specialist.provide_delta(SchemeStencil((1.0,), scale=KVAERNO4_GAMMA))
-        self.known3_call = specialist.provide_delta(SchemeStencil(_KNOWN3_WEIGHTS))
-        self.known4_call = specialist.provide_delta(SchemeStencil(_KNOWN4_WEIGHTS))
-        self.known5_call = specialist.provide_delta(SchemeStencil(_KNOWN5_WEIGHTS))
-        self.high_delta_call = specialist.provide_delta(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_HIGH))
-        self.error_delta_call = specialist.provide_delta(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_ERROR))
+    def prepare_specialized_kernels(self, linear_fixed: SchemeLinearFixed) -> None:
+        self.known2_call = linear_fixed(SchemeStencil((1.0,), scale=KVAERNO4_GAMMA))
+        self.known3_call = linear_fixed(SchemeStencil(_KNOWN3_WEIGHTS))
+        self.known4_call = linear_fixed(SchemeStencil(_KNOWN4_WEIGHTS))
+        self.known5_call = linear_fixed(SchemeStencil(_KNOWN5_WEIGHTS))
+        self.high_delta_call = linear_fixed(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_HIGH))
+        self.error_delta_call = linear_fixed(SchemeStencil(_STAGE_INCREMENT_WEIGHTS_ERROR))
 
     def _solve_stage(self, interval: IntervalLike, state: State, dt: float, stage_shift: float, alpha: float, known_shift, known_block: Block, delta_block: Block, previous=None):
         known_block[0] = known_shift

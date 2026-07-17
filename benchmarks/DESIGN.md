@@ -14,7 +14,8 @@ resolvent, inverter, engine, and problem shape working together.
 
 - Expand ASV coverage for scheme calls.
 - Expand ASV coverage for backend comparisons.
-- Expand ASV coverage for generated Algebraist kernels.
+- Expand ASV coverage for engine-generated kernel consumption beyond the
+  current preparation and solve-path tripwires.
 - Expand ASV coverage for dense/direct and Krylov inverter paths.
 - Expand ASV coverage for representative end-to-end IVP runs.
 - Add Torch to backend comparison benchmarks after a Torch engine exists.
@@ -75,8 +76,9 @@ objects as benchmark parameters.
 
 - FPUT-style coupled Hamiltonian chains are useful future representative
   problems for large coupled states and energy/invariant drift.
-- Arity-based Algebraist linear-combine timing is useful for generated-kernel
-  regressions.
+- Focused engine-generated benchmarks should go through the public preparation
+  pipeline (`System.ivp(...)`) and prepared solves, because the Generator
+  migration risk is in how engines expose generated callables to schemes.
 - Dense/direct inverter timing should return as catalogue-driven ASV coverage,
   not as hand-rolled local scripts.
 - Native-engine benchmarks should get native-shaped problem variants rather

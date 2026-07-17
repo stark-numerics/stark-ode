@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar, cast
 
 import numpy as np
 import pytest
 
 from stark import Interval, Tolerance
-from stark.core.contracts import IntervalLike
+from stark.core.contracts import IntervalLike, LinearCombine
 from stark.core import Integrator, IntegratorStepper
 from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
@@ -31,6 +32,7 @@ class ArrayState:
 @dataclass(slots=True)
 class ArrayTranslation:
     dy: np.ndarray
+    linear_combine: ClassVar[LinearCombine]
 
     def __call__(self, origin: ArrayState, result: ArrayState) -> None:
         result.y[...] = origin.y + self.dy
@@ -45,7 +47,27 @@ class ArrayTranslation:
         return ArrayTranslation(scalar * self.dy)
 
 
+def array_combine_many(*terms: object) -> ArrayTranslation:
+    out = terms[-1]
+    if not isinstance(out, ArrayTranslation):
+        raise TypeError("array combine needs an ArrayTranslation output.")
+
+    out.dy[...] = 0.0
+    for index in range(0, len(terms) - 1, 2):
+        scalar = cast(float, terms[index])
+        translation = terms[index + 1]
+        if not isinstance(translation, ArrayTranslation):
+            raise TypeError("array combine terms must be translations.")
+        out.dy[...] += scalar * translation.dy
+    return out
+
+
+ArrayTranslation.linear_combine = tuple(array_combine_many for _ in range(12))
+
+
 class ArrayAllocator:
+    linear_combine = ArrayTranslation.linear_combine
+
     def __init__(self, size: int) -> None:
         self.size = size
 
@@ -70,7 +92,10 @@ class ArrayDynamics:
         )
 
 
-class ArraySpecialist:
+class ArrayLinearFixed:
+    def __call__(self, stencil):
+        return self.provide_delta(stencil)
+
     def provide_delta(self, stencil):
         coefficients = tuple(stencil.coefficients)
         stencil_scale = stencil.scale
@@ -147,10 +172,10 @@ def build_state() -> ArrayState:
     return ArrayState(np.array([1.0, -0.5, 0.25]))
 
 
-def run_fixed_step(scheme_type, *, specialist=None) -> ArrayState:
+def run_fixed_step(scheme_type, *, linear_fixed=None) -> ArrayState:
     state = build_state()
     interval = Interval(0.0, 0.05, 0.05)
-    scheme = scheme_type(ArrayDynamics(), ArrayAllocator(3), specialist=specialist)
+    scheme = scheme_type(ArrayDynamics(), ArrayAllocator(3), linear_fixed=linear_fixed)
 
     accepted_dt = scheme(interval, state)
 
@@ -158,10 +183,10 @@ def run_fixed_step(scheme_type, *, specialist=None) -> ArrayState:
     return state
 
 
-def run_adaptive_solve(scheme_type, *, specialist=None) -> tuple[ArrayState, int, float]:
+def run_adaptive_solve(scheme_type, *, linear_fixed=None) -> tuple[ArrayState, int, float]:
     state = build_state()
     interval = Interval(0.0, 0.05, 0.25)
-    scheme = scheme_type(ArrayDynamics(), ArrayAllocator(3), specialist=specialist)
+    scheme = scheme_type(ArrayDynamics(), ArrayAllocator(3), linear_fixed=linear_fixed)
     stepper = IntegratorStepper(scheme)
     integrator = Integrator(configuration=Configuration())
 
@@ -172,13 +197,13 @@ def run_adaptive_solve(scheme_type, *, specialist=None) -> tuple[ArrayState, int
 
     return state, steps, interval.step
 @pytest.mark.parametrize("scheme_type", ADAPTIVE_SCHEMES)
-def test_adaptive_explicit_scheme_specialist_path_matches_inline_path(scheme_type):
+def test_adaptive_explicit_scheme_linear_fixed_path_matches_inline_path(scheme_type):
     inline_state, inline_steps, inline_next_step = run_adaptive_solve(scheme_type)
-    specialist_state, specialist_steps, specialist_next_step = run_adaptive_solve(
+    linear_fixed_state, linear_fixed_steps, linear_fixed_next_step = run_adaptive_solve(
         scheme_type,
-        specialist=ArraySpecialist(),
+        linear_fixed=ArrayLinearFixed(),
     )
 
-    assert specialist_steps == inline_steps
-    assert specialist_next_step == pytest.approx(inline_next_step, rel=1.0e-14, abs=1.0e-14)
-    np.testing.assert_allclose(specialist_state.y, inline_state.y, rtol=1.0e-14, atol=1.0e-14)
+    assert linear_fixed_steps == inline_steps
+    assert linear_fixed_next_step == pytest.approx(inline_next_step, rel=1.0e-14, abs=1.0e-14)
+    np.testing.assert_allclose(linear_fixed_state.y, inline_state.y, rtol=1.0e-14, atol=1.0e-14)

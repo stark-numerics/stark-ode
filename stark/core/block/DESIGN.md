@@ -20,7 +20,7 @@ Block machinery is a bridge between method algorithms and translation algebra:
 - Block bases expose coordinate views when an algorithm genuinely needs them.
 - Materialisers build dense coordinate matrices only for methods that request
   dense linear algebra.
-- Specialists provide prepared operations for repeated block updates.
+- LinearFixed providers prepare operations for repeated block updates.
 
 ## What Blocks Are Not
 

@@ -1,17 +1,25 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
 from stark.engines.accelerators import AcceleratorNone, AcceleratorNumba
-from stark.engines.algebraist import Algebraist
 from stark.engines.carrier_numpy import CarrierNumpy
+from stark.engines.generator import (
+    Generator,
+    GeneratorPolicy,
+    GeneratorRequestApplyTranslation,
+    GeneratorRequestInnerProduct,
+    GeneratorRequestLinearCombineTable,
+    GeneratorRequestNorm,
+)
 from stark.engines.translation_factory_numpy import TranslationFactoryNumpy
 from stark.core.contracts.accelerator import Accelerator
 from stark.core.contracts.frame import FrameLike
-from stark.engines.allocator import Allocator
+from stark.engines.allocator import AllocatorCarried
 from stark.engines.translation_basis import TranslationBasis
 
 
@@ -22,7 +30,7 @@ def _default_accelerator() -> Accelerator:
         return AcceleratorNone()
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class EngineNumpy:
     """
     NumPy backend bundle for a shaped `Frame`.
@@ -38,8 +46,8 @@ class EngineNumpy:
     dtype: Any = np.float64
     accelerator: Accelerator = field(default_factory=_default_accelerator)
     carriers: tuple[CarrierNumpy, ...] = field(init=False, repr=False)
-    allocator: Allocator = field(init=False, repr=False)
-    algebraist: Algebraist[Any, Any] = field(init=False, repr=False)
+    allocator: AllocatorCarried[Any] = field(init=False, repr=False)
+    generator: Generator[Any, Any] = field(init=False, repr=False)
 
     def __repr__(self) -> str:
         accelerator_name = getattr(self.accelerator, "name", str(self.accelerator))
@@ -80,20 +88,37 @@ class EngineNumpy:
             carriers.append(CarrierNumpy(np.zeros(shape, dtype=dtype)))
 
         carrier_tuple = tuple(carriers)
-        allocator = Allocator(
+        allocator: AllocatorCarried[Any] = AllocatorCarried(
             frame=self.frame,
             carriers=carrier_tuple,
             translation_type=TranslationFactoryNumpy,
         )
 
-        object.__setattr__(self, "carriers", carrier_tuple)
-        object.__setattr__(self, "allocator", allocator)
-        algebraist = Algebraist.generator(
+        self.carriers = carrier_tuple
+        self.allocator = allocator
+        generator = Generator(
             frame=self.frame,
-            allocator=allocator,
             accelerator=self.accelerator,
+            policy=GeneratorPolicy(),
+            allocator=allocator,
         )
-        object.__setattr__(self, "algebraist", algebraist)
+        allocator.apply_translation = cast(
+            Callable[[Any, Any, Any], Any],
+            generator(GeneratorRequestApplyTranslation()),
+        )
+        allocator.linear_combine = cast(
+            tuple[Callable[..., Any], ...],
+            generator(GeneratorRequestLinearCombineTable(max_arity=12)),
+        )
+        allocator.norm = cast(
+            Callable[[Any], float],
+            generator(GeneratorRequestNorm()),
+        )
+        allocator.inner_product = cast(
+            Callable[[Any, Any], float],
+            generator(GeneratorRequestInnerProduct()),
+        )
+        self.generator = generator
 
 
 __all__ = ["EngineNumpy"]

@@ -7,6 +7,9 @@ lets a Krylov inverter solve the linear correction problem matrix-free.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any, cast
+
 import numpy as np
 
 from stark import (
@@ -75,10 +78,16 @@ if __name__ == "__main__":
 
     prepared_linearizer = system.prepare_linearizer(engine)
     assert prepared_linearizer is not None
+    inner_product = engine.allocator.inner_product
+    assert inner_product is not None
+    inner_product_kernel = cast(Callable[[Any, Any], float], inner_product)
+
+    def krylov_inner_product(left: Any, right: Any) -> float:
+        return inner_product_kernel(left, right)
 
     inverter = InverterKrylovArnoldi(
         engine.allocator,
-        engine.allocator.inner_product,
+        krylov_inner_product,
         restart=4,
         configuration=configuration,
         accelerator=engine.accelerator,

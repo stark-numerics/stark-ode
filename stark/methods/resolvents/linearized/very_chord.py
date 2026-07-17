@@ -27,7 +27,7 @@ from stark.methods.resolvents.monitoring.decorators import with_resolvent_monito
 from stark.methods.resolvents.monitoring.monitor import MonitorResolventLike
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 from stark.methods.resolvents.requests.resolvent import ResolventRequest
-from stark.methods.resolvents.specialization.specialist import ResolventSpecialist
+from stark.methods.resolvents.specialization.linear_fixed import ResolventLinearFixed
 from stark.methods.resolvents.specialization.stencil import ResolventStencilBlock
 
 
@@ -102,7 +102,7 @@ class ResolventVeryChord:
         configuration: ResolventConfiguration | None = None,
         safety: ResolventSafety | None = None,
         accelerator: Accelerator | None = None,
-        specialist: ResolventSpecialist[Translation] | None = None,
+        linear_fixed: ResolventLinearFixed[Translation] | None = None,
         tableau: Any | None = None,
     ) -> None:
         self.tableau = tableau
@@ -139,8 +139,8 @@ class ResolventVeryChord:
         ) = None
         self.diagonal, self.stage_abscissae = self._tableau_cache_shape(tableau)
 
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
+        if linear_fixed is not None:
+            self.prepare_specialized_kernels(linear_fixed)
             self.call_step = self.call_specialized
         else:
             self.call_step = self.call_inline
@@ -167,9 +167,9 @@ class ResolventVeryChord:
 
     def prepare_specialized_kernels(
         self,
-        specialist: ResolventSpecialist[Translation],
+        linear_fixed: ResolventLinearFixed[Translation],
     ) -> None:
-        self.update = specialist.provide(ResolventStencilBlock((1.0, 1.0)))
+        self.update = linear_fixed(ResolventStencilBlock((1.0, 1.0)))
 
     def solve_correction_improve(
         self,

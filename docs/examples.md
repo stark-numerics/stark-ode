@@ -94,7 +94,7 @@ python -m examples.core
 | `examples.inverters.inverter_krylov` | matrix-free Krylov solve and preconditioner hook |
 | `examples.inverters.inverter_relaxation_richardson` | relaxation inverter baseline |
 | `examples.inverters.inverter_relaxation_jacobi` | Jacobi-style relaxation |
-| `examples.inverters.inverter_relaxation_specialist` | specialist relaxation inverter |
+| `examples.inverters.inverter_relaxation_linear_fixed` | linear-fixed relaxation inverter |
 
 ## Core
 

@@ -17,7 +17,6 @@ from stark.core.contracts import (
     TranslationType,
 )
 from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.runtime import AlgebraistRuntimeLinearCombine
 from stark.methods.inverters.configuration import (
     InverterConfiguration,
     InverterConfigurationDefault,
@@ -35,6 +34,7 @@ from stark.methods.inverters.support import (
     MonitorInverterLike,
     with_inverter_monitoring,
 )
+from stark.methods.linear_combine import require_linear_combine_kernels
 
 
 @dataclass(slots=True)
@@ -126,14 +126,11 @@ class InverterKrylovArnoldi(Generic[TranslationType]):
         )
         self.block_allocator = BlockAllocator(block_allocation_allocator)
         self.sample = cast(TranslationType, self.allocator.allocate_translation())
-        kernels = AlgebraistRuntimeLinearCombine(
-            translation=self.sample,
-            allocator=self.allocator,
-            accelerator=accelerator,
-        ).as_tuple(2)
-        kernels = cast(tuple[Callable[..., TranslationType], ...], kernels)
-        self.scale = kernels[0]
-        self.combine2 = kernels[1]
+        self.scale, self.combine2 = require_linear_combine_kernels(
+            self.allocator,
+            arity=2,
+            consumer="InverterKrylovArnoldi",
+        )
         self.precondition = (
             self.preconditioner
             if self.preconditioner is not None

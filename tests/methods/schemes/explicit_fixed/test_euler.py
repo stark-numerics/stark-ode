@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import pytest
 
@@ -9,7 +9,7 @@ from stark.methods.schemes.explicit.fixed.euler import SchemeEuler
 from tests.support import (
     DummyScalarAllocator,
     DummyScalarState,
-    DummyTableauSpecialist,
+    DummyTableauLinearFixed,
     dummy_exponential_growth_rhs,
 )
 
@@ -67,11 +67,11 @@ def test_euler_inline_call_clips_to_remaining_interval() -> None:
     assert state.value == pytest.approx(1.05)
 
 
-def test_euler_specialist_path_is_selected_inside_scheme() -> None:
+def test_euler_linear_fixed_path_is_selected_inside_scheme() -> None:
     scheme = SchemeEuler(
         dummy_exponential_growth_rhs,
         DummyScalarAllocator(),
-        specialist=DummyTableauSpecialist(),
+        linear_fixed=DummyTableauLinearFixed(),
     )
 
     assert scheme.redirect_call == scheme.call_step
@@ -99,12 +99,12 @@ def test_euler_monitoring_records_fixed_step_without_changing_pure_path() -> Non
     assert step.t_end == pytest.approx(0.125)
     assert step.accepted_dt == pytest.approx(0.125)
 
-def test_euler_monitoring_records_specialist_fixed_step() -> None:
+def test_euler_monitoring_records_linear_fixed_fixed_step() -> None:
     monitor = Monitor()
     scheme = SchemeEuler(
         dummy_exponential_growth_rhs,
         DummyScalarAllocator(),
-        specialist=DummyTableauSpecialist(),
+        linear_fixed=DummyTableauLinearFixed(),
         monitor=monitor.scheme,
     )
     interval = Interval(present=0.0, step=0.125, stop=1.0)
@@ -121,26 +121,26 @@ def test_euler_monitoring_records_specialist_fixed_step() -> None:
     assert monitor.scheme.fixed_steps[0].scheme == "Euler"
 
 
-def test_euler_inline_and_specialist_paths_match_for_one_step() -> None:
+def test_euler_inline_and_linear_fixed_paths_match_for_one_step() -> None:
     interval_inline = Interval(present=0.0, step=0.125, stop=1.0)
-    interval_specialist = Interval(present=0.0, step=0.125, stop=1.0)
+    interval_linear_fixed = Interval(present=0.0, step=0.125, stop=1.0)
     state_inline = DummyScalarState(1.0)
-    state_specialist = DummyScalarState(1.0)
+    state_linear_fixed = DummyScalarState(1.0)
 
     inline = SchemeEuler(dummy_exponential_growth_rhs, DummyScalarAllocator())
-    specialist = SchemeEuler(
+    linear_fixed = SchemeEuler(
         dummy_exponential_growth_rhs,
         DummyScalarAllocator(),
-        specialist=DummyTableauSpecialist(),
+        linear_fixed=DummyTableauLinearFixed(),
     )
 
     accepted_dt_inline = inline(interval_inline, state_inline)
-    accepted_dt_specialist = specialist(
-        interval_specialist,
-        state_specialist,
+    accepted_dt_linear_fixed = linear_fixed(
+        interval_linear_fixed,
+        state_linear_fixed,
     )
 
-    assert accepted_dt_inline == pytest.approx(accepted_dt_specialist)
-    assert state_inline.value == pytest.approx(state_specialist.value)
+    assert accepted_dt_inline == pytest.approx(accepted_dt_linear_fixed)
+    assert state_inline.value == pytest.approx(state_linear_fixed.value)
     assert state_inline.value == pytest.approx(1.125)
 

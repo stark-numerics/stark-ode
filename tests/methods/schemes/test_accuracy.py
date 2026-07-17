@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import cos, sin, sqrt
+from typing import ClassVar, cast
 
 import pytest
 
 from stark import Configuration, Interval, Tolerance
+from stark.core.contracts import LinearCombine
 from stark.core import Integrator, IntegratorStepper
 from stark.methods.schemes import (
     SchemeBogackiShampine,
@@ -63,6 +65,7 @@ class RiccatiState:
 class RiccatiTranslation:
     dt: float = 0.0
     dx: float = 0.0
+    linear_combine: ClassVar[LinearCombine]
 
     def __call__(self, origin: RiccatiState, result: RiccatiState) -> None:
         result.t = origin.t + self.dt
@@ -201,10 +204,35 @@ class RiccatiTranslation:
         )
         return out
 
-    linear_combine = [scale, combine2, combine3, combine4, combine5, combine6, combine7]
+    linear_combine = (scale, combine2, combine3, combine4, combine5, combine6, combine7)
+
+
+def riccati_combine_many(*terms: object) -> RiccatiTranslation:
+    out = terms[-1]
+    if not isinstance(out, RiccatiTranslation):
+        raise TypeError("Riccati combine needs a RiccatiTranslation output.")
+
+    out.dt = 0.0
+    out.dx = 0.0
+    for index in range(0, len(terms) - 1, 2):
+        scalar = cast(float, terms[index])
+        translation = terms[index + 1]
+        if not isinstance(translation, RiccatiTranslation):
+            raise TypeError("Riccati combine terms must be translations.")
+        out.dt += scalar * translation.dt
+        out.dx += scalar * translation.dx
+    return out
+
+
+RiccatiTranslation.linear_combine = (
+    *RiccatiTranslation.linear_combine,
+    *(riccati_combine_many for _ in range(5)),
+)
 
 
 class RiccatiAllocator:
+    linear_combine = RiccatiTranslation.linear_combine
+
     def allocate_state(self) -> RiccatiState:
         return RiccatiState(0.0, 0.0)
 

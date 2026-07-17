@@ -8,11 +8,11 @@ import pytest
 from stark import Interval, Tolerance
 from stark.core.contracts import DynamicsLike, IntervalLike
 from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.diagnostics.monitor import Monitor
 from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
 from stark.methods.schemes.imex.adaptive.kennedy_carpenter32 import SchemeKennedyCarpenter32
+from tests.support import DummyValueLinearFixed, scalar_value_linear_combine
 
 
 @dataclass(slots=True)
@@ -38,6 +38,8 @@ class ScalarTranslation:
 
 
 class ScalarAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
@@ -79,6 +81,8 @@ class ArrayScalarTranslation:
 
 
 class ArrayScalarAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> ArrayScalarState:
         return ArrayScalarState.zero()
 
@@ -144,7 +148,7 @@ def make_scheme(*, monitor=None) -> SchemeKennedyCarpenter32:
 
 def make_array_scheme(
     *,
-    specialist: bool = False,
+    linear_fixed: bool = False,
 ) -> SchemeKennedyCarpenter32:
     allocator = ArrayScalarAllocator()
     dynamics = SplitDynamics(
@@ -161,14 +165,7 @@ def make_array_scheme(
         dynamics,
         allocator,
         resolvent=resolvent,
-        specialist=(
-            AlgebraistRuntimeSpecialist(
-                translation=allocator.allocate_translation(),
-                allocator=allocator,
-            )
-            if specialist
-            else None
-        ),
+        linear_fixed=DummyValueLinearFixed() if linear_fixed else None,
     )
 
 
@@ -192,9 +189,9 @@ def test_kennedy_carpenter32_accepts_zero_split_step() -> None:
     assert report.rejection_count == 0
 
 
-def test_kennedy_carpenter32_specialist_path_matches_generic_path() -> None:
+def test_kennedy_carpenter32_linear_fixed_path_matches_generic_path() -> None:
     generic = make_array_scheme()
-    generated = make_array_scheme(specialist=True)
+    generated = make_array_scheme(linear_fixed=True)
     generic_interval = Interval(present=0.0, step=0.1, stop=0.3)
     generated_interval = Interval(present=0.0, step=0.1, stop=0.3)
     generic_state = ArrayScalarState.zero()
@@ -208,8 +205,8 @@ def test_kennedy_carpenter32_specialist_path_matches_generic_path() -> None:
     assert generated_interval.step == pytest.approx(generic_interval.step)
 
 
-def test_kennedy_carpenter32_specialist_path_prepares_expected_kernel_family() -> None:
-    scheme = make_array_scheme(specialist=True)
+def test_kennedy_carpenter32_linear_fixed_path_prepares_expected_kernel_family() -> None:
+    scheme = make_array_scheme(linear_fixed=True)
     adaptive_step = scheme.adaptive_step
 
     assert len(adaptive_step.stage_rhs_kernels) == len(SchemeKennedyCarpenter32.tableau.c)

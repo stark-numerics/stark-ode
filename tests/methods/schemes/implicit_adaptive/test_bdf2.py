@@ -12,7 +12,8 @@ from stark.diagnostics.monitor import Monitor
 from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
 from stark.methods.schemes.implicit.adaptive.bdf2 import SchemeBDF2
-from stark.methods.schemes.specialization.specialist import SchemeSpecialist
+from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
+from tests.support import scalar_value_linear_combine
 
 
 @dataclass(slots=True)
@@ -38,6 +39,8 @@ class ScalarTranslation:
 
 
 class ScalarAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
@@ -59,7 +62,7 @@ def constant_rhs(
 
 def make_scheme(
     *,
-    specialist: SchemeSpecialist | None = None,
+    linear_fixed: SchemeLinearFixed | None = None,
     monitor=None,
 ) -> SchemeBDF2:
     allocator = ScalarAllocator()
@@ -73,7 +76,7 @@ def make_scheme(
         constant_rhs,
         allocator,
         resolvent=resolvent,
-        specialist=specialist,
+        linear_fixed=linear_fixed,
         monitor=monitor,
     )
 

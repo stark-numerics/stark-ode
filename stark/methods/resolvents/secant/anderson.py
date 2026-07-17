@@ -23,7 +23,7 @@ from stark.methods.resolvents.secant._least_squares import (
     ResolventSecantLeastSquares,
     block_inner_product,
 )
-from stark.methods.resolvents.specialization.specialist import ResolventSpecialist
+from stark.methods.resolvents.specialization.linear_fixed import ResolventLinearFixed
 from stark.methods.resolvents.specialization.stencil import ResolventStencilBlock
 from stark.methods.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
@@ -245,7 +245,7 @@ class ResolventAnderson:
         depth: int = 4,
         safety: ResolventSafety | None = None,
         accelerator: Accelerator | None = None,
-        specialist: ResolventSpecialist[Translation] | None = None,
+        linear_fixed: ResolventLinearFixed[Translation] | None = None,
         tableau: Any | None = None,
     ) -> None:
         self.tableau = tableau
@@ -283,8 +283,8 @@ class ResolventAnderson:
             accelerator=self.accelerator,
         )
 
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
+        if linear_fixed is not None:
+            self.prepare_specialized_kernels(linear_fixed)
             self.call_step = self.call_specialized
         else:
             self.call_step = self.call_inline
@@ -292,10 +292,10 @@ class ResolventAnderson:
 
     def prepare_specialized_kernels(
         self,
-        specialist: ResolventSpecialist[Translation],
+        linear_fixed: ResolventLinearFixed[Translation],
     ) -> None:
         # Steps 3 and 5 use the same block subtraction stencil.
-        self.subtract_update = specialist.provide(
+        self.subtract_update = linear_fixed(
             ResolventStencilBlock((1.0, -1.0))
         )
 

@@ -119,16 +119,6 @@ def test_audit_module_imports() -> None:
     assert importlib.import_module("stark.core.auditor") is not None
 
 
-def test_algebraist_package_imports() -> None:
-    """The algebraist package should expose generated-kernel helpers."""
-    algebraist = importlib.import_module("stark.engines.algebraist")
-
-    assert algebraist.AlgebraistRuntimeLinearCombine is not None
-    assert algebraist.AlgebraistRuntimeSpecialist is not None
-    assert algebraist.AlgebraistGeneratorLinearCombine is not None
-    assert algebraist.AlgebraistGeneratorSpecialist is not None
-
-
 def test_Configuration_module_imports() -> None:
     """Configuration lives in core with narrow domain protocol views."""
     assert importlib.import_module("stark.engines.accelerators") is not None
@@ -141,8 +131,7 @@ def test_Configuration_module_imports() -> None:
     assert importlib.import_module("stark.methods.schemes.execution.step_support") is not None
     assert importlib.import_module("stark.engines") is not None
     assert EngineNumpy is not None
-    assert importlib.import_module("stark.engines.algebraist.runtime") is not None
-    assert importlib.import_module("stark.engines.algebraist.generator") is not None
+    assert importlib.import_module("stark.engines.generator") is not None
     assert importlib.import_module("stark.methods.schemes.display.display") is not None
 
 

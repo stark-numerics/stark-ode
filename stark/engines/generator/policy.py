@@ -1,11 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
-
-
-GeneratorMode = Literal["runtime", "generated"]
-"""Whether a generator should build runtime providers or emitted kernels."""
+from typing import Literal, Protocol
 
 GeneratorMutationStyle = Literal["in_place", "functional"]
 """Whether generated code mutates output objects or returns new values."""
@@ -15,6 +11,7 @@ GeneratorTraversalStyle = Literal[
     "looped",
     "unrolled",
     "vectorized",
+    "elementwise",
     "backend_kernel",
 ]
 """Preferred field traversal shape for generated code."""
@@ -22,6 +19,7 @@ GeneratorTraversalStyle = Literal[
 GeneratorExpressionStyle = Literal[
     "python",
     "array_expression",
+    "elementwise",
     "backend_kernel",
 ]
 """Preferred expression language emitted by generated code."""
@@ -40,72 +38,36 @@ class GeneratorPolicy:
     generators need in order to emit compatible kernels.
     """
 
-    mode: GeneratorMode = "runtime"
     mutation: GeneratorMutationStyle = "in_place"
     traversal: GeneratorTraversalStyle = "looped"
     expression: GeneratorExpressionStyle = "python"
     scalar: GeneratorScalarStyle = "python"
 
-    @classmethod
-    def runtime(cls) -> "GeneratorPolicy":
-        """Use runtime providers when structure is not rich enough for codegen."""
+class GeneratorPolicyLike(Protocol):
+    """Source-shape decisions understood by Generator operation families."""
 
-        return cls(mode="runtime")
+    @property
+    def mutation(self) -> GeneratorMutationStyle:
+        ...
 
-    @classmethod
-    def mutable_looped(cls) -> "GeneratorPolicy":
-        """Generate Python-compatible loops that mutate output objects."""
+    @property
+    def traversal(self) -> GeneratorTraversalStyle:
+        ...
 
-        return cls(
-            mode="generated",
-            mutation="in_place",
-            traversal="looped",
-            expression="python",
-            scalar="python",
-        )
+    @property
+    def expression(self) -> GeneratorExpressionStyle:
+        ...
 
-    @classmethod
-    def mutable_vectorized(cls) -> "GeneratorPolicy":
-        """Generate whole-array expressions that mutate output objects."""
-
-        return cls(
-            mode="generated",
-            mutation="in_place",
-            traversal="vectorized",
-            expression="array_expression",
-            scalar="python",
-        )
-
-    @classmethod
-    def functional_vectorized(cls) -> "GeneratorPolicy":
-        """Generate whole-array expressions that return new values."""
-
-        return cls(
-            mode="generated",
-            mutation="functional",
-            traversal="vectorized",
-            expression="array_expression",
-            scalar="item",
-        )
-
-    @classmethod
-    def backend_kernel(cls) -> "GeneratorPolicy":
-        """Generate backend-native kernels instead of plain Python source."""
-
-        return cls(
-            mode="generated",
-            mutation="in_place",
-            traversal="backend_kernel",
-            expression="backend_kernel",
-            scalar="item",
-        )
+    @property
+    def scalar(self) -> GeneratorScalarStyle:
+        ...
 
 
 __all__ = [
     "GeneratorExpressionStyle",
-    "GeneratorMode",
     "GeneratorMutationStyle",
     "GeneratorPolicy",
+    "GeneratorPolicyLike",
     "GeneratorScalarStyle",
     "GeneratorTraversalStyle",
 ]

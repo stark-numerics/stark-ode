@@ -23,7 +23,7 @@ def __call__(self, problem, delta):
 Construction should choose `redirect_call` from the available bodies:
 
 - `call_inline` for direct Python/block operations.
-- `call_specialized` for prepared specialist kernels.
+- `call_specialized` for prepared linear_fixed kernels.
 - monitored wrappers only when a monitor is supplied.
 
 This keeps optional diagnostics and backend-specific acceleration out of the

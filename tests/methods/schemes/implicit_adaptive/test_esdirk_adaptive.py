@@ -9,7 +9,6 @@ from stark import Interval, Tolerance
 from stark.core import Integrator, IntegratorStepper
 from stark.core.contracts import IntervalLike
 from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.diagnostics.monitor import Monitor
 from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
@@ -17,6 +16,7 @@ from stark.methods.schemes.implicit.adaptive.kvaerno3 import SchemeKvaerno3
 from stark.methods.schemes.implicit.adaptive.kvaerno4 import SchemeKvaerno4
 from stark.methods.schemes.implicit.adaptive.kvaerno5 import SchemeKvaerno5
 from stark.methods.schemes.implicit.adaptive.sdirk21 import SchemeSDIRK21
+from tests.support import DummyValueLinearFixed, scalar_value_linear_combine
 
 
 @dataclass(slots=True)
@@ -42,6 +42,8 @@ class ScalarTranslation:
 
 
 class ScalarAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
@@ -83,6 +85,8 @@ class ArrayScalarTranslation:
 
 
 class ArrayScalarAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> ArrayScalarState:
         return ArrayScalarState.zero()
 
@@ -130,7 +134,7 @@ def make_scheme(scheme_cls, *, monitor=None):
 def make_array_scalar_scheme(
     scheme_cls,
     *,
-    specialist: bool = False,
+    linear_fixed: bool = False,
 ):
     allocator = ArrayScalarAllocator()
     resolvent = ResolventPicard(
@@ -143,14 +147,7 @@ def make_array_scalar_scheme(
         array_constant_rhs,
         allocator,
         resolvent=resolvent,
-        specialist=(
-            AlgebraistRuntimeSpecialist(
-                translation=allocator.allocate_translation(),
-                allocator=allocator,
-            )
-            if specialist
-            else None
-        ),
+        linear_fixed=DummyValueLinearFixed() if linear_fixed else None,
     )
 
 
@@ -254,11 +251,11 @@ def test_esdirk_adaptive_call_clips_to_remaining_interval(scheme_cls) -> None:
         SchemeKvaerno5,
     ],
 )
-def test_esdirk_adaptive_specialist_path_matches_generic_path(
+def test_esdirk_adaptive_linear_fixed_path_matches_generic_path(
     scheme_cls,
 ) -> None:
     generic = make_array_scalar_scheme(scheme_cls)
-    generated = make_array_scalar_scheme(scheme_cls, specialist=True)
+    generated = make_array_scalar_scheme(scheme_cls, linear_fixed=True)
     generic_interval = Interval(present=0.0, step=0.1, stop=0.3)
     generated_interval = Interval(present=0.0, step=0.1, stop=0.3)
     generic_state = ArrayScalarState.zero()
@@ -281,11 +278,11 @@ def test_esdirk_adaptive_specialist_path_matches_generic_path(
         (SchemeKvaerno5, ("known2", "known3", "known4", "known5", "known6", "known7")),
     ],
 )
-def test_esdirk_adaptive_specialist_path_prepares_expected_kernel_family(
+def test_esdirk_adaptive_linear_fixed_path_prepares_expected_kernel_family(
     scheme_cls,
     known_names: tuple[str, ...],
 ) -> None:
-    scheme = make_array_scalar_scheme(scheme_cls, specialist=True)
+    scheme = make_array_scalar_scheme(scheme_cls, linear_fixed=True)
 
     for known_name in known_names:
         assert callable(getattr(scheme, f"{known_name}_call"))

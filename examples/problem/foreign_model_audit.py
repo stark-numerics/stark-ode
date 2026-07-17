@@ -14,6 +14,7 @@ from typing import cast
 from stark import Interval, Tolerance
 from stark.core import Auditor
 from stark.core.contracts import DynamicsLike
+from stark.engines import Allocator
 from stark.methods import SchemeRK4
 
 
@@ -50,6 +51,47 @@ class PendulumDelta:
         )
 
 
+def scale_pendulum_delta(
+    scalar: float,
+    translation: PendulumDelta,
+    out: PendulumDelta,
+) -> PendulumDelta:
+    out.angle = scalar * translation.angle
+    out.angular_velocity = scalar * translation.angular_velocity
+    return out
+
+
+def combine2_pendulum_delta(
+    scalar_left: float,
+    translation_left: PendulumDelta,
+    scalar_right: float,
+    translation_right: PendulumDelta,
+    out: PendulumDelta,
+) -> PendulumDelta:
+    out.angle = scalar_left * translation_left.angle + scalar_right * translation_right.angle
+    out.angular_velocity = (
+        scalar_left * translation_left.angular_velocity
+        + scalar_right * translation_right.angular_velocity
+    )
+    return out
+
+
+def pendulum_inner_product(
+    left: PendulumDelta,
+    right: PendulumDelta,
+) -> float:
+    return left.angle * right.angle + left.angular_velocity * right.angular_velocity
+
+
+# Linear-combine seeds are optional optimisations. Provide as many arities as
+# are worth hand-writing; Allocator.runtime fills the rest of the table. Inner
+# products are optional too, but useful for custom solvers and diagnostics.
+@Allocator.runtime
+@Allocator.inner_product(pendulum_inner_product)
+@Allocator.linear_combine(
+    scale_pendulum_delta,
+    combine2_pendulum_delta,
+)
 class PendulumAllocator:
     def allocate_state(self) -> PendulumState:
         return PendulumState(angle=0.0, angular_velocity=0.0, label="foreign-pendulum")

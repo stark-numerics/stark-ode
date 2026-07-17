@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -9,11 +10,17 @@ import jax.numpy as jnp  # type: ignore[import-not-found]
 from stark.core.contracts.accelerator import Accelerator
 from stark.core.contracts.frame import FrameLike
 from stark.engines.accelerators import AcceleratorJax
-from stark.engines.algebraist import Algebraist
-from stark.engines.algebraist.generator import AlgebraistGeneratorTargetFunctional
-from stark.engines.allocator import Allocator
+from stark.engines.allocator import AllocatorCarried
 from stark.engines.carrier_jax import CarrierJax
 from stark.engines.carrier_jax.storage import CarrierJaxValue
+from stark.engines.generator import (
+    Generator,
+    GeneratorPolicy,
+    GeneratorRequestApplyTranslation,
+    GeneratorRequestInnerProduct,
+    GeneratorRequestLinearCombineTable,
+    GeneratorRequestNorm,
+)
 from stark.engines.translation_factory_jax import TranslationFactoryJax
 from stark.engines.translation_basis import TranslationBasis
 
@@ -52,7 +59,7 @@ def _resolve_jax_dtype(dtype: Any | None) -> Any:
     return requested
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class EngineJax:
     """
     JAX backend bundle for a shaped `Frame`.
@@ -73,8 +80,8 @@ class EngineJax:
     dtype: Any | None = None
     accelerator: Accelerator = field(default_factory=AcceleratorJax)
     carriers: tuple[CarrierJax, ...] = field(init=False, repr=False)
-    allocator: Allocator = field(init=False, repr=False)
-    algebraist: Algebraist[Any, Any] = field(init=False, repr=False)
+    allocator: AllocatorCarried[Any] = field(init=False, repr=False)
+    generator: Generator[Any, Any] = field(init=False, repr=False)
 
     def __repr__(self) -> str:
         accelerator_name = getattr(self.accelerator, "name", str(self.accelerator))
@@ -95,7 +102,7 @@ class EngineJax:
 
     def __post_init__(self) -> None:
         dtype = _resolve_jax_dtype(self.dtype)
-        object.__setattr__(self, "dtype", dtype)
+        self.dtype = dtype
 
         carriers: list[CarrierJax] = []
 
@@ -112,23 +119,42 @@ class EngineJax:
             carriers.append(CarrierJax(template))
 
         carrier_tuple = tuple(carriers)
-        allocator = Allocator(
+        allocator: AllocatorCarried[Any] = AllocatorCarried(
             frame=self.frame,
             carriers=carrier_tuple,
             translation_type=TranslationFactoryJax,
         )
 
-        object.__setattr__(self, "carriers", carrier_tuple)
-        object.__setattr__(self, "allocator", allocator)
+        self.carriers = carrier_tuple
+        self.allocator = allocator
 
-        functional_target = AlgebraistGeneratorTargetFunctional()
-        algebraist = Algebraist.generator(
+        generator = Generator(
             frame=self.frame,
-            allocator=allocator,
             accelerator=self.accelerator,
-            target=functional_target,
+            policy=GeneratorPolicy(
+                mutation="functional",
+                traversal="vectorized",
+                expression="array_expression",
+            ),
+            allocator=allocator,
         )
-        object.__setattr__(self, "algebraist", algebraist)
+        allocator.apply_translation = cast(
+            Callable[[Any, Any, Any], Any],
+            generator(GeneratorRequestApplyTranslation()),
+        )
+        allocator.linear_combine = cast(
+            tuple[Callable[..., Any], ...],
+            generator(GeneratorRequestLinearCombineTable(max_arity=12)),
+        )
+        allocator.norm = cast(
+            Callable[[Any], float],
+            generator(GeneratorRequestNorm()),
+        )
+        allocator.inner_product = cast(
+            Callable[[Any, Any], float],
+            generator(GeneratorRequestInnerProduct()),
+        )
+        self.generator = generator
 
 
 __all__ = ["EngineJax"]

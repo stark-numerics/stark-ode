@@ -1,59 +1,64 @@
 # Generator Design Notes
 
-Last reviewed: 2026-07-13.
+Last reviewed: 2026-07-17.
 
-This package is a staging area for the engine-facing generation surface that
-will eventually sit underneath Algebraist and downstream packages such as
-stark-pde.
+This package is a staging area for a clearer successor shape to the older
+engine algebra-generation machinery. It must not import from that machinery.
+The goal is to make the engine's code-generation decisions visible enough for
+stark-ode and later stark-pde generators to share the same conceptual surface.
 
 ## Goal
 
-The goal is not to refactor Algebraist for neatness. The goal is to expose the
-engine decisions that make efficient generated code possible.
+`Generator` receives a `FrameLike`, an accelerator, and a `GeneratorPolicyLike`.
+Its call surface receives a duck-typed `GeneratorRequestLike` and dispatches on
+`request.operation`.
 
-Algebraist currently prepares vector-space algebra for known `Frame` layouts.
-stark-pde will need similar backend-aware generation for spatial operators,
-derivative stencils, and symbolic PDE expressions. These should share a small
-policy vocabulary without forcing PDE concepts into stark-ode.
-
-## Generator Shape
-
-A future `Generator` should be a backend-aware preparation object. It can own
-families such as:
+Unknown operations are programmer errors:
 
 ```text
-Algebraist generation  linear combinations, norms, inner products, stencils
-PDE generation         derivative stencils, fluxes, source expressions
-runtime generation     flexible fallback for unknown or foreign state shapes
+unknown operation -> NotImplementedError
 ```
 
-The default should be runtime-safe. A generator should choose emitted code only
-when it has enough structure to do so honestly:
+Known operations emit and compile optimized kernels:
 
 ```text
-unknown state shape       -> runtime providers
-known Frame-like layout   -> generated algebra providers
-known PDEFrame + lattice  -> generated PDE operators
+known operation -> source emission and compilation
 ```
 
-This avoids the current failure mode where a concrete engine may silently fall
-back from accelerated code generation to a different execution style.
+Runtime-safe allocation helpers live in the allocator package. Generator is
+reserved for emitted or otherwise optimized kernels. Concrete engines construct
+a generator when they have enough frame/backend information for codegen, while
+custom allocators can become complete enough to run without constructing a
+generator.
+
+## Request Shape
+
+The base request contract is deliberately tiny:
+
+```text
+operation: str
+```
+
+Operation-specific protocols describe the additional data required by that
+operation. For example, `SchemeStencil` is still a stencil, but it can also
+serve as a generator request because it exposes `operation == "linear_fixed"`
+alongside its coefficients, scale, and apply flag.
+
+Block-level fixed-linear helpers follow the same shape. `BlockLinearFixed`
+lifts any callable item provider that accepts a linear-fixed request; it does
+not require the older split provider methods such as `provide_delta` and
+`provide_apply`.
+
+This keeps duck typing alive. A PDE request can use the same dispatch shape
+without making stark-ode know about PDE-specific concepts.
 
 ## Policy
 
-`GeneratorPolicy` describes source-shape decisions, not engine ownership.
+`GeneratorPolicy` is a plain dataclass. It should stay explicit: callers set
+the traversal, mutation, expression, and scalar choices directly instead of
+selecting from convenience constructors.
 
-It should answer questions such as:
-
-```text
-Should generated code mutate output objects or return new values?
-Should fields be walked by Python loops, unrolled indices, vectorized array
-expressions, or backend-native kernels?
-How should backend scalar values cross into Python control code?
-Is this path runtime-only or generated?
-```
-
-It should not own:
+The policy does not own:
 
 ```text
 frame
@@ -63,31 +68,134 @@ accelerator
 translation factory
 ```
 
-Those remain engine resources. The policy is the shared vocabulary that lets
-Algebraist and future stark-pde generators agree on how code should be shaped.
+Those remain engine resources.
 
-## Relationship to Algebraist
+## Generated Code
 
-Algebraist should continue working while this package grows. Once the policy
-surface is stable, Algebraist wiring can move over in small steps:
+The code-writing stage should be laid out as separate, inspectable steps:
 
 ```text
-engine chooses GeneratorPolicy
-engine chooses Algebraist target
-Algebraist consumes policy + target
-later, stark-pde consumes the same policy for PDEGenerator
+request validation / lowering
+frame layout pass
+operation-owned source building
+target wrapper
+accelerator compilation
 ```
 
-Runtime Algebraist support should survive. It is the correct path for
-user-defined state families where stark-ode cannot know enough structure to
-emit good code.
+Frame traversal should be centralized where possible. Emitting one coherent
+loop over frame fields is preferable to composing many small generated loops
+that walk the same frame repeatedly.
 
-## Open Questions
+`linear_fixed`, `linear_combine`, and generated `norm` currently perform small
+layout passes before source emission. Scalar and broadcast fields are emitted
+directly. Non-vectorized looped fields are grouped by rank and concrete shape,
+so fields with the same loop bounds are written inside one shared loop nest.
 
-- Should a future `Generator` be a facade containing algebra/PDE families, or
-  should `AlgebraistGenerator` and `PDEGenerator` be sibling consumers of the
-  same policy?
-- Should generated target selection remain separate from policy, or should
-  policy grow enough metadata to choose targets automatically?
-- How much carrier capability metadata should become part of the policy, and
-  how much should remain on concrete carriers?
+## Current Draft
+
+The current package is intentionally independent and incomplete:
+
+- `linear_combine`, `linear_fixed`, `apply_translation`, `norm`, and
+  `inner_product` can emit generated source without importing the older engine
+  algebra machinery.
+- `linear_fixed` owns its source builder in `linear_fixed_source`; future
+  operation families should prefer their own source builders over a shared
+  mega-emitter.
+- `linear_fixed_source` groups compatible looped fields before emission for
+  both fixed-coefficient and runtime-coefficient linear kernels. Generated
+  norm source performs the same grouping for adaptive-method hot paths.
+- `elementwise` policy options describe backend elementwise generation without
+  making request objects backend-specific. The first concrete implementation
+  emits CuPy `ElementwiseKernel` source, but the request remains
+  `linear_combine`, `linear_fixed`, or `apply_translation`.
+
+Concrete engines now install allocator `apply_translation`, `norm`, and
+`inner_product` hooks through Generator requests. NumPy, Native, JAX, and CuPy
+also install `linear_combine` through Generator. Engines no longer expose an
+`algebraist` bundle; the old implementation package has moved to
+`stark.engines._algebraist` while remaining dependencies are audited.
+
+## Remaining Algebraist Capabilities
+
+Migration readiness should be judged by capabilities, not imports. The private
+`_algebraist` package should survive only while Generator or allocator hooks
+still need one of its implementation details:
+
+```text
+linear_combine       Generator emits in-place, functional/vectorized, and
+                     elementwise linear-combine kernels. CuPy uses the generic
+                     elementwise policy shape backed by CuPy ElementwiseKernel
+                     source.
+
+linear_fixed         Generator handles request-based delta/apply kernels,
+                     including backend-specific elementwise and functional
+                     variants, and the apply_translation hook used by
+                     translation factories.
+
+apply_translation    Generator owns allocator.apply_translation through a
+                     standalone request. This is intentionally separate from
+                     linear_fixed: it applies an existing translation to an
+                     origin state and has no step argument or coefficient
+                     stencil.
+
+norm                 Generator owns engine allocator hooks now. Confirm backend
+                     scalar-return behavior remains covered before deleting
+                     corresponding `_algebraist` providers.
+
+inner_product        Generator owns engine allocator hooks now. Confirm backend
+                     scalar-return behavior remains covered before deleting
+                     corresponding `_algebraist` providers.
+
+runtime fallback     Allocator decorators are the compatibility path for
+                     foreign state/translation families. Runtime-safe
+                     completion of custom allocators lives with the allocator
+                     design rather than inside generated-code machinery.
+```
+
+## Allocator Linear-Combine Hooks
+
+Allocators may expose custom `linear_combine` kernels. This is an intentional
+advanced-user bypass: a user who supplies their own state and translation
+family might also supply compiled combine kernels that know how to operate on
+that family efficiently.
+
+Generator treats allocator-provided kernels as input semantics, not as the
+primary engine installation mechanism. Runtime synthesis of missing arities
+belongs to `Allocator.runtime`; generated linear-combine requests emit kernels
+from the frame and policy.
+
+Allocator preparation should stay out of the base allocator contract. Optional
+runtime setup helpers live on classes decorated with `Allocator.runtime`. This
+mirrors the problem-layer dynamics style: the user keeps their own object shape
+and opts into STARK-recognised setup behavior with a decorator rather than a
+base class.
+
+`Allocator.runtime` prepares a complete table during allocator construction:
+
+```python
+@Allocator.runtime
+@Allocator.linear_combine(scale, combine2)
+class MyAllocator:
+    ...
+
+allocator = MyAllocator(...)
+```
+
+The `Allocator.linear_combine(...)` decorator is optional. Without a generator,
+the allocator runtime path uses declared low-arity seeds or translation
+arithmetic. Generated hook allocation is explicit: either the engine asks its
+`Generator` directly, or a class is decorated with a specific bound generator:
+
+```python
+@Allocator.generated(generator)
+class MyGeneratedAllocator:
+    ...
+```
+
+Concrete engines can therefore install a complete arity table through
+`Generator` without depending on the older algebra machinery, while custom
+allocators can still define the low-level linear-combination semantics that
+runtime allocator setup should respect. Advanced users can pass custom factories to
+`Allocator.runtime(...)` or `Allocator.generated(generator, ...)` when they
+want hand-optimised hook allocation instead of the default allocator/generator
+helpers.

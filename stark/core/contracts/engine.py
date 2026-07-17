@@ -1,9 +1,9 @@
 """Protocol for backend engines used by the high-level interface.
 
 Engines bundle backend choices for a declared frame. They do not describe the
-differential equation or numerical method; they expose the allocation,
-acceleration, and algebra providers that a system/method construction path can
-use when binding a concrete problem.
+differential equation or numerical method; they expose allocation,
+acceleration, and generator resources that a system/method construction path
+can use when binding a concrete problem.
 """
 
 from __future__ import annotations
@@ -38,8 +38,8 @@ class Engine(Protocol):
         ...
 
     @property
-    def algebraist(self) -> Any:
-        """Prepared algebra providers for this backend/frame pair."""
+    def generator(self) -> Any:
+        """Prepared generator facade for backend/frame code generation."""
         ...
 
     def translation_basis(self) -> Any:

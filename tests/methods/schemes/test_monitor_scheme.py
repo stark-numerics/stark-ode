@@ -14,7 +14,7 @@ from tests.support import (
     DummyScalarAllocator,
     DummyScalarState,
     DummyScalarTranslation,
-    DummyTableauSpecialist,
+    DummyTableauLinearFixed,
     dummy_constant_dynamics,
     dummy_zero_rhs,
 )
@@ -88,11 +88,11 @@ def test_direct_scheme_monitor_remains_available_after_integration_exception() -
     assert monitor.scheme.adaptive_steps == []
 
 
-def test_specialist_fixed_path_is_monitored_only_at_scheme_boundary() -> None:
+def test_linear_fixed_fixed_path_is_monitored_only_at_scheme_boundary() -> None:
     scheme = SchemeEuler(
         dummy_constant_dynamics(),
         DummyScalarAllocator(),
-        specialist=DummyTableauSpecialist(),
+        linear_fixed=DummyTableauLinearFixed(),
     )
     monitor = Monitor()
     interval = Interval(present=0.0, step=0.125, stop=1.0)
@@ -102,7 +102,7 @@ def test_specialist_fixed_path_is_monitored_only_at_scheme_boundary() -> None:
     scheme = SchemeEuler(
         dummy_constant_dynamics(),
         DummyScalarAllocator(),
-        specialist=DummyTableauSpecialist(),
+        linear_fixed=DummyTableauLinearFixed(),
         monitor=monitor.scheme,
     )
 

@@ -9,7 +9,7 @@ from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.display.decorators import with_scheme_display
 from stark.methods.schemes.display.display import display_implicit_resolvent_problem
 from stark.methods.schemes.implicit.runtime import SchemeRuntimeImplicit
-from stark.methods.schemes.specialization.specialist import SchemeSpecialist
+from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
 from stark.methods.schemes.request import SchemeResolventRequestCoupled
 from stark.methods.schemes.method.tableau import Tableau
 
@@ -91,7 +91,7 @@ class SchemeLobattoIIIC4:
         resolvent: Resolvent,
         *,
         configuration: SchemeConfiguration | None = None,
-        specialist: SchemeSpecialist | None = None,
+        linear_fixed: SchemeLinearFixed | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
         self.monitor = monitor
@@ -106,8 +106,8 @@ class SchemeLobattoIIIC4:
         self.block_allocator = self.runtime.block_allocator
         self.stage_delta = self.block_allocator.allocate(3)
 
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
+        if linear_fixed is not None:
+            self.prepare_specialized_kernels(linear_fixed)
             self.call_body = self.call_specialized
             if monitor is None:
                 self.call_step = self.call_body
@@ -116,10 +116,10 @@ class SchemeLobattoIIIC4:
     def __call__(self, interval: IntervalLike, state: State) -> float:
         return self.redirect_call(interval, state)
 
-    def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
-        """Accept specialist hooks for constructor consistency."""
+    def prepare_specialized_kernels(self, linear_fixed: SchemeLinearFixed) -> None:
+        """Accept linear_fixed hooks for constructor consistency."""
 
-        del specialist
+        del linear_fixed
 
     def _problem(self, interval: IntervalLike, state: State, dt: float) -> SchemeResolventRequestCoupled:
         tableau = self.tableau

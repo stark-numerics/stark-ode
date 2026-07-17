@@ -44,10 +44,10 @@ stark.core.block.operator module
    :show-inheritance:
    :undoc-members:
 
-stark.core.block.specialist module
+stark.core.block.linear_fixed module
 ----------------------------------
 
-.. automodule:: stark.core.block.specialist
+.. automodule:: stark.core.block.linear_fixed
    :members:
    :show-inheritance:
    :undoc-members:

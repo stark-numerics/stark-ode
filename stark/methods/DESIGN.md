@@ -20,7 +20,7 @@ without treating it as a hidden implementation detail of a Newton resolvent.
 
 The high-level `Method` object is the friendly assembly point. It should make
 common configurations concise while still allowing advanced users to pass
-concrete scheme, resolvent, inverter, predictor, or specialist instances.
+concrete scheme, resolvent, inverter, predictor, or linear_fixed instances.
 
 The lower-level families should remain independently usable. A contributor
 working on a scheme should not need to know every inverter implementation, and

@@ -4,6 +4,7 @@ from typing import Generic
 
 from stark.core.auditor import Auditor
 from stark.core.contracts import AllocatorLike, DynamicsLike, StateType, TranslationType
+from stark.methods.linear_combine import require_linear_combine_kernels
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 
 
@@ -32,7 +33,14 @@ class SchemeRuntimeExplicit(Generic[StateType, TranslationType]):
         first_translation = allocator.allocate_translation()
         Auditor.require_scheme_inputs(dynamics, allocator, first_translation)
         self.dynamics = dynamics
-        self.workspace = SchemeStepSupport(allocator, first_translation)
+        self.workspace = SchemeStepSupport(
+            allocator,
+            require_linear_combine_kernels(
+                allocator,
+                arity=12,
+                consumer=type(self).__name__,
+            ),
+        )
         self.first_translation = first_translation
 
     @property

@@ -8,12 +8,12 @@ import pytest
 from stark import Interval, Tolerance
 from stark.core.contracts import IntervalLike
 from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.methods.resolvents import ResolventCoupledPicard
 from stark import Configuration
 from stark.methods.schemes.implicit.fixed.gauss_legendre4 import SchemeGaussLegendre4
 from stark.methods.schemes.implicit.fixed.lobatto_iiic4 import SchemeLobattoIIIC4
 from stark.methods.schemes.implicit.fixed.radau_iia5 import SchemeRadauIIA5
+from tests.support import DummyValueLinearFixed, scalar_value_linear_combine
 
 
 @dataclass(slots=True)
@@ -39,6 +39,8 @@ class ScalarTranslation:
 
 
 class ScalarAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
@@ -80,6 +82,8 @@ class ArrayScalarTranslation:
 
 
 class ArrayScalarAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> ArrayScalarState:
         return ArrayScalarState.zero()
 
@@ -123,7 +127,7 @@ def make_scheme(scheme_cls):
     )
 
 
-def make_array_scheme(scheme_cls, *, specialist: bool = False):
+def make_array_scheme(scheme_cls, *, linear_fixed: bool = False):
     allocator = ArrayScalarAllocator()
     resolvent = ResolventCoupledPicard(
         allocator,
@@ -135,14 +139,7 @@ def make_array_scheme(scheme_cls, *, specialist: bool = False):
         array_constant_rhs,
         allocator,
         resolvent=resolvent,
-        specialist=(
-            AlgebraistRuntimeSpecialist(
-                translation=allocator.allocate_translation(),
-                allocator=allocator,
-            )
-            if specialist
-            else None
-        ),
+        linear_fixed=DummyValueLinearFixed() if linear_fixed else None,
     )
 
 
@@ -174,8 +171,8 @@ def test_collocation_fixed_default_call_path_is_scheme_owned_generic_call(
     assert scheme.redirect_call == scheme.call_step
 
 
-def test_gauss_legendre4_specialist_path_is_scheme_owned_generated_call() -> None:
-    scheme = make_array_scheme(SchemeGaussLegendre4, specialist=True)
+def test_gauss_legendre4_linear_fixed_path_is_scheme_owned_generated_call() -> None:
+    scheme = make_array_scheme(SchemeGaussLegendre4, linear_fixed=True)
 
     assert scheme.redirect_call == scheme.call_step
 
@@ -187,10 +184,10 @@ def test_gauss_legendre4_specialist_path_is_scheme_owned_generated_call() -> Non
         SchemeRadauIIA5,
     ],
 )
-def test_stiffly_accurate_collocation_accepts_no_op_specialist_path(
+def test_stiffly_accurate_collocation_accepts_no_op_linear_fixed_path(
     scheme_cls,
 ) -> None:
-    scheme = make_array_scheme(scheme_cls, specialist=True)
+    scheme = make_array_scheme(scheme_cls, linear_fixed=True)
 
     assert scheme.redirect_call == scheme.call_step
 
@@ -244,9 +241,9 @@ def test_collocation_fixed_call_performs_one_constant_rhs_step(scheme_cls) -> No
     assert interval.step == pytest.approx(0.125)
 
 
-def test_gauss_legendre4_specialist_path_matches_generic_path() -> None:
+def test_gauss_legendre4_linear_fixed_path_matches_generic_path() -> None:
     generic = make_array_scheme(SchemeGaussLegendre4)
-    generated = make_array_scheme(SchemeGaussLegendre4, specialist=True)
+    generated = make_array_scheme(SchemeGaussLegendre4, linear_fixed=True)
     generic_interval = Interval(present=0.0, step=0.125, stop=1.0)
     generated_interval = Interval(present=0.0, step=0.125, stop=1.0)
     generic_state = ArrayScalarState.zero()
@@ -260,8 +257,8 @@ def test_gauss_legendre4_specialist_path_matches_generic_path() -> None:
     assert generated_interval.step == pytest.approx(generic_interval.step)
 
 
-def test_gauss_legendre4_specialist_kernel_is_prepared() -> None:
-    scheme = make_array_scheme(SchemeGaussLegendre4, specialist=True)
+def test_gauss_legendre4_linear_fixed_kernel_is_prepared() -> None:
+    scheme = make_array_scheme(SchemeGaussLegendre4, linear_fixed=True)
 
     assert callable(scheme.advance_update)
 

@@ -19,8 +19,8 @@ class Block(Generic[BlockItemType]):
     translation unknowns have to move together.
 
     Native arithmetic is kept deliberately small so inline algorithms can
-    read like mathematics without turning ``Block`` into a workspace or an
-    Algebraist provider.
+    read like mathematics without turning ``Block`` into a workspace or a
+    generated-kernel provider.
     """
 
     items: list[BlockItemType]

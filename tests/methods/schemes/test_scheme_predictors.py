@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark import Configuration
-from stark.core.contracts import Scale
+from stark.core.contracts import LinearCombineScaleLike
 from stark.methods.schemes.configuration import SchemeConfigurationDefault
 from stark.methods.schemes.predictor import (
     SchemePredictorKnown,
@@ -63,7 +63,7 @@ class DummyCustomPredictor:
         known: ScalarTranslation | None,
         previous: ScalarTranslation | None,
         delta: ScalarTranslation,
-        scale: Scale[ScalarTranslation],
+        scale: LinearCombineScaleLike[ScalarTranslation],
     ) -> ScalarTranslation:
         del known, previous, scale
         delta.value = 11.0

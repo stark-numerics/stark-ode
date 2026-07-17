@@ -12,7 +12,8 @@ Engines own storage and arithmetic backends.
 ## Support
 
 - [`stark.engines.accelerators`](api/stark.engines.rst)
-- [`stark.engines.algebraist`](api/stark.engines.rst)
+- [`stark.engines.generator`](api/stark.engines.rst)
+- [`stark.engines.allocator`](api/stark.engines.rst)
 - [`stark.engines.carriers`](api/stark.engines.rst)
 - [`stark.engines.carrier_numpy`](api/stark.engines.rst)
 - [`stark.engines.carrier_native`](api/stark.engines.rst)

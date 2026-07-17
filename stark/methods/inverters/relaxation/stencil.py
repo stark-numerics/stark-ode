@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -27,6 +28,10 @@ class InverterRelaxationStencil:
         object.__setattr__(self, "scale", float(scale))
         object.__setattr__(self, "apply", bool(apply))
 
+    @property
+    def operation(self) -> Literal["linear_fixed"]:
+        return "linear_fixed"
+
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -37,7 +42,7 @@ class InverterRelaxationStencilUpdate:
 
         output <- output + damping * update
 
-    as a delta-space specialist request with two translation sources.
+    as a delta-space linear_fixed request with two translation sources.
     This is deliberately not an apply/state update stencil: inverter outputs
     are translations, not states.
     """
@@ -52,6 +57,10 @@ class InverterRelaxationStencilUpdate:
         object.__setattr__(self, "coefficients", (1.0, float(damping)))
         object.__setattr__(self, "scale", 1.0)
         object.__setattr__(self, "apply", False)
+
+    @property
+    def operation(self) -> Literal["linear_fixed"]:
+        return "linear_fixed"
 
 
 __all__ = ["InverterRelaxationStencil", "InverterRelaxationStencilUpdate"]

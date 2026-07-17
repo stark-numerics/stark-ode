@@ -9,7 +9,7 @@ from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.explicit.runtime import SchemeRuntimeExplicit
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
-from stark.methods.schemes.specialization.specialist import SchemeSpecialist
+from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
 from stark.methods.schemes.specialization.stencil import SchemeStencilTableau
 from stark.methods.schemes.method.tableau import Tableau
 
@@ -84,7 +84,7 @@ class SchemeEuler:
         dynamics: DynamicsLike,
         allocator: AllocatorLike,
         configuration: SchemeConfiguration | None = None,
-        specialist: SchemeSpecialist | None = None,
+        linear_fixed: SchemeLinearFixed | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
         self.advance_update = unbound_scheme_call
@@ -100,8 +100,8 @@ class SchemeEuler:
         self.k1 = self.runtime.k1
         self.advance_delta_buffer = self.workspace.allocate_translation()
 
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
+        if linear_fixed is not None:
+            self.prepare_specialized_kernels(linear_fixed)
             self.call_body = self.call_specialized
             if monitor is None:
                 self.call_step = self.call_body
@@ -116,14 +116,14 @@ class SchemeEuler:
 
     def prepare_specialized_kernels(
         self,
-        specialist: SchemeSpecialist,
+        linear_fixed: SchemeLinearFixed,
     ) -> None:
         """Prepare fixed-coefficient kernels for the specialized path."""
 
         stencils = SchemeStencilTableau(self.tableau)
 
         # Step 2 advances the accepted state from the tableau's b weights.
-        self.advance_update = specialist.provide_apply(stencils.advance_update())
+        self.advance_update = linear_fixed(stencils.advance_update())
 
     def call_inline(
         self,

@@ -222,8 +222,8 @@ class System:
 
         `initial` supplies values matching the system frame. The engine
         factory receives the frame and returns the backend bundle used by the
-        scheme stack: allocator, carrier support, accelerator, algebraist
-        frame, and algebraist kernels. `method` names the scheme and any
+        scheme stack: allocator, carrier support, accelerator, frame, and
+        generated kernels. `method` names the scheme and any
         resolvent/inverter components needed by that scheme.
 
         The returned `SystemIVP` keeps the prepared objects together. It
@@ -327,7 +327,7 @@ class System:
                     "dynamics": dynamics,
                     "allocator": engine.allocator,
                     "configuration": configuration,
-                    "specialist": engine.algebraist.specialist,
+                    "linear_fixed": engine.generator,
                     "resolvent": resolvent,
                 },
                 options=method.scheme_options,

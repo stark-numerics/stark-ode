@@ -14,6 +14,7 @@ from stark.methods.schemes.explicit.fixed.euler import SchemeEuler
 from stark.methods.schemes.explicit.fixed.rk4 import SchemeRK4
 from stark.methods.schemes.imex.fixed.euler import SchemeIMEXEuler
 from stark.methods.schemes.display.display import SchemeDisplay
+from tests.support import scalar_value_linear_combine
 
 
 @dataclass(slots=True)
@@ -34,6 +35,8 @@ class DummyTranslation:
 
 
 class DummyAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> object:
         return object()
 

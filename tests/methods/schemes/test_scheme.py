@@ -1,18 +1,19 @@
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import numpy as np
+import pytest
 
 from stark.core import IntegratorStepper
 from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.arity import AlgebraistArity
-from stark.engines.algebraist.generator import AlgebraistGeneratorLinearCombine
+from stark.engines.generator import Generator, GeneratorRequestLinearCombineTable
 from stark.core.auditor import Auditor
 from stark.core.integrator.integrator import Integrator
 from stark.diagnostics.monitor import Monitor
 from stark import Tolerance
 from stark.core.interval import Interval
 from stark.methods.resolvents import ResolventPicard
+from stark.methods.linear_combine import require_linear_combine_kernels
 from stark.methods.schemes.explicit.adaptive.bogacki_shampine import SchemeBogackiShampine
 from stark.methods.schemes.explicit.adaptive.cash_karp import SchemeCashKarp
 from stark.methods.schemes.explicit.adaptive.dormand_prince import SchemeDormandPrince
@@ -34,13 +35,14 @@ from stark.methods.schemes.explicit.fixed.rk38 import SchemeRK38
 from stark.methods.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 from stark import Dynamics
-from stark.core.contracts import DynamicsSplitLike, IntervalLike
+from stark.core.contracts import DynamicsSplitLike, IntervalLike, LinearCombine
 from stark.problem.frame import Field, Frame
 
 
 @dataclass(slots=True)
 class DummyTranslation:
     value: float = 0.0
+    linear_combine: ClassVar[LinearCombine]
 
     def __call__(self, origin: float, result: float) -> None:
         del origin, result
@@ -57,6 +59,8 @@ class DummyTranslation:
 
 @dataclass(slots=True)
 class FastTranslation(DummyTranslation):
+    linear_combine: ClassVar[LinearCombine]
+
     @staticmethod
     def scale(a: float, x: "FastTranslation", out: "FastTranslation") -> "FastTranslation":
         out.value = a * x.value
@@ -73,12 +77,11 @@ class FastTranslation(DummyTranslation):
         out.value = a0 * x0.value + a1 * x1.value
         return out
 
-    linear_combine = [scale, combine2]
-
 
 @dataclass(slots=True)
 class PairwiseOnlyTranslation:
     value: float = 0.0
+    linear_combine: ClassVar[LinearCombine]
 
     def __call__(self, origin: float, result: float) -> None:
         del origin, result
@@ -110,14 +113,62 @@ class PairwiseOnlyTranslation:
         out.value = a0 * x0.value + a1 * x1.value
         return out
 
-    linear_combine = [scale, combine2]
+
+FastTranslation.linear_combine = (FastTranslation.scale, FastTranslation.combine2)
+PairwiseOnlyTranslation.linear_combine = (
+    PairwiseOnlyTranslation.scale,
+    PairwiseOnlyTranslation.combine2,
+)
+
+
+def dummy_translation_combine_many(*terms: object) -> DummyTranslation:
+    out = terms[-1]
+    if not isinstance(out, DummyTranslation):
+        raise TypeError("dummy translation combine needs a DummyTranslation output.")
+
+    total = 0.0
+    for index in range(0, len(terms) - 1, 2):
+        scalar = cast(float, terms[index])
+        translation = terms[index + 1]
+        if not isinstance(translation, DummyTranslation):
+            raise TypeError("dummy translation combine terms must be translations.")
+        total += scalar * translation.value
+    out.value = total
+    return out
+
+
+DummyTranslation.linear_combine = tuple(dummy_translation_combine_many for _ in range(12))
+
+
+def pairwise_only_combine_many(*terms: object) -> PairwiseOnlyTranslation:
+    out = terms[-1]
+    if not isinstance(out, PairwiseOnlyTranslation):
+        raise TypeError(
+            "pairwise-only combine needs a PairwiseOnlyTranslation output."
+        )
+
+    out.value = 0.0
+    for index in range(0, len(terms) - 1, 2):
+        scalar = cast(float, terms[index])
+        translation = terms[index + 1]
+        if not isinstance(translation, PairwiseOnlyTranslation):
+            raise TypeError("pairwise-only combine terms must be translations.")
+        out.value += scalar * translation.value
+    return out
+
+
+PairwiseOnlyTranslation.linear_combine = (
+    PairwiseOnlyTranslation.scale,
+    PairwiseOnlyTranslation.combine2,
+    *(pairwise_only_combine_many for _ in range(10)),
+)
 
 
 class DummyScheme:
     def __init__(self, dynamics, allocator, translation) -> None:
         Auditor.require_scheme_inputs(dynamics, allocator, translation)
         self.dynamics = dynamics
-        self.workspace = SchemeStepSupport(allocator, translation)
+        self.workspace = SchemeStepSupport(allocator, allocator.linear_combine)
 
     def scale(self, a, x, y):
         return self.workspace.scale(a, x, y)
@@ -134,6 +185,8 @@ class DummyScheme:
 
 
 class DummyAllocator:
+    linear_combine = DummyTranslation.linear_combine
+
     def allocate_state(self) -> object:
         return object()
 
@@ -145,6 +198,8 @@ class DummyAllocator:
 
 
 class PairwiseOnlyAllocator:
+    linear_combine = PairwiseOnlyTranslation.linear_combine
+
     def allocate_state(self) -> object:
         return object()
 
@@ -163,16 +218,19 @@ def _imex_picard(split: DynamicsSplitLike, allocator, tableau):
     return ResolventPicard(allocator, accelerator=AcceleratorNone(), tableau=tableau)
 
 
-def test_scheme_falls_back_to_arithmetic_linear_combination() -> None:
+def test_scheme_uses_allocator_linear_combine_table() -> None:
     x0 = DummyTranslation(2.0)
     x1 = DummyTranslation(3.0)
     scheme = DummyScheme(_dummy_dynamics, DummyAllocator(), x0)
-    out = DummyTranslation()
+    out_scaled = DummyTranslation()
+    out_combined = DummyTranslation()
 
-    scaled = scheme.scale(4.0, x0, out)
-    combined = scheme.combine2(2.0, x0, -1.0, x1, out)
+    scaled = scheme.scale(4.0, x0, out_scaled)
+    combined = scheme.combine2(2.0, x0, -1.0, x1, out_combined)
 
+    assert scaled is out_scaled
     assert scaled.value == 8.0
+    assert combined is out_combined
     assert combined.value == 1.0
 
 
@@ -192,7 +250,7 @@ def test_scheme_uses_translation_linear_combine_when_available() -> None:
     assert combined.value == 1.0
 
 
-def test_scheme_synthesizes_missing_fast_combines_from_combine2() -> None:
+def test_scheme_uses_prepared_high_arity_linear_combine() -> None:
     translations = [PairwiseOnlyTranslation(float(value)) for value in range(1, 13)]
     scheme = DummyScheme(_dummy_dynamics, PairwiseOnlyAllocator(), translations[0])
     out = PairwiseOnlyTranslation()
@@ -207,8 +265,51 @@ def test_scheme_synthesizes_missing_fast_combines_from_combine2() -> None:
     assert combined.value == 650.0
 
 
-def test_scheme_step_support_consumes_algebraist_linear_combine_contract() -> None:
-    class DummyAlgebraistTranslation:
+def test_linear_combine_requirement_reports_too_short_table() -> None:
+    class ShortAllocator(PairwiseOnlyAllocator):
+        linear_combine = (
+            PairwiseOnlyTranslation.scale,
+            PairwiseOnlyTranslation.combine2,
+        )
+
+    allocator = ShortAllocator()
+
+    with pytest.warns(RuntimeWarning, match="@Allocator.runtime"):
+        with pytest.raises(ValueError) as error:
+            require_linear_combine_kernels(
+                allocator,
+                arity=12,
+                consumer="ExampleScheme",
+            )
+
+    message = str(error.value)
+    assert "ExampleScheme requires allocator.linear_combine" in message
+    assert "arities 1..12" in message
+    assert "got 2" in message
+    assert "@Allocator.runtime" in message
+
+
+def test_scheme_step_support_reports_too_short_table() -> None:
+    class ShortAllocator(PairwiseOnlyAllocator):
+        linear_combine = (
+            PairwiseOnlyTranslation.scale,
+            PairwiseOnlyTranslation.combine2,
+        )
+
+    allocator = ShortAllocator()
+
+    with pytest.warns(RuntimeWarning, match="@Allocator.runtime"):
+        with pytest.raises(ValueError) as error:
+            SchemeStepSupport(allocator, allocator.linear_combine)
+
+    message = str(error.value)
+    assert "SchemeStepSupport requires a prepared linear_combine table" in message
+    assert "got 2" in message
+    assert "@Allocator.runtime" in message
+
+
+def test_scheme_step_support_consumes_prepared_linear_combine_table() -> None:
+    class DummyGeneratedTranslation:
         linear_combine: ClassVar[tuple[Any, ...]] = ()
 
         def __init__(self, value=None) -> None:
@@ -232,34 +333,35 @@ def test_scheme_step_support_consumes_algebraist_linear_combine_contract() -> No
             del scalar
             raise AssertionError("Generated linear-combine path should not use __rmul__.")
 
-    class DummyAlgebraistAllocator:
+    class DummyGeneratedAllocator:
+        linear_combine: LinearCombine
+
         def allocate_state(self) -> dict[str, np.ndarray]:
             return {"value": np.zeros(2)}
 
         def copy_state(self, source: dict[str, np.ndarray], out: dict[str, np.ndarray]) -> None:
             out["value"][...] = source["value"]
 
-        def allocate_translation(self) -> DummyAlgebraistTranslation:
-            return DummyAlgebraistTranslation()
+        def allocate_translation(self) -> DummyGeneratedTranslation:
+            return DummyGeneratedTranslation()
 
-    allocator = DummyAlgebraistAllocator()
-    provider = AlgebraistGeneratorLinearCombine(
-        translation=DummyAlgebraistTranslation([1.0, 2.0]),
-        allocator=allocator,
+    allocator = DummyGeneratedAllocator()
+    generator = Generator(
         frame=Frame(
             fields=(Field("value", translation="value"),),
         ),
+        accelerator=AcceleratorNone(),
+        allocator=allocator,
     )
-    DummyAlgebraistTranslation.linear_combine = (
-        provider.provide(AlgebraistArity(1)),
-        provider.provide(AlgebraistArity(2)),
-        provider.provide(AlgebraistArity(3)),
+    DummyGeneratedTranslation.linear_combine = generator(
+        GeneratorRequestLinearCombineTable(max_arity=12)
     )
 
-    workspace = SchemeStepSupport(allocator, DummyAlgebraistTranslation([1.0, 2.0]))
-    out = DummyAlgebraistTranslation()
-    left = DummyAlgebraistTranslation([1.0, 2.0])
-    right = DummyAlgebraistTranslation([3.0, 4.0])
+    allocator.linear_combine = DummyGeneratedTranslation.linear_combine
+    workspace = SchemeStepSupport(allocator, allocator.linear_combine)
+    out = DummyGeneratedTranslation()
+    left = DummyGeneratedTranslation([1.0, 2.0])
+    right = DummyGeneratedTranslation([3.0, 4.0])
 
     combined = workspace.combine2(2.0, left, 3.0, right, out)
 
@@ -385,6 +487,7 @@ class TimeState:
 @dataclass(slots=True)
 class TimeTranslation:
     value: float = 0.0
+    linear_combine: ClassVar[LinearCombine]
 
     def __call__(self, origin: TimeState, result: TimeState) -> None:
         result.value = origin.value + self.value
@@ -399,7 +502,28 @@ class TimeTranslation:
         return TimeTranslation(scalar * self.value)
 
 
+def time_translation_combine_many(*terms: object) -> TimeTranslation:
+    out = terms[-1]
+    if not isinstance(out, TimeTranslation):
+        raise TypeError("time translation combine needs a TimeTranslation output.")
+
+    total = 0.0
+    for index in range(0, len(terms) - 1, 2):
+        scalar = cast(float, terms[index])
+        translation = terms[index + 1]
+        if not isinstance(translation, TimeTranslation):
+            raise TypeError("time translation combine terms must be translations.")
+        total += scalar * translation.value
+    out.value = total
+    return out
+
+
+TimeTranslation.linear_combine = tuple(time_translation_combine_many for _ in range(12))
+
+
 class TimeAllocator:
+    linear_combine = TimeTranslation.linear_combine
+
     def allocate_state(self) -> TimeState:
         return TimeState()
 

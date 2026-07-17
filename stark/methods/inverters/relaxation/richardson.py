@@ -12,7 +12,7 @@ from stark.methods.inverters.configuration import (
     InverterConfiguration,
     InverterConfigurationDefault,
 )
-from stark.methods.inverters.relaxation.specialist import InverterRelaxationSpecialist
+from stark.methods.inverters.relaxation.linear_fixed import InverterRelaxationLinearFixed
 from stark.methods.inverters.relaxation.stencil import InverterRelaxationStencilUpdate
 from stark.methods.inverters.support import (
     InverterDefect,
@@ -68,7 +68,7 @@ class InverterRelaxationRichardson(Generic[TranslationType]):
         damping: float = 1.0,
         configuration: InverterConfiguration | None = None,
         monitor: MonitorInverterLike | None = None,
-        specialist: InverterRelaxationSpecialist[TranslationType] | None = None,
+        linear_fixed: InverterRelaxationLinearFixed[TranslationType] | None = None,
     ) -> None:
         if damping <= 0.0:
             raise ValueError("InverterRelaxationRichardson.damping must be positive.")
@@ -84,8 +84,8 @@ class InverterRelaxationRichardson(Generic[TranslationType]):
         self.update_output = None
         self.call_body = self.call_inline
 
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
+        if linear_fixed is not None:
+            self.prepare_specialized_kernels(linear_fixed)
             self.call_body = self.call_specialized
         self.redirect_call = self.call_monitored if monitor is not None else self.call_unmonitored
 
@@ -122,12 +122,12 @@ class InverterRelaxationRichardson(Generic[TranslationType]):
 
     def prepare_specialized_kernels(
         self,
-        specialist: InverterRelaxationSpecialist[TranslationType],
+        linear_fixed: InverterRelaxationLinearFixed[TranslationType],
     ) -> None:
         """Prepare the relaxation update kernel for the specialized path."""
 
         # Step 3 applies output <- output + damping * defect.
-        self.update_output = specialist.provide(
+        self.update_output = linear_fixed(
             InverterRelaxationStencilUpdate(self.damping)
         )
 

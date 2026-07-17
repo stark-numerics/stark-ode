@@ -1,10 +1,11 @@
 from dataclasses import dataclass
+from typing import ClassVar, cast
 
 from stark.engines.accelerators import AcceleratorNone
 from stark import Dynamics, DynamicsStyle
 from stark.core.auditor import AuditError, Auditor
 from stark import Tolerance
-from stark.core.contracts import IntervalLike
+from stark.core.contracts import IntervalLike, LinearCombine
 from stark.core.interval import Interval
 from stark.problem.dynamics import DynamicsSplit
 
@@ -12,6 +13,7 @@ from stark.problem.dynamics import DynamicsSplit
 @dataclass(slots=True)
 class DummyTranslation:
     value: float = 0.0
+    linear_combine: ClassVar[LinearCombine]
 
     def __call__(self, origin: dict[str, float], result: dict[str, float]) -> None:
         result["x"] = origin["x"] + self.value
@@ -41,10 +43,28 @@ class DummyTranslation:
         out.value = a0 * x0.value + a1 * x1.value
         return out
 
-    linear_combine = [scale, combine2]
+
+
+def combine_dummy_translation(*terms: object) -> DummyTranslation:
+    out = terms[-1]
+    if not isinstance(out, DummyTranslation):
+        raise TypeError("Dummy linear combination needs a DummyTranslation output.")
+    out.value = 0.0
+    for index in range(0, len(terms) - 1, 2):
+        scalar = cast(float, terms[index])
+        translation = terms[index + 1]
+        if not isinstance(translation, DummyTranslation):
+            raise TypeError("Dummy linear-combination terms must be translations.")
+        out.value += scalar * translation.value
+    return out
+
+
+DummyTranslation.linear_combine = tuple(combine_dummy_translation for _ in range(12))
 
 
 class DummyAllocator:
+    linear_combine = DummyTranslation.linear_combine
+
     def allocate_state(self) -> dict[str, float]:
         return {"x": 0.0}
 

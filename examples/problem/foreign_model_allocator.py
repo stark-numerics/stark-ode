@@ -15,6 +15,7 @@ from typing import cast
 from stark import Interval
 from stark.core import Integrator, IntegratorStepper
 from stark.core.contracts import DynamicsLike
+from stark.engines import Allocator
 from stark.methods import SchemeRK4
 
 
@@ -55,6 +56,9 @@ class PendulumDelta:
         )
 
 
+# No linear-combine decorator is needed for the basic path. Allocator.runtime
+# prepares the table from PendulumDelta.__rmul__ and PendulumDelta.__add__.
+@Allocator.runtime
 class PendulumAllocator:
     """Allocate and copy the user's foreign state and translation objects."""
 

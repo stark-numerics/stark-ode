@@ -9,7 +9,7 @@ from stark.methods.schemes.explicit.fixed.ssprk33 import SchemeSSPRK33
 from tests.support import (
     DummyScalarAllocator,
     DummyScalarState,
-    DummyTableauSpecialist,
+    DummyTableauLinearFixed,
     dummy_exponential_growth_rhs,
 )
 
@@ -74,11 +74,11 @@ def test_rk3_rk4_default_call_path_is_scheme_owned_inline_call(scheme_cls) -> No
         SchemeRK38,
     ],
 )
-def test_rk3_rk4_specialist_path_is_selected_inside_scheme(scheme_cls) -> None:
+def test_rk3_rk4_linear_fixed_path_is_selected_inside_scheme(scheme_cls) -> None:
     scheme = scheme_cls(
         dummy_exponential_growth_rhs,
         DummyScalarAllocator(),
-        specialist=DummyTableauSpecialist(),
+        linear_fixed=DummyTableauLinearFixed(),
     )
 
     assert scheme.redirect_call == scheme.call_step
@@ -92,24 +92,24 @@ def test_rk3_rk4_specialist_path_is_selected_inside_scheme(scheme_cls) -> None:
         SchemeRK38,
     ],
 )
-def test_rk3_rk4_inline_and_specialist_paths_match_for_one_step(scheme_cls) -> None:
+def test_rk3_rk4_inline_and_linear_fixed_paths_match_for_one_step(scheme_cls) -> None:
     interval_inline = Interval(present=0.0, step=0.125, stop=1.0)
-    interval_specialist = Interval(present=0.0, step=0.125, stop=1.0)
+    interval_linear_fixed = Interval(present=0.0, step=0.125, stop=1.0)
     state_inline = DummyScalarState(1.0)
-    state_specialist = DummyScalarState(1.0)
+    state_linear_fixed = DummyScalarState(1.0)
 
     inline = scheme_cls(dummy_exponential_growth_rhs, DummyScalarAllocator())
-    specialist = scheme_cls(
+    linear_fixed = scheme_cls(
         dummy_exponential_growth_rhs,
         DummyScalarAllocator(),
-        specialist=DummyTableauSpecialist(),
+        linear_fixed=DummyTableauLinearFixed(),
     )
 
     accepted_dt_inline = inline(interval_inline, state_inline)
-    accepted_dt_specialist = specialist(
-        interval_specialist,
-        state_specialist,
+    accepted_dt_linear_fixed = linear_fixed(
+        interval_linear_fixed,
+        state_linear_fixed,
     )
 
-    assert accepted_dt_inline == pytest.approx(accepted_dt_specialist)
-    assert state_inline.value == pytest.approx(state_specialist.value)
+    assert accepted_dt_inline == pytest.approx(accepted_dt_linear_fixed)
+    assert state_inline.value == pytest.approx(state_linear_fixed.value)

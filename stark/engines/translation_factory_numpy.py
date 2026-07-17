@@ -5,8 +5,8 @@ from math import sqrt
 from typing import Any
 
 from stark.core.contracts.allocator import AllocatorLike
+from stark.core.contracts.carrier import CarrierLike
 from stark.core.contracts.frame import FrameLike
-from stark.engines.carrier_numpy import CarrierNumpy
 
 
 @dataclass
@@ -14,7 +14,7 @@ class TranslationFactoryNumpy:
     """Structured NumPy translation using in-place field carrier arithmetic."""
 
     frame: FrameLike = field(repr=False)
-    carriers: tuple[CarrierNumpy, ...] = field(repr=False)
+    carriers: tuple[CarrierLike[Any, Any], ...] = field(repr=False)
     allocator: AllocatorLike[Any, TranslationFactoryNumpy] = field(repr=False)
     linear_combine: tuple[Any, ...] = field(default=(), repr=False)
     apply_translation: Any = field(default=None, repr=False)

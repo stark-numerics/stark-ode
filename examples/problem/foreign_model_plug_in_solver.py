@@ -15,6 +15,7 @@ from typing import cast
 from stark import Configuration, Interval, Tolerance
 from stark.core import Integrator, IntegratorStepper
 from stark.core.contracts import DynamicsLike
+from stark.engines import Allocator
 from stark.methods import SchemeDormandPrince
 
 
@@ -48,6 +49,76 @@ class OscillatorDelta:
         return OscillatorDelta(scalar * self.position, scalar * self.velocity)
 
 
+def scale_oscillator_delta(
+    scalar: float,
+    translation: OscillatorDelta,
+    out: OscillatorDelta,
+) -> OscillatorDelta:
+    out.position = scalar * translation.position
+    out.velocity = scalar * translation.velocity
+    return out
+
+
+def combine2_oscillator_delta(
+    scalar_left: float,
+    translation_left: OscillatorDelta,
+    scalar_right: float,
+    translation_right: OscillatorDelta,
+    out: OscillatorDelta,
+) -> OscillatorDelta:
+    out.position = scalar_left * translation_left.position + scalar_right * translation_right.position
+    out.velocity = scalar_left * translation_left.velocity + scalar_right * translation_right.velocity
+    return out
+
+
+def combine3_oscillator_delta(
+    scalar_0: float,
+    translation_0: OscillatorDelta,
+    scalar_1: float,
+    translation_1: OscillatorDelta,
+    scalar_2: float,
+    translation_2: OscillatorDelta,
+    out: OscillatorDelta,
+) -> OscillatorDelta:
+    out.position = (
+        scalar_0 * translation_0.position
+        + scalar_1 * translation_1.position
+        + scalar_2 * translation_2.position
+    )
+    out.velocity = (
+        scalar_0 * translation_0.velocity
+        + scalar_1 * translation_1.velocity
+        + scalar_2 * translation_2.velocity
+    )
+    return out
+
+
+def combine4_oscillator_delta(
+    scalar_0: float,
+    translation_0: OscillatorDelta,
+    scalar_1: float,
+    translation_1: OscillatorDelta,
+    scalar_2: float,
+    translation_2: OscillatorDelta,
+    scalar_3: float,
+    translation_3: OscillatorDelta,
+    out: OscillatorDelta,
+) -> OscillatorDelta:
+    out.position = (
+        scalar_0 * translation_0.position
+        + scalar_1 * translation_1.position
+        + scalar_2 * translation_2.position
+        + scalar_3 * translation_3.position
+    )
+    out.velocity = (
+        scalar_0 * translation_0.velocity
+        + scalar_1 * translation_1.velocity
+        + scalar_2 * translation_2.velocity
+        + scalar_3 * translation_3.velocity
+    )
+    return out
+
+
 class OscillatorModel:
     """User-side model with its own state shape and existing Euler stepper."""
 
@@ -62,6 +133,15 @@ class OscillatorModel:
         state.velocity += dt * delta.velocity
 
 
+# These seeds are optional optimisations. Users can provide as many hand-written
+# arities as they like; missing arities are synthesized by the runtime allocator.
+@Allocator.runtime
+@Allocator.linear_combine(
+    scale_oscillator_delta,
+    combine2_oscillator_delta,
+    combine3_oscillator_delta,
+    combine4_oscillator_delta,
+)
 class OscillatorAllocator:
     """Teach STARK how to allocate and copy the user's objects."""
 

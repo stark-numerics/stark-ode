@@ -60,7 +60,7 @@ store configuration
 resolve default policies
 allocate scratch objects
 choose monitored or unmonitored call paths
-prepare kernels or specialists
+prepare kernels or linear-fixed providers
 bind stable collaborators
 precompute tableau-dependent helpers
 ```
@@ -113,13 +113,13 @@ Avoid this shape inside hot loops:
 ```python
 if self.monitor is not None:
     ...
-if self.specialist is not None:
+if self.linear_fixed is not None:
     ...
 if self.debug:
     ...
 ```
 
-Monitoring, diagnostics, and specialist dispatch are real features. They should
+Monitoring, diagnostics, and linear-fixed dispatch are real features. They should
 be visible and easy to delete, but they should not tax the monitor-free path.
 
 ## Function-like at the boundary, object-like inside

@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from stark.core.contracts.contract_audit import AuditRecorder
-from stark.core.contracts.state import State, StateType
-from stark.core.contracts.translation import Translation, TranslationTypeCovariant
+from stark.core.contracts.state import StateType
+from stark.core.contracts.translation import TranslationTypeCovariant
 
 
 class AllocatorLike(Protocol[StateType, TranslationTypeCovariant]):

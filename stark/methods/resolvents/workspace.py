@@ -5,9 +5,9 @@ from math import sqrt
 from typing import Callable
 
 from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.runtime import AlgebraistRuntimeLinearCombine
 from stark.core.block import Block
 from stark.core.contracts import Accelerator, InnerProduct, Translation, AllocatorLike
+from stark.methods.linear_combine import require_linear_combine_kernels
 from stark.methods.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 
@@ -47,16 +47,15 @@ class ResolventWorkspace:
             else self._inner_product_missing
         )
         self._norm_impl = self._norm_from_inner_product if self.inner_product_translation is not None else self._norm_from_block
+        self.scale, self.combine2, self.combine3 = require_linear_combine_kernels(
+            allocator,
+            arity=3,
+            consumer="ResolventWorkspace",
+        )
         self.bind_accelerator(self.accelerator)
 
     def bind_accelerator(self, accelerator: Accelerator) -> None:
         self.accelerator = accelerator
-        algebraist = AlgebraistRuntimeLinearCombine(
-            translation=self.translation,
-            allocator=self,
-            accelerator=accelerator,
-        )
-        self.scale, self.combine2, self.combine3 = algebraist.as_tuple(3)
 
     def __repr__(self) -> str:
         allocate_translation_name = getattr(
@@ -142,7 +141,6 @@ class ResolventWorkspace:
 
 
 __all__ = ["ResolventWorkspace"]
-
 
 
 

@@ -216,7 +216,7 @@ known stage data + previous stage data -> initial delta
 Predictors belong to schemes. They should not know about the linearizer,
 resolvent, or inverter.
 
-## Engines and Algebraist
+## Engines and Generated Algebra
 
 An engine chooses concrete storage and arithmetic for the abstract objects
 above:
@@ -226,12 +226,13 @@ state carrier
 translation carrier
 allocator
 norm and inner-product policy
-generated or runtime Algebraist path
+generated kernels or runtime allocator hooks
 optional accelerator
 ```
 
-For known `Frame` structures, the generated Algebraist path is preferred. For
-unknown foreign model structures, runtime algebra is the flexible fallback.
+For known `Frame` structures, generated engine kernels are preferred. For
+unknown foreign model structures, runtime allocator hooks are the flexible
+fallback.
 
 ## Summary table
 
@@ -247,7 +248,7 @@ unknown foreign model structures, runtime algebra is the flexible fallback.
 | linear correction solve | inverter |
 | approximate inverse | preconditioner |
 | initial stage guess | scheme predictor |
-| concrete arithmetic | engine / carrier / Algebraist / accelerator |
+| concrete arithmetic | engine / carrier / Generator / accelerator |
 
 ## Design consequence
 

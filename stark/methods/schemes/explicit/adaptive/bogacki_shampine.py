@@ -11,7 +11,7 @@ from stark.methods.schemes.execution.step_control import SchemeStepControl
 from stark.methods.schemes.explicit.runtime import SchemeRuntimeExplicit
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
-from stark.methods.schemes.specialization.specialist import SchemeSpecialist
+from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
 from stark.methods.schemes.specialization.stencil import SchemeStencilTableau
 from stark.methods.schemes.method.tableau import Tableau
 
@@ -126,7 +126,7 @@ class SchemeBogackiShampine:
         dynamics: DynamicsLike,
         allocator: AllocatorLike,
         configuration: SchemeConfiguration | None = None,
-        specialist: SchemeSpecialist | None = None,
+        linear_fixed: SchemeLinearFixed | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
         self.runtime = SchemeRuntimeExplicit(dynamics, allocator)
@@ -142,8 +142,8 @@ class SchemeBogackiShampine:
         self.call_step = self.call_monitored if monitor is not None else self.call_body
         self.redirect_call = self.call_step
 
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
+        if linear_fixed is not None:
+            self.prepare_specialized_kernels(linear_fixed)
             self.call_body = self.call_specialized
             if monitor is None:
                 self.call_step = self.call_body
@@ -172,20 +172,20 @@ class SchemeBogackiShampine:
 
     def prepare_specialized_kernels(
         self,
-        specialist: SchemeSpecialist,
+        linear_fixed: SchemeLinearFixed,
     ) -> None:
         """Prepare fixed-coefficient kernels for the specialized path."""
 
         stencils = SchemeStencilTableau(self.tableau)
 
         # Stage rows build staged states from the tableau's A matrix.
-        self.stage2_update = specialist.provide_apply(stencils.stage(1))
-        self.stage3_update = specialist.provide_apply(stencils.stage(2))
-        self.stage4_update = specialist.provide_apply(stencils.stage(3))
+        self.stage2_update = linear_fixed(stencils.stage(1))
+        self.stage3_update = linear_fixed(stencils.stage(2))
+        self.stage4_update = linear_fixed(stencils.stage(3))
 
         # The accepted advance and embedded error are translation deltas.
-        self.advance_delta = specialist.provide_delta(stencils.advance_delta())
-        self.error_delta = specialist.provide_delta(stencils.error_delta())
+        self.advance_delta = linear_fixed(stencils.advance_delta())
+        self.error_delta = linear_fixed(stencils.error_delta())
 
     def call_inline(
         self,

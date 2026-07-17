@@ -8,10 +8,10 @@ import pytest
 from stark import Interval, Tolerance
 from stark.core.contracts import IntervalLike
 from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist.runtime import AlgebraistRuntimeSpecialist
 from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
 from stark.methods.schemes.implicit.fixed.crouzeix_dirk3 import SchemeCrouzeixDIRK3
+from tests.support import DummyValueLinearFixed, scalar_value_linear_combine
 
 
 @dataclass(slots=True)
@@ -37,6 +37,8 @@ class ScalarTranslation:
 
 
 class ScalarAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 
@@ -78,6 +80,8 @@ class ArrayScalarTranslation:
 
 
 class ArrayScalarAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> ArrayScalarState:
         return ArrayScalarState.zero()
 
@@ -123,7 +127,7 @@ def make_scheme() -> SchemeCrouzeixDIRK3:
 
 def make_array_scalar_scheme(
     *,
-    specialist: bool = False,
+    linear_fixed: bool = False,
 ) -> SchemeCrouzeixDIRK3:
     allocator = ArrayScalarAllocator()
     resolvent = ResolventPicard(
@@ -136,14 +140,7 @@ def make_array_scalar_scheme(
         array_constant_rhs,
         allocator,
         resolvent=resolvent,
-        specialist=(
-            AlgebraistRuntimeSpecialist(
-                translation=allocator.allocate_translation(),
-                allocator=allocator,
-            )
-            if specialist
-            else None
-        ),
+        linear_fixed=DummyValueLinearFixed() if linear_fixed else None,
     )
 
 
@@ -157,8 +154,8 @@ def test_crouzeix_dirk3_default_call_path_is_scheme_owned_generic_call() -> None
     assert scheme.redirect_call == scheme.call_step
 
 
-def test_crouzeix_dirk3_specialist_path_is_scheme_owned_generated_call() -> None:
-    scheme = make_array_scalar_scheme(specialist=True)
+def test_crouzeix_dirk3_linear_fixed_path_is_scheme_owned_generated_call() -> None:
+    scheme = make_array_scalar_scheme(linear_fixed=True)
 
     assert scheme.redirect_call == scheme.call_step
 
@@ -196,9 +193,9 @@ def test_crouzeix_dirk3_call_performs_one_constant_rhs_step() -> None:
     assert interval.step == pytest.approx(0.125)
 
 
-def test_crouzeix_dirk3_specialist_path_matches_generic_path() -> None:
+def test_crouzeix_dirk3_linear_fixed_path_matches_generic_path() -> None:
     generic = make_array_scalar_scheme()
-    generated = make_array_scalar_scheme(specialist=True)
+    generated = make_array_scalar_scheme(linear_fixed=True)
     generic_interval = Interval(present=0.0, step=0.125, stop=1.0)
     generated_interval = Interval(present=0.0, step=0.125, stop=1.0)
     generic_state = ArrayScalarState.zero()
@@ -212,8 +209,8 @@ def test_crouzeix_dirk3_specialist_path_matches_generic_path() -> None:
     assert generated_interval.step == pytest.approx(generic_interval.step)
 
 
-def test_crouzeix_dirk3_specialist_kernels_are_prepared() -> None:
-    scheme = make_array_scalar_scheme(specialist=True)
+def test_crouzeix_dirk3_linear_fixed_kernels_are_prepared() -> None:
+    scheme = make_array_scalar_scheme(linear_fixed=True)
 
     assert callable(scheme.known2_kernel)
     assert callable(scheme.known3_kernel)

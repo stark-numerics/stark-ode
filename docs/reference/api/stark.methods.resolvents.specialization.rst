@@ -4,10 +4,10 @@ stark.methods.resolvents.specialization package
 Submodules
 ----------
 
-stark.methods.resolvents.specialization.specialist module
+stark.methods.resolvents.specialization.linear_fixed module
 ---------------------------------------------------------
 
-.. automodule:: stark.methods.resolvents.specialization.specialist
+.. automodule:: stark.methods.resolvents.specialization.linear_fixed
    :members:
    :show-inheritance:
    :undoc-members:

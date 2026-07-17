@@ -12,7 +12,7 @@ from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.method.tableau import TableauImex
 from stark.methods.schemes.request import SchemeResolventRequest
 from stark.methods.schemes.specialization.imex_stencil import SchemeStencilImexTableau
-from stark.methods.schemes.specialization.specialist import SchemeSpecialist, SchemeSpecialistKernelDelta
+from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed, SchemeLinearFixedKernelDelta
 
 
 class KennedyCarpenterAdaptiveStep:
@@ -41,9 +41,9 @@ class KennedyCarpenterAdaptiveStep:
     tableau: TableauImex
     workspace: SchemeStepSupport
     step_control: SchemeStepControl
-    stage_rhs_kernels: tuple[SchemeSpecialistKernelDelta[Translation], ...]
-    advance_delta_kernel: SchemeSpecialistKernelDelta[Translation]
-    error_delta_kernel: SchemeSpecialistKernelDelta[Translation]
+    stage_rhs_kernels: tuple[SchemeLinearFixedKernelDelta[Translation], ...]
+    advance_delta_kernel: SchemeLinearFixedKernelDelta[Translation]
+    error_delta_kernel: SchemeLinearFixedKernelDelta[Translation]
 
     def __init__(
         self,
@@ -53,7 +53,7 @@ class KennedyCarpenterAdaptiveStep:
         workspace: SchemeStepSupport,
         resolvent: Resolvent,
         configuration: SchemeConfiguration,
-        specialist: SchemeSpecialist | None = None,
+        linear_fixed: SchemeLinearFixed | None = None,
     ) -> None:
         self.tableau = tableau
         self.workspace = workspace
@@ -80,8 +80,8 @@ class KennedyCarpenterAdaptiveStep:
 
         self.call_body = self.call_inline
 
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
+        if linear_fixed is not None:
+            self.prepare_specialized_kernels(linear_fixed)
             self.call_body = self.call_specialized
 
     def __call__(
@@ -91,7 +91,7 @@ class KennedyCarpenterAdaptiveStep:
     ) -> float:
         return self.call_body(interval, state)
 
-    def prepare_specialized_kernels(self, specialist: SchemeSpecialist) -> None:
+    def prepare_specialized_kernels(self, linear_fixed: SchemeLinearFixed) -> None:
         """Prepare fixed-coefficient kernels for the specialized IMEX path."""
 
         stencils = SchemeStencilImexTableau(self.tableau)
@@ -101,14 +101,14 @@ class KennedyCarpenterAdaptiveStep:
         # implicit dynamics buffers. The diagonal implicit coefficient is
         # deliberately excluded from these stencils.
         self.stage_rhs_kernels = tuple(
-            specialist.provide_delta(stencils.stage_rhs(index))
+            linear_fixed(stencils.stage_rhs(index))
             for index in range(stage_count)
         )
 
         # Steps 4 and 5 build the accepted increment and embedded error
         # estimate from the split dynamics families.
-        self.advance_delta_kernel = specialist.provide_delta(stencils.advance_delta())
-        self.error_delta_kernel = specialist.provide_delta(stencils.error_delta())
+        self.advance_delta_kernel = linear_fixed(stencils.advance_delta())
+        self.error_delta_kernel = linear_fixed(stencils.error_delta())
 
     def call_inline(
         self,

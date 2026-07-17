@@ -308,10 +308,10 @@ EXAMPLES: tuple[ExampleSpec, ...] = (
         "Jacobi-style relaxation inverter.",
     ),
     ExampleSpec(
-        "examples.inverters.inverter_relaxation_specialist",
-        "Specialist relaxation",
+        "examples.inverters.inverter_relaxation_linear_fixed",
+        "LinearFixed relaxation",
         "inverters",
-        "Specialist relaxation inverter.",
+        "LinearFixed relaxation inverter.",
     ),
     ExampleSpec(
         "examples.core.manual_stepper_setup",

@@ -12,7 +12,7 @@ from stark.methods.schemes.display.decorators import with_scheme_display
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.method.tableau import Tableau, TableauImex
 from stark.methods.schemes.imex.adaptive.kennedy_carpenter import KennedyCarpenterAdaptiveStep
-from stark.methods.schemes.specialization.specialist import SchemeSpecialist
+from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
 
 
 ARK436L2SA_EXPLICIT = Tableau(
@@ -110,7 +110,7 @@ class SchemeKennedyCarpenter43_6:
         resolvent: Resolvent,
         *,
         configuration: SchemeConfiguration | None = None,
-        specialist: SchemeSpecialist | None = None,
+        linear_fixed: SchemeLinearFixed | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
         self.runtime = SchemeRuntimeImex(dynamics, allocator)
@@ -121,10 +121,10 @@ class SchemeKennedyCarpenter43_6:
             workspace=self.workspace,
             resolvent=resolvent,
             configuration=configuration if configuration is not None else SchemeConfigurationDefault(),
-            specialist=specialist,
+            linear_fixed=linear_fixed,
         )
         self.step_control = self.adaptive_step.step_control
-        self.call_body = self.call_specialized if specialist is not None else self.call_inline
+        self.call_body = self.call_specialized if linear_fixed is not None else self.call_inline
         self.monitor = monitor
         self.call_step = self.call_monitored if monitor is not None else self.call_body
         self.redirect_call = self.call_step

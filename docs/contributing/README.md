@@ -17,7 +17,8 @@ contributors and future maintenance agents.
 Current local design notes include:
 
 - `stark/core/contracts/DESIGN.md`
-- `stark/engines/shared/algebraist/DESIGN.md`
+- `stark/engines/generator/DESIGN.md`
+- `stark/engines/allocator/DESIGN.md`
 - `stark/methods/schemes/DESIGN.md`
 - `stark/methods/resolvents/DESIGN.md`
 - `stark/methods/inverters/DESIGN.md`

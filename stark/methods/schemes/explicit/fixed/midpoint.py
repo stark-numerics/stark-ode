@@ -9,7 +9,7 @@ from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.explicit.runtime import SchemeRuntimeExplicit
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
-from stark.methods.schemes.specialization.specialist import SchemeSpecialist
+from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
 from stark.methods.schemes.specialization.stencil import SchemeStencilTableau
 from stark.methods.schemes.method.tableau import Tableau
 
@@ -87,7 +87,7 @@ class SchemeMidpoint:
         dynamics: DynamicsLike,
         allocator: AllocatorLike,
         configuration: SchemeConfiguration | None = None,
-        specialist: SchemeSpecialist | None = None,
+        linear_fixed: SchemeLinearFixed | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
         self.advance_update = unbound_scheme_call
@@ -107,8 +107,8 @@ class SchemeMidpoint:
         self.stage = workspace.allocate_state_buffer()
         self.trial, self.k2 = workspace.allocate_translation_buffers(2)
 
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
+        if linear_fixed is not None:
+            self.prepare_specialized_kernels(linear_fixed)
             self.call_body = self.call_specialized
             if monitor is None:
                 self.call_step = self.call_body
@@ -123,17 +123,17 @@ class SchemeMidpoint:
 
     def prepare_specialized_kernels(
         self,
-        specialist: SchemeSpecialist,
+        linear_fixed: SchemeLinearFixed,
     ) -> None:
         """Prepare fixed-coefficient kernels for the specialized path."""
 
         stencils = SchemeStencilTableau(self.tableau)
 
         # Step 2 builds the midpoint stage state from row 1 of the A matrix.
-        self.stage2_update = specialist.provide_apply(stencils.stage(1))
+        self.stage2_update = linear_fixed(stencils.stage(1))
 
         # Step 3 advances the accepted state from the tableau's b weights.
-        self.advance_update = specialist.provide_apply(stencils.advance_update())
+        self.advance_update = linear_fixed(stencils.advance_update())
 
     def call_inline(
         self,

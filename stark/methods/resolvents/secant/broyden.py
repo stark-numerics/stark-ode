@@ -19,7 +19,7 @@ from stark.methods.resolvents.display.decorators import with_resolvent_display
 from stark.methods.resolvents.requests.resolvent import ResolventRequest
 from stark.methods.resolvents.equations.implicit import ResolventImplicitEquation
 from stark.methods.resolvents.secant._least_squares import BlockInnerProduct, block_inner_product
-from stark.methods.resolvents.specialization.specialist import ResolventSpecialist
+from stark.methods.resolvents.specialization.linear_fixed import ResolventLinearFixed
 from stark.methods.resolvents.specialization.stencil import ResolventStencilBlock
 from stark.methods.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
@@ -202,7 +202,7 @@ class ResolventBroyden:
         depth: int = 8,
         safety: ResolventSafety | None = None,
         accelerator: Accelerator | None = None,
-        specialist: ResolventSpecialist[Translation] | None = None,
+        linear_fixed: ResolventLinearFixed[Translation] | None = None,
         tableau: Any | None = None,
     ) -> None:
         self.tableau = tableau
@@ -244,8 +244,8 @@ class ResolventBroyden:
         )
 
 
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
+        if linear_fixed is not None:
+            self.prepare_specialized_kernels(linear_fixed)
             self.call_step = self.call_specialized
         else:
             self.call_step = self.call_inline
@@ -253,12 +253,12 @@ class ResolventBroyden:
 
     def prepare_specialized_kernels(
         self,
-        specialist: ResolventSpecialist[Translation],
+        linear_fixed: ResolventLinearFixed[Translation],
     ) -> None:
         # Step 3/6: add block corrections.
-        self.add_update = specialist.provide(ResolventStencilBlock((1.0, 1.0)))
+        self.add_update = linear_fixed(ResolventStencilBlock((1.0, 1.0)))
         # Step 4/5: form block differences.
-        self.difference_update = specialist.provide(
+        self.difference_update = linear_fixed(
             ResolventStencilBlock((1.0, -1.0))
         )
 

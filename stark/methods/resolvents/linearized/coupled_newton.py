@@ -26,7 +26,7 @@ from stark.methods.resolvents.display.decorators import with_resolvent_display
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 from stark.methods.resolvents.requests.resolvent import ResolventRequestCoupled
 from stark.methods.resolvents.equations.implicit import ResolventImplicitEquationCoupled
-from stark.methods.resolvents.specialization.specialist import ResolventSpecialist
+from stark.methods.resolvents.specialization.linear_fixed import ResolventLinearFixed
 from stark.methods.resolvents.specialization.stencil import ResolventStencilBlock
 from stark.methods.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
@@ -93,7 +93,7 @@ class ResolventCoupledNewton(Generic[StateType, TranslationType]):
         configuration: ResolventConfiguration | None = None,
         safety: ResolventSafety | None = None,
         accelerator: Accelerator | None = None,
-        specialist: ResolventSpecialist[TranslationType] | None = None,
+        linear_fixed: ResolventLinearFixed[TranslationType] | None = None,
         tableau: Any | None = None,
     ) -> None:
         self.tableau = tableau
@@ -126,8 +126,8 @@ class ResolventCoupledNewton(Generic[StateType, TranslationType]):
         self.newton_update = None
         self.size = -1
 
-        if specialist is not None:
-            self.prepare_specialized_kernels(specialist)
+        if linear_fixed is not None:
+            self.prepare_specialized_kernels(linear_fixed)
             self.call_step = self.call_specialized
         else:
             self.call_step = self.call_inline
@@ -135,10 +135,10 @@ class ResolventCoupledNewton(Generic[StateType, TranslationType]):
 
     def prepare_specialized_kernels(
         self,
-        specialist: ResolventSpecialist[TranslationType],
+        linear_fixed: ResolventLinearFixed[TranslationType],
     ) -> None:
         # Step 5: Newton update delta <- delta + correction.
-        self.newton_update = specialist.provide(
+        self.newton_update = linear_fixed(
             ResolventStencilBlock((1.0, 1.0))
         )
 

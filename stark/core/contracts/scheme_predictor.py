@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from stark.core.contracts.linear_combine import Scale
+from stark.core.contracts.linear_combine import LinearCombineScaleLike
 from stark.core.contracts.translation import TranslationType
 
 
@@ -24,7 +24,7 @@ class SchemePredictorLike(Protocol[TranslationType]):
         known: TranslationType | None,
         previous: TranslationType | None,
         delta: TranslationType,
-        scale: Scale[TranslationType],
+        scale: LinearCombineScaleLike[TranslationType],
     ) -> TranslationType:
         """Write the predicted stage increment into ``delta`` and return it."""
         ...

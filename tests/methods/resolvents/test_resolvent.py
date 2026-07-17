@@ -99,7 +99,7 @@ def test_Configuration_module_imports() -> None:
     assert importlib.import_module("stark.methods.inverters.configuration") is not None
     assert importlib.import_module("stark.methods.schemes.method.tableau") is not None
     assert importlib.import_module("stark.methods.schemes.execution.step_support") is not None
-    assert importlib.import_module("stark.engines.algebraist.runtime") is not None
+    assert importlib.import_module("stark.engines.generator") is not None
     assert importlib.import_module("stark.methods.schemes.display.display") is not None
 
 

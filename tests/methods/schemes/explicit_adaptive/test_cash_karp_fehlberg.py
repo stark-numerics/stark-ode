@@ -11,7 +11,7 @@ from stark.methods.schemes.explicit.adaptive.fehlberg45 import SchemeFehlberg45
 from tests.support import (
     DummyScalarAllocator,
     DummyScalarState,
-    DummyTableauSpecialist,
+    DummyTableauLinearFixed,
     dummy_exponential_growth_rhs,
     dummy_zero_rhs,
 )
@@ -77,30 +77,30 @@ def test_cash_karp_fehlberg_call_clips_to_remaining_interval(scheme_cls) -> None
 
 
 @pytest.mark.parametrize("scheme_cls", [SchemeCashKarp, SchemeFehlberg45])
-def test_cash_karp_fehlberg_inline_and_specialist_paths_match_for_one_step(
+def test_cash_karp_fehlberg_inline_and_linear_fixed_paths_match_for_one_step(
     scheme_cls,
 ) -> None:
     interval_inline = Interval(present=0.0, step=0.1, stop=0.3)
-    interval_specialist = Interval(present=0.0, step=0.1, stop=0.3)
+    interval_linear_fixed = Interval(present=0.0, step=0.1, stop=0.3)
     state_inline = DummyScalarState(1.0)
-    state_specialist = DummyScalarState(1.0)
+    state_linear_fixed = DummyScalarState(1.0)
 
     inline = scheme_cls(dummy_exponential_growth_rhs, DummyScalarAllocator())
-    specialist = scheme_cls(
+    linear_fixed = scheme_cls(
         dummy_exponential_growth_rhs,
         DummyScalarAllocator(),
-        specialist=DummyTableauSpecialist(),
+        linear_fixed=DummyTableauLinearFixed(),
     )
 
     accepted_dt_inline = inline(interval_inline, state_inline)
-    accepted_dt_specialist = specialist(
-        interval_specialist,
-        state_specialist,
+    accepted_dt_linear_fixed = linear_fixed(
+        interval_linear_fixed,
+        state_linear_fixed,
     )
 
-    assert accepted_dt_specialist == pytest.approx(accepted_dt_inline)
-    assert state_specialist.value == pytest.approx(state_inline.value)
-    assert interval_specialist.step == pytest.approx(interval_inline.step)
+    assert accepted_dt_linear_fixed == pytest.approx(accepted_dt_inline)
+    assert state_linear_fixed.value == pytest.approx(state_inline.value)
+    assert interval_linear_fixed.step == pytest.approx(interval_inline.step)
 
 
 @pytest.mark.parametrize(

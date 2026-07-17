@@ -62,7 +62,7 @@ If `dtype` is omitted, `EngineJax` follows JAX's active real precision:
 enabled. Requested `float64` and `complex128` dtypes require JAX x64 support.
 Use `jnp.float32` or `jnp.complex64` for the portable beta path.
 
-Important caveat: JAX array support does not automatically mean the whole adaptive solver loop is one JIT-compiled JAX program. STARK's intended accelerated high-level path is through generated Algebraist kernels where the `Frame` is known. Contributor notes for that path live in `stark/engines/algebraist/DESIGN.md`.
+Important caveat: JAX array support does not automatically mean the whole adaptive solver loop is one JIT-compiled JAX program. STARK's intended accelerated high-level path is through generated engine kernels where the `Frame` is known. Contributor notes for that path live in `stark/engines/generator/DESIGN.md`.
 
 Run:
 
@@ -115,7 +115,7 @@ Backend support has layers.
 ```text
 array backend          NumPy / JAX / CuPy field storage
 carrier arithmetic     field-level arithmetic on backend arrays
-Algebraist generator   prepared code for known Frame-backed state
+Generator              prepared code for known Frame-backed state
 accelerator            optional compiler/fuser for generated kernels
 solver control flow    adaptive stepping, acceptance, monitors, reports
 ```

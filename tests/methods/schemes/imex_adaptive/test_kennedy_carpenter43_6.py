@@ -13,6 +13,7 @@ from stark import Configuration
 from stark.methods.schemes.imex.adaptive.kennedy_carpenter43_6 import (
     SchemeKennedyCarpenter43_6,
 )
+from tests.support import scalar_value_linear_combine
 
 
 @dataclass(slots=True)
@@ -38,6 +39,8 @@ class ScalarTranslation:
 
 
 class ScalarAllocator:
+    linear_combine = scalar_value_linear_combine
+
     def allocate_state(self) -> ScalarState:
         return ScalarState()
 

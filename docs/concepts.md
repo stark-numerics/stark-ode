@@ -237,11 +237,11 @@ Engines own backend-specific state, translation, allocation, and generated
 algebra choices. Start with NumPy unless you already know why another backend
 matters for your project.
 
-## Algebraist
+## Generated Algebra
 
-The Algebraist is STARK's prepared algebra layer. For known `Frame`-backed
-states, it can generate kernels for common solver operations such as linear
-combinations and norms.
+STARK prepares algebra kernels for known `Frame`-backed states. Engines use
+the Generator and allocator hooks to supply common solver operations such as
+linear combinations and norms.
 
 This matters because solver performance is often decided by repeated algebra
 on translations, not by the one line that defines the dynamics.

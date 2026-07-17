@@ -1,11 +1,11 @@
-from stark.methods.resolvents.specialization.specialist import (
+from stark.methods.resolvents.specialization.linear_fixed import (
     ResolventBlockKernel,
-    ResolventSpecialist,
+    ResolventLinearFixed,
 )
 from stark.methods.resolvents.specialization.stencil import ResolventStencilBlock
 
 __all__ = [
     "ResolventBlockKernel",
-    "ResolventSpecialist",
+    "ResolventLinearFixed",
     "ResolventStencilBlock",
 ]

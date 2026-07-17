@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from stark.core.contracts.linear_combine import Scale
+from stark.core.contracts.linear_combine import LinearCombineScaleLike
 from stark.core.contracts.translation import TranslationType
 
 
@@ -23,7 +23,7 @@ class SchemePredictorKnown:
         known: TranslationType | None,
         previous: TranslationType | None,
         delta: TranslationType,
-        scale: Scale[TranslationType],
+        scale: LinearCombineScaleLike[TranslationType],
     ) -> TranslationType:
         del previous
         return scale(1.0, cast(TranslationType, known), delta)
@@ -44,7 +44,7 @@ class SchemePredictorZero:
         known: TranslationType | None,
         previous: TranslationType | None,
         delta: TranslationType,
-        scale: Scale[TranslationType],
+        scale: LinearCombineScaleLike[TranslationType],
     ) -> TranslationType:
         del known, previous
         return scale(0.0, delta, delta)
@@ -67,7 +67,7 @@ class SchemePredictorPrevious:
         known: TranslationType | None,
         previous: TranslationType | None,
         delta: TranslationType,
-        scale: Scale[TranslationType],
+        scale: LinearCombineScaleLike[TranslationType],
     ) -> TranslationType:
         del known
         return scale(1.0, cast(TranslationType, previous), delta)

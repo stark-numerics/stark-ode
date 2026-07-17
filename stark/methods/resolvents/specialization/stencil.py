@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -26,6 +27,10 @@ class ResolventStencilBlock:
         )
         object.__setattr__(self, "scale", float(scale))
         object.__setattr__(self, "apply", bool(apply))
+
+    @property
+    def operation(self) -> Literal["linear_fixed"]:
+        return "linear_fixed"
 
 
 __all__ = ["ResolventStencilBlock"]

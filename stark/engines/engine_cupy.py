@@ -1,22 +1,29 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import cupy as cp
 
 from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist import Algebraist
-from stark.engines.algebraist.generator.target_cupy import AlgebraistGeneratorTargetCupy
 from stark.engines.carrier_cupy import CarrierCupy
+from stark.engines.generator import (
+    Generator,
+    GeneratorPolicy,
+    GeneratorRequestApplyTranslation,
+    GeneratorRequestInnerProduct,
+    GeneratorRequestLinearCombineTable,
+    GeneratorRequestNorm,
+)
 from stark.engines.translation_factory_cupy import TranslationFactoryCupy
 from stark.core.contracts.accelerator import Accelerator
 from stark.core.contracts.frame import FrameLike
-from stark.engines.allocator import Allocator
+from stark.engines.allocator import AllocatorCarried
 from stark.engines.translation_basis import TranslationBasis
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class EngineCupy:
     """
     CuPy backend bundle for a shaped `Frame`.
@@ -33,8 +40,8 @@ class EngineCupy:
     dtype: Any = cp.float64
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
     carriers: tuple[CarrierCupy, ...] = field(init=False, repr=False)
-    allocator: Allocator = field(init=False, repr=False)
-    algebraist: Algebraist[Any, Any] = field(init=False, repr=False)
+    allocator: AllocatorCarried[Any] = field(init=False, repr=False)
+    generator: Generator[Any, Any] = field(init=False, repr=False)
 
     def __repr__(self) -> str:
         accelerator_name = getattr(self.accelerator, "name", str(self.accelerator))
@@ -71,22 +78,41 @@ class EngineCupy:
             carriers.append(CarrierCupy(cp.zeros(shape, dtype=self.dtype)))
 
         carrier_tuple = tuple(carriers)
-        allocator = Allocator(
+        allocator: AllocatorCarried[Any] = AllocatorCarried(
             frame=self.frame,
             carriers=carrier_tuple,
             translation_type=TranslationFactoryCupy,
         )
-        object.__setattr__(self, "carriers", carrier_tuple)
-        object.__setattr__(self, "allocator", allocator)
+        self.carriers = carrier_tuple
+        self.allocator = allocator
 
-        cupy_target = AlgebraistGeneratorTargetCupy()
-        algebraist = Algebraist.generator(
+        generator = Generator(
             frame=self.frame,
-            allocator=allocator,
             accelerator=self.accelerator,
-            target=cupy_target,
+            policy=GeneratorPolicy(
+                traversal="elementwise",
+                expression="elementwise",
+                scalar="item",
+            ),
+            allocator=allocator,
         )
-        object.__setattr__(self, "algebraist", algebraist)
+        allocator.apply_translation = cast(
+            Callable[[Any, Any, Any], Any],
+            generator(GeneratorRequestApplyTranslation()),
+        )
+        allocator.linear_combine = cast(
+            tuple[Callable[..., Any], ...],
+            generator(GeneratorRequestLinearCombineTable(max_arity=12)),
+        )
+        allocator.norm = cast(
+            Callable[[Any], float],
+            generator(GeneratorRequestNorm()),
+        )
+        allocator.inner_product = cast(
+            Callable[[Any, Any], float],
+            generator(GeneratorRequestInnerProduct()),
+        )
+        self.generator = generator
 
 
 __all__ = ["EngineCupy"]

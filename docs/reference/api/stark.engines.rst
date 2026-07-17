@@ -12,14 +12,6 @@ stark.engines.accelerators package
    :show-inheritance:
    :undoc-members:
 
-stark.engines.algebraist package
---------------------------------
-
-.. automodule:: stark.engines.algebraist
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 stark.engines.carriers package
 ------------------------------
 
@@ -32,6 +24,14 @@ stark.engines.generator package
 -------------------------------
 
 .. automodule:: stark.engines.generator
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+stark.engines.allocator package
+-------------------------------
+
+.. automodule:: stark.engines.allocator
    :members:
    :show-inheritance:
    :undoc-members:
@@ -71,10 +71,26 @@ stark.engines.carrier\_jax package
 Submodules
 ----------
 
-stark.engines.allocator module
-------------------------------
+stark.engines.allocator.allocator module
+----------------------------------------
 
-.. automodule:: stark.engines.allocator
+.. automodule:: stark.engines.allocator.allocator
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+stark.engines.allocator.allocator\_carried module
+-------------------------------------------------
+
+.. automodule:: stark.engines.allocator.allocator_carried
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+stark.engines.allocator.linear\_combine module
+----------------------------------------------
+
+.. automodule:: stark.engines.allocator.linear_combine
    :members:
    :show-inheritance:
    :undoc-members:
@@ -107,14 +123,6 @@ stark.engines.engine\_jax module
 --------------------------------
 
 .. automodule:: stark.engines.engine_jax
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.algebraist.generator.target\_cupy module
-------------------------------------------------------
-
-.. automodule:: stark.engines.algebraist.generator.target_cupy
    :members:
    :show-inheritance:
    :undoc-members:

@@ -7,14 +7,13 @@ import pytest
 
 from stark import Frame, Field
 from stark.engines.accelerators import AcceleratorNone
-from stark.engines.algebraist import Algebraist
-from stark.engines.algebraist.generator import (
-    AlgebraistGeneratorInnerProduct,
-    AlgebraistGeneratorLinearCombine,
-    AlgebraistGeneratorNorm,
-    AlgebraistGeneratorSpecialist,
-)
 from stark.engines.carrier_numpy import CarrierNumpy
+from stark.engines.generator import (
+    Generator,
+    GeneratorInnerProduct,
+    GeneratorLinearFixed,
+    GeneratorNorm,
+)
 from stark.engines import EngineNative, EngineNumpy
 
 
@@ -113,7 +112,7 @@ def test_stark_engine_numpy_translation_applies_fieldwise_delta() -> None:
     assert delta.norm() == pytest.approx((250.0 + 1250.0) ** 0.5)
 
 
-def test_stark_engine_numpy_exposes_algebraist_providers() -> None:
+def test_stark_engine_numpy_exposes_generator_providers() -> None:
     engine = EngineNumpy(
         Frame(
             (
@@ -123,11 +122,11 @@ def test_stark_engine_numpy_exposes_algebraist_providers() -> None:
         )
     )
 
-    assert isinstance(engine.algebraist, Algebraist)
-    assert isinstance(engine.algebraist.linear_combine, AlgebraistGeneratorLinearCombine)
-    assert isinstance(engine.algebraist.inner_product, AlgebraistGeneratorInnerProduct)
-    assert isinstance(engine.algebraist.norm, AlgebraistGeneratorNorm)
-    assert isinstance(engine.algebraist.specialist, AlgebraistGeneratorSpecialist)
+    assert isinstance(engine.generator, Generator)
+    assert isinstance(engine.generator.inner_product, GeneratorInnerProduct)
+    assert isinstance(engine.generator.linear_fixed, GeneratorLinearFixed)
+    assert isinstance(engine.generator.norm, GeneratorNorm)
+    assert len(engine.allocator.linear_combine) >= 2
 
 
 def test_stark_engine_numpy_exposes_layout_inner_product() -> None:
@@ -147,7 +146,9 @@ def test_stark_engine_numpy_exposes_layout_inner_product() -> None:
     right.du[...] = (10.0, 20.0)
     right.dv[...] = (30.0, 40.0)
 
-    assert engine.allocator.inner_product(left, right) == pytest.approx(300.0)
+    inner_product = engine.allocator.inner_product
+    assert inner_product is not None
+    assert inner_product(left, right) == pytest.approx(300.0)
 
 
 def test_stark_engine_numpy_translation_basis_inspects_full_translation() -> None:
@@ -204,12 +205,14 @@ def test_stark_engine_native_uses_array_backed_fields() -> None:
     assert list(result.u) == [11.0, 22.0]
     assert list(result.v) == [33.0, 44.0]
     assert delta.norm() == pytest.approx((250.0 + 1250.0) ** 0.5)
-    assert isinstance(engine.algebraist, Algebraist)
-    assert isinstance(engine.algebraist.linear_combine, AlgebraistGeneratorLinearCombine)
-    assert isinstance(engine.algebraist.inner_product, AlgebraistGeneratorInnerProduct)
-    assert isinstance(engine.algebraist.norm, AlgebraistGeneratorNorm)
-    assert isinstance(engine.algebraist.specialist, AlgebraistGeneratorSpecialist)
-    assert engine.allocator.inner_product(delta, delta) == pytest.approx(3000.0)
+    assert isinstance(engine.generator, Generator)
+    assert isinstance(engine.generator.inner_product, GeneratorInnerProduct)
+    assert isinstance(engine.generator.linear_fixed, GeneratorLinearFixed)
+    assert isinstance(engine.generator.norm, GeneratorNorm)
+    assert len(engine.allocator.linear_combine) >= 2
+    inner_product = engine.allocator.inner_product
+    assert inner_product is not None
+    assert inner_product(delta, delta) == pytest.approx(3000.0)
 
 
 def test_stark_engine_native_rejects_multidimensional_shapes() -> None:
@@ -246,14 +249,15 @@ def test_stark_engine_cupy_optional() -> None:
     np.testing.assert_array_equal(cp.asnumpy(result.u), np.array([11.0, 22.0]))
     np.testing.assert_array_equal(cp.asnumpy(result.v), np.array([33.0, 44.0]))
     assert delta.norm() == pytest.approx((250.0 + 1250.0) ** 0.5)
-    assert isinstance(engine.algebraist, Algebraist)
-    assert isinstance(engine.algebraist.linear_combine, AlgebraistGeneratorLinearCombine)
-    assert isinstance(engine.algebraist.inner_product, AlgebraistGeneratorInnerProduct)
-    assert isinstance(engine.algebraist.norm, AlgebraistGeneratorNorm)
-    assert isinstance(engine.algebraist.specialist, AlgebraistGeneratorSpecialist)
+    assert isinstance(engine.generator, Generator)
+    assert isinstance(engine.generator.inner_product, GeneratorInnerProduct)
+    assert isinstance(engine.generator.linear_fixed, GeneratorLinearFixed)
+    assert isinstance(engine.generator.norm, GeneratorNorm)
     assert len(engine.allocator.linear_combine) >= 2
-    inner_product = engine.allocator.inner_product(delta, delta)
-    assert float(inner_product.get()) == pytest.approx(3000.0)
+    inner_product = engine.allocator.inner_product
+    assert inner_product is not None
+    inner_product_value: Any = inner_product(delta, delta)
+    assert float(inner_product_value.get()) == pytest.approx(3000.0)
 
 
 def test_stark_engine_jax_optional() -> None:
@@ -283,10 +287,11 @@ def test_stark_engine_jax_optional() -> None:
     np.testing.assert_array_equal(np.asarray(result.u), np.array([11.0, 22.0]))
     np.testing.assert_array_equal(np.asarray(result.v), np.array([33.0, 44.0]))
     assert delta.norm() == pytest.approx((250.0 + 1250.0) ** 0.5)
-    assert isinstance(engine.algebraist, Algebraist)
-    assert isinstance(engine.algebraist.linear_combine, AlgebraistGeneratorLinearCombine)
-    assert isinstance(engine.algebraist.inner_product, AlgebraistGeneratorInnerProduct)
-    assert isinstance(engine.algebraist.norm, AlgebraistGeneratorNorm)
-    assert isinstance(engine.algebraist.specialist, AlgebraistGeneratorSpecialist)
+    assert isinstance(engine.generator, Generator)
+    assert isinstance(engine.generator.inner_product, GeneratorInnerProduct)
+    assert isinstance(engine.generator.linear_fixed, GeneratorLinearFixed)
+    assert isinstance(engine.generator.norm, GeneratorNorm)
     assert len(engine.allocator.linear_combine) >= 2
-    assert engine.allocator.inner_product(delta, delta) == pytest.approx(3000.0)
+    inner_product = engine.allocator.inner_product
+    assert inner_product is not None
+    assert inner_product(delta, delta) == pytest.approx(3000.0)

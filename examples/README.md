@@ -97,7 +97,7 @@ python -m examples.inverters.inverter_dense
 python -m examples.inverters.inverter_krylov
 python -m examples.inverters.inverter_relaxation_richardson
 python -m examples.inverters.inverter_relaxation_jacobi
-python -m examples.inverters.inverter_relaxation_specialist
+python -m examples.inverters.inverter_relaxation_linear_fixed
 ```
 
 ## Core

@@ -1,10 +1,10 @@
-"""Scheme specialization stencils and specialist protocols."""
+"""Scheme specialization stencils and linear_fixed protocols."""
 
 from stark.methods.schemes.specialization.imex_stencil import SchemeStencilImexTableau
-from stark.methods.schemes.specialization.specialist import (
-    SchemeSpecialist,
-    SchemeSpecialistKernelApply,
-    SchemeSpecialistKernelDelta,
+from stark.methods.schemes.specialization.linear_fixed import (
+    SchemeLinearFixed,
+    SchemeLinearFixedKernelApply,
+    SchemeLinearFixedKernelDelta,
 )
 from stark.methods.schemes.specialization.stencil import (
     SchemeStageIncrementStencils,
@@ -15,9 +15,9 @@ from stark.methods.schemes.specialization.stencil import (
 )
 
 __all__ = [
-    "SchemeSpecialist",
-    "SchemeSpecialistKernelApply",
-    "SchemeSpecialistKernelDelta",
+    "SchemeLinearFixed",
+    "SchemeLinearFixedKernelApply",
+    "SchemeLinearFixedKernelDelta",
     "SchemeStageIncrementStencils",
     "SchemeStencil",
     "SchemeStencilCoefficient",
