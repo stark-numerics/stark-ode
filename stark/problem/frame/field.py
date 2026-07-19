@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark.core.contracts.field import FieldPolicyLike
+from stark.core.contracts.problem.field import FieldPolicyLike
 from stark.problem.frame.path import FieldPath, FieldPathLike
 from stark.problem.frame.policy import FieldPolicy
 
@@ -61,7 +61,7 @@ class Field:
         *,
         shape: tuple[int, ...] | None,
     ) -> FieldPolicyLike:
-        kind = getattr(policy, "kind", None)
+        kind = policy.kind
         if kind == "auto":
             return FieldPolicy.looped() if shape is not None else FieldPolicy.broadcast()
         if kind in {"looped", "unravel"} and shape is None:

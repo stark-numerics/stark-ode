@@ -1,8 +1,8 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Protocol
 
 
-class IntegratorConfiguration(Protocol):
+class IntegratorConfigurationLike(Protocol):
     """Configuration shape shared by integrator implementations."""
 
     @property

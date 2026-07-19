@@ -124,8 +124,8 @@ python -m pytest -p no:cacheprovider
 
 ## Design TODOs
 
-Post-release work lives in local `DESIGN.md` files rather than in a root TODO
-file. To list every `## To Do` section:
+Local `DESIGN.md` files carry owned design notes. They are intentionally
+discoverable; to list every `## To Do` section before a release:
 
 ```powershell
 .\devtools\list-design-todos.ps1

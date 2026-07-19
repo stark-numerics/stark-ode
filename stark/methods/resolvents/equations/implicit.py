@@ -17,7 +17,7 @@ from stark.core.contracts import (
     TranslationType,
     AllocatorLike,
 )
-from stark.core.contracts.translation_basis import TranslationBasisLike
+from stark.core.contracts.engines.translation_basis import TranslationBasisLike
 from stark.methods.linear_combine import require_linear_combine_kernels
 from stark.methods.resolvents.requests.resolvent import (
     ResolventRequestCoupled,

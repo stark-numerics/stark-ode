@@ -86,6 +86,6 @@ with ordinary method machinery. Generator belongs on the optimised path: it can
 be asked to produce faster kernels when frame/backend information is available,
 but it is not required just to make a custom allocator complete enough to run.
 
-`AllocatorCarried` is the concrete allocator for engine-owned carrier layouts.
-It uses the same runtime decorator as user allocators, so carried engines and custom
-state models share the same setup vocabulary.
+`EngineAllocator` is the concrete allocator for engine-owned carrier layouts.
+It uses the same runtime decorator as user allocators, so built-in engines and
+custom state models share the same setup vocabulary.

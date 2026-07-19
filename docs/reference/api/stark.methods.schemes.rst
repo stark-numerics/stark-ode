@@ -12,9 +12,9 @@ Subpackages
    stark.methods.schemes.explicit
    stark.methods.schemes.imex
    stark.methods.schemes.implicit
+   stark.methods.schemes.linear_fixed_generation
    stark.methods.schemes.method
    stark.methods.schemes.monitoring
-   stark.methods.schemes.specialization
 
 Submodules
 ----------

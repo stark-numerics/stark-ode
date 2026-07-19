@@ -4,8 +4,8 @@ from typing import Protocol, TypeVar
 
 from stark.core.contracts import BlockLike, TranslationType
 
-OperatorTypeContravariant = TypeVar(
-    "OperatorTypeContravariant",
+TranslationOperatorTypeContravariant = TypeVar(
+    "TranslationOperatorTypeContravariant",
     contravariant=True,
 )
 """Contravariant output-operator type used by a residual differential.
@@ -16,7 +16,7 @@ that concrete object while the translation buffers stay type-preserving.
 """
 
 
-class ResolventResidual(Protocol[TranslationType, OperatorTypeContravariant]):
+class ResolventResidual(Protocol[TranslationType, TranslationOperatorTypeContravariant]):
     """Residual object used by direct resolvent implementations.
 
     The residual reads a candidate correction block and writes the residual
@@ -35,7 +35,7 @@ class ResolventResidual(Protocol[TranslationType, OperatorTypeContravariant]):
     def differential(
         self,
         delta: BlockLike[TranslationType],
-        out: OperatorTypeContravariant,
+        out: TranslationOperatorTypeContravariant,
     ) -> None:
         ...
 

@@ -12,7 +12,7 @@ from stark.diagnostics.monitor import Monitor
 from stark.methods.resolvents import ResolventPicard
 from stark import Configuration
 from stark.methods.schemes.implicit.adaptive.bdf2 import SchemeBDF2
-from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
+from stark.methods.schemes.linear_fixed_generation.linear_fixed import SchemeLinearFixedLike
 from tests.support import scalar_value_linear_combine
 
 
@@ -62,7 +62,7 @@ def constant_rhs(
 
 def make_scheme(
     *,
-    linear_fixed: SchemeLinearFixed | None = None,
+    linear_fixed: SchemeLinearFixedLike | None = None,
     monitor=None,
 ) -> SchemeBDF2:
     allocator = ScalarAllocator()

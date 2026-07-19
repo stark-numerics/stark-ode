@@ -3,14 +3,14 @@ from __future__ import annotations
 from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfigurationDefault
 from stark.core.block import Block
 from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, AllocatorLike
-from stark.core.contracts.errors import StarkErrorRecoverable
+from stark.core.contracts.shared.errors import StarkErrorRecoverable
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_adaptive_step_monitoring
 from stark.methods.schemes.execution.call import SchemeCall
 from stark.methods.schemes.execution.step_control import SchemeStepControl
 from stark.methods.schemes.implicit.runtime import SchemeRuntimeImplicit
-from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
+from stark.methods.schemes.linear_fixed_generation.linear_fixed import SchemeLinearFixedLike
 from stark.methods.schemes.request import SchemeResolventRequest
 
 
@@ -57,7 +57,7 @@ class SchemeBDF2:
         resolvent: Resolvent,
         *,
         configuration: SchemeConfiguration | None = None,
-        linear_fixed: SchemeLinearFixed | None = None,
+        linear_fixed: SchemeLinearFixedLike | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
         del linear_fixed

@@ -5,8 +5,8 @@ from math import isclose
 
 import pytest
 
-from stark.core.block import Block
-from stark.core.block.materialize import BlockOperatorDiagonalMaterialize, OperatorMaterialize
+from stark.core.block import Block, BlockBasis
+from stark.core.block.materialize import BlockOperatorMaterialize, TranslationOperatorMaterialize
 from stark.core.contracts import BlockLike
 from tests.support import DummyVectorBasis, DummyVectorTranslation
 
@@ -68,6 +68,19 @@ class DummyBlockOperatorDiagonal:
         return target
 
 
+class DummyBlockOperatorFull:
+    """Coupled block operator with no inspectable diagonal entries."""
+
+    def __call__(
+        self,
+        source: BlockLike[DummyVectorTranslation],
+        target: BlockLike[DummyVectorTranslation],
+    ) -> BlockLike[DummyVectorTranslation]:
+        target[0].values[0] = 2.0 * source[0].values[0] + 3.0 * source[1].values[0]
+        target[1].values[0] = 5.0 * source[0].values[0] + 7.0 * source[1].values[0]
+        return target
+
+
 def flatten_matrix(matrix: list[list[float]]) -> list[float]:
     return [value for row in matrix for value in row]
 
@@ -80,7 +93,7 @@ def assert_matrix_close(left: Sequence[float], right: list[list[float]]) -> None
 
 
 def test_operator_materialize_builds_matrix_from_basis_vectors_and_coordinates() -> None:
-    materialized = OperatorMaterialize(
+    materialized = TranslationOperatorMaterialize(
         operator=apply_matrix([[2.0, 3.0], [5.0, 7.0]]),
         basis=DummyVectorBasis(2),
         source=DummyVectorTranslation(0.0, 0.0),
@@ -92,7 +105,7 @@ def test_operator_materialize_builds_matrix_from_basis_vectors_and_coordinates()
 
 
 def test_operator_materialize_uses_vector_return_value() -> None:
-    materialized = OperatorMaterialize(
+    materialized = TranslationOperatorMaterialize(
         operator=apply_matrix([[11.0, 13.0], [17.0, 19.0]]),
         basis=DummyVectorReturningBasis(),
         source=DummyVectorTranslation(99.0, 99.0),
@@ -113,9 +126,9 @@ def test_block_operator_diagonal_materialize_builds_block_diagonal_matrix() -> N
     source = Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)])
     image = Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)])
 
-    materialized = BlockOperatorDiagonalMaterialize(
+    materialized = BlockOperatorMaterialize(
         operator=operator,
-        bases=[DummyVectorBasis(2), DummyVectorBasis(2)],
+        basis=BlockBasis([DummyVectorBasis(2), DummyVectorBasis(2)]),
         source=source,
         image=image,
     )
@@ -132,7 +145,7 @@ def test_block_operator_diagonal_materialize_builds_block_diagonal_matrix() -> N
     )
 
 
-def test_block_operator_diagonal_materialize_accepts_one_basis_for_all_entries() -> None:
+def test_block_operator_materialize_uses_block_basis_for_product_space() -> None:
     operator = DummyBlockOperatorDiagonal(
         [
             apply_matrix([[1.0, 0.0], [0.0, 2.0]]),
@@ -140,9 +153,9 @@ def test_block_operator_diagonal_materialize_accepts_one_basis_for_all_entries()
         ]
     )
 
-    materialized = BlockOperatorDiagonalMaterialize(
+    materialized = BlockOperatorMaterialize(
         operator=operator,
-        bases=DummyVectorBasis(2),
+        basis=BlockBasis([DummyVectorBasis(2), DummyVectorBasis(2)]),
         source=Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)]),
         image=Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)]),
     )
@@ -160,13 +173,25 @@ def test_block_operator_diagonal_materialize_accepts_one_basis_for_all_entries()
     )
 
 
+def test_block_operator_materialize_probes_coupled_block_operator() -> None:
+    materialized = BlockOperatorMaterialize(
+        operator=DummyBlockOperatorFull(),
+        basis=BlockBasis([DummyVectorBasis(1), DummyVectorBasis(1)]),
+        source=Block([DummyVectorTranslation(0.0), DummyVectorTranslation(0.0)]),
+        image=Block([DummyVectorTranslation(0.0), DummyVectorTranslation(0.0)]),
+    )
+
+    assert materialized.matrix is not None
+    assert_matrix_close(materialized.matrix, [[2.0, 3.0], [5.0, 7.0]])
+
+
 def test_block_operator_diagonal_materialize_rejects_size_mismatch() -> None:
     operator = DummyBlockOperatorDiagonal([apply_matrix([[1.0, 0.0], [0.0, 1.0]])])
 
-    with pytest.raises(ValueError, match="Operator size"):
-        BlockOperatorDiagonalMaterialize(
+    with pytest.raises(ValueError, match="Block operator size"):
+        BlockOperatorMaterialize(
             operator=operator,
-            bases=[DummyVectorBasis(2), DummyVectorBasis(2)],
+            basis=BlockBasis([DummyVectorBasis(2), DummyVectorBasis(2)]),
             source=Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)]),
             image=Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)]),
         )
@@ -176,9 +201,9 @@ def test_block_operator_diagonal_materialize_rejects_unconfigured_entry() -> Non
     operator = DummyBlockOperatorDiagonal([None])
 
     with pytest.raises(RuntimeError, match="entry 0"):
-        BlockOperatorDiagonalMaterialize(
+        BlockOperatorMaterialize(
             operator=operator,
-            bases=DummyVectorBasis(2),
+            basis=BlockBasis([DummyVectorBasis(2)]),
             source=Block([DummyVectorTranslation(0.0, 0.0)]),
             image=Block([DummyVectorTranslation(0.0, 0.0)]),
         )
@@ -191,9 +216,9 @@ def test_block_operator_diagonal_materialize_refreshes_compact_block_matrix() ->
             apply_matrix([[11.0, 13.0], [17.0, 19.0]]),
         ]
     )
-    materialized = BlockOperatorDiagonalMaterialize(
+    materialized = BlockOperatorMaterialize(
         operator=operator,
-        bases=[DummyVectorBasis(2), DummyVectorBasis(2)],
+        basis=BlockBasis([DummyVectorBasis(2), DummyVectorBasis(2)]),
         source=Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)]),
         image=Block([DummyVectorTranslation(0.0, 0.0), DummyVectorTranslation(0.0, 0.0)]),
         refresh_initial=False,

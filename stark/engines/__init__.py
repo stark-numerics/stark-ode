@@ -7,20 +7,19 @@ authors and advanced users inspecting storage, carriers, allocators, or
 generated kernels.
 """
 
-from stark.core.contracts.engine import Engine
 from stark.engines.allocator import (
     Allocator,
-    AllocatorCarried,
     AllocatorGeneratedHooks,
     AllocatorRuntimeHooks,
 )
 from stark.engines.accelerators import Accelerator, AcceleratorNone
-from stark.engines.engine_native import EngineNative
-from stark.engines.engine_numpy import EngineNumpy
+from stark.engines.engine import Engine, EngineFactory, EngineNative, EngineNumpy
+from stark.engines.engine_allocator import EngineAllocator
+from stark.engines.engine_translation import EngineTranslation
 
 has_engine_cupy = False
 try:
-    from stark.engines.engine_cupy import EngineCupy
+    from stark.engines.engine import EngineCupy
 except ImportError:
     pass
 else:
@@ -28,7 +27,7 @@ else:
 
 has_engine_jax = False
 try:
-    from stark.engines.engine_jax import EngineJax
+    from stark.engines.engine import EngineJax
 except ImportError:
     pass
 else:
@@ -39,11 +38,13 @@ if has_engine_cupy and has_engine_jax:
         "Accelerator",
         "AcceleratorNone",
         "Allocator",
-        "AllocatorCarried",
         "AllocatorGeneratedHooks",
         "AllocatorRuntimeHooks",
         "Engine",
+        "EngineAllocator",
         "EngineCupy",
+        "EngineFactory",
+        "EngineTranslation",
         "EngineJax",
         "EngineNative",
         "EngineNumpy",
@@ -53,11 +54,13 @@ elif has_engine_cupy:
         "Accelerator",
         "AcceleratorNone",
         "Allocator",
-        "AllocatorCarried",
         "AllocatorGeneratedHooks",
         "AllocatorRuntimeHooks",
         "Engine",
+        "EngineAllocator",
         "EngineCupy",
+        "EngineFactory",
+        "EngineTranslation",
         "EngineNative",
         "EngineNumpy",
     )
@@ -66,10 +69,12 @@ elif has_engine_jax:
         "Accelerator",
         "AcceleratorNone",
         "Allocator",
-        "AllocatorCarried",
         "AllocatorGeneratedHooks",
         "AllocatorRuntimeHooks",
         "Engine",
+        "EngineAllocator",
+        "EngineFactory",
+        "EngineTranslation",
         "EngineJax",
         "EngineNative",
         "EngineNumpy",
@@ -79,10 +84,12 @@ else:
         "Accelerator",
         "AcceleratorNone",
         "Allocator",
-        "AllocatorCarried",
         "AllocatorGeneratedHooks",
         "AllocatorRuntimeHooks",
         "Engine",
+        "EngineAllocator",
+        "EngineFactory",
+        "EngineTranslation",
         "EngineNative",
         "EngineNumpy",
     )

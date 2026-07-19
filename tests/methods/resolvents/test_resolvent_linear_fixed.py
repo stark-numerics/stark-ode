@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from stark.core.block import Block, BlockLinearFixed
-from stark.methods.resolvents.specialization.stencil import ResolventStencilBlock
+from stark.methods.resolvents.linear_fixed_generation.stencil import ResolventStencilBlock
 from tests.support import DummyScalarTranslation
 
 

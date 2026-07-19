@@ -48,16 +48,16 @@ is not naturally a vector, STARK is designed specifically for that use case.
 
 ## Installation
 
-Until the beta release is published on PyPI:
-
-```bash
-python -m pip install git+https://github.com/stark-numerics/stark-ode.git
-```
-
-Once a beta is published on PyPI:
+For the beta release from PyPI:
 
 ```bash
 python -m pip install --pre stark-ode
+```
+
+To install the current development version from GitHub:
+
+```bash
+python -m pip install git+https://github.com/stark-numerics/stark-ode.git
 ```
 
 For development:

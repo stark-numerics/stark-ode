@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Generic, Protocol, TypeVar
 
 from stark.core.block.block import Block
-from stark.core.contracts.translation import TranslationType
+from stark.core.contracts.problem.translation import TranslationType
 
 
 StencilType = TypeVar("StencilType", contravariant=True)
@@ -13,7 +13,7 @@ ItemKernel = Callable[..., object]
 BlockKernel = Callable[..., Block[TranslationType]]
 
 
-class BlockItemLinearFixed(Protocol[StencilType]):
+class BlockItemLinearFixedLike(Protocol[StencilType]):
     """Callable source of entry-level fixed-linear kernels."""
 
     def __call__(self, request: StencilType) -> ItemKernel:
@@ -24,7 +24,7 @@ class BlockItemLinearFixed(Protocol[StencilType]):
 class BlockLinearFixed(Generic[StencilType, TranslationType]):
     """Lift an entry-level fixed-linear provider over Block entries."""
 
-    linear_fixed: BlockItemLinearFixed[StencilType]
+    linear_fixed: BlockItemLinearFixedLike[StencilType]
 
     def __call__(self, stencil: StencilType) -> BlockKernel[TranslationType]:
         item_kernel = self.linear_fixed(stencil)
@@ -73,4 +73,4 @@ class BlockLinearFixed(Generic[StencilType, TranslationType]):
         return delta_kernel
 
 
-__all__ = ["BlockItemLinearFixed", "BlockKernel", "BlockLinearFixed"]
+__all__ = ["BlockItemLinearFixedLike", "BlockKernel", "BlockLinearFixed"]

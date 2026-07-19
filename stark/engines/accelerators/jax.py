@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, cast, overload
 
-from stark.core.contracts.accelerator import AcceleratorTarget
+from stark.core.contracts.engines.accelerator import AcceleratorTarget
 
 
 @dataclass(slots=True)

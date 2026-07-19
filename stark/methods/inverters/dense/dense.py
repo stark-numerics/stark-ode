@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Generic, cast
 
 from stark.core.block import BlockBasis
-from stark.core.block.materialize import BlockOperatorDiagonalMaterialize
+from stark.core.block.materialize import BlockOperatorMaterialize
 from stark.core.contracts import (
     Accelerator,
     BlockLike,
@@ -14,7 +14,7 @@ from stark.core.contracts import (
     InverterRequest,
     TranslationType,
 )
-from stark.core.contracts.translation_basis import TranslationBasisLike
+from stark.core.contracts.engines.translation_basis import TranslationBasisLike
 from stark.methods.inverters.nucleus import InverterNucleus, InverterNucleusFactor
 from stark.methods.inverters.support import (
     InverterDescriptor,
@@ -26,7 +26,7 @@ from stark.methods.inverters.support import (
 
 @dataclass(slots=True)
 class InverterDenseInstance(Generic[TranslationType]):
-    """Operator-bound dense solve action with cached compact block matrices."""
+    """Block-operator-bound dense solve action with cached compact block matrices."""
 
     inverter: InverterDense[TranslationType]
     matrices: list[list[float]]
@@ -74,7 +74,7 @@ class InverterDenseInstance(Generic[TranslationType]):
 
 @dataclass(slots=True)
 class InverterDenseInstanceSingle(Generic[TranslationType]):
-    """Operator-bound dense solve action for a single cached block matrix."""
+    """Block-operator-bound dense solve action for a single cached block matrix."""
 
     inverter: InverterDense[TranslationType]
     basis: TranslationBasisLike[TranslationType]
@@ -143,7 +143,7 @@ class InverterDense(Generic[TranslationType]):
     basis: BlockBasis[TranslationType]
     accelerator: Accelerator | None = None
     monitor: MonitorInverterLike | None = None
-    materializer: BlockOperatorDiagonalMaterialize[TranslationType] | None = field(init=False, default=None)
+    materializer: BlockOperatorMaterialize[TranslationType] | None = field(init=False, default=None)
     matrices: list[list[float]] = field(init=False, default_factory=list, repr=False)
     images: list[list[float]] = field(init=False, default_factory=list, repr=False)
     results: list[list[float]] = field(init=False, default_factory=list, repr=False)
@@ -187,9 +187,9 @@ class InverterDense(Generic[TranslationType]):
             self.results.append([0.0 for _index in range(dimension)])
             self.nuclei.append(self.make_nucleus(dimension))
 
-        self.materializer = BlockOperatorDiagonalMaterialize(
+        self.materializer = BlockOperatorMaterialize(
             operator=operator,
-            bases=self.basis.bases,
+            basis=self.basis,
             source=source,
             image=image,
             refresh_initial=False,
@@ -292,7 +292,7 @@ class InverterDense(Generic[TranslationType]):
             matrix = [0.0 for _index in range(dimension * dimension)]
             dense_fill = getattr(operator[block_index], "dense_fill", None)
             if not callable(dense_fill):
-                raise TypeError("Operator-bound dense inverter instances require dense_fill entries.")
+                raise TypeError("Block-operator-bound dense inverter instances require dense_fill entries.")
             dense_fill(basis, matrix, 0, 0, dimension)
             matrices.append(matrix)
             images.append([0.0 for _index in range(dimension)])

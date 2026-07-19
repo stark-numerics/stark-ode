@@ -5,6 +5,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal, Protocol, overload
 
+from stark.engines.generator.policy import GeneratorPolicyLike
+
 
 class GeneratorRequestLike(Protocol):
     """Minimal request contract used by Generator dispatch."""
@@ -137,6 +139,10 @@ class GeneratorRequestInnerProduct:
 
 class GeneratorLike(Protocol):
     """Callable request dispatcher for generated engine hooks."""
+
+    @property
+    def policy(self) -> GeneratorPolicyLike:
+        ...
 
     @overload
     def __call__(

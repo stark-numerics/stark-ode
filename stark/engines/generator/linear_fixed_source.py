@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from itertools import product
 from typing import Any, Literal
 
-from stark.core.contracts.frame import FrameLike
+from stark.core.contracts.problem.field import FieldLike, FieldPolicyLike
+from stark.core.contracts.problem.frame import FrameLike
 from stark.engines.generator.elementwise import GeneratorElementwiseSource
 from stark.engines.generator.expression import GeneratorExpression
 from stark.engines.generator.policy import GeneratorPolicy, GeneratorPolicyLike
@@ -13,7 +14,7 @@ from stark.engines.generator.request import GeneratorRequestLinearFixedLike
 LinearKernelKind = Literal["general", "delta", "update"]
 LinearFixedKernelKind = Literal["delta", "update"]
 LoopGroupKey = tuple[int, tuple[int, ...]]
-LoopGroupItem = tuple[Any, object]
+LoopGroupItem = tuple[FieldLike[Any, Any], FieldPolicyLike]
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,33 +213,39 @@ class GeneratorLinearFixedSource:
         return self.policy.traversal == "elementwise" or self.policy.expression == "elementwise"
 
     @staticmethod
-    def policy_kind(policy: object) -> str | None:
-        return getattr(policy, "kind", None)
+    def policy_kind(policy: FieldPolicyLike) -> str:
+        return policy.kind
 
-    def can_group_looped_field(self, field: Any, policy: object) -> bool:
+    def can_group_looped_field(
+        self,
+        field: FieldLike[Any, Any],
+        policy: FieldPolicyLike,
+    ) -> bool:
         del field
         return (
-            self.policy_kind(policy) == "looped"
+            policy.kind == "looped"
             and not self.uses_vectorized_arrays()
         )
 
-    def loop_group_key(self, field: Any, policy: object) -> LoopGroupKey:
+    def loop_group_key(
+        self,
+        field: FieldLike[Any, Any],
+        policy: FieldPolicyLike,
+    ) -> LoopGroupKey:
         shape = self.field_shape(field, policy)
-        rank = getattr(policy, "rank", None)
-        if rank is None:
-            rank = len(shape)
-        return int(rank), shape
+        return len(shape), shape
 
     @staticmethod
-    def field_shape(field: Any, policy: object) -> tuple[int, ...]:
-        shape = getattr(policy, "shape", None)
-        if shape is None:
-            shape = getattr(field, "shape", None)
+    def field_shape(
+        field: FieldLike[Any, Any],
+        policy: FieldPolicyLike,
+    ) -> tuple[int, ...]:
+        shape = field.shape
         if shape is None:
             raise ValueError(
                 "Generated linear-fixed source needs a concrete shape for "
                 f"field {field.state_name!r} with policy "
-                f"{getattr(policy, 'kind', None)!r}."
+                f"{policy.kind!r}."
             )
         return tuple(shape)
 
@@ -498,7 +505,7 @@ class GeneratorLinearFixedSource:
         self,
         *,
         field: Any,
-        policy: object,
+        policy: FieldPolicyLike,
         target: str,
         origin: str,
         sources: tuple[str, ...],
@@ -521,9 +528,7 @@ class GeneratorLinearFixedSource:
                 return [f"    {target} = {expression}"]
             return [f"    {target}[...] = {expression}"]
 
-        rank = getattr(policy, "rank", None)
-        if rank is None:
-            rank = len(shape)
+        rank = len(shape)
         index_names = tuple(f"i{index}" for index in range(rank))
         lines: list[str] = []
         for depth, index_name in enumerate(index_names):
@@ -592,7 +597,7 @@ class GeneratorLinearFixedSource:
         self,
         *,
         field: Any,
-        policy: object,
+        policy: FieldPolicyLike,
         target: str,
         origin: str,
         sources: tuple[str, ...],
@@ -601,15 +606,7 @@ class GeneratorLinearFixedSource:
         inline_fixed_coefficients: bool,
         kind: LinearKernelKind,
     ) -> list[str]:
-        shape = getattr(policy, "shape", None)
-        if shape is None:
-            shape = getattr(field, "shape", None)
-        if shape is None:
-            raise ValueError(
-                "Generated linear-fixed source needs a concrete shape for "
-                f"field {field.state_name!r} with policy "
-                f"{getattr(policy, 'kind', None)!r}."
-            )
+        shape = self.field_shape(field, policy)
         lines: list[str] = []
         for index_tuple in product(*(range(dimension) for dimension in shape)):
             index = self.index_expression(tuple(str(index) for index in index_tuple))

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from stark.core.contracts.frame import FrameLike
+from stark.core.contracts.problem.frame import FrameLike
 from stark.engines.generator.expression import GeneratorExpression
 
 ElementwiseKernelKind = Literal["general", "delta", "update", "apply_translation"]
@@ -228,14 +228,12 @@ class GeneratorElementwiseSource:
     @staticmethod
     def require_looped_shape(field: Any) -> tuple[int, ...]:
         policy = field.policy
-        shape = getattr(policy, "shape", None)
-        if shape is None:
-            shape = getattr(field, "shape", None)
-        if getattr(policy, "kind", None) != "looped" or shape is None:
+        shape = field.shape
+        if policy.kind != "looped" or shape is None:
             raise ValueError(
                 "Elementwise generated algebra requires shaped looped frame "
                 f"fields; got field {field.state_name!r} with "
-                f"policy.kind={getattr(policy, 'kind', None)!r}."
+                f"policy.kind={policy.kind!r}."
             )
         return tuple(shape)
 

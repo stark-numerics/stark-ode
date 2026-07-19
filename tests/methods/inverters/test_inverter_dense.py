@@ -10,7 +10,7 @@ from stark.core.contracts import (
     BlockOperatorDiagonalLike,
     BlockOperatorEntryLike,
 )
-from stark.core.contracts.inverter import InverterRequest
+from stark.core.contracts.methods.inverter import InverterRequest
 from stark.methods.inverters.dense import InverterDense, InverterDenseInstanceSingle
 from tests.support import (
     DummyVectorBasis,

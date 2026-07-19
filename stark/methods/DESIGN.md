@@ -34,7 +34,9 @@ intended to mean the same thing wherever they appear:
 ```text
 method          high-level family assembly or user-facing selection helpers
 requests        small problem/request objects passed into hot workers
-specialization  prepared algebra or backend-specific fast paths
+linear_fixed_generation
+                scheme stencils and protocols for generated fixed-linear paths
+specialization  resolvent prepared algebra or backend-specific fast paths
 monitoring      optional observation wrappers, never core algorithm bodies
 display         names, labels, and report formatting helpers
 execution       scheme execution helpers that are not themselves schemes

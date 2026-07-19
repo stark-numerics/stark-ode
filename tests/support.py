@@ -23,12 +23,12 @@ import numpy as np
 from stark.core.contracts import BlockLike
 from stark.core.contracts import IntervalLike
 from stark.core.contracts import LinearCombine
-from stark.core.contracts import Operator
-from stark.methods.schemes.specialization.linear_fixed import (
-    SchemeLinearFixedKernelApply,
-    SchemeLinearFixedKernelDelta,
+from stark.core.contracts import TranslationOperator
+from stark.methods.schemes.linear_fixed_generation.linear_fixed import (
+    SchemeLinearFixedKernelApplyLike,
+    SchemeLinearFixedKernelDeltaLike,
 )
-from stark.methods.schemes.specialization.stencil import SchemeStencil
+from stark.methods.schemes.linear_fixed_generation.stencil import SchemeStencil
 from stark.problem import Dynamics, DynamicsStyle
 
 
@@ -245,7 +245,7 @@ class DummyScalarLinearizer:
         self,
         interval: IntervalLike,
         state: DummyScalarState,
-        out: Operator[DummyScalarTranslation],
+        out: TranslationOperator[DummyScalarTranslation],
     ) -> None:
         del interval
         del state
@@ -380,7 +380,7 @@ class DummyArrayLinearFixed:
     def provide_delta(
         self,
         stencil: SchemeStencil,
-    ) -> SchemeLinearFixedKernelDelta[DummyArrayTranslation]:
+    ) -> SchemeLinearFixedKernelDeltaLike[DummyArrayTranslation]:
         coefficients = tuple(stencil.coefficients)
         stencil_scale = stencil.scale
 
@@ -403,7 +403,7 @@ class DummyArrayLinearFixed:
     def provide_apply(
         self,
         stencil: SchemeStencil,
-    ) -> SchemeLinearFixedKernelApply[DummyArrayState, DummyArrayTranslation]:
+    ) -> SchemeLinearFixedKernelApplyLike[DummyArrayState, DummyArrayTranslation]:
         """Return the apply-form kernel for a tableau stencil."""
 
         coefficients = tuple(stencil.coefficients)
@@ -778,7 +778,7 @@ class DummyTableauLinearFixed:
     def provide_delta(
         self,
         stencil: SchemeStencil,
-    ) -> SchemeLinearFixedKernelDelta[DummyScalarTranslation]:
+    ) -> SchemeLinearFixedKernelDeltaLike[DummyScalarTranslation]:
         coefficients = tuple(stencil.coefficients)
         fixed_scale = stencil.scale
 
@@ -801,7 +801,7 @@ class DummyTableauLinearFixed:
     def provide_apply(
         self,
         stencil: SchemeStencil,
-    ) -> SchemeLinearFixedKernelApply[DummyScalarState, DummyScalarTranslation]:
+    ) -> SchemeLinearFixedKernelApplyLike[DummyScalarState, DummyScalarTranslation]:
         """Return the apply-form kernel for a tableau stencil."""
 
         coefficients = tuple(stencil.coefficients)

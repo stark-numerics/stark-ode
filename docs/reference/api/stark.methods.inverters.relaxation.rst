@@ -12,18 +12,18 @@ stark.methods.inverters.relaxation.jacobi module
    :show-inheritance:
    :undoc-members:
 
-stark.methods.inverters.relaxation.richardson module
-----------------------------------------------------
+stark.methods.inverters.relaxation.linear\_fixed module
+-------------------------------------------------------
 
-.. automodule:: stark.methods.inverters.relaxation.richardson
+.. automodule:: stark.methods.inverters.relaxation.linear_fixed
    :members:
    :show-inheritance:
    :undoc-members:
 
-stark.methods.inverters.relaxation.linear_fixed module
+stark.methods.inverters.relaxation.richardson module
 ----------------------------------------------------
 
-.. automodule:: stark.methods.inverters.relaxation.linear_fixed
+.. automodule:: stark.methods.inverters.relaxation.richardson
    :members:
    :show-inheritance:
    :undoc-members:

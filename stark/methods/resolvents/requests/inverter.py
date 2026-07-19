@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Generic
 
-from stark.core.contracts.block import BlockLike, BlockOperatorLike
-from stark.core.contracts.translation import TranslationType
+from stark.core.contracts.methods.block import BlockLike, BlockOperatorLike
+from stark.core.contracts.problem.translation import TranslationType
 
 
 @dataclass(slots=True)

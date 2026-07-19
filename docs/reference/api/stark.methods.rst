@@ -22,6 +22,14 @@ stark.methods.catalogue module
    :show-inheritance:
    :undoc-members:
 
+stark.methods.linear\_combine module
+------------------------------------
+
+.. automodule:: stark.methods.linear_combine
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 stark.methods.method module
 ---------------------------
 

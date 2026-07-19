@@ -21,7 +21,7 @@ J(t, y) v = Df(t, y)[v]
 
 The linearizer supplies that action.
 
-## Operator Action and Dense Fill
+## TranslationOperator Action and Dense Fill
 
 A linearizer may support:
 

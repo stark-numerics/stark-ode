@@ -9,9 +9,9 @@ stark-ode and later stark-pde generators to share the same conceptual surface.
 
 ## Goal
 
-`Generator` receives a `FrameLike`, an accelerator, and a `GeneratorPolicyLike`.
-Its call surface receives a duck-typed `GeneratorRequestLike` and dispatches on
-`request.operation`.
+`Generator` receives a `FrameLike`, an accelerator, and optionally a
+`GeneratorPolicyLike`. Its call surface receives a duck-typed
+`GeneratorRequestLike` and dispatches on `request.operation`.
 
 Unknown operations are programmer errors:
 
@@ -55,8 +55,17 @@ without making stark-ode know about PDE-specific concepts.
 ## Policy
 
 `GeneratorPolicy` is a plain dataclass. It should stay explicit: callers set
-the traversal, mutation, expression, and scalar choices directly instead of
-selecting from convenience constructors.
+the active flag, traversal, mutation, expression, and scalar choices directly
+instead of selecting from convenience constructors. `Generator` owns a boring
+inactive default policy; concrete STARK engine factories opt in with
+`active=True` when they are prepared to use generator-backed specialization.
+That default can be reset with `Generator.reset_default_policy(...)`.
+
+`active` is not a runtime/codegen mode. Runtime-safe fallbacks live in the
+allocator package. `active` only says whether higher-level construction paths
+should automatically pass this generator on to schemes, resolvents, inverters,
+or downstream assemblers. A generator can still be called directly when the
+flag is false.
 
 The policy does not own:
 
@@ -65,7 +74,7 @@ frame
 carriers
 allocator
 accelerator
-translation factory
+engine translation
 ```
 
 Those remain engine resources.
@@ -112,14 +121,13 @@ The current package is intentionally independent and incomplete:
 Concrete engines now install allocator `apply_translation`, `norm`, and
 `inner_product` hooks through Generator requests. NumPy, Native, JAX, and CuPy
 also install `linear_combine` through Generator. Engines no longer expose an
-`algebraist` bundle; the old implementation package has moved to
-`stark.engines._algebraist` while remaining dependencies are audited.
+`algebraist` bundle.
 
-## Remaining Algebraist Capabilities
+## Former Algebraist Capabilities
 
-Migration readiness should be judged by capabilities, not imports. The private
-`_algebraist` package should survive only while Generator or allocator hooks
-still need one of its implementation details:
+Migration readiness is judged by capabilities, not imports. The old algebra
+generation bundle is gone from the engine surface; these responsibilities now
+belong to Generator or allocator hooks:
 
 ```text
 linear_combine       Generator emits in-place, functional/vectorized, and
@@ -130,7 +138,7 @@ linear_combine       Generator emits in-place, functional/vectorized, and
 linear_fixed         Generator handles request-based delta/apply kernels,
                      including backend-specific elementwise and functional
                      variants, and the apply_translation hook used by
-                     translation factories.
+                     engine translations.
 
 apply_translation    Generator owns allocator.apply_translation through a
                      standalone request. This is intentionally separate from

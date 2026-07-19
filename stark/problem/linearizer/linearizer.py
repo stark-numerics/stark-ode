@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from inspect import Parameter, signature as inspect_signature
 from typing import Any
 
-from stark.core.contracts.accelerator import Accelerator
+from stark.core.contracts.engines.accelerator import Accelerator
 from stark.problem.linearizer.implementation import LinearizerImplementation
 from stark.problem.linearizer.signature import LinearizerSignature, LinearizerStyle
 

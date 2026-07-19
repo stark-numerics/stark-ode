@@ -4,12 +4,12 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Generic, Protocol, cast
 
-from stark.core.contracts.translation import TranslationType, TranslationTypeCovariant
+from stark.core.contracts.problem.translation import TranslationType, TranslationTypeCovariant
 
 AllocatorRuntimeKernel = Callable[..., TranslationType]
 
 
-class AllocatorRuntimeLinearCombineAllocator(Protocol[TranslationTypeCovariant]):
+class LinearCombineScratchAllocatorLike(Protocol[TranslationTypeCovariant]):
     """Allocator shape needed to synthesize missing runtime combine kernels."""
 
     def allocate_translation(self) -> TranslationTypeCovariant:
@@ -71,7 +71,7 @@ class AllocatorRuntimeLinearCombineSynthesizer(Generic[TranslationType]):
 class AllocatorRuntimeLinearCombine(Generic[TranslationType]):
     """Resolve direct, synthesized, or fallback runtime combine kernels."""
 
-    allocator: AllocatorRuntimeLinearCombineAllocator[TranslationType] | None = None
+    allocator: LinearCombineScratchAllocatorLike[TranslationType] | None = None
     linear_combine: Sequence[Callable[..., TranslationType]] = ()
 
     def table(self, max_arity: int) -> tuple[AllocatorRuntimeKernel[TranslationType], ...]:
@@ -156,7 +156,7 @@ class AllocatorRuntimeLinearCombine(Generic[TranslationType]):
 __all__ = [
     "AllocatorRuntimeKernel",
     "AllocatorRuntimeLinearCombine",
-    "AllocatorRuntimeLinearCombineAllocator",
+    "LinearCombineScratchAllocatorLike",
     "AllocatorRuntimeLinearCombineFallback",
     "AllocatorRuntimeLinearCombineSynthesizer",
 ]

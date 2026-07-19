@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from math import sqrt
 from typing import ClassVar, Generic, cast
 
-from stark.core.block import Block, BlockAllocationAllocator, BlockAllocator
+from stark.core.block import Block, BlockAllocator, BlockTranslationAllocatorLike
 from stark.core.contracts import (
     Accelerator,
     AllocatorLike,
@@ -39,7 +39,7 @@ from stark.methods.linear_combine import require_linear_combine_kernels
 
 @dataclass(slots=True)
 class InverterKrylovArnoldiInstance(Generic[TranslationType]):
-    """Operator-bound Arnoldi solve action."""
+    """Block-operator-bound Arnoldi solve action."""
 
     inverter: InverterKrylovArnoldi[TranslationType]
     operator: BlockOperatorLike[TranslationType]
@@ -121,7 +121,7 @@ class InverterKrylovArnoldi(Generic[TranslationType]):
         self.tolerance = configuration.inverter_tolerance
         self.maximum_steps = configuration.inverter_maximum_steps
         block_allocation_allocator = cast(
-            BlockAllocationAllocator[TranslationType],
+            BlockTranslationAllocatorLike[TranslationType],
             self.allocator,
         )
         self.block_allocator = BlockAllocator(block_allocation_allocator)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stark-ode"
-version = "0.1.0b1"
+version = "0.1.0b2"
 description = "State Translation Adaptive Runge Kutta"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -36,6 +36,7 @@ dev = [
     "pyright>=1.1",
     "pytest>=8.0",
     "scipy>=1.13",
+    "twine>=5",
     "wheel>=0.43",
 ]
 accelerators = [

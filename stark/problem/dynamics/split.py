@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stark.core.contracts.dynamics import DynamicsLike
+from stark.core.contracts.problem.dynamics import DynamicsLike
 
 
 @dataclass(frozen=True, slots=True)

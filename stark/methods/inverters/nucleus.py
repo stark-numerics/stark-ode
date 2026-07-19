@@ -43,7 +43,7 @@ def _call_nxn_kernel(
 
     This is a one-shot solve: it copies the supplied matrix into ``work``,
     factors it, applies the same row operations to ``rhs``, then back
-    substitutes.  Operator-bound dense inverter instances use
+    substitutes.  Block-operator-bound dense inverter instances use
     ``InverterNucleusFactor`` instead, so chord/very-chord paths factor once
     and solve many right-hand sides.
     """

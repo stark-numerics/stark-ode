@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from numbers import Number
 from typing import Any, ClassVar, cast
 
-from stark.core.contracts.inner_product import InnerProductNamed
+from stark.core.contracts.problem.inner_product import InnerProductNamed
 
 
 def translation_field_pairs(left: Any, right: Any) -> Iterable[tuple[Any, Any]]:

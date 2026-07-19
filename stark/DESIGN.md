@@ -34,7 +34,7 @@ stark.problem
 
 ## Review Notes
 
-`Auditor`, `AuditError`, `Integrator`, `IntegratorConfiguration`, and
+`Auditor`, `AuditError`, `Integrator`, `IntegratorConfigurationLike`, and
 `IntegratorStepper` are intentionally hidden under `stark.core`. They are
 available for advanced users, but they are not first-contact problem-declaration
 objects.

@@ -12,9 +12,9 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
-from stark.core.contracts.field import FieldLike
-from stark.core.contracts.inner_product import InnerProductNamed
-from stark.core.contracts.norm import NormLike
+from stark.core.contracts.problem.field import FieldLike
+from stark.core.contracts.problem.inner_product import InnerProductNamed
+from stark.core.contracts.problem.norm import NormLike
 from stark.problem.frame.field import Field
 from stark.problem.frame.inner_product import InnerProductL2
 from stark.problem.frame.norm import NormRMS

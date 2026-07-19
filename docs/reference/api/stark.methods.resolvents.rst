@@ -10,12 +10,12 @@ Subpackages
    stark.methods.resolvents.display
    stark.methods.resolvents.equations
    stark.methods.resolvents.fixed_point
+   stark.methods.resolvents.linear_fixed_generation
    stark.methods.resolvents.linearized
    stark.methods.resolvents.method
    stark.methods.resolvents.monitoring
    stark.methods.resolvents.requests
    stark.methods.resolvents.secant
-   stark.methods.resolvents.specialization
 
 Submodules
 ----------

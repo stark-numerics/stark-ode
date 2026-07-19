@@ -22,7 +22,7 @@ from stark.core.contracts import (
     SchemeLike,
     State,
 )
-from stark.core.contracts.engine import Engine
+from stark.core.contracts.engines.engine import EngineLike
 from stark.core.configuration import Configuration
 from stark.core.block import BlockBasis
 from stark.core.integrator.integrator import Checkpoints, Integrator
@@ -35,7 +35,7 @@ from stark.problem.linearizer.signature import LinearizerSignature
 from stark.methods.method import Method, MethodError
 
 
-EngineFactory = Callable[[FrameLike], Engine]
+EngineFactory = Callable[[FrameLike], EngineLike]
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,7 +78,7 @@ class SystemIVP:
 
     system: System
     method: Method
-    engine: Engine
+    engine: EngineLike
     initial: State
     interval: IntervalLike
     scheme: object
@@ -251,7 +251,7 @@ class System:
             configuration=configuration,
         )
 
-    def prepare_initial(self, initial: object, engine: Engine) -> object:
+    def prepare_initial(self, initial: object, engine: EngineLike) -> object:
         state = engine.allocator.allocate_state()
         for field, carrier in zip(engine.frame.fields, engine.carriers, strict=True):
             value = self.initial_value(initial, field.state_path)
@@ -280,7 +280,7 @@ class System:
     def prepare_scheme(
         self,
         method: Method,
-        engine: Engine,
+        engine: EngineLike,
         dynamics: object,
         configuration: Configuration,
     ) -> SchemeLike:
@@ -318,6 +318,8 @@ class System:
                 options=method.resolvent_options,
             )
 
+        linear_fixed = engine.generator if engine.generator.policy.active else None
+
         return cast(
             SchemeLike,
             self.construct_component(
@@ -327,14 +329,14 @@ class System:
                     "dynamics": dynamics,
                     "allocator": engine.allocator,
                     "configuration": configuration,
-                    "linear_fixed": engine.generator,
+                    "linear_fixed": linear_fixed,
                     "resolvent": resolvent,
                 },
                 options=method.scheme_options,
             ),
         )
 
-    def prepare_linearizer(self, engine: Engine) -> LinearizerImplementation | None:
+    def prepare_linearizer(self, engine: EngineLike) -> LinearizerImplementation | None:
         linearizer = self.linearizer
         if linearizer is None:
             return None
@@ -346,7 +348,7 @@ class System:
             return Linearizer(linearizer).accelerate(engine.accelerator)
         raise TypeError("System linearizer must be callable or a linearizer signature.")
 
-    def prepare_dynamics(self, engine: Engine) -> DynamicsLike | DynamicsSplitLike:
+    def prepare_dynamics(self, engine: EngineLike) -> DynamicsLike | DynamicsSplitLike:
         dynamics = self.dynamics
         if isinstance(dynamics, DynamicsSplitLike):
             return DynamicsSplit(
@@ -355,7 +357,7 @@ class System:
             )
         return self.prepare_dynamics_part(dynamics, engine)
 
-    def prepare_dynamics_part(self, dynamics: object, engine: Engine) -> DynamicsLike:
+    def prepare_dynamics_part(self, dynamics: object, engine: EngineLike) -> DynamicsLike:
         if isinstance(dynamics, Dynamics):
             return cast(DynamicsLike, dynamics.accelerate(engine.accelerator))
         if isinstance(dynamics, DynamicsSignature):

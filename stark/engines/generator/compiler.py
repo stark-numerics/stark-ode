@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, cast
 
-from stark.core.contracts.accelerator import Accelerator
+from stark.core.contracts.engines.accelerator import Accelerator
 from stark.engines.accelerators.none import AcceleratorNone
 
 COMPILED_KERNELS: dict[tuple[Any, ...], Callable[..., object]] = {}
@@ -14,9 +14,9 @@ def accelerator_key(accelerator: Accelerator) -> tuple[Any, ...]:
     return (
         type(accelerator).__module__,
         type(accelerator).__qualname__,
-        getattr(accelerator, "name", None),
+        accelerator.name,
         getattr(accelerator, "cache", None),
-        getattr(accelerator, "strict", None),
+        accelerator.strict,
         tuple(
             (name, repr(value))
             for name, value in sorted(getattr(accelerator, "options", {}).items())

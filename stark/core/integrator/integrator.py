@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 
-from stark.core.integrator.configuration import IntegratorConfiguration, IntegratorConfigurationDefault
 from stark.core.auditor import Auditor
 from stark.core.contracts import IntervalLike, IntegratorStepperLike, State
+from stark.core.integrator.configuration import (
+    IntegratorConfigurationDefault,
+    IntegratorConfigurationLike,
+)
 
 
 Checkpoints = int | Iterable[float]
@@ -44,7 +47,7 @@ class Integrator:
 
     def __init__(
         self,
-        configuration: IntegratorConfiguration | None = None,
+        configuration: IntegratorConfigurationLike | None = None,
     ) -> None:
         self.configuration = configuration if configuration is not None else IntegratorConfigurationDefault()
         self.redirect_stable_trajectory = (
@@ -284,7 +287,6 @@ class Integrator:
             yield copy_interval(), snapshot_state(state)
 
 __all__ = ["Checkpoints", "Integrator"]
-
 
 
 

@@ -16,7 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol, overload, runtime_checkable
 
-from stark.core.contracts.dynamics import DynamicsLike
+from stark.core.contracts.problem.dynamics import DynamicsLike
 from stark.problem.dynamics.implementation import (
     DynamicsAdapterAcceptsInstantWrites,
     DynamicsAdapterAcceptsIntervalWrites,

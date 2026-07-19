@@ -5,14 +5,14 @@ re-exports the most common protocol names for examples and interactive use.
 Prefer focused submodule imports in implementation code.
 """
 
-from stark.core.contracts.accelerator import Accelerator
-from stark.core.contracts.block import (
+from stark.core.contracts.engines.accelerator import Accelerator
+from stark.core.contracts.methods.block import (
     BlockLike,
     BlockOperatorDiagonalLike,
     BlockOperatorEntryLike,
     BlockOperatorLike,
 )
-from stark.core.contracts.carrier import (
+from stark.core.contracts.engines.carrier import (
     CarrierLike,
     CarrierAllocationLike,
     CarrierArithmeticLike,
@@ -20,30 +20,30 @@ from stark.core.contracts.carrier import (
     CarrierStorageLike,
     CarrierValidationLike,
 )
-from stark.core.contracts.dynamics import DynamicsAudit, DynamicsLike
-from stark.core.contracts.dynamics_split import DynamicsSplitAudit, DynamicsSplitLike
-from stark.core.contracts.errors import StarkError, StarkErrorRecoverable
-from stark.core.contracts.engine import Engine
-from stark.core.contracts.field import (
+from stark.core.contracts.problem.dynamics import DynamicsAudit, DynamicsLike
+from stark.core.contracts.problem.dynamics_split import DynamicsSplitAudit, DynamicsSplitLike
+from stark.core.contracts.shared.errors import StarkError, StarkErrorRecoverable
+from stark.core.contracts.engines.engine import EngineLike
+from stark.core.contracts.problem.field import (
     FieldLike,
     FieldPath,
     FieldPathLike,
     FieldPolicyLike,
     FieldPolicyType,
 )
-from stark.core.contracts.frame import FrameLike
-from stark.core.contracts.inner_product import InnerProduct, InnerProductNamed
-from stark.core.contracts.integrator import IntegratorLike
-from stark.core.contracts.interval import IntervalLike
-from stark.core.contracts.norm import NormLike
-from stark.core.contracts.inverter import (
+from stark.core.contracts.problem.frame import FrameLike
+from stark.core.contracts.problem.inner_product import InnerProduct, InnerProductNamed
+from stark.core.contracts.methods.integrator import IntegratorLike
+from stark.core.contracts.shared.interval import IntervalLike
+from stark.core.contracts.problem.norm import NormLike
+from stark.core.contracts.methods.inverter import (
     Inverter,
     InverterInstance,
     InverterInstancing,
     InverterOutputMode,
     InverterRequest,
 )
-from stark.core.contracts.linear_combine import (
+from stark.core.contracts.engines.linear_combine import (
     LinearCombine,
     LinearCombineArity2Like,
     LinearCombineArity3Like,
@@ -59,22 +59,22 @@ from stark.core.contracts.linear_combine import (
     LinearCombineScaleLike,
     LinearCombineSupporting,
 )
-from stark.core.contracts.linearizer import LinearizerLike, LinearizerAudit
-from stark.core.contracts.stepper import IntegratorStepperAudit, IntegratorStepperLike
-from stark.core.contracts.operator import Operator, OperatorType
-from stark.core.contracts.residual import LinearResidual, Residual, ResidualAudit
-from stark.core.contracts.resolvent import Resolvent, ResolventAudit
-from stark.core.contracts.scheme import Scheme, SchemeAudit, SchemeLike
-from stark.core.contracts.scheme_predictor import SchemePredictorLike
-from stark.core.contracts.state import (
+from stark.core.contracts.problem.linearizer import LinearizerLike, LinearizerAudit
+from stark.core.contracts.methods.stepper import IntegratorStepperAudit, IntegratorStepperLike
+from stark.core.contracts.methods.translation_operator import TranslationOperator, TranslationOperatorType
+from stark.core.contracts.methods.residual import LinearResidual, Residual, ResidualAudit
+from stark.core.contracts.methods.resolvent import Resolvent, ResolventAudit
+from stark.core.contracts.methods.scheme import Scheme, SchemeAudit, SchemeLike
+from stark.core.contracts.methods.scheme_predictor import SchemePredictorLike
+from stark.core.contracts.problem.state import (
     State,
     StateType,
     StateTypeCovariant,
     StateTypeContravariant,
 )
-from stark.core.contracts.translation import TranslationAudit
-from stark.core.contracts.translation_basis import TranslationBasisLike
-from stark.core.contracts.translation import (
+from stark.core.contracts.problem.translation import TranslationAudit
+from stark.core.contracts.engines.translation_basis import TranslationBasisLike
+from stark.core.contracts.problem.translation import (
     Translation,
     TranslationFieldType,
     TranslationFieldTypeCovariant,
@@ -83,8 +83,7 @@ from stark.core.contracts.translation import (
     TranslationTypeCovariant,
     TranslationTypeContravariant,
 )
-from stark.core.contracts.translation_factory import TranslationFactoryLike
-from stark.core.contracts.allocator import AllocatorLike, AllocatorAudit
+from stark.core.contracts.engines.allocator import AllocatorLike, AllocatorAudit
 
 __all__ = [
     "Accelerator",
@@ -102,7 +101,7 @@ __all__ = [
     "DynamicsLike",
     "DynamicsSplitAudit",
     "DynamicsSplitLike",
-    "Engine",
+    "EngineLike",
     "FieldLike",
     "FieldPath",
     "FieldPathLike",
@@ -140,8 +139,8 @@ __all__ = [
     "NormLike",
     "IntegratorStepperAudit",
     "IntegratorStepperLike",
-    "Operator",
-    "OperatorType",
+    "TranslationOperator",
+    "TranslationOperatorType",
     "Residual",
     "ResidualAudit",
     "Resolvent",
@@ -163,7 +162,6 @@ __all__ = [
     "TranslationType",
     "TranslationTypeCovariant",
     "TranslationTypeContravariant",
-    "TranslationFactoryLike",
     "AllocatorLike",
     "AllocatorAudit",
 ]

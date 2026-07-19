@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from stark.core.contracts.scheme_predictor import SchemePredictorLike
+from stark.core.contracts.methods.scheme_predictor import SchemePredictorLike
 from stark.core.tolerance import Tolerance
 from stark.methods.schemes.predictor import SchemePredictorKnown
 

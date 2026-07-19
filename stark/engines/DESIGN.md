@@ -15,12 +15,12 @@ backend through a deep package tree.
 The intended shape is flat enough that backend ownership is visible:
 
 ```text
-engines/allocator.py
-engines/engine_*.py
-engines/translation_factory_*.py
+engines/allocator
+engines/engine.py
+engines/engine_allocator.py
+engines/engine_translation.py
 engines/translation_basis.py
 engines/accelerators
-engines/_algebraist
 engines/generator
 engines/carriers
 engines/carrier_numpy
@@ -31,15 +31,18 @@ engines/carrier_torch    future
 ```
 
 Backend-specific carriers, targets, and policies should live near the backend
-they serve. Cross-backend construction helpers such as the shared allocator and
-translation factories can live at `engines/` level when their role is visible
-and they are parameterised by backend-specific carriers. Shared abstractions
-belong in named packages such as `engines/generator`, `engines/accelerators`,
-or `engines/carriers`; avoid a vague extra `shared` layer. `_algebraist` is a
-private transition package, not a public engine surface.
+they serve. `engines/engine.py` owns the single concrete `Engine` dataclass and
+the `EngineFactory` presets such as `EngineNumpy`, `EngineNative`,
+`EngineCupy`, and `EngineJax`. Cross-backend construction helpers such as
+`EngineAllocator` and `EngineTranslation` live at `engines/` level because
+their ownership is engine wide and they are parameterised by backend-specific
+carriers. Shared abstractions belong in named packages such as
+`engines/generator`, `engines/accelerators`, or `engines/carriers`; avoid a
+vague extra `shared` layer.
 
-Backend identity should remain visible in the engine module and concrete
-carrier package.
+Backend identity should remain visible in the engine factory preset and
+concrete carrier package, not by duplicating one engine implementation per
+backend.
 
 ## Role
 
@@ -48,9 +51,10 @@ An engine owns:
 - state and translation carriers,
 - allocator configuration,
 - backend array type and dtype policy,
+- carrier first-binding from frame field shape and dtype,
+- engine-owned translations,
 - translation bases,
 - prepared Generator request surface,
-- generator policy describing source-shape decisions,
 - accelerator choice where relevant.
 
 ## Generated and Runtime Algebra
@@ -72,11 +76,42 @@ dependency-light CPU path and currently rejects multi-dimensional frame fields.
 
 CuPy stores shaped fields in GPU arrays. CuPy-specific expression choices, such
 as elementwise kernel generation and host scalar extraction, belong in the CuPy
-target/carrier path rather than in generic translation code.
+target/carrier path rather than in generic engine translation code.
 
 JAX stores shaped fields in immutable JAX arrays. Generated algebra should
 prefer functional return-style kernels; whole-solver JIT is a separate future
 boundary.
+
+`EngineTranslation` chooses return-style or into-style fallback arithmetic from
+carrier metadata during construction. Backend-specific translation classes
+should not be added unless carrier metadata cannot express a genuine backend
+semantic difference.
+
+Carrier classes own initial binding from frame shape and dtype through
+`from_shape`. Once a carrier exists, its `allocation` object owns repeated
+state/translation allocation. Engines should not know backend-specific zero
+template construction details.
+
+Every carrier class used by `EngineFactory` should expose `resolve_dtype` as
+well as `from_shape`. The shared engine asks the carrier to normalize its dtype
+argument before allocating field carriers; backend-specific dtype rules belong
+to the carrier family.
+
+Generator policy belongs to the generator. Backend factory presets may choose
+the policy they pass during construction, but a prepared engine should expose
+it as `engine.generator.policy`, not as a parallel `engine.generator_policy`
+attribute.
+
+`engine.generator.policy.active` is the opt-in signal for automatic generated
+specialization. STARK-owned engine factories set it to true. A user-defined
+engine can still carry a generator-shaped object for inspection or direct
+advanced use while leaving `active` false so system construction stays on
+conservative runtime paths.
+
+NumPy and Native default to `AcceleratorNumba`. Missing Numba should fail at
+accelerator construction with the accelerator's own error message. Use
+`AcceleratorNone` or an explicitly named unaccelerated engine preset when
+unaccelerated execution is desired.
 
 ## Hint Types
 

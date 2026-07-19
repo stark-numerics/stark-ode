@@ -17,7 +17,7 @@ from stark.engines.generator import (
     GeneratorRequestNorm,
 )
 from stark.engines.generator.linear_fixed_source import GeneratorLinearFixedSource
-from stark.methods.schemes.specialization import SchemeStencil
+from stark.methods.schemes.linear_fixed_generation import SchemeStencil
 from stark.problem.frame import Field, FieldPolicy, Frame
 from tests.support import DummyScalarAllocator, DummyScalarState, DummyScalarTranslation
 

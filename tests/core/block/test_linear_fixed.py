@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from stark.core.block import Block, BlockLinearFixed
-from stark.methods.schemes.specialization.stencil import SchemeStencil
+from stark.methods.schemes.linear_fixed_generation.stencil import SchemeStencil
 from tests.support import DummyScalarTranslation
 
 
@@ -13,7 +13,7 @@ def values(block: Block[DummyScalarTranslation]) -> tuple[float, ...]:
     return tuple(item.value for item in block)
 
 
-class DummyBlockItemLinearFixed:
+class DummyBlockItemLinearFixedLike:
     """Entry-kernel provider used to test block lifting.
 
     Block lifting works at translation-entry level, not scheme-state level, so
@@ -58,7 +58,7 @@ class DummyBlockItemLinearFixed:
 
 
 def test_block_linear_fixed_lifts_delta_kernel_entrywise() -> None:
-    linear_fixed = BlockLinearFixed(DummyBlockItemLinearFixed())
+    linear_fixed = BlockLinearFixed(DummyBlockItemLinearFixedLike())
     kernel = linear_fixed(SchemeStencil((2.0, -1.0)))
     out = block(0.0, 0.0)
 
@@ -69,7 +69,7 @@ def test_block_linear_fixed_lifts_delta_kernel_entrywise() -> None:
 
 
 def test_block_linear_fixed_lifts_apply_kernel_entrywise() -> None:
-    linear_fixed = BlockLinearFixed(DummyBlockItemLinearFixed())
+    linear_fixed = BlockLinearFixed(DummyBlockItemLinearFixedLike())
     kernel = linear_fixed(SchemeStencil((2.0, -1.0), apply=True))
     result = block(0.0, 0.0)
 

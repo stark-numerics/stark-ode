@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from math import sqrt
 from typing import Generic, Iterator, Self, TypeVar
 
-from stark.core.contracts.block import BlockLike
+from stark.core.contracts.methods.block import BlockLike
 
 BlockItemType = TypeVar("BlockItemType")
 """Type variable for values stored by the concrete block container."""

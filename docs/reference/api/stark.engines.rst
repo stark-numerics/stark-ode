@@ -4,125 +4,41 @@ stark.engines package
 Subpackages
 -----------
 
-stark.engines.accelerators package
-----------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: stark.engines.accelerators
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.carriers package
-------------------------------
-
-.. automodule:: stark.engines.carriers
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.generator package
--------------------------------
-
-.. automodule:: stark.engines.generator
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.allocator package
--------------------------------
-
-.. automodule:: stark.engines.allocator
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.carrier\_numpy package
-------------------------------------
-
-.. automodule:: stark.engines.carrier_numpy
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.carrier\_native package
--------------------------------------
-
-.. automodule:: stark.engines.carrier_native
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.carrier\_cupy package
------------------------------------
-
-.. automodule:: stark.engines.carrier_cupy
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.carrier\_jax package
-----------------------------------
-
-.. automodule:: stark.engines.carrier_jax
-   :members:
-   :show-inheritance:
-   :undoc-members:
+   stark.engines.accelerators
+   stark.engines.allocator
+   stark.engines.carrier_cupy
+   stark.engines.carrier_jax
+   stark.engines.carrier_native
+   stark.engines.carrier_numpy
+   stark.engines.carriers
+   stark.engines.generator
 
 Submodules
 ----------
 
-stark.engines.allocator.allocator module
+stark.engines.engine module
+---------------------------
+
+.. automodule:: stark.engines.engine
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+stark.engines.engine\_allocator module
+--------------------------------------
+
+.. automodule:: stark.engines.engine_allocator
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+stark.engines.engine\_translation module
 ----------------------------------------
 
-.. automodule:: stark.engines.allocator.allocator
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.allocator.allocator\_carried module
--------------------------------------------------
-
-.. automodule:: stark.engines.allocator.allocator_carried
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.allocator.linear\_combine module
-----------------------------------------------
-
-.. automodule:: stark.engines.allocator.linear_combine
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.engine\_numpy module
-----------------------------------
-
-.. automodule:: stark.engines.engine_numpy
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.engine\_native module
------------------------------------
-
-.. automodule:: stark.engines.engine_native
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.engine\_cupy module
----------------------------------
-
-.. automodule:: stark.engines.engine_cupy
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.engine\_jax module
---------------------------------
-
-.. automodule:: stark.engines.engine_jax
+.. automodule:: stark.engines.engine_translation
    :members:
    :show-inheritance:
    :undoc-members:
@@ -131,38 +47,6 @@ stark.engines.translation\_basis module
 ---------------------------------------
 
 .. automodule:: stark.engines.translation_basis
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.translation\_factory\_cupy module
------------------------------------------------
-
-.. automodule:: stark.engines.translation_factory_cupy
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.translation\_factory\_jax module
-----------------------------------------------
-
-.. automodule:: stark.engines.translation_factory_jax
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.translation\_factory\_native module
--------------------------------------------------
-
-.. automodule:: stark.engines.translation_factory_native
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.engines.translation\_factory\_numpy module
-------------------------------------------------
-
-.. automodule:: stark.engines.translation_factory_numpy
    :members:
    :show-inheritance:
    :undoc-members:

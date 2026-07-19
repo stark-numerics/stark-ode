@@ -4,15 +4,15 @@ from collections.abc import Iterable
 
 from stark.core.block import Block
 from stark.core.contracts import DynamicsSplitLike, IntervalLike, Resolvent, State, Translation
-from stark.core.contracts.errors import StarkErrorRecoverable
+from stark.core.contracts.shared.errors import StarkErrorRecoverable
 from stark.methods.schemes.configuration import SchemeConfiguration
 from stark.methods.schemes.execution.step_control import SchemeStepControl
 from stark.methods.schemes.execution.step_support import SchemeStepSupport
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.method.tableau import TableauImex
 from stark.methods.schemes.request import SchemeResolventRequest
-from stark.methods.schemes.specialization.imex_stencil import SchemeStencilImexTableau
-from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed, SchemeLinearFixedKernelDelta
+from stark.methods.schemes.linear_fixed_generation.imex_stencil import SchemeStencilImexTableau
+from stark.methods.schemes.linear_fixed_generation.linear_fixed import SchemeLinearFixedLike, SchemeLinearFixedKernelDeltaLike
 
 
 class KennedyCarpenterAdaptiveStep:
@@ -41,9 +41,9 @@ class KennedyCarpenterAdaptiveStep:
     tableau: TableauImex
     workspace: SchemeStepSupport
     step_control: SchemeStepControl
-    stage_rhs_kernels: tuple[SchemeLinearFixedKernelDelta[Translation], ...]
-    advance_delta_kernel: SchemeLinearFixedKernelDelta[Translation]
-    error_delta_kernel: SchemeLinearFixedKernelDelta[Translation]
+    stage_rhs_kernels: tuple[SchemeLinearFixedKernelDeltaLike[Translation], ...]
+    advance_delta_kernel: SchemeLinearFixedKernelDeltaLike[Translation]
+    error_delta_kernel: SchemeLinearFixedKernelDeltaLike[Translation]
 
     def __init__(
         self,
@@ -53,7 +53,7 @@ class KennedyCarpenterAdaptiveStep:
         workspace: SchemeStepSupport,
         resolvent: Resolvent,
         configuration: SchemeConfiguration,
-        linear_fixed: SchemeLinearFixed | None = None,
+        linear_fixed: SchemeLinearFixedLike | None = None,
     ) -> None:
         self.tableau = tableau
         self.workspace = workspace
@@ -91,7 +91,7 @@ class KennedyCarpenterAdaptiveStep:
     ) -> float:
         return self.call_body(interval, state)
 
-    def prepare_specialized_kernels(self, linear_fixed: SchemeLinearFixed) -> None:
+    def prepare_specialized_kernels(self, linear_fixed: SchemeLinearFixedLike) -> None:
         """Prepare fixed-coefficient kernels for the specialized IMEX path."""
 
         stencils = SchemeStencilImexTableau(self.tableau)

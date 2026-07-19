@@ -6,7 +6,7 @@ from typing import Any, ClassVar, overload
 
 import pytest
 
-from stark.core.contracts.accelerator import AcceleratorTarget
+from stark.core.contracts.engines.accelerator import AcceleratorTarget
 from stark.methods.inverters.nucleus import InverterNucleus
 
 

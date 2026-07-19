@@ -4,7 +4,7 @@ from stark.methods.schemes.configuration import SchemeConfiguration, SchemeConfi
 from stark.methods.schemes.predictor import SchemePredictorKnown
 from stark.core.block import Block
 from stark.core.contracts import DynamicsLike, IntervalLike, Resolvent, State, AllocatorLike
-from stark.core.contracts.errors import StarkErrorRecoverable
+from stark.core.contracts.shared.errors import StarkErrorRecoverable
 from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.monitoring.monitor import SchemeMonitor
 from stark.methods.schemes.monitoring.decorators import with_adaptive_step_monitoring
@@ -14,9 +14,9 @@ from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
 from stark.methods.schemes.display.display import display_implicit_resolvent_problem
 from stark.methods.schemes.implicit.runtime import SchemeRuntimeImplicit
-from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
+from stark.methods.schemes.linear_fixed_generation.linear_fixed import SchemeLinearFixedLike
 from stark.methods.schemes.request import SchemeResolventRequest
-from stark.methods.schemes.specialization.stencil import (
+from stark.methods.schemes.linear_fixed_generation.stencil import (
     SchemeStencil,
     esdirk_stage_increment_stencils,
 )
@@ -138,7 +138,7 @@ class SchemeSDIRK21:
         resolvent: Resolvent,
         *,
         configuration: SchemeConfiguration | None = None,
-        linear_fixed: SchemeLinearFixed | None = None,
+        linear_fixed: SchemeLinearFixedLike | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
         self.error_delta_call = unbound_scheme_call
@@ -180,7 +180,7 @@ class SchemeSDIRK21:
     def __call__(self, interval: IntervalLike, state: State) -> float:
         return self.redirect_call(interval, state)
 
-    def prepare_specialized_kernels(self, linear_fixed: SchemeLinearFixed) -> None:
+    def prepare_specialized_kernels(self, linear_fixed: SchemeLinearFixedLike) -> None:
         # Step 2 forms delta1 = gamma h k1.
         self.known2_call = linear_fixed(SchemeStencil((1.0,), scale=SDIRK21_GAMMA))
         # Step 4 forms the known final-stage shift from solved increments.

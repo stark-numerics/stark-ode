@@ -4,8 +4,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Generic
 
-from stark.core.contracts.block import BlockLike
-from stark.core.contracts.translation import TranslationType
+from stark.core.contracts.methods.block import BlockLike
+from stark.core.contracts.problem.translation import TranslationType
 BlockEntryOperator = Callable[[TranslationType, TranslationType], None]
 
 

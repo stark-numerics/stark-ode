@@ -50,28 +50,27 @@ that STARK relies on.
 
 ## Import Map
 
-Prefer focused imports when writing docs or implementation code:
+The package-level `stark.core.contracts` imports remain the convenience surface
+for examples, docs, and interactive work. Implementation modules are grouped by
+ownership so the package is easier to navigate:
 
-- `stark.core.contracts.accelerator`: accelerator backends
-- `stark.core.contracts.block`: grouped translation containers
-- `stark.core.contracts.carrier`: carrier bundles
-- `stark.core.contracts.dynamics`: right-hand-side workers
-- `stark.core.contracts.dynamics_split`: IMEX dynamics split protocol
-- `stark.core.contracts.field`: structured fields inside frame-like declarations
-- `stark.core.contracts.inner_product`: translation-space inner products
-- `stark.core.contracts.integrator`: trajectory-building workers
-- `stark.core.contracts.interval`: timeline cursors
-- `stark.core.contracts.linear_combine`: translation algebra fast paths
-- `stark.core.contracts.linearizer`: Jacobian-action workers
-- `stark.core.contracts.norm`: norm policies
-- `stark.core.contracts.stepper`: step-accepting workers
-- `stark.core.contracts.operator`: matrix-free linear operators
-- `stark.core.contracts.residual`: residual workers for nonlinear solves
-- `stark.core.contracts.resolvent`: nonlinear stage solvers
-- `stark.core.contracts.inverter`: linear solvers and preconditioners
-- `stark.core.contracts.state`: unconstrained mutable state objects
-- `stark.core.contracts.translation`: linear update objects
-- `stark.core.contracts.translation_factory`: translation constructors for engine allocation
-- `stark.core.contracts.allocator`: state and translation factories
-
-Use the package-level `stark.core.contracts` imports for convenience in examples and interactive exploration.
+- `stark.core.contracts.engines.accelerator`: accelerator backends
+- `stark.core.contracts.methods.block`: grouped translation containers
+- `stark.core.contracts.engines.carrier`: carrier bundles
+- `stark.core.contracts.problem.dynamics`: right-hand-side workers
+- `stark.core.contracts.problem.dynamics_split`: IMEX dynamics split protocol
+- `stark.core.contracts.problem.field`: structured fields inside frame-like declarations
+- `stark.core.contracts.problem.inner_product`: translation-space inner products
+- `stark.core.contracts.methods.integrator`: trajectory-building workers
+- `stark.core.contracts.shared.interval`: timeline cursors
+- `stark.core.contracts.engines.linear_combine`: translation algebra fast paths
+- `stark.core.contracts.problem.linearizer`: Jacobian-action workers
+- `stark.core.contracts.problem.norm`: norm policies
+- `stark.core.contracts.methods.stepper`: step-accepting workers
+- `stark.core.contracts.methods.translation_operator`: matrix-free linear operators
+- `stark.core.contracts.methods.residual`: residual workers for nonlinear solves
+- `stark.core.contracts.methods.resolvent`: nonlinear stage solvers
+- `stark.core.contracts.methods.inverter`: linear solvers and preconditioners
+- `stark.core.contracts.problem.state`: unconstrained mutable state objects
+- `stark.core.contracts.problem.translation`: linear update objects
+- `stark.core.contracts.engines.allocator`: state and translation factories

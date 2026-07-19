@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Protocol, Self
-from stark.core.contracts.interval import IntervalLike
+from stark.core.contracts.shared.interval import IntervalLike
 
 class SchemeInterval(Protocol):
     present: float

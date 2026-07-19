@@ -10,8 +10,8 @@ from stark.methods.schemes.execution.step_control import SchemeStepControl
 from stark.methods.schemes.explicit.runtime import SchemeRuntimeExplicit
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
-from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
-from stark.methods.schemes.specialization.stencil import SchemeStencilTableau
+from stark.methods.schemes.linear_fixed_generation.linear_fixed import SchemeLinearFixedLike
+from stark.methods.schemes.linear_fixed_generation.stencil import SchemeStencilTableau
 from stark.methods.schemes.method.tableau import Tableau
 
 
@@ -142,7 +142,7 @@ class SchemeFehlberg45:
         dynamics: DynamicsLike,
         allocator: AllocatorLike,
         configuration: SchemeConfiguration | None = None,
-        linear_fixed: SchemeLinearFixed | None = None,
+        linear_fixed: SchemeLinearFixedLike | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
         self.runtime = SchemeRuntimeExplicit(dynamics, allocator)
@@ -190,7 +190,7 @@ class SchemeFehlberg45:
 
     def prepare_specialized_kernels(
         self,
-        linear_fixed: SchemeLinearFixed,
+        linear_fixed: SchemeLinearFixedLike,
     ) -> None:
         """Prepare fixed-coefficient kernels for the specialized path."""
 

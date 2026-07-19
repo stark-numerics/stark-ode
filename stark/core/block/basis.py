@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 from itertools import accumulate
 from typing import Generic, TypeVar
 
-from stark.core.contracts.block import BlockLike
-from stark.core.contracts.translation_basis import TranslationBasisLike
+from stark.core.contracts.methods.block import BlockLike
+from stark.core.contracts.engines.translation_basis import TranslationBasisLike
 
 BlockBasisValueType = TypeVar("BlockBasisValueType")
 """Type variable for values analysed by each entry basis in a block basis."""

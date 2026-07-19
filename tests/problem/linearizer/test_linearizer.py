@@ -6,7 +6,7 @@ from typing import Any, ClassVar, overload
 
 from stark.engines import EngineNumpy
 from stark import Frame
-from stark.core.contracts.accelerator import AcceleratorTarget
+from stark.core.contracts.engines.accelerator import AcceleratorTarget
 from stark.problem.linearizer import Linearizer, LinearizerStyle
 from stark.problem.system.system import System
 
@@ -76,7 +76,7 @@ class DummyLinearizerTranslation:
 
 
 class DummyLinearizerOperator:
-    """Operator shell whose callables are installed by the linearizer."""
+    """TranslationOperator shell whose callables are installed by the linearizer."""
 
     def __init__(self) -> None:
         self.apply: Callable[

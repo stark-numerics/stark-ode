@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from typing import Generic, Protocol
 
 from stark.core.block.block import Block
-from stark.core.contracts.translation import TranslationType, TranslationTypeCovariant
+from stark.core.contracts.problem.translation import TranslationType, TranslationTypeCovariant
 
 
-class BlockAllocationAllocator(Protocol[TranslationTypeCovariant]):
-    """Allocator subset required for block allocation."""
+class BlockTranslationAllocatorLike(Protocol[TranslationTypeCovariant]):
+    """Allocator subset required to allocate translation block entries."""
 
     def allocate_translation(self) -> TranslationTypeCovariant:
         ...
@@ -18,7 +18,7 @@ class BlockAllocationAllocator(Protocol[TranslationTypeCovariant]):
 class BlockAllocator(Generic[TranslationType]):
     """Allocate blocks whose entries are compatible translations."""
 
-    allocator: BlockAllocationAllocator[TranslationType]
+    allocator: BlockTranslationAllocatorLike[TranslationType]
 
     def allocate(self, size: int) -> Block[TranslationType]:
         if type(size) is not int:
@@ -32,4 +32,4 @@ class BlockAllocator(Generic[TranslationType]):
         return self.allocate(len(block))
 
 
-__all__ = ["BlockAllocationAllocator", "BlockAllocator"]
+__all__ = ["BlockTranslationAllocatorLike", "BlockAllocator"]

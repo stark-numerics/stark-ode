@@ -17,8 +17,8 @@ from dataclasses import dataclass, field
 from inspect import Parameter, signature
 from typing import Any
 
-from stark.core.contracts.accelerator import Accelerator
-from stark.core.contracts.dynamics import DynamicsLike
+from stark.core.contracts.engines.accelerator import Accelerator
+from stark.core.contracts.problem.dynamics import DynamicsLike
 from stark.problem.dynamics.implementation import DynamicsImplementation
 from stark.problem.dynamics.signature import DynamicsSignature, DynamicsStyle
 from stark.problem.dynamics.split import DynamicsSplit

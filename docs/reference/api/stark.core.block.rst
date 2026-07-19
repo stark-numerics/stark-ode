@@ -28,6 +28,14 @@ stark.core.block.block module
    :show-inheritance:
    :undoc-members:
 
+stark.core.block.linear\_fixed module
+-------------------------------------
+
+.. automodule:: stark.core.block.linear_fixed
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 stark.core.block.materialize module
 -----------------------------------
 
@@ -40,14 +48,6 @@ stark.core.block.operator module
 --------------------------------
 
 .. automodule:: stark.core.block.operator
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-stark.core.block.linear_fixed module
-----------------------------------
-
-.. automodule:: stark.core.block.linear_fixed
    :members:
    :show-inheritance:
    :undoc-members:

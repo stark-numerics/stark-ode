@@ -11,8 +11,8 @@ from stark.methods.schemes.display.display import display_imex_resolvent_problem
 from stark.methods.schemes.imex.runtime import SchemeRuntimeImex
 from stark.methods.schemes.execution.unbound import unbound_scheme_call
 from stark.methods.schemes.display.decorators import with_scheme_display
-from stark.methods.schemes.specialization.imex_stencil import SchemeStencilImexTableau
-from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
+from stark.methods.schemes.linear_fixed_generation.imex_stencil import SchemeStencilImexTableau
+from stark.methods.schemes.linear_fixed_generation.linear_fixed import SchemeLinearFixedLike
 from stark.methods.schemes.request import SchemeResolventRequest
 from stark.methods.schemes.method.tableau import Tableau, TableauImex
 
@@ -110,7 +110,7 @@ class SchemeIMEXEuler:
         resolvent: Resolvent,
         *,
         configuration: SchemeConfiguration | None = None,
-        linear_fixed: SchemeLinearFixed | None = None,
+        linear_fixed: SchemeLinearFixedLike | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
         del configuration
@@ -145,7 +145,7 @@ class SchemeIMEXEuler:
     ) -> float:
         return self.redirect_call(interval, state)
 
-    def prepare_specialized_kernels(self, linear_fixed: SchemeLinearFixed) -> None:
+    def prepare_specialized_kernels(self, linear_fixed: SchemeLinearFixedLike) -> None:
         stencils = SchemeStencilImexTableau(self.tableau)
         # Step 1 builds the explicit right-hand side from the first explicit row.
         self.advance_call = linear_fixed(stencils.stage_rhs(1))

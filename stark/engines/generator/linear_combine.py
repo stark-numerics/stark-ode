@@ -4,11 +4,11 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Generic
 
-from stark.core.contracts.accelerator import Accelerator
-from stark.core.contracts.allocator import AllocatorLike
-from stark.core.contracts.frame import FrameLike
-from stark.core.contracts.state import StateType
-from stark.core.contracts.translation import TranslationType
+from stark.core.contracts.engines.accelerator import Accelerator
+from stark.core.contracts.engines.allocator import AllocatorLike
+from stark.core.contracts.problem.frame import FrameLike
+from stark.core.contracts.problem.state import StateType
+from stark.core.contracts.problem.translation import TranslationType
 from stark.engines.accelerators.none import AcceleratorNone
 from stark.engines.generator.compiler import GeneratorCompiler
 from stark.engines.generator.linear_fixed_source import GeneratorLinearFixedSource

@@ -45,8 +45,8 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Protocol, TypeAlias, TypeVar, cast, overload
 
-from stark.core.contracts.linear_combine import LinearCombine
-from stark.core.contracts.translation import Translation
+from stark.core.contracts.engines.linear_combine import LinearCombine
+from stark.core.contracts.problem.translation import Translation
 from stark.engines.generator.request import GeneratorLike
 from stark.engines.generator.request import (
     GeneratorRequestInnerProduct,
@@ -55,7 +55,7 @@ from stark.engines.generator.request import (
 )
 from stark.engines.allocator.linear_combine import (
     AllocatorRuntimeLinearCombine,
-    AllocatorRuntimeLinearCombineAllocator,
+    LinearCombineScratchAllocatorLike,
 )
 
 AllocatorLinearCombineTableFactory: TypeAlias = Callable[
@@ -298,7 +298,7 @@ class Allocator:
     ) -> LinearCombine:
         seed = getattr(allocator, "linear_combine", ())
         translation_allocator = cast(
-            AllocatorRuntimeLinearCombineAllocator[Translation],
+            LinearCombineScratchAllocatorLike[Translation],
             allocator,
         )
         linear_combine = cast(Sequence[Callable[..., Translation]], seed)

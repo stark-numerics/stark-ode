@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import cast
 
-from stark.core.contracts.linear_combine import LinearCombineScaleLike
-from stark.core.contracts.translation import TranslationType
+from stark.core.contracts.engines.linear_combine import LinearCombineScaleLike
+from stark.core.contracts.problem.translation import TranslationType
 
 
 class SchemePredictorKnown:

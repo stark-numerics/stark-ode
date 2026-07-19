@@ -3,9 +3,7 @@
 The integrator package owns trajectory production. It does not own numerical
 method logic.
 
-This is one of the older parts of STARK and should be treated as a future
-design-review target. This note documents the current boundary rather than
-claiming the design is final.
+This note documents the current boundary and the names used at that boundary.
 
 ## Current Role
 
@@ -42,9 +40,9 @@ Progress checks are a safety feature. They detect accepted steps that fail to
 advance time. They should remain configurable and should not become method
 policy.
 
-## Future Review
+## Review Questions
 
-When revisiting this package, ask:
+When editing this package, ask:
 
 - Are mutating and snapshotting paths named clearly enough?
 - Is checkpoint interpolation/selection still in the right layer?

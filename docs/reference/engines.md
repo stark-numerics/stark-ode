@@ -4,10 +4,7 @@ Engines own storage and arithmetic backends.
 
 ## Backends
 
-- [`stark.engines.engine_numpy`](api/stark.engines.rst)
-- [`stark.engines.engine_native`](api/stark.engines.rst)
-- [`stark.engines.engine_cupy`](api/stark.engines.rst)
-- [`stark.engines.engine_jax`](api/stark.engines.rst)
+- [`stark.engines.engine`](api/stark.engines.rst)
 
 ## Support
 

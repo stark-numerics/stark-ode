@@ -5,11 +5,11 @@ from dataclasses import dataclass, field
 from math import prod
 from typing import Any, Generic, cast
 
-from stark.core.contracts.accelerator import Accelerator
-from stark.core.contracts.field import FieldLike
-from stark.core.contracts.frame import FrameLike
-from stark.core.contracts.norm import NormLike
-from stark.core.contracts.translation import TranslationType
+from stark.core.contracts.engines.accelerator import Accelerator
+from stark.core.contracts.problem.field import FieldLike, FieldPolicyLike
+from stark.core.contracts.problem.frame import FrameLike
+from stark.core.contracts.problem.norm import NormLike
+from stark.core.contracts.problem.translation import TranslationType
 from stark.engines.accelerators.none import AcceleratorNone
 from stark.engines.generator.compiler import GeneratorCompiler
 from stark.engines.generator.policy import GeneratorPolicy, GeneratorPolicyLike
@@ -28,7 +28,7 @@ def included_norm_entries(
     return tuple(
         (field, norm)
         for field, norm in zip(frame.fields, frame.norms, strict=True)
-        if getattr(norm, "kind", None) != "excluded"
+        if norm.kind != "excluded"
     )
 
 
@@ -56,7 +56,7 @@ class GeneratorNorm(Generic[TranslationType]):
         for field, norm in entries:
             name = field.translation_name
             policy = field.policy
-            match getattr(policy, "kind", None):
+            match policy.kind:
                 case "scalar":
                     self.ensure_supported_norm(field, norm)
                     lines.append(f"    total += abs({name}) ** 2")
@@ -86,10 +86,9 @@ class GeneratorNorm(Generic[TranslationType]):
                         )
                     )
                 case _:
-                    policy_kind = getattr(policy, "kind", None)
                     raise ValueError(
                         "Generated norm source does not yet support "
-                        f"field.policy.kind={policy_kind!r} "
+                        f"field.policy.kind={policy.kind!r} "
                         f"for field {field.state_name!r}. "
                         "Supported generated policies today: 'looped', 'scalar', 'unravel'."
                     )
@@ -119,32 +118,33 @@ class GeneratorNorm(Generic[TranslationType]):
         )
 
     @staticmethod
-    def field_shape(field: FieldLike[Any, Any], policy: object) -> tuple[int, ...]:
-        shape = getattr(policy, "shape", None)
-        if shape is None:
-            shape = getattr(field, "shape", None)
+    def field_shape(
+        field: FieldLike[Any, Any],
+        policy: FieldPolicyLike,
+    ) -> tuple[int, ...]:
+        shape = field.shape
         if shape is None:
             raise ValueError(
                 "Generated norm source needs a concrete shape for "
                 f"field {field.state_name!r} with policy "
-                f"{getattr(policy, 'kind', None)!r}."
+                f"{policy.kind!r}."
             )
         return tuple(shape)
 
     def loop_group_key(
         self,
         field: FieldLike[Any, Any],
-        policy: object,
+        policy: FieldPolicyLike,
     ) -> NormLoopGroupKey:
         shape = self.field_shape(field, policy)
-        rank = getattr(policy, "rank", None)
-        if rank is None:
-            rank = len(shape)
-        return int(rank), shape
+        return len(shape), shape
 
     @staticmethod
-    def ensure_supported_norm(field: FieldLike[Any, Any], norm: object) -> None:
-        norm_kind = getattr(norm, "kind", None)
+    def ensure_supported_norm(
+        field: FieldLike[Any, Any],
+        norm: NormLike[Any],
+    ) -> None:
+        norm_kind = norm.kind
         if norm_kind in GENERATED_NORM_KINDS:
             return
 
@@ -163,10 +163,10 @@ class GeneratorNorm(Generic[TranslationType]):
         field_name: str,
         name: str,
         shape: tuple[int, ...],
-        norm: object,
+        norm: NormLike[Any],
         vectorized: bool,
     ) -> list[str]:
-        norm_kind = getattr(norm, "kind", None)
+        norm_kind = norm.kind
         if vectorized:
             if norm_kind == "rms":
                 return [f"    total += (abs({name}) ** 2).sum() / {float(prod(shape))!r}"]
@@ -222,7 +222,7 @@ class GeneratorNorm(Generic[TranslationType]):
         rank, shape = key
         lines: list[str] = []
         for field, norm in group:
-            norm_kind = getattr(norm, "kind", None)
+            norm_kind = norm.kind
             if norm_kind == "rms":
                 lines.append(f"    subtotal_{field.translation_name} = 0.0")
             elif norm_kind == "max":
@@ -246,7 +246,7 @@ class GeneratorNorm(Generic[TranslationType]):
         assignment_indent = "    " * (rank + 1)
         for field, norm in group:
             name = field.translation_name
-            norm_kind = getattr(norm, "kind", None)
+            norm_kind = norm.kind
             if norm_kind == "rms":
                 lines.append(
                     f"{assignment_indent}subtotal_{name} += abs({name}{index}) ** 2"
@@ -260,7 +260,7 @@ class GeneratorNorm(Generic[TranslationType]):
 
         for field, norm in group:
             name = field.translation_name
-            norm_kind = getattr(norm, "kind", None)
+            norm_kind = norm.kind
             if norm_kind == "rms":
                 lines.append(f"    total += subtotal_{name} / {float(prod(shape))!r}")
             else:
@@ -273,11 +273,11 @@ class GeneratorNorm(Generic[TranslationType]):
         field_name: str,
         name: str,
         shape: tuple[int, ...],
-        norm: object,
+        norm: NormLike[Any],
     ) -> list[str]:
         from itertools import product
 
-        norm_kind = getattr(norm, "kind", None)
+        norm_kind = norm.kind
         if norm_kind == "rms":
             lines = ["    subtotal = 0.0"]
         elif norm_kind == "max":

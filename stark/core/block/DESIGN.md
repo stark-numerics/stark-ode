@@ -20,12 +20,18 @@ Block machinery is a bridge between method algorithms and translation algebra:
 - Block bases expose coordinate views when an algorithm genuinely needs them.
 - Materialisers build dense coordinate matrices only for methods that request
   dense linear algebra.
-- LinearFixed providers prepare operations for repeated block updates.
+- Fixed-linear providers prepare operations for repeated block updates.
 
 ## What Blocks Are Not
 
 Blocks are not a user modelling layer. Users should normally model state with
 `Frame`, `System`, or a foreign state/translation pair.
+
+Blocks are also not a defensive public collection API. They sit on hot method,
+resolvent, and inverter paths after construction has prepared compatible
+objects. Block arithmetic and block operators therefore trust their callers on
+sizes and configured entries. Code that constructs a block path is responsible
+for proving those shapes before entering the repeated call path.
 
 Blocks are also not the default path to dense arrays. Dense materialisation is
 an optional view used by dense inverters and related diagnostics; it should not

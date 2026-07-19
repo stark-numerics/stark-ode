@@ -5,11 +5,11 @@ from dataclasses import dataclass, field
 from math import prod
 from typing import Any, Generic, cast
 
-from stark.core.contracts.accelerator import Accelerator
-from stark.core.contracts.field import FieldLike
-from stark.core.contracts.frame import FrameLike
-from stark.core.contracts.inner_product import InnerProductNamed
-from stark.core.contracts.translation import TranslationType
+from stark.core.contracts.engines.accelerator import Accelerator
+from stark.core.contracts.problem.field import FieldLike, FieldPolicyLike
+from stark.core.contracts.problem.frame import FrameLike
+from stark.core.contracts.problem.inner_product import InnerProductNamed
+from stark.core.contracts.problem.translation import TranslationType
 from stark.engines.accelerators.none import AcceleratorNone
 from stark.engines.generator.compiler import GeneratorCompiler
 from stark.engines.generator.policy import GeneratorPolicy, GeneratorPolicyLike
@@ -26,7 +26,7 @@ def included_inner_product_entries(
     return tuple(
         (field, inner_product)
         for field, inner_product in zip(frame.fields, frame.inner_products, strict=True)
-        if getattr(inner_product, "kind", None) != "excluded"
+        if inner_product.kind != "excluded"
     )
 
 
@@ -57,7 +57,7 @@ class GeneratorInnerProduct(Generic[TranslationType]):
             left_name = f"left_{field.translation_name}"
             right_name = f"right_{field.translation_name}"
             policy = field.policy
-            match getattr(policy, "kind", None):
+            match policy.kind:
                 case "scalar":
                     self.ensure_supported_inner_product(field, inner_product)
                     lines.append(f"    total += {left_name} * {right_name}")
@@ -85,10 +85,9 @@ class GeneratorInnerProduct(Generic[TranslationType]):
                         )
                     )
                 case _:
-                    policy_kind = getattr(policy, "kind", None)
                     raise ValueError(
                         "Generated inner-product source does not yet support "
-                        f"field.policy.kind={policy_kind!r} "
+                        f"field.policy.kind={policy.kind!r} "
                         f"for field {field.state_name!r}. "
                         "Supported generated policies today: 'looped', 'scalar', 'unravel'."
                     )
@@ -115,24 +114,25 @@ class GeneratorInnerProduct(Generic[TranslationType]):
         )
 
     @staticmethod
-    def field_shape(field: FieldLike[Any, Any], policy: object) -> tuple[int, ...]:
-        shape = getattr(policy, "shape", None)
-        if shape is None:
-            shape = getattr(field, "shape", None)
+    def field_shape(
+        field: FieldLike[Any, Any],
+        policy: FieldPolicyLike,
+    ) -> tuple[int, ...]:
+        shape = field.shape
         if shape is None:
             raise ValueError(
                 "Generated inner-product source needs a concrete shape for "
                 f"field {field.state_name!r} with policy "
-                f"{getattr(policy, 'kind', None)!r}."
+                f"{policy.kind!r}."
             )
         return tuple(shape)
 
     @staticmethod
     def ensure_supported_inner_product(
         field: FieldLike[Any, Any],
-        inner_product: object,
+        inner_product: InnerProductNamed[Any],
     ) -> None:
-        inner_product_kind = getattr(inner_product, "kind", None)
+        inner_product_kind = inner_product.kind
         if inner_product_kind in GENERATED_INNER_PRODUCT_KINDS:
             return
 
@@ -152,10 +152,10 @@ class GeneratorInnerProduct(Generic[TranslationType]):
         left_name: str,
         right_name: str,
         shape: tuple[int, ...],
-        inner_product: object,
+        inner_product: InnerProductNamed[Any],
         vectorized: bool,
     ) -> list[str]:
-        inner_product_kind = getattr(inner_product, "kind", None)
+        inner_product_kind = inner_product.kind
         if inner_product_kind == "l2":
             scale = 1.0
         elif inner_product_kind == "rms":
@@ -192,11 +192,11 @@ class GeneratorInnerProduct(Generic[TranslationType]):
         left_name: str,
         right_name: str,
         shape: tuple[int, ...],
-        inner_product: object,
+        inner_product: InnerProductNamed[Any],
     ) -> list[str]:
         from itertools import product
 
-        inner_product_kind = getattr(inner_product, "kind", None)
+        inner_product_kind = inner_product.kind
         if inner_product_kind == "l2":
             scale = 1.0
         elif inner_product_kind == "rms":

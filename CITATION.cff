@@ -6,8 +6,8 @@ abstract: "State Translation Adaptive Runge Kutta for integrating user-defined P
 authors:
   - family-names: "Fellows"
     given-names: "Jonathan M."
-version: "0.1.0b1"
-date-released: "2026-07-05"
+version: "0.1.0b2"
+date-released: "2026-07-19"
 license: "MIT"
 repository-code: "https://github.com/stark-numerics/stark-ode"
 url: "https://github.com/stark-numerics/stark-ode"

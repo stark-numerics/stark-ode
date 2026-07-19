@@ -3,11 +3,13 @@
 #   .\devtools\list-stark-classes.ps1
 # Optional:
 #   .\devtools\list-stark-classes.ps1 -Csv > .\devtools\stark-classes.csv
+#   .\devtools\list-stark-classes.ps1 -ProtocolNaming
 
 param(
     [string]$PackagePath = ".\stark",
     [switch]$Csv,
-    [switch]$IncludePrivate
+    [switch]$IncludePrivate,
+    [switch]$ProtocolNaming
 )
 
 $ErrorActionPreference = "Stop"
@@ -69,6 +71,14 @@ Get-ChildItem -Path $PackagePath -Recurse -Filter "*.py" | ForEach-Object {
 }
 
 $Rows = $Rows | Sort-Object @{ Expression = { $_.Class.ToLowerInvariant() } }, Module, Line
+
+if ($ProtocolNaming) {
+    $Rows = $Rows | Where-Object {
+        $_.Bases -match '\bProtocol\b' -and
+        -not $_.Class.EndsWith("Like") -and
+        -not $_.Class.StartsWith("Hint")
+    }
+}
 
 if ($Csv) {
     $Rows | ConvertTo-Csv -NoTypeInformation

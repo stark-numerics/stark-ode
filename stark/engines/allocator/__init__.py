@@ -7,18 +7,16 @@ from stark.engines.allocator.allocator import (
     AllocatorLinearCombineTableFactory,
     AllocatorRuntimeHooks,
 )
-from stark.engines.allocator.allocator_carried import AllocatorCarried
 from stark.engines.allocator.linear_combine import (
     AllocatorRuntimeKernel,
     AllocatorRuntimeLinearCombine,
-    AllocatorRuntimeLinearCombineAllocator,
+    LinearCombineScratchAllocatorLike,
     AllocatorRuntimeLinearCombineFallback,
     AllocatorRuntimeLinearCombineSynthesizer,
 )
 
 __all__ = [
     "Allocator",
-    "AllocatorCarried",
     "AllocatorGeneratedKernelFactory",
     "AllocatorGeneratedHooks",
     "AllocatorGeneratedLinearCombineTableFactory",
@@ -27,7 +25,7 @@ __all__ = [
     "AllocatorRuntimeHooks",
     "AllocatorRuntimeKernel",
     "AllocatorRuntimeLinearCombine",
-    "AllocatorRuntimeLinearCombineAllocator",
+    "LinearCombineScratchAllocatorLike",
     "AllocatorRuntimeLinearCombineFallback",
     "AllocatorRuntimeLinearCombineSynthesizer",
 ]

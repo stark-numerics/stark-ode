@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, overload
 
-from stark.core.contracts.field import FieldPathLike
+from stark.core.contracts.problem.field import FieldPathLike
 
 
 @dataclass(frozen=True, slots=True)

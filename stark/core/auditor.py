@@ -4,16 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from stark.core.contracts.accelerator import AcceleratorAudit
-from stark.core.contracts.dynamics import DynamicsAudit
-from stark.core.contracts.dynamics_split import DynamicsSplitAudit
-from stark.core.contracts.interval import IntervalAudit
-from stark.core.contracts.linearizer import LinearizerAudit
-from stark.core.contracts.stepper import IntegratorStepperAudit
-from stark.core.contracts.residual import ResidualAudit
-from stark.core.contracts.scheme import SchemeAudit
-from stark.core.contracts.translation import TranslationAudit
-from stark.core.contracts.allocator import AllocatorAudit
+from stark.core.contracts.engines.accelerator import AcceleratorAudit
+from stark.core.contracts.problem.dynamics import DynamicsAudit
+from stark.core.contracts.problem.dynamics_split import DynamicsSplitAudit
+from stark.core.contracts.shared.interval import IntervalAudit
+from stark.core.contracts.problem.linearizer import LinearizerAudit
+from stark.core.contracts.methods.stepper import IntegratorStepperAudit
+from stark.core.contracts.methods.residual import ResidualAudit
+from stark.core.contracts.methods.scheme import SchemeAudit
+from stark.core.contracts.problem.translation import TranslationAudit
+from stark.core.contracts.engines.allocator import AllocatorAudit
 from stark.core.interval import Interval
 from stark.core.tolerance import ToleranceAudit
 

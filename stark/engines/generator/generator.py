@@ -52,6 +52,14 @@ already carries the coefficients, fixed scale, apply flag, and operation name.
 Downstream packages can add their own request objects without inheriting from
 STARK internals.
 
+Automatic use is opt-in through ``generator.policy.active``. A generator with
+an inactive policy can still be called directly by internal code or advanced
+users, but STARK's system preparation treats the flag as a promise that this
+engine wants generator-backed specialization. This gives user-defined engines
+a simple escape hatch: carry a generator-shaped object for inspection, but set
+the policy inactive when downstream code should stay on conservative runtime
+paths.
+
 Most users should not need to instantiate ``Generator`` by hand. Concrete
 engines create one and install the prepared kernels onto their allocators and
 translations. Advanced users may call a generator directly when they are
@@ -63,13 +71,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Generic, overload, cast
+from typing import ClassVar, Generic, overload, cast
 
-from stark.core.contracts.accelerator import Accelerator
-from stark.core.contracts.allocator import AllocatorLike
-from stark.core.contracts.frame import FrameLike
-from stark.core.contracts.state import StateType
-from stark.core.contracts.translation import TranslationType
+from stark.core.contracts.engines.accelerator import Accelerator
+from stark.core.contracts.engines.allocator import AllocatorLike
+from stark.core.contracts.problem.frame import FrameLike
+from stark.core.contracts.problem.state import StateType
+from stark.core.contracts.problem.translation import TranslationType
 from stark.engines.accelerators.none import AcceleratorNone
 from stark.engines.generator.inner_product import GeneratorInnerProduct
 from stark.engines.generator.linear_combine import GeneratorLinearCombine
@@ -106,7 +114,8 @@ class Generator(Generic[StateType, TranslationType]):
 
     ``policy``
         Source-shape choices such as in-place versus functional updates,
-        looped versus vectorized traversal, and backend scalar handling.
+        looped versus vectorized traversal, backend scalar handling, and
+        whether automatic construction paths should use this generator.
 
     ``allocator``
         Optional allocator context for operation families that need to allocate
@@ -126,8 +135,11 @@ class Generator(Generic[StateType, TranslationType]):
 
     frame: FrameLike
     accelerator: Accelerator = field(default_factory=AcceleratorNone)
-    policy: GeneratorPolicyLike = field(default_factory=GeneratorPolicy)
+    policy: GeneratorPolicyLike = field(
+        default_factory=lambda: Generator.default_policy,
+    )
     allocator: AllocatorLike[StateType, TranslationType] | None = None
+    default_policy: ClassVar[GeneratorPolicyLike] = GeneratorPolicy()
     linear_combine: GeneratorLinearCombine[StateType, TranslationType] = field(init=False)
     linear_fixed: GeneratorLinearFixed[StateType, TranslationType] = field(init=False)
     norm: GeneratorNorm[TranslationType] = field(init=False)
@@ -156,6 +168,12 @@ class Generator(Generic[StateType, TranslationType]):
             accelerator=self.accelerator,
             policy=self.policy,
         )
+
+    @classmethod
+    def reset_default_policy(cls, policy: GeneratorPolicyLike | None = None) -> None:
+        """Set the policy used when a generator instance is not given one."""
+
+        cls.default_policy = GeneratorPolicy() if policy is None else policy
 
     @overload
     def __call__(

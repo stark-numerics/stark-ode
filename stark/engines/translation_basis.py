@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from itertools import accumulate
 from typing import Any
 
-from stark.core.contracts.frame import FrameLike
+from stark.core.contracts.problem.frame import FrameLike
 
 
 @dataclass(frozen=True, slots=True)

@@ -25,8 +25,8 @@ from stark.methods.resolvents.monitoring.decorators import with_resolvent_monito
 from stark.methods.resolvents.monitoring.monitor import MonitorResolventLike
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 from stark.methods.resolvents.requests.resolvent import ResolventRequest
-from stark.methods.resolvents.specialization.linear_fixed import ResolventLinearFixed
-from stark.methods.resolvents.specialization.stencil import ResolventStencilBlock
+from stark.methods.resolvents.linear_fixed_generation.linear_fixed import ResolventLinearFixed
+from stark.methods.resolvents.linear_fixed_generation.stencil import ResolventStencilBlock
 
 
 @with_resolvent_display

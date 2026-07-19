@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from collections.abc import Callable
+from typing import Any, Protocol, cast
 
 import numpy as np
 import pytest
@@ -148,7 +149,11 @@ def test_stark_engine_numpy_exposes_layout_inner_product() -> None:
 
     inner_product = engine.allocator.inner_product
     assert inner_product is not None
-    assert inner_product(left, right) == pytest.approx(300.0)
+    inner_product_pair = cast(
+        Callable[[EnginePairTranslation, EnginePairTranslation], object],
+        inner_product,
+    )
+    assert inner_product_pair(left, right) == pytest.approx(300.0)
 
 
 def test_stark_engine_numpy_translation_basis_inspects_full_translation() -> None:
@@ -212,7 +217,11 @@ def test_stark_engine_native_uses_array_backed_fields() -> None:
     assert len(engine.allocator.linear_combine) >= 2
     inner_product = engine.allocator.inner_product
     assert inner_product is not None
-    assert inner_product(delta, delta) == pytest.approx(3000.0)
+    inner_product_pair = cast(
+        Callable[[EnginePairTranslation, EnginePairTranslation], object],
+        inner_product,
+    )
+    assert inner_product_pair(delta, delta) == pytest.approx(3000.0)
 
 
 def test_stark_engine_native_rejects_multidimensional_shapes() -> None:
@@ -224,7 +233,7 @@ def test_stark_engine_native_rejects_multidimensional_shapes() -> None:
 
 def test_stark_engine_cupy_optional() -> None:
     cp = pytest.importorskip("cupy")
-    from stark.engines.engine_cupy import EngineCupy
+    from stark.engines.engine import EngineCupy
 
     engine = EngineCupy(
         Frame(
@@ -256,13 +265,17 @@ def test_stark_engine_cupy_optional() -> None:
     assert len(engine.allocator.linear_combine) >= 2
     inner_product = engine.allocator.inner_product
     assert inner_product is not None
-    inner_product_value: Any = inner_product(delta, delta)
+    inner_product_pair = cast(
+        Callable[[EnginePairTranslation, EnginePairTranslation], object],
+        inner_product,
+    )
+    inner_product_value: Any = inner_product_pair(delta, delta)
     assert float(inner_product_value.get()) == pytest.approx(3000.0)
 
 
 def test_stark_engine_jax_optional() -> None:
     jnp = pytest.importorskip("jax.numpy")
-    from stark.engines.engine_jax import EngineJax
+    from stark.engines.engine import EngineJax
 
     engine = EngineJax(
         Frame(
@@ -294,4 +307,8 @@ def test_stark_engine_jax_optional() -> None:
     assert len(engine.allocator.linear_combine) >= 2
     inner_product = engine.allocator.inner_product
     assert inner_product is not None
-    assert inner_product(delta, delta) == pytest.approx(3000.0)
+    inner_product_pair = cast(
+        Callable[[EnginePairTranslation, EnginePairTranslation], object],
+        inner_product,
+    )
+    assert inner_product_pair(delta, delta) == pytest.approx(3000.0)

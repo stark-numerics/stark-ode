@@ -7,7 +7,7 @@ from stark.core.contracts import IntervalLike
 from stark.engines.accelerators import AcceleratorNone
 from stark.methods.resolvents import ResolventPicard
 from stark.methods.schemes.imex.fixed.euler import SchemeIMEXEuler
-from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
+from stark.methods.schemes.linear_fixed_generation.linear_fixed import SchemeLinearFixedLike
 from tests.support import (
     DummyScalarAllocator,
     DummyScalarState,
@@ -48,7 +48,7 @@ def make_constant_scheme(
     explicit_value: float = 1.0,
     implicit_value: float = 2.0,
     *,
-    linear_fixed: SchemeLinearFixed[DummyScalarState, DummyScalarTranslation] | None = None,
+    linear_fixed: SchemeLinearFixedLike[DummyScalarState, DummyScalarTranslation] | None = None,
 ) -> SchemeIMEXEuler:
     allocator = DummyScalarAllocator()
     dynamics = Dynamics.split(

@@ -8,7 +8,7 @@ from math import sqrt
 from numbers import Number
 from typing import ClassVar, cast
 
-from stark.core.contracts.norm import NormLike
+from stark.core.contracts.problem.norm import NormLike
 
 ScalarValue = float | complex
 

@@ -1,22 +1,23 @@
 from __future__ import annotations
 
-from collections.abc import Callable, MutableSequence, Sequence
+from collections.abc import Callable, MutableSequence
 from dataclasses import dataclass, field
 from typing import Generic, Protocol, TypeAlias, cast
 
-from stark.core.contracts.block import BlockLike, BlockOperatorDiagonalLike
-from stark.core.contracts.translation import TranslationType
-from stark.core.contracts.translation_basis import TranslationBasisLike
+from stark.core.block.basis import BlockBasis
+from stark.core.contracts.methods.block import BlockLike, BlockOperatorDiagonalLike, BlockOperatorLike
+from stark.core.contracts.problem.translation import TranslationType
+from stark.core.contracts.engines.translation_basis import TranslationBasisLike
 
 
-OperatorDenseMatrix: TypeAlias = MutableSequence[float]
+DenseOperatorMatrix: TypeAlias = MutableSequence[float]
 """Flat row-major dense matrix storage."""
 
 
-OperatorDenseFill = Callable[
+TranslationOperatorDenseFill = Callable[
     [
         TranslationBasisLike[TranslationType],
-        OperatorDenseMatrix,
+        DenseOperatorMatrix,
         int,
         int,
         int,
@@ -25,12 +26,12 @@ OperatorDenseFill = Callable[
 ]
 
 
-class OperatorDenseEntryMaterialize(Protocol[TranslationType]):
+class TranslationOperatorDenseEntryMaterializeLike(Protocol[TranslationType]):
     """Prepared dense materializer for one translation-level operator."""
 
     def refresh(
         self,
-        matrix: OperatorDenseMatrix,
+        matrix: DenseOperatorMatrix,
         *,
         row_offset: int,
         column_offset: int,
@@ -42,15 +43,15 @@ class OperatorDenseEntryMaterialize(Protocol[TranslationType]):
 
 
 @dataclass(slots=True)
-class OperatorDenseEntryMaterializeDirect(Generic[TranslationType]):
+class TranslationOperatorDenseEntryMaterializeDirect(Generic[TranslationType]):
     """Use an operator-provided dense-fill capability."""
 
-    dense_fill: OperatorDenseFill[TranslationType]
+    dense_fill: TranslationOperatorDenseFill[TranslationType]
     basis: TranslationBasisLike[TranslationType]
 
     def refresh(
         self,
-        matrix: OperatorDenseMatrix,
+        matrix: DenseOperatorMatrix,
         *,
         row_offset: int,
         column_offset: int,
@@ -63,7 +64,7 @@ class OperatorDenseEntryMaterializeDirect(Generic[TranslationType]):
 
 
 @dataclass(slots=True)
-class OperatorDenseEntryMaterializeProbe(Generic[TranslationType]):
+class TranslationOperatorDenseEntryMaterializeProbe(Generic[TranslationType]):
     """Materialize an operator by applying it to basis vectors."""
 
     operator: object
@@ -71,7 +72,7 @@ class OperatorDenseEntryMaterializeProbe(Generic[TranslationType]):
 
     def refresh(
         self,
-        matrix: OperatorDenseMatrix,
+        matrix: DenseOperatorMatrix,
         *,
         row_offset: int,
         column_offset: int,
@@ -98,19 +99,19 @@ def dense_entry_materializer(
     operator: object,
     basis: TranslationBasisLike[TranslationType],
     dense_fill: object | None = None,
-) -> OperatorDenseEntryMaterialize[TranslationType]:
+) -> TranslationOperatorDenseEntryMaterializeLike[TranslationType]:
     if dense_fill is None:
         dense_fill = getattr(operator, "dense_fill", None)
     if callable(dense_fill):
-        return OperatorDenseEntryMaterializeDirect(
-            cast(OperatorDenseFill[TranslationType], dense_fill),
+        return TranslationOperatorDenseEntryMaterializeDirect(
+            cast(TranslationOperatorDenseFill[TranslationType], dense_fill),
             basis,
         )
-    return OperatorDenseEntryMaterializeProbe(operator, basis)
+    return TranslationOperatorDenseEntryMaterializeProbe(operator, basis)
 
 
 @dataclass(slots=True)
-class OperatorMaterialize(Generic[TranslationType]):
+class TranslationOperatorMaterialize(Generic[TranslationType]):
     """
     Dense materialisation of a translation operator in a translation basis.
 
@@ -129,8 +130,8 @@ class OperatorMaterialize(Generic[TranslationType]):
     basis: TranslationBasisLike[TranslationType]
     source: TranslationType
     image: TranslationType
-    matrix: OperatorDenseMatrix | None = None
-    entry_materializer: OperatorDenseEntryMaterialize[TranslationType] = field(init=False)
+    matrix: DenseOperatorMatrix | None = None
+    entry_materializer: TranslationOperatorDenseEntryMaterializeLike[TranslationType] = field(init=False)
     refresh_initial: bool = True
 
     def __post_init__(self) -> None:
@@ -151,14 +152,14 @@ class OperatorMaterialize(Generic[TranslationType]):
         dimension = self.basis.dimension
         return [0.0 for _ in range(dimension * dimension)]
 
-    def _ensure_matrix(self) -> OperatorDenseMatrix:
+    def _ensure_matrix(self) -> DenseOperatorMatrix:
         matrix = self.matrix
         if matrix is None:
             matrix = self._allocate_matrix()
             self.matrix = matrix
         return matrix
 
-    def refresh(self) -> OperatorDenseMatrix:
+    def refresh(self) -> DenseOperatorMatrix:
         """Rebuild and return the dense row-major matrix for the current operator."""
 
         matrix = self._ensure_matrix()
@@ -183,42 +184,39 @@ class OperatorMaterialize(Generic[TranslationType]):
 
 
 @dataclass(slots=True)
-class BlockOperatorDiagonalMaterialize(Generic[TranslationType]):
+class BlockOperatorMaterialize(Generic[TranslationType]):
     """
-    Fast dense materialisation of an inspectable diagonal block operator.
+    Dense materialisation of a block operator in a block basis.
 
-    A diagonal block operator acts entrywise,
+    The materialiser works in the product-space basis owned by ``BlockBasis``.
+    Inspectable diagonal block operators use the block-diagonal fast path
 
         target[i] <- operator[i](source[i])
 
-    so its dense matrix is block diagonal. This materialiser builds each entry
-    matrix with the corresponding translation basis and places it on the dense
-    block diagonal. Matrix storage is flat row-major to support accelerator
+    by materialising each entry operator into the corresponding translation
+    basis. General block operators fall back to probing the full block basis
+    column by column. Matrix storage is flat row-major to support accelerator
     backends that do not handle nested Python lists efficiently.
     """
 
-    operator: BlockOperatorDiagonalLike[TranslationType]
-    bases: TranslationBasisLike[TranslationType] | Sequence[TranslationBasisLike[TranslationType]]
+    operator: BlockOperatorLike[TranslationType]
+    basis: BlockBasis[TranslationType]
     source: BlockLike[TranslationType]
     image: BlockLike[TranslationType]
-    matrix: OperatorDenseMatrix | None = None
-    offsets: list[int] = field(init=False)
+    matrix: DenseOperatorMatrix | None = None
     dimension: int = field(init=False)
-    entry_materializers: list[OperatorDenseEntryMaterialize[TranslationType] | None] = field(init=False)
+    entry_materializers: list[TranslationOperatorDenseEntryMaterializeLike[TranslationType] | None] = field(init=False)
     entry_operators: list[object | None] = field(init=False)
     entry_dense_fills: list[object | None] = field(init=False)
     refresh_initial: bool = True
 
     def __post_init__(self) -> None:
-        bases = self._normalize_bases(self.bases)
-        self.bases = bases
-        self.offsets = self._build_offsets(bases)
-        self.dimension = self.offsets[-1]
+        self.dimension = self.basis.dimension
         if self.matrix is None and self.refresh_initial:
             self.matrix = self._allocate_matrix()
-        self.entry_materializers = [None for _ in bases]
-        self.entry_operators = [None for _ in bases]
-        self.entry_dense_fills = [None for _ in bases]
+        self.entry_materializers = [None for _basis in self.basis.bases]
+        self.entry_operators = [None for _basis in self.basis.bases]
+        self.entry_dense_fills = [None for _basis in self.basis.bases]
         if self.refresh_initial:
             self.refresh()
 
@@ -226,40 +224,10 @@ class BlockOperatorDiagonalMaterialize(Generic[TranslationType]):
     def shape(self) -> tuple[int, int]:
         return (self.dimension, self.dimension)
 
-    def _normalize_bases(
-        self,
-        bases: TranslationBasisLike[TranslationType] | Sequence[TranslationBasisLike[TranslationType]],
-    ) -> list[TranslationBasisLike[TranslationType]]:
-        block_size = len(self.source)
-        if len(self.image) != block_size:
-            raise ValueError("Source and image blocks must have the same size.")
-        if len(self.operator) != block_size:
-            raise ValueError("Operator size must match the source block size.")
-
-        if isinstance(bases, Sequence):
-            normalized = list(bases)
-        else:
-            normalized = [bases for _ in range(block_size)]
-
-        if len(normalized) != block_size:
-            raise ValueError("Basis count must match the source block size.")
-
-        return normalized
-
-    @staticmethod
-    def _build_offsets(bases: Sequence[TranslationBasisLike[TranslationType]]) -> list[int]:
-        offsets = [0]
-        for basis in bases:
-            offsets.append(offsets[-1] + basis.dimension)
-        return offsets
-
     def _allocate_matrix(self) -> list[float]:
         return [0.0 for _ in range(self.dimension * self.dimension)]
 
-    def _prepared_bases(self) -> list[TranslationBasisLike[TranslationType]]:
-        return cast(list[TranslationBasisLike[TranslationType]], self.bases)
-
-    def _ensure_matrix(self) -> OperatorDenseMatrix:
+    def _ensure_matrix(self) -> DenseOperatorMatrix:
         matrix = self.matrix
         if matrix is None:
             matrix = self._allocate_matrix()
@@ -269,9 +237,9 @@ class BlockOperatorDiagonalMaterialize(Generic[TranslationType]):
     def prepare_entries(self) -> None:
         """Prepare entry materializers for the currently configured operator."""
 
-        bases = self._prepared_bases()
-        for block_index, basis in enumerate(bases):
-            entry_operator = self.operator[block_index]
+        diagonal_operator = self._require_diagonal_operator(self.operator)
+        for block_index, basis in enumerate(self.basis.bases):
+            entry_operator = diagonal_operator[block_index]
             entry_dense_fill = getattr(entry_operator, "dense_fill", None)
             self.entry_materializers[block_index] = dense_entry_materializer(
                 entry_operator,
@@ -281,46 +249,74 @@ class BlockOperatorDiagonalMaterialize(Generic[TranslationType]):
             self.entry_operators[block_index] = entry_operator
             self.entry_dense_fills[block_index] = entry_dense_fill
 
-    def refresh(self, operator: BlockOperatorDiagonalLike[TranslationType] | None = None) -> OperatorDenseMatrix:
+    def refresh(self, operator: BlockOperatorLike[TranslationType] | None = None) -> DenseOperatorMatrix:
         """
-        Rebuild and return the dense row-major block-diagonal matrix.
+        Rebuild and return the dense row-major block matrix.
 
-        This entry point keeps shape checks for external callers. Prepared hot
-        paths should call ``refresh_prepared`` once construction has proved the
-        operator and matrix shape.
+        Inspectable diagonal operators use the compact block-diagonal
+        materialisation path. General operators are probed in the full block
+        basis.
         """
 
         matrix = self._ensure_matrix()
         if operator is not None:
             self.operator = operator
-            if len(self.operator) != len(self.source):
-                raise ValueError("Operator size must match the source block size.")
 
         if len(matrix) != self.dimension * self.dimension:
             matrix = self._allocate_matrix()
             self.matrix = matrix
 
-        self._require_configured_entries()
-        return self._refresh_current_prepared()
+        diagonal_operator = self._diagonal_operator(self.operator)
+        if diagonal_operator is None:
+            return self._refresh_probe_current()
 
-    def _require_configured_entries(self) -> None:
+        self._require_configured_entries(diagonal_operator)
+        return self._refresh_diagonal_current_prepared(diagonal_operator)
+
+    def _diagonal_operator(
+        self,
+        operator: BlockOperatorLike[TranslationType],
+    ) -> BlockOperatorDiagonalLike[TranslationType] | None:
+        try:
+            len(operator)  # type: ignore[arg-type]
+        except TypeError:
+            return None
+
+        return cast(BlockOperatorDiagonalLike[TranslationType], operator)
+
+    def _require_diagonal_operator(
+        self,
+        operator: BlockOperatorLike[TranslationType],
+    ) -> BlockOperatorDiagonalLike[TranslationType]:
+        diagonal_operator = self._diagonal_operator(operator)
+        if diagonal_operator is None:
+            raise TypeError("Prepared block materialisation requires an inspectable diagonal block operator.")
+        return diagonal_operator
+
+    def _require_configured_entries(self, operator: BlockOperatorDiagonalLike[TranslationType]) -> None:
         """Reject incomplete block operators on the public materialisation path."""
 
-        bases = self._prepared_bases()
-        for block_index in range(len(bases)):
-            if self.operator[block_index] is None:
+        if len(operator) != len(self.source):
+            raise ValueError("Block operator size must match the source block size.")
+        if len(self.image) != len(self.source):
+            raise ValueError("Source and image blocks must have the same size.")
+        if len(self.basis.bases) != len(self.source):
+            raise ValueError("Block basis size must match the source block size.")
+
+        for block_index in range(len(self.basis.bases)):
+            if operator[block_index] is None:
                 raise RuntimeError(f"Block operator diagonal entry {block_index} is not configured.")
 
     def refresh_block_prepared(
         self,
         block_index: int,
         operator: BlockOperatorDiagonalLike[TranslationType],
-        matrix: OperatorDenseMatrix,
-    ) -> OperatorDenseMatrix:
+        matrix: DenseOperatorMatrix,
+    ) -> DenseOperatorMatrix:
         """Rebuild one prepared diagonal block into a compact row-major matrix."""
 
         self.operator = operator
-        basis = self._prepared_bases()[block_index]
+        basis = self.basis.bases[block_index]
         dimension = basis.dimension
 
         for index in range(len(matrix)):
@@ -355,35 +351,37 @@ class BlockOperatorDiagonalMaterialize(Generic[TranslationType]):
         self.image[block_index] = image_item
         return matrix
 
-    def refresh_one_block_prepared(self, operator: BlockOperatorDiagonalLike[TranslationType]) -> OperatorDenseMatrix:
+    def refresh_one_block_prepared(self, operator: BlockOperatorDiagonalLike[TranslationType]) -> DenseOperatorMatrix:
         """Rebuild a prepared one-block dense matrix without shape checks."""
 
         matrix = self.matrix
         if matrix is None:
-            basis = self._prepared_bases()[0]
+            basis = self.basis.bases[0]
             dimension = basis.dimension
             matrix = [0.0 for _ in range(dimension * dimension)]
             self.matrix = matrix
         return self.refresh_block_prepared(0, operator, matrix)
 
-    def refresh_prepared(self, operator: BlockOperatorDiagonalLike[TranslationType]) -> OperatorDenseMatrix:
+    def refresh_prepared(self, operator: BlockOperatorDiagonalLike[TranslationType]) -> DenseOperatorMatrix:
         """Rebuild a previously checked dense block-diagonal matrix for ``operator``."""
 
         self.operator = operator
-        return self._refresh_current_prepared()
+        return self._refresh_diagonal_current_prepared(operator)
 
-    def _refresh_current_prepared(self) -> OperatorDenseMatrix:
+    def _refresh_diagonal_current_prepared(
+        self,
+        operator: BlockOperatorDiagonalLike[TranslationType],
+    ) -> DenseOperatorMatrix:
         """Rebuild the current dense block-diagonal matrix without validation."""
 
-        matrix = cast(OperatorDenseMatrix, self.matrix)
+        matrix = cast(DenseOperatorMatrix, self.matrix)
 
         for index in range(len(matrix)):
             matrix[index] = 0.0
 
         dimension = self.dimension
-        bases = self._prepared_bases()
-        for block_index, basis in enumerate(bases):
-            entry_operator = self.operator[block_index]
+        for block_index, basis in enumerate(self.basis.bases):
+            entry_operator = operator[block_index]
 
             entry_materializer = self.entry_materializers[block_index]
             entry_dense_fill = getattr(entry_operator, "dense_fill", None)
@@ -401,7 +399,7 @@ class BlockOperatorDiagonalMaterialize(Generic[TranslationType]):
                 self.entry_operators[block_index] = entry_operator
                 self.entry_dense_fills[block_index] = entry_dense_fill
 
-            offset = self.offsets[block_index]
+            offset = self.basis.offsets[block_index]
             source_item, image_item = entry_materializer.refresh(
                 matrix,
                 row_offset=offset,
@@ -415,14 +413,33 @@ class BlockOperatorDiagonalMaterialize(Generic[TranslationType]):
 
         return matrix
 
+    def _refresh_probe_current(self) -> DenseOperatorMatrix:
+        """Rebuild the current dense matrix by probing the full block basis."""
+
+        matrix = self._ensure_matrix()
+        dimension = self.dimension
+        for index in range(len(matrix)):
+            matrix[index] = 0.0
+
+        for column in range(dimension):
+            self.source = self.basis.vector(column, self.source)
+            result = self.operator(self.source, self.image)
+            if result is not None:
+                self.image = result
+
+            for row in range(dimension):
+                matrix[row * dimension + column] = self.basis.coordinate(row, self.image)
+
+        return matrix
+
 
 __all__ = [
-    "BlockOperatorDiagonalMaterialize",
-    "OperatorDenseMatrix",
-    "OperatorDenseEntryMaterialize",
-    "OperatorDenseEntryMaterializeDirect",
-    "OperatorDenseEntryMaterializeProbe",
-    "OperatorDenseFill",
-    "OperatorMaterialize",
+    "BlockOperatorMaterialize",
+    "DenseOperatorMatrix",
+    "TranslationOperatorDenseEntryMaterializeLike",
+    "TranslationOperatorDenseEntryMaterializeDirect",
+    "TranslationOperatorDenseEntryMaterializeProbe",
+    "TranslationOperatorDenseFill",
+    "TranslationOperatorMaterialize",
     "dense_entry_materializer",
 ]

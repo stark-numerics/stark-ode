@@ -19,8 +19,8 @@ from stark.methods.resolvents.display.decorators import with_resolvent_display
 from stark.methods.resolvents.requests.resolvent import ResolventRequest
 from stark.methods.resolvents.equations.implicit import ResolventImplicitEquation
 from stark.methods.resolvents.secant._least_squares import BlockInnerProduct, block_inner_product
-from stark.methods.resolvents.specialization.linear_fixed import ResolventLinearFixed
-from stark.methods.resolvents.specialization.stencil import ResolventStencilBlock
+from stark.methods.resolvents.linear_fixed_generation.linear_fixed import ResolventLinearFixed
+from stark.methods.resolvents.linear_fixed_generation.stencil import ResolventStencilBlock
 from stark.methods.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 

@@ -11,7 +11,7 @@ from stark.methods.schemes.method.descriptor import SchemeDescriptor
 from stark.methods.schemes.display.decorators import with_scheme_display
 from stark.methods.schemes.display.display import display_implicit_resolvent_problem
 from stark.methods.schemes.implicit.runtime import SchemeRuntimeImplicit
-from stark.methods.schemes.specialization.linear_fixed import SchemeLinearFixed
+from stark.methods.schemes.linear_fixed_generation.linear_fixed import SchemeLinearFixedLike
 from stark.methods.schemes.request import SchemeResolventRequestCoupled
 from stark.methods.schemes.method.tableau import Tableau
 
@@ -110,7 +110,7 @@ class SchemeRadauIIA5:
         resolvent: Resolvent,
         *,
         configuration: SchemeConfiguration | None = None,
-        linear_fixed: SchemeLinearFixed | None = None,
+        linear_fixed: SchemeLinearFixedLike | None = None,
         monitor: SchemeMonitor | None = None,
     ) -> None:
         self.monitor = monitor
@@ -135,7 +135,7 @@ class SchemeRadauIIA5:
     def __call__(self, interval: IntervalLike, state: State) -> float:
         return self.redirect_call(interval, state)
 
-    def prepare_specialized_kernels(self, linear_fixed: SchemeLinearFixed) -> None:
+    def prepare_specialized_kernels(self, linear_fixed: SchemeLinearFixedLike) -> None:
         """Accept linear_fixed hooks for constructor consistency."""
 
         del linear_fixed

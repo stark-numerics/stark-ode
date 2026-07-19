@@ -36,8 +36,14 @@ class GeneratorPolicy:
     accelerator compiles it. Engines own the concrete accelerator, carriers,
     allocator, and frame; this policy only records the choices that code
     generators need in order to emit compatible kernels.
+
+    `active` is an opt-in flag for automatic use by higher-level construction
+    paths. A generator may still be called directly when inactive, but systems
+    should only hand it to schemes, resolvents, inverters, or downstream
+    assemblers when the engine marks the policy active.
     """
 
+    active: bool = False
     mutation: GeneratorMutationStyle = "in_place"
     traversal: GeneratorTraversalStyle = "looped"
     expression: GeneratorExpressionStyle = "python"
@@ -45,6 +51,10 @@ class GeneratorPolicy:
 
 class GeneratorPolicyLike(Protocol):
     """Source-shape decisions understood by Generator operation families."""
+
+    @property
+    def active(self) -> bool:
+        ...
 
     @property
     def mutation(self) -> GeneratorMutationStyle:

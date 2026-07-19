@@ -26,8 +26,8 @@ from stark.methods.resolvents.display.decorators import with_resolvent_display
 from stark.methods.resolvents.requests.inverter import ResolventInverterRequest
 from stark.methods.resolvents.requests.resolvent import ResolventRequestCoupled
 from stark.methods.resolvents.equations.implicit import ResolventImplicitEquationCoupled
-from stark.methods.resolvents.specialization.linear_fixed import ResolventLinearFixed
-from stark.methods.resolvents.specialization.stencil import ResolventStencilBlock
+from stark.methods.resolvents.linear_fixed_generation.linear_fixed import ResolventLinearFixed
+from stark.methods.resolvents.linear_fixed_generation.stencil import ResolventStencilBlock
 from stark.methods.resolvents.method.safety import ResolventSafety, ResolventSafetyDefault
 
 
