@@ -39,7 +39,7 @@ jobs:
           import numpy as np
 
           from stark import Frame, Interval, Method, System
-          from stark.engines import EngineNumpy
+          from stark.engines import AcceleratorNone, EngineNumpy
           from stark.methods import SchemeCashKarp
 
           def dynamics(t, state, out):
@@ -54,7 +54,10 @@ jobs:
               initial={"y": np.array([2.0])},
               interval=Interval(present=0.0, step=0.1, stop=0.2),
               method=Method(SchemeCashKarp),
-              engine=EngineNumpy,
+              engine=lambda frame: EngineNumpy(
+                  frame,
+                  accelerator=AcceleratorNone(),
+              ),
           )
           result = ivp.final_result()
           assert result.interval.present == 0.2
